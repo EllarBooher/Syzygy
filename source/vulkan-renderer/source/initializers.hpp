@@ -38,4 +38,16 @@ namespace vkinit {
         VkImage image,
         VkImageAspectFlags aspectFlags
     );
+
+    VkRenderingAttachmentInfo renderingAttachmentInfo(
+        VkImageView view,
+        VkClearValue clearValue,
+        bool useClearValue,
+        VkImageLayout layout
+    );
+
+    VkRenderingInfo renderingInfo(
+        VkExtent2D extent,
+        std::vector<VkRenderingAttachmentInfo> const& colorAttachment
+    );
 }

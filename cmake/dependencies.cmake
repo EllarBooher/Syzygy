@@ -78,11 +78,3 @@ FetchContent_Declare(
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
 )
-
-FetchContent_Declare(
-	Vulkan-Headers
-	GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-	GIT_TAG v1.3.281
-	GIT_SHALLOW ON
-	GIT_PROGRESS ON
-)

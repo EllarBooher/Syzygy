@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine_types.h"
+#include "descriptors.hpp"
 
 struct GLFWwindow;
 
@@ -44,6 +45,7 @@ private:
 
     void draw();
     void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
+    void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
 
     void cleanup();
 
@@ -67,6 +69,10 @@ private:
 
     void initCommands();
     void initSyncStructures();
+    void initDescriptors();
+    void initPipelines();
+    void initBackgroundPipelines();
+    void initImgui();
 
     VkInstance m_instance{ VK_NULL_HANDLE };
     VkDebugUtilsMessengerEXT m_debugMessenger{ VK_NULL_HANDLE };
@@ -96,6 +102,27 @@ private:
 
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
+
+    // Immediate submit structures
+
+    VkFence m_immFence{ VK_NULL_HANDLE };
+    VkCommandBuffer m_immCommandBuffer{ VK_NULL_HANDLE };
+    VkCommandPool m_immCommandPool{ VK_NULL_HANDLE };
+
+    /** Immediately opens and submits a command buffer. Use for one-off things outside the render loop or when hangs are okay. */
+    void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+    // Descriptor
+
+    DescriptorAllocator m_globalDescriptorAllocator{};
+
+    VkDescriptorSetLayout m_drawImageDescriptorLayout{ VK_NULL_HANDLE };
+    VkDescriptorSet m_drawImageDescriptors{ VK_NULL_HANDLE };
+
+    // Pipelines
+
+    VkPipeline m_gradientPipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_gradientPipelineLayout{ VK_NULL_HANDLE };
 
     // End Vulkan
 };

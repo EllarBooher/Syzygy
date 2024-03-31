@@ -139,3 +139,42 @@ VkImageViewCreateInfo vkinit::imageViewCreateInfo(VkFormat format, VkImage image
     };
 }
 
+VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
+    VkImageView view, 
+    VkClearValue clearValue, 
+    bool useClearValue,
+    VkImageLayout layout)
+{
+    return {
+        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+        .pNext{ nullptr },
+
+        .imageView{ view },
+        .imageLayout{ layout },
+        .loadOp{ useClearValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD },
+        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+        .clearValue{ clearValue },
+    };
+}
+
+VkRenderingInfo vkinit::renderingInfo(VkExtent2D extent, std::vector<VkRenderingAttachmentInfo> const& colorAttachment)
+{
+    return {
+        .sType{ VK_STRUCTURE_TYPE_RENDERING_INFO },
+        .pNext{ nullptr },
+
+        .flags{ 0 },
+        .renderArea{
+            .offset{ 0, 0 },
+            .extent{ extent }
+            },
+        .layerCount{ 1 },
+        .viewMask{ 0 },
+
+        .colorAttachmentCount{ static_cast<uint32_t>(colorAttachment.size()) },
+        .pColorAttachments{ colorAttachment.data() },
+        .pDepthAttachment{ nullptr },
+        .pStencilAttachment{ nullptr }
+    };
+}
+
