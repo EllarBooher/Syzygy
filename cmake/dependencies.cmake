@@ -78,3 +78,11 @@ FetchContent_Declare(
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
 )
+
+FetchContent_Declare(
+	spirv-reflect
+	GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
+	GIT_TAG vulkan-sdk-1.3.280.0
+	GIT_SHALLOW ON
+	GIT_PROGRESS ON
+)

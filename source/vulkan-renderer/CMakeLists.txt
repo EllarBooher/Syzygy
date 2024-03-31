@@ -69,6 +69,10 @@ FetchContent_MakeAvailable(fastgltf)
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(volk)
 
+set(SPIRV_REFLECT_EXECUTABLE OFF)
+set(SPIRV_REFLECT_STATIC_LIB ON)
+FetchContent_MakeAvailable(spirv-reflect)
+
 target_link_libraries(
 	vulkan-renderer 
 	PUBLIC
@@ -81,4 +85,5 @@ target_link_libraries(
 	fastgltf
 	fmt::fmt
 	volk
+	spirv-reflect-static
 )

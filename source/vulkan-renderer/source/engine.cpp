@@ -92,6 +92,8 @@ void Engine::initVulkan()
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
     Log("Vulkan Initialized.");
+
+    testShaderReflection();
 }
 
 void Engine::initInstanceSurfaceDevices()
@@ -502,6 +504,14 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     // 100 second timeout
     uint64_t const immediateSubmitTimeout{ 100'000'000'000 };
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
+}
+
+
+void Engine::testShaderReflection()
+{
+    VkShaderModule testShader{ VK_NULL_HANDLE };
+    vkutil::loadShaderModule("shaders/gradient_color.comp.spv", m_device, &testShader);
+    vkDestroyShaderModule(m_device, testShader, nullptr);
 }
 
 void Engine::mainLoop()

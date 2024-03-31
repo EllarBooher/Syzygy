@@ -74,6 +74,8 @@ private:
     void initBackgroundPipelines();
     void initImgui();
 
+    void testShaderReflection();
+
     VkInstance m_instance{ VK_NULL_HANDLE };
     VkDebugUtilsMessengerEXT m_debugMessenger{ VK_NULL_HANDLE };
     VkPhysicalDevice m_physicalDevice{ VK_NULL_HANDLE };
