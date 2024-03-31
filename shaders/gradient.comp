@@ -1,3 +1,5 @@
+// Copied with modifications from https://github.com/vblanco20-1/vulkan-guide
+
 //GLSL version to use
 #version 460
 
