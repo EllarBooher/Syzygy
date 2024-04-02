@@ -3,6 +3,7 @@
 #include "engine_types.h"
 #include <variant>
 #include <vector>
+#include <map>
 
 /**
 	Contains reflected data from a ShaderModule, to aid with UI and proper piping of data.
@@ -76,11 +77,16 @@ struct ShaderReflectionData
 
 	/**
 		As per the Vulkan specification, Push constants must be structs.
+		There can also only be one per entry point.
 		https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces-resources-pushconst
 	*/
 	using PushConstant = Structure;
+	std::map<std::string, PushConstant> pushConstantsByEntryPoint{};
 
-	std::vector<Structure> pushConstants{};
+	std::string defaultEntryPoint{};
+
+	bool defaultEntryPointHasPushConstant() const { return pushConstantsByEntryPoint.contains(defaultEntryPoint); }
+	PushConstant const& defaultPushConstant() const { return pushConstantsByEntryPoint.at(defaultEntryPoint); }
 };
 
 struct ShaderWrapper
@@ -93,18 +99,19 @@ struct ShaderWrapper
 	std::string name() const { return m_name; }
 	VkPushConstantRange pushConstantRange() const;
 
+	std::span<uint8_t> mapRuntimePushConstant(std::string entryPoint);
+	std::span<uint8_t const> readRuntimePushConstant(std::string entryPoint) const;
+
 	template<typename T, int N>
-	inline bool validatePushConstant(std::array<T, N> pushConstantData)
+	inline bool validatePushConstant(std::array<T, N> pushConstantData, std::string entryPoint) const
 	{
 		std::span<uint8_t const> byteSpan{ reinterpret_cast<uint8_t const*>(pushConstantData.data()), sizeof(T) * N };
-		return validatePushConstant(byteSpan);
+		return validatePushConstant(byteSpan, entryPoint);
 	}
 
-	inline bool validatePushConstant(std::span<uint8_t const> pushConstantData)
+	inline bool validatePushConstant(std::span<uint8_t const> pushConstantData, std::string entryPoint) const
 	{
-		assert(m_reflectionData.pushConstants.size() == 1);
-
-		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstants[0] };
+		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstantsByEntryPoint.at(entryPoint) };
 
 		if (pushConstant.sizeBytes != pushConstantData.size())
 		{
@@ -119,8 +126,10 @@ struct ShaderWrapper
 
 	bool isValid() const { return m_shaderModule != VK_NULL_HANDLE; }
 
+	void resetRuntimeData();
+
+	ShaderWrapper() {};
 private:
-	ShaderWrapper() = delete;
 	ShaderWrapper(std::string name, ShaderReflectionData reflectionData, VkShaderModule shaderModule)
 		: m_name(name)
 		, m_reflectionData(reflectionData)
@@ -130,6 +139,21 @@ private:
 	std::string m_name{};
 	ShaderReflectionData m_reflectionData{};
 	VkShaderModule m_shaderModule{ VK_NULL_HANDLE };
+
+	std::map<std::string, std::vector<uint8_t>> m_runtimePushConstantsByEntryPoint{};
+};
+
+struct ComputeShaderWrapper
+{
+	ShaderWrapper computeShader{};
+	VkPipeline pipeline{ VK_NULL_HANDLE };
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+
+	void cleanup(VkDevice device) {
+		computeShader.cleanup(device);
+		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+		vkDestroyPipeline(device, pipeline, nullptr);
+	}
 };
 
 namespace vkutil

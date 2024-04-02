@@ -72,7 +72,7 @@ private:
     void initSyncStructures();
     void initDescriptors();
     void initPipelines();
-    void initBackgroundPipelines();
+    void initBackgroundPipelines(std::span<std::string const> shaders);
     void initImgui();
 
     VkInstance m_instance{ VK_NULL_HANDLE };
@@ -106,9 +106,6 @@ private:
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
-    ShaderWrapper m_computeDrawShader{ ShaderWrapper::Invalid() };
-    std::vector<uint8_t> m_computeDrawPushConstantBytes{};
-
     // Immediate submit structures
 
     VkFence m_immFence{ VK_NULL_HANDLE };
@@ -127,8 +124,8 @@ private:
 
     // Pipelines
 
-    VkPipeline m_gradientPipeline{ VK_NULL_HANDLE };
-    VkPipelineLayout m_gradientPipelineLayout{ VK_NULL_HANDLE };
+    std::vector<ComputeShaderWrapper> m_computeShaders{};
+    uint32_t m_computeShaderIndex{ 0 };
 
     // End Vulkan
 };

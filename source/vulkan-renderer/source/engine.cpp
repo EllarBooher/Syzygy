@@ -334,57 +334,74 @@ void Engine::initDescriptors()
 
 void Engine::initPipelines()
 {
-    initBackgroundPipelines();
+    std::vector<std::string> computeShaders{
+        "shaders/gradient.comp.spv",
+        "shaders/gradient_color.comp.spv",
+    };
+    initBackgroundPipelines(computeShaders);
 }
 
-void Engine::initBackgroundPipelines()
+void Engine::initBackgroundPipelines(std::span<std::string const> shaders)
 {
-    m_computeDrawShader = vkutil::loadShaderModule("shaders/gradient_color.comp.spv", m_device);
-    if (!m_computeDrawShader.isValid())
+    for (auto& oldShader : m_computeShaders)
     {
-        m_computeDrawShader = ShaderWrapper::Invalid();
-        Error("Error when building compute shader.");
+        oldShader.cleanup(m_device);
     }
+    m_computeShaders.clear();
+    for (std::string const& shaderName : shaders)
+    {
+        ShaderWrapper shader = vkutil::loadShaderModule(shaderName, m_device);
+        if (!shader.isValid())
+        {
+            shader = ShaderWrapper::Invalid();
+            Error("Error when building compute shader.");
+        }
 
-    VkPushConstantRange const pushConstant{ m_computeDrawShader.pushConstantRange() };
-    VkPipelineLayoutCreateInfo const computeLayout{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-        .pNext{ nullptr },
+        std::vector<VkPushConstantRange> pushConstants{};
+        if (shader.reflectionData().defaultEntryPointHasPushConstant())
+        {
+            pushConstants.push_back(shader.pushConstantRange());
+        }
+        VkPipelineLayoutCreateInfo const computeLayout{
+            .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+            .pNext{ nullptr },
 
-        .setLayoutCount{ 1 },
-        .pSetLayouts{ &m_drawImageDescriptorLayout },
+            .setLayoutCount{ 1 },
+            .pSetLayouts{ &m_drawImageDescriptorLayout },
 
-        .pushConstantRangeCount{ 1 },
-        .pPushConstantRanges{ &pushConstant },
-    };
+            .pushConstantRangeCount{ static_cast<uint32_t>(pushConstants.size()) },
+            .pPushConstantRanges{ pushConstants.data()},
+        };
 
-    CheckVkResult(vkCreatePipelineLayout(m_device, &computeLayout, nullptr, &m_gradientPipelineLayout));
+        VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+        CheckVkResult(vkCreatePipelineLayout(m_device, &computeLayout, nullptr, &pipelineLayout));
 
+        VkPipelineShaderStageCreateInfo const stageInfo{
+            .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
+            .pNext{ nullptr },
 
-    VkPipelineShaderStageCreateInfo const stageInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
-        .pNext{ nullptr },
+            .stage{ VK_SHADER_STAGE_COMPUTE_BIT },
+            .module{ shader.shaderModule() },
+            .pName{ shader.reflectionData().defaultEntryPoint.c_str()},
+        };
 
-        .stage{ VK_SHADER_STAGE_COMPUTE_BIT },
-        .module{ m_computeDrawShader.shaderModule() },
-        .pName{ "main" },
-    };
+        VkComputePipelineCreateInfo const computePipelineCreateInfo{
+            .sType{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO },
+            .pNext{ nullptr },
 
-    VkComputePipelineCreateInfo const computePipelineCreateInfo{
-        .sType{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO },
-        .pNext{ nullptr },
+            .stage{ stageInfo },
+            .layout{ pipelineLayout },
+        };
 
-        .stage{ stageInfo },
-        .layout{ m_gradientPipelineLayout },
-    };
+        VkPipeline pipeline{ VK_NULL_HANDLE };
+        CheckVkResult(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline));
 
-    CheckVkResult(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_gradientPipeline));
-
-    m_engineDeletionQueue.pushFunction([&]() {
-        m_computeDrawShader.cleanup(m_device);
-        vkDestroyPipelineLayout(m_device, m_gradientPipelineLayout, nullptr);
-        vkDestroyPipeline(m_device, m_gradientPipeline, nullptr);
-    });
+        m_computeShaders.push_back(ComputeShaderWrapper{
+            .computeShader{ shader },
+            .pipeline{ pipeline },
+            .pipelineLayout{ pipelineLayout },
+        });
+    }
 }
 
 void Engine::initImgui()
@@ -543,44 +560,64 @@ void Engine::mainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        std::vector<ShaderReflectionData::PushConstant> const& pushConstants{ m_computeDrawShader.reflectionData().pushConstants };
-        if (ImGui::Begin("background"))
+        ShaderWrapper& currentComputeShader{ 
+            m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
+        };
+
+        if (ImGui::Begin("Background Shader"))
         {
-            ImGui::Text(fmt::format("Detected \"{}\" pushConstants.", pushConstants.size()).c_str());
-
-            for (ShaderReflectionData::PushConstant const& pushConstant : pushConstants)
+            ImGui::Text("Select shader to use:");
+            for (uint32_t index{ 0 }; index < m_computeShaders.size(); index++)
             {
-                ImGui::Text(fmt::format("Push Constant \"{}\"", pushConstant.name).c_str());
-
-                m_computeDrawPushConstantBytes.resize(pushConstant.sizeBytes);
-                uint8_t* const pPushConstantData{ m_computeDrawPushConstantBytes.data() };
-                
-                for (ShaderReflectionData::StructureMember const& pushConstantMember : pushConstant.members)
+                ComputeShaderWrapper const& shader{ m_computeShaders[index] };
+                if (ImGui::Button(shader.computeShader.name().c_str()))
                 {
-                    uint8_t* const pMemberPointer{ pPushConstantData + pushConstantMember.offsetBytes };
-                    std::visit(overloaded{
-                        [&](ShaderReflectionData::UnsupportedType const& unsupportedMember) {
-                            ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
-                        },
-                        [&](ShaderReflectionData::NumericType const& numericMember) {
-                            std::visit(overloaded{
-                                [&](ShaderReflectionData::Scalar const& scalar) {
-                                    
-                                },
-                                [&](ShaderReflectionData::Vector const& vector) {
-                                    ImGui::InputFloat4(pushConstantMember.name.c_str(), reinterpret_cast<float*>(pMemberPointer));
-                                },
-                                [&](ShaderReflectionData::Matrix const& matrix) {
-
-                                },
-                            }, numericMember.format);
-                        },
-                    }, pushConstantMember.typeData);
+                    m_computeShaderIndex = index;
                 }
             }
+            ImGui::Separator();
+            if (ImGui::CollapsingHeader("Push constant controls"))
+            {
+                ImGui::Indent(16.0f);
+                if (currentComputeShader.reflectionData().pushConstantsByEntryPoint.empty())
+                {
+                    ImGui::Text("No push constants.");
+                }
+                for (auto const& [entryPoint, pushConstant] : currentComputeShader.reflectionData().pushConstantsByEntryPoint)
+                {
+                    if (ImGui::CollapsingHeader(fmt::format("\"{}\", entry point \"{}\"", pushConstant.name, entryPoint).c_str()))
+                    {
+                        std::span<uint8_t> const pushConstantMappedData{ currentComputeShader.mapRuntimePushConstant(entryPoint) };
+                        uint8_t* const pPushConstantData{ pushConstantMappedData.data() };
 
-            ImGui::End();
+                        for (ShaderReflectionData::StructureMember const& pushConstantMember : pushConstant.members)
+                        {
+                            uint8_t* const pMemberPointer{ pPushConstantData + pushConstantMember.offsetBytes };
+                            std::visit(overloaded{
+                                [&](ShaderReflectionData::UnsupportedType const& unsupportedMember) {
+                                    ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
+                                },
+                                [&](ShaderReflectionData::NumericType const& numericMember) {
+                                    std::visit(overloaded{
+                                        [&](ShaderReflectionData::Scalar const& scalar) {
+
+                                        },
+                                        [&](ShaderReflectionData::Vector const& vector) {
+                                            ImGui::InputFloat4(pushConstantMember.name.c_str(), reinterpret_cast<float*>(pMemberPointer));
+                                        },
+                                        [&](ShaderReflectionData::Matrix const& matrix) {
+
+                                        },
+                                    }, numericMember.format);
+                                },
+                                }, pushConstantMember.typeData);
+                        }
+                    }
+                }
+
+            }
         }
+        ImGui::End();
 
         ImGui::Render();
         draw();
@@ -696,16 +733,26 @@ void Engine::draw()
 
 void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
 {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_gradientPipeline);
+    ComputeShaderWrapper const& currentComputShader{
+        m_computeShaders[m_computeShaderIndex % m_computeShaders.size()]
+    };
 
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_gradientPipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputShader.pipeline);
 
-    std::span<uint8_t const> pushConstant{ m_computeDrawPushConstantBytes };
-    if (!m_computeDrawShader.validatePushConstant(pushConstant))
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputShader.pipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
+
+    ShaderReflectionData const& reflectionData{ currentComputShader.computeShader.reflectionData() };
+    if (reflectionData.defaultEntryPointHasPushConstant())
     {
-        Error(fmt::format("Invalid push constant data detected by \"{}\"", m_computeDrawShader.name()));
+        std::string const entryPoint{ reflectionData.defaultEntryPoint };
+        std::span<uint8_t const> pushConstant{ currentComputShader.computeShader.readRuntimePushConstant(entryPoint) };
+        if (!currentComputShader.computeShader.validatePushConstant(pushConstant, entryPoint))
+        {
+            Error(fmt::format("Invalid push constant data detected by \"{}\"", currentComputShader.computeShader.name()));
+        }
+        vkCmdPushConstants(cmd, currentComputShader.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
     }
-    vkCmdPushConstants(cmd, m_gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
+
     vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
 }
 
@@ -736,6 +783,11 @@ void Engine::cleanup()
         CheckVkResult(vkDeviceWaitIdle(m_device));
 
         m_engineDeletionQueue.flush();
+
+        for (auto& shader : m_computeShaders)
+        {
+            shader.cleanup(m_device);
+        }
 
         m_globalDescriptorAllocator.destroyPool(m_device);
         vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);

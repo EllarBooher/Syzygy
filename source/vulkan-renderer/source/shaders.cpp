@@ -27,9 +27,24 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 		pushConstants.data()
 	);
 
-	std::vector<ShaderReflectionData::PushConstant> processedPushConstants{};
-	for (SpvReflectBlockVariable* const pPushConstant : pushConstants)
+	std::map<std::string, ShaderReflectionData::PushConstant> pushConstantsByEntryPoint{};
+	for (auto const pEntryPoint : std::span<SpvReflectEntryPoint* const>(&module.entry_points, module.entry_point_count))
 	{
+		SpvReflectEntryPoint const& entryPoint{ *pEntryPoint };
+		Log(fmt::format("Reflection: entry point name \"{}\"", entryPoint.name));
+
+		SpvReflectResult result;
+		SpvReflectBlockVariable const* pPushConstant{ spvReflectGetEntryPointPushConstantBlock(&module, entryPoint.name, &result) };
+
+		if (result == SPV_REFLECT_RESULT_ERROR_ELEMENT_NOT_FOUND)
+		{
+			// No push constant on the entry point
+			continue;
+		}
+
+		// The only way the result is not success is if 1) the module is null or 2) the entry point does not exist, which we both know to be false.
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
 		SpvReflectBlockVariable const& pushConstant{ *pPushConstant };
 
 		Log(fmt::format("Reflection: pushConstant name \"{}\" with \"{}\" elements, byte size \"{}\"",
@@ -142,21 +157,24 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 						.format{ format }
 					}
 				}
-			});
+				});
 		}
 
-		processedPushConstants.push_back(ShaderReflectionData::PushConstant{
+		pushConstantsByEntryPoint[std::string{ entryPoint.name }] = ShaderReflectionData::PushConstant{
 			.name{ pushConstant.name },
 			.sizeBytes{ pushConstant.size },
 			.paddedSizeBytes{ pushConstant.padded_size },
 			.members{ processedMembers },
-			});
+		};
 	}
+
+	std::string defaultEntryPoint{ module.entry_point_name };
 
 	spvReflectDestroyShaderModule(&module);
 
 	return ShaderReflectionData{
-		.pushConstants{ processedPushConstants }
+		.pushConstantsByEntryPoint{ pushConstantsByEntryPoint },
+		.defaultEntryPoint{ defaultEntryPoint },
 	};
 }
 
@@ -183,20 +201,23 @@ ShaderWrapper ShaderWrapper::FromBytecode(VkDevice device, std::string name, std
 		return ShaderWrapper::Invalid();
 	}
 
-	return ShaderWrapper(
+	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirv_bytecode) };
+
+	ShaderWrapper shaderWrapper(
 		name,
-		vkutil::generateReflectionData(spirv_bytecode),
+		reflectionData,
 		shaderModule
 	);
+
+	shaderWrapper.resetRuntimeData();
+
+	return shaderWrapper;
 }
 
 VkPushConstantRange ShaderWrapper::pushConstantRange() const
 {
-	// For now we assume we are using a shader with a single push constant
-	assert(m_reflectionData.pushConstants.size() == 1);
-
-	ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstants[0] };
-
+	assert(m_reflectionData.defaultEntryPointHasPushConstant());
+	ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.defaultPushConstant() };
 	return {
 		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
 		.offset{ 0 },
@@ -204,8 +225,28 @@ VkPushConstantRange ShaderWrapper::pushConstantRange() const
 	};
 }
 
+std::span<uint8_t> ShaderWrapper::mapRuntimePushConstant(std::string pushConstantName)
+{
+	return std::span<uint8_t>{ m_runtimePushConstantsByEntryPoint[pushConstantName] };
+}
+
+std::span<uint8_t const> ShaderWrapper::readRuntimePushConstant(std::string pushConstantName) const
+{
+	return std::span<uint8_t const>{ m_runtimePushConstantsByEntryPoint.at(pushConstantName) };
+}
 
 void ShaderWrapper::cleanup(VkDevice device) const
 {
 	vkDestroyShaderModule(device, m_shaderModule, nullptr);
+}
+
+void ShaderWrapper::resetRuntimeData()
+{
+	std::map<std::string, std::vector<uint8_t>> runtimePushConstants{};
+	for (auto const& [entryPoint, pushConstant] : m_reflectionData.pushConstantsByEntryPoint)
+	{
+		runtimePushConstants[entryPoint] = std::vector<uint8_t>(pushConstant.sizeBytes);
+	}
+
+	m_runtimePushConstantsByEntryPoint = runtimePushConstants;
 }
