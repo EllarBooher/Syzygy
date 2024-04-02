@@ -8,7 +8,6 @@ layout( push_constant ) uniform constants
 {
 	vec4 topColor;
 	vec4 bottomColor;
-	vec4 test;
 } PushConstants;
 
 void main()

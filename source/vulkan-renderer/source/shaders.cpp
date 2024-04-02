@@ -174,6 +174,21 @@ ShaderWrapper ShaderWrapper::FromBytecode(VkDevice device, std::string name, std
 	);
 }
 
+VkPushConstantRange ShaderWrapper::pushConstantRange() const
+{
+	// For now we assume we are using a shader with a single push constant
+	assert(m_reflectionData.pushConstants.size() == 1);
+
+	ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstants[0] };
+
+	return {
+		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
+		.offset{ 0 },
+		.size{ pushConstant.sizeBytes },
+	};
+}
+
+
 void ShaderWrapper::cleanup(VkDevice device) const
 {
 	vkDestroyShaderModule(device, m_shaderModule, nullptr);

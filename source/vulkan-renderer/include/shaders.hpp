@@ -5,8 +5,8 @@
 #include <vector>
 
 /**
-Contains reflected data from a ShaderModule, to aid with UI and proper piping of data.
-Work in progress, for now supports a very limited amount of reflection.
+	Contains reflected data from a ShaderModule, to aid with UI and proper piping of data.
+	Work in progress, for now supports a very limited amount of reflection.
 */
 struct ShaderReflectionData
 {
@@ -87,6 +87,23 @@ struct ShaderWrapper
 	VkShaderModule shaderModule() const { return m_shaderModule; }
 	ShaderReflectionData const& reflectionData() const { return m_reflectionData; }
 	std::string name() const { return m_name; }
+	VkPushConstantRange pushConstantRange() const;
+
+	template<typename T, int N>
+	inline bool validatePushConstant(std::array<T, N> pushConstantData)
+	{
+		assert(m_reflectionData.pushConstants.size() == 1);
+		
+		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstants[0] };
+
+		if (pushConstant.sizeBytes != sizeof(std::array<T, N>))
+		{
+			return false;
+		}
+
+		// TODO: check types of each member
+		return true;
+	}
 
 	void cleanup(VkDevice device) const;
 

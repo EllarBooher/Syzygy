@@ -339,29 +339,34 @@ void Engine::initPipelines()
 
 void Engine::initBackgroundPipelines()
 {
+    m_computeDrawShader = vkutil::loadShaderModule("shaders/gradient_color.comp.spv", m_device);
+    if (!m_computeDrawShader.isValid())
+    {
+        m_computeDrawShader = ShaderWrapper::Invalid();
+        Error("Error when building compute shader.");
+    }
+
+    VkPushConstantRange const pushConstant{ m_computeDrawShader.pushConstantRange() };
     VkPipelineLayoutCreateInfo const computeLayout{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
         .pNext{ nullptr },
 
         .setLayoutCount{ 1 },
         .pSetLayouts{ &m_drawImageDescriptorLayout },
+
+        .pushConstantRangeCount{ 1 },
+        .pPushConstantRanges{ &pushConstant },
     };
 
     CheckVkResult(vkCreatePipelineLayout(m_device, &computeLayout, nullptr, &m_gradientPipelineLayout));
 
-    ShaderWrapper shader = vkutil::loadShaderModule("shaders/gradient.comp.spv", m_device);
-    if (!shader.isValid())
-    {
-        Error("Error when building compute shader.");
-    }
-    VkShaderModule computeDrawShader{ shader.shaderModule() };
 
     VkPipelineShaderStageCreateInfo const stageInfo{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
         .pNext{ nullptr },
 
         .stage{ VK_SHADER_STAGE_COMPUTE_BIT },
-        .module{ computeDrawShader },
+        .module{ m_computeDrawShader.shaderModule() },
         .pName{ "main" },
     };
 
@@ -375,9 +380,8 @@ void Engine::initBackgroundPipelines()
 
     CheckVkResult(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &m_gradientPipeline));
 
-    vkDestroyShaderModule(m_device, computeDrawShader, nullptr);
-
     m_engineDeletionQueue.pushFunction([&]() {
+        m_computeDrawShader.cleanup(m_device);
         vkDestroyPipelineLayout(m_device, m_gradientPipelineLayout, nullptr);
         vkDestroyPipeline(m_device, m_gradientPipeline, nullptr);
     });
@@ -654,6 +658,16 @@ void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_gradientPipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
 
+    std::array<glm::vec4, 2> const pushConstant{
+        glm::vec4(1, 0, 0, 1), //topColor
+        glm::vec4(0, 0, 1, 1), //bottomColor
+    };
+
+    if (!m_computeDrawShader.validatePushConstant(pushConstant))
+    {
+        Error(fmt::format("Invalid push constant data detected by \"{}\"", m_computeDrawShader.name()));
+    }
+    vkCmdPushConstants(cmd, m_gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushConstant), &pushConstant);
     vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
 }
 

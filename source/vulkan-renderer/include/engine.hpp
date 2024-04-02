@@ -104,7 +104,7 @@ private:
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
-    ShaderWrapper m_computeDrawWrapper{ ShaderWrapper::Invalid() };
+    ShaderWrapper m_computeDrawShader{ ShaderWrapper::Invalid() };
 
     // Immediate submit structures
 
