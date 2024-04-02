@@ -38,7 +38,7 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			pushConstant.size
 		));
 
-		std::vector<ShaderReflectionData::Structure::StructureMember> processedMembers{};
+		std::vector<ShaderReflectionData::StructureMember> processedMembers{};
 
 		assert(pushConstant.type_description->op == SpvOp::SpvOpTypeStruct);
 
@@ -48,11 +48,27 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 		{
 			// Parse spirv-reflect type descriptions into type-safe form
 
+			uint32_t const offsetBytes{ member.offset };
+
 			SpvReflectTypeDescription const& typeDescription{ *member.type_description };
 			SpvReflectNumericTraits const& numericTraits{ typeDescription.traits.numeric };
 
+			// SPIR-V type names are empty for built in types ?
+			std::string const typeName{ typeDescription.type_name == nullptr ? "" : typeDescription.type_name };
+
 			uint32_t const bitWidth = member.numeric.scalar.width;
 
+			// For early exit, if the type ends up being unsupported
+
+			ShaderReflectionData::StructureMember const unsupportedMember{
+					.offsetBytes{ offsetBytes },
+					.name{ member.name },
+					.typeData{ ShaderReflectionData::UnsupportedType{
+						.name{ typeName }
+					} },
+			};
+
+			// Validate type flags early
 			uint32_t const typeFlagValidMask{ 0x0000FFFF };
 			if ((typeDescription.type_flags & ~typeFlagValidMask) != 0)
 			{
@@ -60,14 +76,12 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 					, std::to_string(typeDescription.type_flags)
 					, member.name)
 				);
-				processedMembers.push_back(ShaderReflectionData::UnsupportedMember{
-					.name{ member.name }
-					});
+				processedMembers.push_back(unsupportedMember);
 				continue;
 			}
 
 			uint32_t const typeFlagComponentTypeMask{ 0x000000FF };
-			ShaderReflectionData::NumericMember::ComponentType componentType;
+			ShaderReflectionData::NumericType::ComponentType componentType;
 			switch (typeDescription.type_flags & typeFlagComponentTypeMask)
 			{
 			case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_BOOL:
@@ -86,14 +100,12 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 					, std::to_string(typeDescription.type_flags & typeFlagComponentTypeMask)
 					, member.name)
 				);
-				processedMembers.push_back(ShaderReflectionData::UnsupportedMember{
-					.name{ member.name }
-					});
+				processedMembers.push_back(unsupportedMember);
 				continue;
 			}
 
 			uint32_t const typeFlagFormatMask{ 0x0000FF00 };
-			ShaderReflectionData::NumericMember::Format format;
+			ShaderReflectionData::NumericType::Format format;
 			switch (typeDescription.type_flags & typeFlagFormatMask)
 			{
 			case 0:
@@ -115,18 +127,22 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 					, std::to_string(typeDescription.type_flags & typeFlagFormatMask)
 					, member.name)
 				);
-				processedMembers.push_back(ShaderReflectionData::UnsupportedMember{
-					.name{ member.name }
-					});
+				processedMembers.push_back(unsupportedMember);
 				continue;
 			}
 
-			processedMembers.push_back(ShaderReflectionData::NumericMember{
+			processedMembers.push_back(ShaderReflectionData::StructureMember{
+				.offsetBytes{ offsetBytes },
 				.name{ member.name },
-				.componentBitWidth{ numericTraits.scalar.width },
-				.componentType{ componentType },
-				.format{ format }
-				});
+				.typeData{
+					ShaderReflectionData::NumericType{
+						.name{ typeName },
+						.componentBitWidth{ numericTraits.scalar.width },
+						.componentType{ componentType },
+						.format{ format }
+					}
+				}
+			});
 		}
 
 		processedPushConstants.push_back(ShaderReflectionData::PushConstant{

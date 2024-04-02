@@ -39,7 +39,7 @@ struct ShaderReflectionData
 	};
 
 	// Corresponds to a composite/scalar numeric type.
-	struct NumericMember
+	struct NumericType
 	{
 		using ComponentType = std::variant<Boolean, Integer, Float>;
 		using Format = std::variant<Scalar, Vector, Matrix>;
@@ -54,16 +54,20 @@ struct ShaderReflectionData
 		Represents a type whose reflection data could not be generated,
 		usually because the specific type is not supported yet.
 	*/
-	struct UnsupportedMember
+	struct UnsupportedType
 	{
 		std::string name;
 	};
 
+	struct StructureMember
+	{
+		uint32_t offsetBytes;
+		std::string name;
+		std::variant<NumericType, UnsupportedType> typeData;
+	};
 	// Corresponds to OpTypeStruct
 	struct Structure
 	{
-		using StructureMember = std::variant<UnsupportedMember, NumericMember>;
-
 		std::string name;
 		uint32_t sizeBytes;
 		uint32_t paddedSizeBytes;
