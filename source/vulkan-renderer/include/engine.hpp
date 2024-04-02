@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine_types.h"
+#include "shaders.hpp"
 #include "descriptors.hpp"
 
 struct GLFWwindow;
@@ -74,8 +75,6 @@ private:
     void initBackgroundPipelines();
     void initImgui();
 
-    void testShaderReflection();
-
     VkInstance m_instance{ VK_NULL_HANDLE };
     VkDebugUtilsMessengerEXT m_debugMessenger{ VK_NULL_HANDLE };
     VkPhysicalDevice m_physicalDevice{ VK_NULL_HANDLE };
@@ -104,6 +103,8 @@ private:
 
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
+
+    ShaderWrapper m_computeDrawWrapper{ ShaderWrapper::Invalid() };
 
     // Immediate submit structures
 
