@@ -54,7 +54,7 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			uint32_t const bitWidth = member.numeric.scalar.width;
 
 			uint32_t const typeFlagValidMask{ 0x0000FFFF };
-			if (~(typeDescription.type_flags & typeFlagValidMask) != 0)
+			if ((typeDescription.type_flags & ~typeFlagValidMask) != 0)
 			{
 				Error(fmt::format("Unsupported push constant member flag types \"{}\" for \"{}\""
 					, std::to_string(typeDescription.type_flags)
@@ -82,8 +82,8 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 				componentType = ShaderReflectionData::Float{};
 				break;
 			default:
-				Error(fmt::format("Unsupported push constant member flag types \"{}\" for \"{}\""
-					, std::to_string(typeDescription.type_flags)
+				Error(fmt::format("Unsupported push constant member type \"{}\" for \"{}\""
+					, std::to_string(typeDescription.type_flags & typeFlagComponentTypeMask)
 					, member.name)
 				);
 				processedMembers.push_back(ShaderReflectionData::UnsupportedMember{
@@ -111,8 +111,8 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 				};
 				break;
 			default:
-				Error(fmt::format("Unsupported push constant member flag types \"{}\" for \"{}\""
-					, std::to_string(typeDescription.type_flags)
+				Error(fmt::format("Unsupported push constant member format \"{}\" for \"{}\""
+					, std::to_string(typeDescription.type_flags & typeFlagFormatMask)
 					, member.name)
 				);
 				processedMembers.push_back(ShaderReflectionData::UnsupportedMember{
@@ -140,7 +140,7 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 	spvReflectDestroyShaderModule(&module);
 
 	return ShaderReflectionData{
-		.m_pushConstants{ processedPushConstants }
+		.pushConstants{ processedPushConstants }
 	};
 }
 

@@ -50,6 +50,10 @@ struct ShaderReflectionData
 		Format format;
 	};
 
+	/**
+		Represents a type whose reflection data could not be generated,
+		usually because the specific type is not supported yet.
+	*/
 	struct UnsupportedMember
 	{
 		std::string name;
@@ -72,7 +76,7 @@ struct ShaderReflectionData
 	*/
 	using PushConstant = Structure;
 
-	std::vector<Structure> m_pushConstants{};
+	std::vector<Structure> pushConstants{};
 };
 
 struct ShaderWrapper
