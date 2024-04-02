@@ -509,10 +509,10 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
 }
 
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+
 void Engine::mainLoop()
 {
-    bool bShowDemoWindow = true;
-
     while (!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
 
@@ -535,9 +535,43 @@ void Engine::mainLoop()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (bShowDemoWindow)
+        std::vector<ShaderReflectionData::PushConstant> const& pushConstants{ m_computeDrawShader.reflectionData().pushConstants };
+        if (ImGui::Begin("background"))
         {
-            ImGui::ShowDemoWindow(&bShowDemoWindow);
+            ImGui::Text(fmt::format("Detected \"{}\" pushConstants.", pushConstants.size()).c_str());
+
+            for (ShaderReflectionData::PushConstant const& pushConstant : pushConstants)
+            {
+                ImGui::Text(fmt::format("Push Constant \"{}\"", pushConstant.name).c_str());
+
+                m_computeDrawPushConstantBytes.resize(pushConstant.sizeBytes);
+                uint8_t* const pPushConstantData{ m_computeDrawPushConstantBytes.data() };
+                
+                for (ShaderReflectionData::StructureMember const& pushConstantMember : pushConstant.members)
+                {
+                    uint8_t* const pMemberPointer{ pPushConstantData + pushConstantMember.offsetBytes };
+                    std::visit(overloaded{
+                        [&](ShaderReflectionData::UnsupportedType const& unsupportedMember) {
+                            ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
+                        },
+                        [&](ShaderReflectionData::NumericType const& numericMember) {
+                            std::visit(overloaded{
+                                [&](ShaderReflectionData::Scalar const& scalar) {
+                                    
+                                },
+                                [&](ShaderReflectionData::Vector const& vector) {
+                                    ImGui::InputFloat4(pushConstantMember.name.c_str(), reinterpret_cast<float*>(pMemberPointer));
+                                },
+                                [&](ShaderReflectionData::Matrix const& matrix) {
+
+                                },
+                            }, numericMember.format);
+                        },
+                    }, pushConstantMember.typeData);
+                }
+            }
+
+            ImGui::End();
         }
 
         ImGui::Render();
@@ -658,16 +692,12 @@ void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_gradientPipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
 
-    std::array<glm::vec4, 2> const pushConstant{
-        glm::vec4(1, 0, 0, 1), //topColor
-        glm::vec4(0, 0, 1, 1), //bottomColor
-    };
-
+    std::span<uint8_t const> pushConstant{ m_computeDrawPushConstantBytes };
     if (!m_computeDrawShader.validatePushConstant(pushConstant))
     {
         Error(fmt::format("Invalid push constant data detected by \"{}\"", m_computeDrawShader.name()));
     }
-    vkCmdPushConstants(cmd, m_gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushConstant), &pushConstant);
+    vkCmdPushConstants(cmd, m_gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
     vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
 }
 

@@ -96,11 +96,17 @@ struct ShaderWrapper
 	template<typename T, int N>
 	inline bool validatePushConstant(std::array<T, N> pushConstantData)
 	{
+		std::span<uint8_t const> byteSpan{ reinterpret_cast<uint8_t const*>(pushConstantData.data()), sizeof(T) * N };
+		return validatePushConstant(byteSpan);
+	}
+
+	inline bool validatePushConstant(std::span<uint8_t const> pushConstantData)
+	{
 		assert(m_reflectionData.pushConstants.size() == 1);
-		
+
 		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstants[0] };
 
-		if (pushConstant.sizeBytes != sizeof(std::array<T, N>))
+		if (pushConstant.sizeBytes != pushConstantData.size())
 		{
 			return false;
 		}

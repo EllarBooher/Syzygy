@@ -105,6 +105,7 @@ private:
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
     ShaderWrapper m_computeDrawShader{ ShaderWrapper::Invalid() };
+    std::vector<uint8_t> m_computeDrawPushConstantBytes{};
 
     // Immediate submit structures
 
