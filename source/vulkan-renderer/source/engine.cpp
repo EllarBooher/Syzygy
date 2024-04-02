@@ -474,6 +474,14 @@ void Engine::initImgui()
         vkDestroyDescriptorPool(m_device, imguiDescriptorPool, nullptr);
     });
 
+    // Handle DPI
+
+    float const fontBaseSize{ 13.0f };
+    std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/ProggyClean.ttf"}).string() };
+    ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.c_str(), fontBaseSize * m_dpiScale);
+
+    ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
+
     Log("ImGui initialized.");
 }
 

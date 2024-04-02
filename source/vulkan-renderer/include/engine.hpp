@@ -97,6 +97,8 @@ private:
     std::vector<VkImageView> m_swapchainImageViews{};
     VkExtent3D m_swapchainExtent{};
 
+    float m_dpiScale{ 2.0f };
+
     // Draw Resources
 
     AllocatedImage m_drawImage{};
