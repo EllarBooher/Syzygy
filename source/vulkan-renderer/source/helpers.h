@@ -85,5 +85,7 @@ inline T UnwrapVkbResult(vkb::Result<T> result, std::source_location location = 
 
 /** Logs the message in grey, alongside a prefix that indicates the code location. */
 void Log(std::string message, std::source_location location = std::source_location::current());
+/** Logs the message in grey, alongside a prefix that indicates the code location. */
+void Warning(std::string message, std::source_location location = std::source_location::current());
 /** Logs the message in red, alongside a prefix that indicates the code location. */
 void Error(std::string message, std::source_location location = std::source_location::current());

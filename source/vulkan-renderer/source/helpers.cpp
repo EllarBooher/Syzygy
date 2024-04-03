@@ -72,6 +72,11 @@ void Log(std::string message, std::source_location location)
     LogBase(message, location, fmt::color::gray);
 }
 
+void Warning(std::string message, std::source_location location)
+{
+    LogBase(message, location, fmt::color::yellow);
+}
+
 void Error(std::string message, std::source_location location)
 {
     LogBase(message, location, fmt::color::red);
