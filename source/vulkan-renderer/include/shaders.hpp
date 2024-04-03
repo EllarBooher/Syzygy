@@ -69,16 +69,29 @@ struct ShaderReflectionData
 		// TODO: test if structures can be anonymous.
 		std::string name;
 		uint32_t sizeBytes;
+		// TODO: figure out what exactly determines the padding size
 		uint32_t paddedSizeBytes;
 		std::vector<StructureMember> members;
 	};
+
+	/*
+		TODO: structs can have padding, as in bits in their representation that are not overlapped by members.
+		I need to investigate exactly how this works, and how best to model this.
+		This is important for push constants, since padding bits in one shader may be
+		accessed in another.
+	*/
 
 	/**
 		As per the Vulkan specification, Push constants must be structs.
 		There can also only be one per entry point.
 		https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces-resources-pushconst
 	*/
-	using PushConstant = Structure;
+	struct PushConstant
+	{
+		Structure type{};
+		std::string name{};
+		uint32_t layoutOffsetBytes{ 0 };
+	};
 	std::map<std::string, PushConstant> pushConstantsByEntryPoint{};
 
 	std::string defaultEntryPoint{};
@@ -95,7 +108,7 @@ struct ShaderWrapper
 	VkShaderModule shaderModule() const { return m_shaderModule; }
 	ShaderReflectionData const& reflectionData() const { return m_reflectionData; }
 	std::string name() const { return m_name; }
-	VkPushConstantRange pushConstantRange() const;
+	VkPushConstantRange pushConstantRange(VkShaderStageFlags stageMask) const;
 
 	std::span<uint8_t> mapRuntimePushConstant(std::string entryPoint);
 	std::span<uint8_t const> readRuntimePushConstant(std::string entryPoint) const;
@@ -111,7 +124,9 @@ struct ShaderWrapper
 	{
 		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstantsByEntryPoint.at(entryPoint) };
 
-		if (pushConstant.sizeBytes != pushConstantData.size())
+		// The push constant in a shader has padding up to the layout(offset) specifier.
+		// We assume the data we are pushing is the rest of the struct past that offset.
+		if (pushConstant.type.sizeBytes - pushConstant.layoutOffsetBytes != pushConstantData.size())
 		{
 			return false;
 		}

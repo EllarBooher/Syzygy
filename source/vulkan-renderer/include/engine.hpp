@@ -2,6 +2,7 @@
 
 #include "engine_types.h"
 #include "shaders.hpp"
+#include "pipelines.hpp"
 #include "descriptors.hpp"
 
 struct GLFWwindow;
@@ -46,6 +47,7 @@ private:
 
     void draw();
     void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
+    void recordDrawGeometry(VkCommandBuffer cmd);
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
 
     void cleanup();
@@ -77,6 +79,7 @@ private:
 
     void initPipelines();
     void initBackgroundPipelines(std::span<std::string const> shaders);
+    void initTrianglePipeline();
     void initImgui();
 
     VkInstance m_instance{ VK_NULL_HANDLE };
@@ -135,5 +138,12 @@ private:
     std::vector<ComputeShaderWrapper> m_computeShaders{};
     uint32_t m_computeShaderIndex{ 0 };
 
+    GraphicsPipelineWrapper m_trianglePipeline{};
+
     // End Vulkan
+
+    // Begin UI
+
+    /** Creates a imgui window that controls a shader. Will break when not in the right context in a draw loop. */
+    void imguiPushShaderControl(ShaderWrapper& shader);
 };

@@ -158,10 +158,14 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 		}
 
 		pushConstantsByEntryPoint[std::string{ entryPoint.name }] = ShaderReflectionData::PushConstant{
+			.type{
+				.name{	pushConstant.type_description->type_name },
+				.sizeBytes{ pushConstant.size },
+				.paddedSizeBytes{ pushConstant.padded_size },
+				.members{ processedMembers },
+			},
 			.name{ pushConstant.name },
-			.sizeBytes{ pushConstant.size },
-			.paddedSizeBytes{ pushConstant.padded_size },
-			.members{ processedMembers },
+			.layoutOffsetBytes{ pushConstant.offset }
 		};
 	}
 
@@ -211,14 +215,14 @@ ShaderWrapper ShaderWrapper::FromBytecode(VkDevice device, std::string name, std
 	return shaderWrapper;
 }
 
-VkPushConstantRange ShaderWrapper::pushConstantRange() const
+VkPushConstantRange ShaderWrapper::pushConstantRange(VkShaderStageFlags stageMask) const
 {
 	assert(m_reflectionData.defaultEntryPointHasPushConstant());
 	ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.defaultPushConstant() };
 	return {
-		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-		.offset{ 0 },
-		.size{ pushConstant.sizeBytes },
+		.stageFlags{ stageMask },
+		.offset{ pushConstant.layoutOffsetBytes },
+		.size{ pushConstant.type.sizeBytes },
 	};
 }
 
@@ -242,7 +246,7 @@ void ShaderWrapper::resetRuntimeData()
 	std::map<std::string, std::vector<uint8_t>> runtimePushConstants{};
 	for (auto const& [entryPoint, pushConstant] : m_reflectionData.pushConstantsByEntryPoint)
 	{
-		runtimePushConstants[entryPoint] = std::vector<uint8_t>(pushConstant.sizeBytes);
+		runtimePushConstants[entryPoint] = std::vector<uint8_t>(pushConstant.type.sizeBytes - pushConstant.layoutOffsetBytes);
 	}
 
 	m_runtimePushConstantsByEntryPoint = runtimePushConstants;
