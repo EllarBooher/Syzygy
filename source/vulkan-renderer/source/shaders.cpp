@@ -99,9 +99,6 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			ShaderReflectionData::NumericType::ComponentType componentType;
 			switch (typeDescription.type_flags & typeFlagComponentTypeMask)
 			{
-			case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_BOOL:
-				componentType = ShaderReflectionData::Boolean{};
-				break;
 			case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_INT:
 				componentType = ShaderReflectionData::Integer{
 					.signedness{ static_cast<bool>(numericTraits.scalar.signedness) }

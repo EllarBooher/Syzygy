@@ -18,9 +18,6 @@ struct ShaderReflectionData
 		See https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html section "2.2.2. Types"
 	*/
 
-	// Corresponds to OpTypeBool
-	struct Boolean {};
-
 	// Corresponds to OpTypeInt
 	struct Integer
 	{
@@ -39,12 +36,12 @@ struct ShaderReflectionData
 		uint32_t rowCount;
 	};
 
-	// Corresponds to a composite/scalar numeric type.
 	struct NumericType
 	{
-		using ComponentType = std::variant<Boolean, Integer, Float>;
+		using ComponentType = std::variant<Integer, Float>;
 		using Format = std::variant<Scalar, Vector, Matrix>;
 
+		// May be an empty string for some types.
 		std::string name;
 		uint32_t componentBitWidth;
 		ComponentType componentType;
@@ -69,6 +66,7 @@ struct ShaderReflectionData
 	// Corresponds to OpTypeStruct
 	struct Structure
 	{
+		// TODO: test if structures can be anonymous.
 		std::string name;
 		uint32_t sizeBytes;
 		uint32_t paddedSizeBytes;

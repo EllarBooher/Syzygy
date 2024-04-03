@@ -337,6 +337,7 @@ void Engine::initPipelines()
     std::vector<std::string> computeShaders{
         "shaders/gradient.comp.spv",
         "shaders/gradient_color.comp.spv",
+        "shaders/booleanpush.comp.spv"
     };
     initBackgroundPipelines(computeShaders);
 }
@@ -598,19 +599,109 @@ void Engine::mainLoop()
                                     ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
                                 },
                                 [&](ShaderReflectionData::NumericType const& numericMember) {
+
+                                    // Gather format data
+                                    uint32_t columns{ 0 };
+                                    uint32_t rows{ 0 };
                                     std::visit(overloaded{
                                         [&](ShaderReflectionData::Scalar const& scalar) {
-
+                                            columns = 1;
+                                            rows = 1;
                                         },
                                         [&](ShaderReflectionData::Vector const& vector) {
-                                            ImGui::InputFloat4(pushConstantMember.name.c_str(), reinterpret_cast<float*>(pMemberPointer));
+                                            columns = vector.componentCount;
+                                            rows = 1;
                                         },
                                         [&](ShaderReflectionData::Matrix const& matrix) {
-
+                                            columns = matrix.columnCount;
+                                            rows = matrix.rowCount;
                                         },
                                     }, numericMember.format);
+
+                                    bool bSupportedType{ true };
+                                    ImGuiDataType imguiDataType{ ImGuiDataType_Float };
+                                    std::visit(overloaded{
+                                        [&](ShaderReflectionData::Integer const& integerComponent) {
+                                            assert(integerComponent.signedness == 0 || integerComponent.signedness == 1);
+
+                                            switch (integerComponent.signedness)
+                                            {
+                                            case 0: //unsigned
+                                                switch (numericMember.componentBitWidth)
+                                                {
+                                                case 8:
+                                                    imguiDataType = ImGuiDataType_U8;
+                                                    break;
+                                                case 16:
+                                                    imguiDataType = ImGuiDataType_U16;
+                                                    break;
+                                                case 32:
+                                                    imguiDataType = ImGuiDataType_U32;
+                                                    break;
+                                                case 64:
+                                                    imguiDataType = ImGuiDataType_U64;
+                                                    break;
+                                                default:
+                                                    bSupportedType = false;
+                                                    break;
+                                                }
+                                                break;
+                                            default: //signed
+                                                switch (numericMember.componentBitWidth)
+                                                {
+                                                case 8:
+                                                    imguiDataType = ImGuiDataType_S8;
+                                                    break;
+                                                case 16:
+                                                    imguiDataType = ImGuiDataType_S16;
+                                                    break;
+                                                case 32:
+                                                    imguiDataType = ImGuiDataType_S32;
+                                                    break;
+                                                case 64:
+                                                    imguiDataType = ImGuiDataType_S64;
+                                                    break;
+                                                default:
+                                                    bSupportedType = false;
+                                                    break;
+                                                }
+                                                break;
+                                            }
+                                        },
+                                        [&](ShaderReflectionData::Float const& floatComponent) {
+                                            bool bSupportedFloat{ true };
+                                            ImGuiDataType imguiDataType{ ImGuiDataType_Float };
+                                            switch (numericMember.componentBitWidth)
+                                            {
+                                            case 64:
+                                                imguiDataType = ImGuiDataType_Double ;
+                                                break;
+                                            case 32:
+                                                imguiDataType = ImGuiDataType_Float ;
+                                                break;
+                                            default:
+                                                bSupportedFloat = false;
+                                                break;
+                                            }
+                                        },
+                                    }, numericMember.componentType);
+
+                                    if (!bSupportedType)
+                                    {
+                                        ImGui::Text(fmt::format("Unsupported component bit width {} for member {}", numericMember.componentBitWidth, pushConstantMember.name).c_str());
+                                    }
+
+                                    for (uint32_t row{ 0 }; row < rows; row++)
+                                    {
+                                        uint8_t* const pDataPointer{ pMemberPointer + row * columns * numericMember.componentBitWidth / 8 };
+
+                                        std::string const rowLabel{ fmt::format("{}##{}", pushConstantMember.name, row) };
+
+                                        // void pointer since it could be unsigned OR signed. Could be split up.
+                                        ImGui::InputScalarN(rowLabel.c_str(), imguiDataType, reinterpret_cast<void*>(pDataPointer), columns);
+                                    }
                                 },
-                                }, pushConstantMember.typeData);
+                            }, pushConstantMember.typeData);
                         }
                     }
                 }
