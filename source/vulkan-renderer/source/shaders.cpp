@@ -128,7 +128,7 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 					.componentCount{ numericTraits.vector.component_count }
 				};
 				break;
-			case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX:
+			case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX | SPV_REFLECT_TYPE_FLAG_VECTOR:
 				format = ShaderReflectionData::Matrix{
 					.columnCount{ numericTraits.matrix.column_count },
 					.rowCount{ numericTraits.matrix.row_count }
