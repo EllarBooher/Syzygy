@@ -27,16 +27,14 @@ struct FrameData {
 constexpr uint32_t FRAME_OVERLAP = 2;
 
 class Engine {
-public:
-
     Engine();
 
+public:
     void run();
 
-    static Engine* getLoadedEngine() { return m_loadedEngine; }
+    static std::unique_ptr<Engine> loadEngine();
 
 private:
-
     void init();
     
     void initWindow();

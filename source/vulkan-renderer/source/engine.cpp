@@ -35,6 +35,11 @@ void Engine::run()
     cleanup();
 }
 
+std::unique_ptr<Engine> Engine::loadEngine()
+{
+    return std::make_unique<Engine>(Engine{});
+}
+
 void Engine::init()
 {
     assert(m_loadedEngine == nullptr);

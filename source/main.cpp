@@ -1,17 +1,9 @@
-#include <engine.hpp>
-
-#include <iostream>
-#include <stdexcept>
+#include "application.hpp"
 
 int main()
 {
-    try {
-        Engine engine{};
-        engine.run();
-    }
-    catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+    Application application{};
+    application.run();
+
     return EXIT_SUCCESS;
 }

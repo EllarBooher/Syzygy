@@ -6,10 +6,11 @@ add_library(vulkan-renderer STATIC
 	"source/descriptors.cpp"
 	"source/pipelines.cpp"
 	"source/shaders.cpp"
+	"source/application.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 
-	"${CMAKE_CURRENT_SOURCE_DIR}/Include"
+	"${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 # quotes to support path with spaces
