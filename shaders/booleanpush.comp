@@ -25,9 +25,9 @@ void main()
 	vec4 black = vec4(0.0,0.0,0.0,1.0);
 	vec4 white = vec4(1.0,1.0,1.0,1.0);
 
-	if (pushConstantCoord.x == 0)
+	if (pushConstantCoord.y == 0)
 	{
-		if (BooleanMatrix.row1[pushConstantCoord.y % 4])
+		if (BooleanMatrix.row1[pushConstantCoord.x % 4])
 		{
 			outColor = white;
 		}
@@ -36,9 +36,9 @@ void main()
 			outColor = black;
 		}
 	}
-	else if (pushConstantCoord.x == 1)
+	else if (pushConstantCoord.y == 1)
 	{
-		if (BooleanMatrix.row2[pushConstantCoord.y % 4])
+		if (BooleanMatrix.row2[pushConstantCoord.x % 4])
 		{
 			outColor = white;
 		}
@@ -47,9 +47,9 @@ void main()
 			outColor = black;
 		}
 	}
-	else if (pushConstantCoord.x == 2)
+	else if (pushConstantCoord.y == 2)
 	{
-		if (BooleanMatrix.row3[pushConstantCoord.y % 4])
+		if (BooleanMatrix.row3[pushConstantCoord.x % 4])
 		{
 			outColor = white;
 		}
@@ -58,9 +58,9 @@ void main()
 			outColor = black;
 		}
 	}
-	else if (pushConstantCoord.x == 3)
+	else if (pushConstantCoord.y == 3)
 	{
-		if (BooleanMatrix.row4[pushConstantCoord.y % 4])
+		if (BooleanMatrix.row4[pushConstantCoord.x % 4])
 		{
 			outColor = white;
 		}
