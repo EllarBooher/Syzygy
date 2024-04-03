@@ -178,3 +178,17 @@ VkRenderingInfo vkinit::renderingInfo(VkExtent2D extent, std::vector<VkRendering
     };
 }
 
+VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module, std::string const& entryPoint)
+{
+    return VkPipelineShaderStageCreateInfo{
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
+        .pNext{ nullptr },
+
+        .flags{ 0 },
+        .stage{ stage },
+        .module{ module },
+        .pName{ entryPoint.c_str() },
+        .pSpecializationInfo{ nullptr },
+    };
+}
+
