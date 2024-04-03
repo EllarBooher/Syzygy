@@ -65,12 +65,16 @@ private:
     void initInstanceSurfaceDevices();
     void initAllocator();
     void initSwapchain();
+    void initDrawTarget();
 
     void cleanupSwapchain();
 
     void initCommands();
     void initSyncStructures();
     void initDescriptors();
+
+    void updateDescriptors();
+
     void initPipelines();
     void initBackgroundPipelines(std::span<std::string const> shaders);
     void initImgui();
@@ -83,8 +87,6 @@ private:
 
     VkQueue m_graphicsQueue{ VK_NULL_HANDLE };
     uint32_t m_graphicsQueueFamily{ 0 };
-
-    DeletionQueue m_engineDeletionQueue{};
 
     VmaAllocator m_allocator{ VK_NULL_HANDLE };
 
@@ -99,8 +101,14 @@ private:
 
     float m_dpiScale{ 2.0f };
 
+    bool m_resizeRequested{ false };
+    void resizeSwapchain();
+
     // Draw Resources
 
+    VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
+
+    /** This image is used as the render target, then copied onto the swapchain. */
     AllocatedImage m_drawImage{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames {};

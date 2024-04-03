@@ -55,7 +55,7 @@ void Engine::initWindow()
 
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     char const* const WINDOW_TITLE = "Renderer";
     m_window = glfwCreateWindow(
@@ -82,9 +82,14 @@ void Engine::initVulkan()
     initAllocator();
 
     initSwapchain();
+    initDrawTarget();
+    
     initCommands();
     initSyncStructures();
     initDescriptors();
+
+    updateDescriptors();
+
     initPipelines();
     initImgui();
 
@@ -161,10 +166,6 @@ void Engine::initAllocator()
         .instance = m_instance,
     };
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
-
-    m_engineDeletionQueue.pushFunction([&]() {
-        vmaDestroyAllocator(m_allocator);
-    });
 }
 
 void Engine::initSwapchain()
@@ -197,24 +198,20 @@ void Engine::initSwapchain()
     m_swapchain = vkbSwapchain.swapchain;
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
+}
 
-    // Initialize the singular image used for rendering.
-
-    VkExtent3D const drawImageExtent{
-        .width{ m_windowExtent.width },
-        .height{ m_windowExtent.height },
-        .depth{ 1 }
-    };
+void Engine::initDrawTarget()
+{
+    // Initialize the image used for rendering outside of the swapchain.
 
     m_drawImage = vkutil::allocateImage(
         m_allocator,
         m_device,
-        m_engineDeletionQueue,
-        drawImageExtent,
+        m_swapchainExtent,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
-        | VK_IMAGE_USAGE_TRANSFER_DST_BIT 
-        | VK_IMAGE_USAGE_STORAGE_BIT 
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+        | VK_IMAGE_USAGE_STORAGE_BIT
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
     );
 }
@@ -265,10 +262,6 @@ void Engine::initCommands()
         .commandBufferCount{ 1 },
     };
     CheckVkResult(vkAllocateCommandBuffers(m_device, &immCmdAllocInfo, &m_immCommandBuffer));
-
-    m_engineDeletionQueue.pushFunction([=]() {
-        vkDestroyCommandPool(m_device, m_immCommandPool, nullptr);
-    });
 }
 
 void Engine::initSyncStructures()
@@ -287,7 +280,6 @@ void Engine::initSyncStructures()
     // Immediate sync structures
 
     CheckVkResult(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_immFence));
-    m_engineDeletionQueue.pushFunction([=]() { vkDestroyFence(m_device, m_immFence, nullptr); });
 }
 
 void Engine::initDescriptors()
@@ -307,7 +299,10 @@ void Engine::initDescriptors()
     }
 
     m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+}
 
+void Engine::updateDescriptors()
+{
     VkDescriptorImageInfo const drawImageInfo{
         .sampler{ VK_NULL_HANDLE },
         .imageView{ m_drawImage.imageView },
@@ -482,15 +477,9 @@ void Engine::initImgui()
         .CheckVkResultFn{ CheckVkResult_Imgui },
         .MinAllocationSize{ 1024 * 1024 },
     };
+    m_imguiDescriptorPool = imguiDescriptorPool;
 
     ImGui_ImplVulkan_Init(&initInfo);
-
-    m_engineDeletionQueue.pushFunction([=]() {
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-        vkDestroyDescriptorPool(m_device, imguiDescriptorPool, nullptr);
-    });
 
     // Handle DPI
 
@@ -501,6 +490,25 @@ void Engine::initImgui()
     ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
 
     Log("ImGui initialized.");
+}
+
+void Engine::resizeSwapchain()
+{
+    vkDeviceWaitIdle(m_device);
+    m_drawImage.cleanup(m_device, m_allocator);
+    cleanupSwapchain();
+
+    int32_t width{ 0 }, height{ 0 };
+    glfwGetWindowSize(m_window, &width, &height);
+    m_windowExtent.width = static_cast<uint32_t>(width);
+    m_windowExtent.height = static_cast<uint32_t>(height);
+
+    initSwapchain();
+    initDrawTarget();
+
+    updateDescriptors();
+
+    m_resizeRequested = false;
 }
 
 void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -555,6 +563,12 @@ void Engine::mainLoop()
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
+        }
+
+        if (m_resizeRequested)
+        {
+            Log("Resizing swapchain.");
+            resizeSwapchain();
         }
 
         ImGui_ImplVulkan_NewFrame();
@@ -746,13 +760,21 @@ void Engine::draw()
     // Copy image to swapchain
 
     uint32_t swapchainImageIndex;
-    CheckVkResult(vkAcquireNextImageKHR(m_device,
+    VkResult const acquireResult{ vkAcquireNextImageKHR(m_device,
         m_swapchain,
         timeoutNanoseconds,
         currentFrame.swapchainSemaphore,
         VK_NULL_HANDLE, // No fence to signal
-        &swapchainImageIndex)
-    );
+        &swapchainImageIndex
+    ) };
+    if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        m_resizeRequested = true;
+        CheckVkResult(vkEndCommandBuffer(cmd));
+        return;
+    }
+    CheckVkResult(acquireResult);
+
     VkImage const& swapchainImage = m_swapchainImages[swapchainImageIndex];
     VkImageView const& swapchainImageView = m_swapchainImageViews[swapchainImageIndex];
 
@@ -820,31 +842,40 @@ void Engine::draw()
         .pImageIndices = &swapchainImageIndex,
         .pResults = nullptr, // Only one swapchain
     };
-    CheckVkResult(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
+
+    VkResult const presentResult{ vkQueuePresentKHR(m_graphicsQueue, &presentInfo) };
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        m_resizeRequested = true;
+    }
+    else
+    {
+        CheckVkResult(presentResult);
+    }
 
     m_frameNumber++;
 }
 
 void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
 {
-    ComputeShaderWrapper const& currentComputShader{
+    ComputeShaderWrapper const& currentComputeShader{
         m_computeShaders[m_computeShaderIndex % m_computeShaders.size()]
     };
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputShader.pipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputeShader.pipeline);
 
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputShader.pipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputeShader.pipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
 
-    ShaderReflectionData const& reflectionData{ currentComputShader.computeShader.reflectionData() };
+    ShaderReflectionData const& reflectionData{ currentComputeShader.computeShader.reflectionData() };
     if (reflectionData.defaultEntryPointHasPushConstant())
     {
         std::string const entryPoint{ reflectionData.defaultEntryPoint };
-        std::span<uint8_t const> pushConstant{ currentComputShader.computeShader.readRuntimePushConstant(entryPoint) };
-        if (!currentComputShader.computeShader.validatePushConstant(pushConstant, entryPoint))
+        std::span<uint8_t const> pushConstant{ currentComputeShader.computeShader.readRuntimePushConstant(entryPoint) };
+        if (!currentComputeShader.computeShader.validatePushConstant(pushConstant, entryPoint))
         {
-            Error(fmt::format("Invalid push constant data detected by \"{}\"", currentComputShader.computeShader.name()));
+            Error(fmt::format("Invalid push constant data detected by \"{}\"", currentComputeShader.computeShader.name()));
         }
-        vkCmdPushConstants(cmd, currentComputShader.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
+        vkCmdPushConstants(cmd, currentComputeShader.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
     }
 
     vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
@@ -870,42 +901,53 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 
 void Engine::cleanup()
 {
-    if (m_initialized)
+    if (!m_initialized)
     {
-        Log("Engine cleaning up.");
-
-        CheckVkResult(vkDeviceWaitIdle(m_device));
-
-        m_engineDeletionQueue.flush();
-
-        for (auto& shader : m_computeShaders)
-        {
-            shader.cleanup(m_device);
-        }
-
-        m_globalDescriptorAllocator.destroyPool(m_device);
-        vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
-
-        for (FrameData const& frameData : m_frames)
-        {
-            vkDestroyCommandPool(m_device, frameData.commandPool, nullptr);
-
-            vkDestroyFence(m_device, frameData.renderFence, nullptr);
-            vkDestroySemaphore(m_device, frameData.renderSemaphore, nullptr);
-            vkDestroySemaphore(m_device, frameData.swapchainSemaphore, nullptr);
-        }
-
-        cleanupSwapchain();
-
-        vkDestroyDevice(m_device, nullptr);
-        vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-        
-        vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-        vkDestroyInstance(m_instance, nullptr);
-
-        glfwTerminate();
-        glfwDestroyWindow(m_window);
-
-        m_initialized = false;
+        return;
     }
+
+    Log("Engine cleaning up.");
+
+    CheckVkResult(vkDeviceWaitIdle(m_device));
+        
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
+
+    for (auto& shader : m_computeShaders)
+    {
+        shader.cleanup(m_device);
+    }
+
+    m_globalDescriptorAllocator.destroyPool(m_device);
+    vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
+
+    for (FrameData const& frameData : m_frames)
+    {
+        vkDestroyCommandPool(m_device, frameData.commandPool, nullptr);
+
+        vkDestroyFence(m_device, frameData.renderFence, nullptr);
+        vkDestroySemaphore(m_device, frameData.renderSemaphore, nullptr);
+        vkDestroySemaphore(m_device, frameData.swapchainSemaphore, nullptr);
+    }
+
+    vkDestroyFence(m_device, m_immFence, nullptr);
+    vkDestroyCommandPool(m_device, m_immCommandPool, nullptr);
+
+    m_drawImage.cleanup(m_device, m_allocator);
+    cleanupSwapchain();
+
+    vmaDestroyAllocator(m_allocator);
+
+    vkDestroyDevice(m_device, nullptr);
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+        
+    vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+    vkDestroyInstance(m_instance, nullptr);
+
+    glfwTerminate();
+    glfwDestroyWindow(m_window);
+
+    m_initialized = false;
 }

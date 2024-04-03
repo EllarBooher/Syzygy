@@ -62,7 +62,6 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 AllocatedImage vkutil::allocateImage(
     VmaAllocator allocator,
     VkDevice device,
-    DeletionQueue& deletionQueue,
     VkExtent3D extent,
     VkFormat format,
     VkImageUsageFlags usageMask
@@ -98,11 +97,6 @@ AllocatedImage vkutil::allocateImage(
     );
 
     CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
-
-    deletionQueue.pushFunction([=]() {
-        vkDestroyImageView(device, image.imageView, nullptr);
-        vmaDestroyImage(allocator, image.image, image.allocation);
-    });
 
     return image;
 }

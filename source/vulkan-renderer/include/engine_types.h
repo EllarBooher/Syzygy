@@ -26,6 +26,12 @@ struct AllocatedImage {
     VkImageView imageView{ VK_NULL_HANDLE };
     VkExtent3D imageExtent{};
     VkFormat imageFormat{ VK_FORMAT_UNDEFINED };
+
+    void cleanup(VkDevice device, VmaAllocator allocator)
+    {
+        vkDestroyImageView(device, imageView, nullptr);
+        vmaDestroyImage(allocator, image, allocation);
+    }
 };
 
 /** A quick and dirty way to keep track of the destruction order for vulkan objects. */

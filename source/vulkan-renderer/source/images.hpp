@@ -8,7 +8,6 @@ namespace vkutil {
     AllocatedImage allocateImage(
         VmaAllocator allocator,
         VkDevice device,
-        DeletionQueue& deletionQueue,
         VkExtent3D extent, 
         VkFormat format, 
         VkImageUsageFlags usageMask
