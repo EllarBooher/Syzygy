@@ -593,7 +593,6 @@ void Engine::mainLoop()
 
                         for (ShaderReflectionData::StructureMember const& pushConstantMember : pushConstant.members)
                         {
-                            uint8_t* const pMemberPointer{ pPushConstantData + pushConstantMember.offsetBytes };
                             std::visit(overloaded{
                                 [&](ShaderReflectionData::UnsupportedType const& unsupportedMember) {
                                     ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
@@ -693,7 +692,11 @@ void Engine::mainLoop()
 
                                     for (uint32_t row{ 0 }; row < rows; row++)
                                     {
-                                        uint8_t* const pDataPointer{ pMemberPointer + row * columns * numericMember.componentBitWidth / 8 };
+                                        size_t const byteOffset{ row * columns * numericMember.componentBitWidth / 8 + pushConstantMember.offsetBytes };
+                                        uint8_t* const pDataPointer{ &pushConstantMappedData[byteOffset] };
+
+                                        // Check that ImGui won't modify out of bounds data
+                                        assert((byteOffset + columns * numericMember.componentBitWidth / 8) <= pushConstantMappedData.size());
 
                                         std::string const rowLabel{ fmt::format("{}##{}", pushConstantMember.name, row) };
 
