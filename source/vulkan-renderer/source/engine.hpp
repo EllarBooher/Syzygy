@@ -105,7 +105,7 @@ private:
     std::vector<VkImageView> m_swapchainImageViews{};
     VkExtent3D m_swapchainExtent{};
 
-    float m_dpiScale{ 2.0f };
+    float m_dpiScale{ 1.0f };
 
     bool m_resizeRequested{ false };
     void resizeSwapchain();
@@ -156,11 +156,19 @@ private:
 
     std::vector<std::shared_ptr<MeshAsset>> m_testMeshes{};
 
+    // Scene
+
+    CameraParameters m_cameraParameters{
+        .cameraPosition{ glm::vec3(0.0f,0.0f,-8.0f) },
+        .eulerAngles{ glm::vec3(0.0f,0.0f,0.0f) },
+        .fov{ 70.0f },
+        .near{ 0.1f },
+        .far{ 10000.0f },
+    };
+
     // End Vulkan
 
     // Begin UI
-
-    float m_tweakableParam{};
 
     /**
         @param backingData The data to read/write to for the given structure. It should span the entire padded size,
@@ -168,7 +176,8 @@ private:
     */
     void imguiPushStructureControl(
         ShaderReflectionData::Structure const& structure, 
-        std::span<uint8_t> backingData    
+        bool readOnly,
+        std::span<uint8_t> backingData
     );
 
     /** Creates a imgui window that controls a shader. Will break when not in the right context in a draw loop. */

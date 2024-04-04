@@ -19,6 +19,8 @@
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 struct AllocatedImage {
     VmaAllocation allocation{ VK_NULL_HANDLE };
@@ -65,9 +67,38 @@ struct GPUMeshBuffers {
     }
 };
 
-struct GPUDrawPushConstants {
-    glm::mat4 worldMatrix;
+struct MeshDrawPushConstant {
+    glm::mat4x4 renderMatrix;
     VkDeviceAddress vertexBufferAddress;
+};
+
+struct CameraParameters {
+    glm::vec3 cameraPosition{ 0.0f, 0.0f, 0.0f };
+    glm::vec3 eulerAngles{ 0.0f, 0.0f, 0.0f };
+    float fov{ 90.0f };
+    float near{ 0.0f };
+    float far{ 1.0f };
+
+    /** 
+        Generations the projection * view matrix that transforms from world to clip space.
+        Aspect ratio is a function of the drawn surface, so it is passed in at generation time.
+        Produces a right handed matrix- x is right, y is down, and z is forward.
+    */
+    glm::mat4 toProjView(float aspectRatio) const
+    {
+        glm::mat4 view{ glm::orientate4(eulerAngles * -1.0f) * glm::translate(cameraPosition * -1.0f) };
+
+        // We use LH perspective matrix since we swap the near and far plane for better 
+        // distribution of floating point precision.
+        glm::mat4 projection{ glm::perspectiveLH_ZO(
+            glm::radians(fov)
+            , aspectRatio
+            , far
+            , near
+        ) };
+
+        return projection * view;
+    }
 };
 
 /** A quick and dirty way to keep track of the destruction order for vulkan objects. */

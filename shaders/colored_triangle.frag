@@ -17,14 +17,7 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
-layout( push_constant ) uniform RenderConstant
-{
-	mat4 renderMatrix;
-	vec4 tint;
-	VertexBuffer vertexBuffer;
-} renderConstant;
-
 void main()
 {
-	outFragColor = renderConstant.tint * vec4(inColor, 1.0f);
+	outFragColor = vec4(inColor,1.0);
 }

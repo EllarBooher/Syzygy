@@ -432,25 +432,11 @@ void Engine::initMeshPipeline()
     ShaderWrapper const fragShader{ vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", m_device) };
 
     assert(vertShader.reflectionData().defaultEntryPointHasPushConstant());
-    assert(fragShader.reflectionData().defaultEntryPointHasPushConstant());
 
     auto const& vertPushConstant{ vertShader.reflectionData().defaultPushConstant() };
-    auto const& fragPushConstant{ fragShader.reflectionData().defaultPushConstant() };
-
-    assert(
-        vertPushConstant.type.logicallyCompatible(
-            fragPushConstant.type
-        )
-    );
-
-    assert(
-        vertPushConstant.layoutOffsetBytes == 0
-        && fragPushConstant.layoutOffsetBytes == 0
-        && vertPushConstant.type.sizeBytes == fragPushConstant.type.sizeBytes
-    );
 
     VkPushConstantRange const pushConstantRange{
-        .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+        .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
         .offset{ 0 }, // Offset is zero since we know the exact two shaders
         .size{ vertPushConstant.type.paddedSizeBytes },
     };
@@ -511,16 +497,9 @@ void Engine::initDefaultMeshData()
         , 0.1f
     ) };
 
-    struct MeshDrawPushConstant {
-        glm::mat4x4 renderMatrix;
-        glm::vec4 tint;
-        VkDeviceAddress vertexBuffer;
-    };
-
     MeshDrawPushConstant const pushConstant{
         .renderMatrix{ projection * view },
-        .tint{ glm::vec4(1.0f) },
-        .vertexBuffer{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
+        .vertexBufferAddress{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
     };
 
     m_meshPipeline.setPushConstant(pushConstant);
@@ -760,7 +739,11 @@ GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::s
 }
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-void Engine::imguiPushStructureControl(ShaderReflectionData::Structure const& structure, std::span<uint8_t> backingData)
+void Engine::imguiPushStructureControl(
+    ShaderReflectionData::Structure const& structure, 
+    bool readOnly,
+    std::span<uint8_t> backingData
+)
 {
     for (ShaderReflectionData::StructureMember const& member : structure.members)
     {
@@ -873,8 +856,14 @@ void Engine::imguiPushStructureControl(ShaderReflectionData::Structure const& st
 
                     std::string const rowLabel{ fmt::format("{}##{}", member.name, column) };
 
-                    // void pointer since it could be unsigned OR signed. Could be split up.
-                    ImGui::InputScalarN(rowLabel.c_str(), imguiDataType, reinterpret_cast<void*>(pDataPointer), rows);
+                    ImGui::BeginDisabled(readOnly);
+                    ImGui::InputScalarN(
+                        rowLabel.c_str(), 
+                        imguiDataType, 
+                        reinterpret_cast<void*>(pDataPointer), 
+                        rows
+                    );
+                    ImGui::EndDisabled();
                 }
             },
         }, member.type.typeData);
@@ -895,7 +884,7 @@ void Engine::imguiPushShaderControl(ShaderWrapper& shader)
             {
                 std::span<uint8_t> const pushConstantMappedData{ shader.mapRuntimePushConstant(entryPoint) };
 
-                imguiPushStructureControl(pushConstant.type, pushConstantMappedData);
+                imguiPushStructureControl(pushConstant.type, false, pushConstantMappedData);
             }
         }
         ImGui::Unindent(16.0f);
@@ -905,11 +894,15 @@ void Engine::imguiPushShaderControl(ShaderWrapper& shader)
 void Engine::imguiPushGraphicsPipelineControl(GraphicsPipelineWrapper& pipeline)
 {
     auto const& pushConstant{ pipeline.pushConstant.reflectionData };
+    bool const readOnly{ pipeline.pushConstant.engineDriven };
 
     std::span<uint8_t> backingData{ pipeline.mapPushConstant() };
 
-    imguiPushStructureControl(pushConstant.type, backingData);
+    imguiPushStructureControl(pushConstant.type, readOnly, backingData);
 }
+
+template<typename T>
+void imguiStructureControls(T& structure);
 
 void Engine::mainLoop()
 {
@@ -965,14 +958,35 @@ void Engine::mainLoop()
             ImGui::Indent(32.0f);
             imguiPushGraphicsPipelineControl(m_meshPipeline);
             ImGui::Unindent(32.0f);
-            ImGui::Separator();
-            ImGui::DragFloat("Tweakable Parameter", &m_tweakableParam, 0.2f, 0.0f, 360.0f);
+            imguiStructureControls(m_cameraParameters);
         }
         ImGui::End();
 
         ImGui::Render();
         draw();
     }
+}
+
+void imguiStructureControls<CameraParameters>(CameraParameters& structure)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Camera Parameters");
+    ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
+    ImGui::DragScalarN("eulerAngles", ImGuiDataType_Float, &structure.eulerAngles, 3, 0.2f);
+
+    float const fovMin{ 0.0f };
+    float const fovMax{ 180.0f };
+    ImGui::DragScalarN("fov", ImGuiDataType_Float, &structure.fov, 1, 1.0f, &fovMin, &fovMax);
+
+    float const nearPlaneMin{ 0.01f };
+    float const nearPlaneMax{ structure.far - 0.01f };
+    ImGui::DragScalarN("nearPlane", ImGuiDataType_Float, &structure.near, 1, structure.near * 0.01f, &nearPlaneMin, &nearPlaneMax);
+
+    float const farPlaneMin{ structure.near + 0.01f };
+    float const farPlaneMax{ 1'000'000.0f };
+    ImGui::DragScalarN("farPlane", ImGuiDataType_Float, &structure.far, 1, structure.far * 0.01f, &farPlaneMin, &farPlaneMax);
+
+    ImGui::EndGroup();
 }
 
 void Engine::draw()
@@ -1201,29 +1215,15 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    struct MeshDrawPushConstant {
-        glm::mat4x4 renderMatrix;
-        glm::vec4 tint;
-        VkDeviceAddress vertexBuffer;
-    };
-
-    glm::mat4 view{ glm::rotate(glm::translate(glm::vec3(0,0,-8)), glm::radians(m_tweakableParam), glm::vec3(0,1.0,0)) };
-    glm::mat4 projection{ glm::perspective(
-        glm::radians(70.f)
-        , static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
-        , 10000.0f
-        , 0.1f
-    ) };
-
-    MeshDrawPushConstant const currentPushConstant{
-        m_meshPipeline.readPushConstant<MeshDrawPushConstant>()
+    CameraParameters const& cameraParameters{ m_cameraParameters };
+    float const aspectRatio{
+        static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
     };
 
     assert(m_testMeshes.size() > 2);
     MeshDrawPushConstant const pushConstant{
-        .renderMatrix{ projection * view },
-        .tint{ currentPushConstant.tint },
-        .vertexBuffer{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
+        .renderMatrix{ cameraParameters.toProjView(aspectRatio) },
+        .vertexBufferAddress{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
     };
 
     // Push back for the UI

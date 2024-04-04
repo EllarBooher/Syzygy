@@ -19,7 +19,6 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 layout( push_constant ) uniform RenderConstant
 {
 	mat4 renderMatrix;
-	vec4 tint;
 	VertexBuffer vertexBuffer;
 } renderConstant;
 
