@@ -78,6 +78,10 @@ private:
     void initPipelines();
     void initBackgroundPipelines(std::span<std::string const> shaders);
     void initTrianglePipeline();
+    
+    void initMeshPipeline();
+    void initDefaultMeshData();
+
     void initImgui();
 
     VkInstance m_instance{ VK_NULL_HANDLE };
@@ -137,11 +141,32 @@ private:
     uint32_t m_computeShaderIndex{ 0 };
 
     GraphicsPipelineWrapper m_trianglePipeline{};
+    GraphicsPipelineWrapper m_meshPipeline{};
+
+    // Buffers
+
+    AllocatedBuffer createBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+
+    GPUMeshBuffers uploadedMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
+
+    // Meshes
+
+    GPUMeshBuffers m_rectangleMesh{};
 
     // End Vulkan
 
     // Begin UI
 
+    /**
+        @param backingData The data to read/write to for the given structure. It should span the entire padded size,
+        even parts members do not overlap with.
+    */
+    void imguiPushStructureControl(
+        ShaderReflectionData::Structure const& structure, 
+        std::span<uint8_t> backingData    
+    );
+
     /** Creates a imgui window that controls a shader. Will break when not in the right context in a draw loop. */
     void imguiPushShaderControl(ShaderWrapper& shader);
+    void imguiPushGraphicsPipelineControl(GraphicsPipelineWrapper& pipeline);
 };

@@ -97,6 +97,9 @@ void Engine::initVulkan()
 
     initPipelines();
     initTrianglePipeline();
+    initMeshPipeline();
+    initDefaultMeshData();
+
     initImgui();
 
     uint32_t extensionCount = 0;
@@ -480,6 +483,134 @@ void Engine::initTrianglePipeline()
     };
 }
 
+void Engine::initMeshPipeline()
+{
+    ShaderWrapper const vertShader{ vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", m_device) };
+    ShaderWrapper const fragShader{ vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", m_device) };
+
+    assert(vertShader.reflectionData().defaultEntryPointHasPushConstant());
+    assert(fragShader.reflectionData().defaultEntryPointHasPushConstant());
+
+    auto const& vertPushConstant{ vertShader.reflectionData().defaultPushConstant() };
+    auto const& fragPushConstant{ fragShader.reflectionData().defaultPushConstant() };
+
+    assert(
+        vertPushConstant.type.logicallyCompatible(
+            fragPushConstant.type
+        )
+    );
+
+    assert(
+        vertPushConstant.layoutOffsetBytes == 0
+        && fragPushConstant.layoutOffsetBytes == 0
+        && vertPushConstant.type.sizeBytes == fragPushConstant.type.sizeBytes
+    );
+
+    VkPushConstantRange const pushConstantRange{
+        .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+        .offset{ 0 }, // Offset is zero since we know the exact two shaders
+        .size{ vertPushConstant.type.paddedSizeBytes },
+    };
+
+    VkPipelineLayoutCreateInfo const layoutInfo{
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+        .pNext{ nullptr },
+
+        .flags{ 0 },
+
+        .setLayoutCount{ 0 },
+        .pSetLayouts{ nullptr },
+
+        .pushConstantRangeCount{ 1 },
+        .pPushConstantRanges{ &pushConstantRange },
+    };
+
+    VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+    CheckVkResult(vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &pipelineLayout));
+
+    PipelineBuilder pipelineBuilder{};
+    pipelineBuilder.setShaders(vertShader, fragShader);
+    pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+    pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.setMultisamplingNone();
+    pipelineBuilder.disableBlending();
+    pipelineBuilder.disableDepthTest();
+
+    pipelineBuilder.setColorAttachmentFormat(m_drawImage.imageFormat);
+    pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
+
+    m_meshPipeline = GraphicsPipelineWrapper{
+        .vertexShader{ vertShader },
+        .fragmentShader{ fragShader },
+        .pipeline{ pipelineBuilder.buildPipeline(m_device, pipelineLayout) },
+        .pipelineLayout{ pipelineLayout },
+        .pushConstant{ PipelinePushConstant{
+            .engineDriven{ true },
+            .pipelineStages{ pushConstantRange.stageFlags },
+            .buffer{ std::vector<uint8_t>(pushConstantRange.size)},
+            .reflectionData{ vertPushConstant },
+        } },
+    };
+}
+
+void Engine::initDefaultMeshData()
+{
+    // Pipeline should be initialized with VK_FRONT_FACE_CLOCKWISE
+
+    std::array<Vertex, 4> rectangleVertices{
+        Vertex{
+            .position{0.5,-0.5,0},
+            .uv_x{},
+            .normal{},
+            .uv_y{},
+            .color{0,0,0,1},
+        },
+        Vertex{
+            .position{0.5,0.5,0},
+            .uv_x{},
+            .normal{},
+            .uv_y{},
+            .color{0.5,0.5,0.5,1},
+        },
+        Vertex{
+            .position{-0.5,0.5,0},
+            .uv_x{},
+            .normal{},
+            .uv_y{},
+            .color{0,1,0,1},
+        },
+        Vertex{
+            .position{-0.5,-0.5,0},
+            .uv_x{},
+            .normal{},
+            .uv_y{},
+            .color{1,0,0,1},
+        },
+    };
+
+    std::array<uint32_t, 6> rectangleIndices{
+        0, 1, 2,
+        2, 3, 0,
+    };
+
+    m_rectangleMesh = uploadedMeshToGPU(rectangleIndices, rectangleVertices);
+
+    struct MeshDrawPushConstant {
+        glm::mat4x4 renderMatrix;
+        VkDeviceAddress vertexBuffer;
+        glm::vec4 tint;
+    };
+    MeshDrawPushConstant const pushConstant{
+        .renderMatrix{ glm::mat4x4(1.0f) },
+        .vertexBuffer{ m_rectangleMesh.vertexBufferAddress },
+        .tint{ glm::vec4(1.0f) },
+    };
+
+    // Copies are okay, just to test the interface
+    m_meshPipeline.setPushConstant(pushConstant);
+}
+
 void Engine::initImgui()
 {
     Log("Initializing ImGui...");
@@ -623,7 +754,217 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
 }
 
+AllocatedBuffer Engine::createBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+    VkBufferCreateInfo const bufferInfo{
+        .sType{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO },
+        .pNext{ nullptr },
+
+        .size{ allocationSize },
+        .usage{ usage },
+    };
+
+    VmaAllocationCreateInfo const vmaAllocInfo{
+        .flags{ VMA_ALLOCATION_CREATE_MAPPED_BIT },
+        .usage{ memoryUsage },
+    };
+
+    AllocatedBuffer newBuffer{};
+    CheckVkResult(
+        vmaCreateBuffer(m_allocator, &bufferInfo, &vmaAllocInfo, 
+        &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info)
+    );
+
+    return newBuffer;
+}
+
+GPUMeshBuffers Engine::uploadedMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
+{
+    // Allocate buffer 
+
+    size_t const indexBufferSize{ indices.size_bytes() };
+    size_t const vertexBufferSize{ vertices.size_bytes() };
+
+    AllocatedBuffer const indexBuffer{ createBuffer(
+        indexBufferSize
+        , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        , VMA_MEMORY_USAGE_GPU_ONLY
+    ) };
+
+    AllocatedBuffer const vertexBuffer{ createBuffer(
+        vertexBufferSize
+        , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+        , VMA_MEMORY_USAGE_GPU_ONLY
+    ) };
+    VkBufferDeviceAddressInfo const addressInfo{
+        .sType{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO },
+        .pNext{ nullptr },
+
+        .buffer{ vertexBuffer.buffer },
+    };
+    VkDeviceAddress const vertexBufferAddress{ vkGetBufferDeviceAddress(m_device, &addressInfo) };
+
+    // Copy data into buffer
+
+    AllocatedBuffer stagingBuffer{ createBuffer(
+        vertexBufferSize + indexBufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_CPU_ONLY
+    ) };
+
+    uint8_t* const data{ reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData()) };
+    memcpy(data, vertices.data(), vertexBufferSize);
+    memcpy(data + vertexBufferSize, indices.data(), indexBufferSize);
+
+    immediateSubmit([&](VkCommandBuffer cmd) {
+        VkBufferCopy const vertexCopy{
+            .srcOffset{ 0 },
+            .dstOffset{ 0 },
+            .size{ vertexBufferSize },
+        };
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy);
+
+        VkBufferCopy const indexCopy{
+            .srcOffset{ vertexBufferSize },
+            .dstOffset{ 0 },
+            .size{ indexBufferSize },
+        };
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy);
+    });
+
+    stagingBuffer.cleanup(m_allocator);
+
+    return GPUMeshBuffers{
+        .indexBuffer{ indexBuffer },
+        .vertexBuffer{ vertexBuffer },
+        .vertexBufferAddress{ vertexBufferAddress },
+    };
+}
+
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+void Engine::imguiPushStructureControl(ShaderReflectionData::Structure const& structure, std::span<uint8_t> backingData)
+{
+    for (ShaderReflectionData::StructureMember const& member : structure.members)
+    {
+        std::visit(overloaded{
+            [&](ShaderReflectionData::UnsupportedType const& unsupportedType) {
+                ImGui::Text(fmt::format("Unsupported member \"{}\"", member.name).c_str());
+            },
+            [&](ShaderReflectionData::NumericType const& numericType) {
+
+                // Gather format data
+                uint32_t columns{ 0 };
+                uint32_t rows{ 0 };
+                std::visit(overloaded{
+                    [&](ShaderReflectionData::Scalar const& scalar) {
+                        columns = 1;
+                        rows = 1;
+                    },
+                    [&](ShaderReflectionData::Vector const& vector) {
+                        columns = 1;
+                        rows = vector.componentCount;
+                    },
+                    [&](ShaderReflectionData::Matrix const& matrix) {
+                        columns = matrix.columnCount;
+                        rows = matrix.rowCount;
+                    },
+                }, numericType.format);
+
+                bool bSupportedType{ true };
+                ImGuiDataType imguiDataType{ ImGuiDataType_Float };
+                std::visit(overloaded{
+                    [&](ShaderReflectionData::Integer const& integerComponent) {
+                        assert(integerComponent.signedness == 0 || integerComponent.signedness == 1);
+
+                        switch (integerComponent.signedness)
+                        {
+                        case 0: //unsigned
+                            switch (numericType.componentBitWidth)
+                            {
+                            case 8:
+                                imguiDataType = ImGuiDataType_U8;
+                                break;
+                            case 16:
+                                imguiDataType = ImGuiDataType_U16;
+                                break;
+                            case 32:
+                                imguiDataType = ImGuiDataType_U32;
+                                break;
+                            case 64:
+                                imguiDataType = ImGuiDataType_U64;
+                                break;
+                            default:
+                                bSupportedType = false;
+                                break;
+                            }
+                            break;
+                        default: //signed
+                            switch (numericType.componentBitWidth)
+                            {
+                            case 8:
+                                imguiDataType = ImGuiDataType_S8;
+                                break;
+                            case 16:
+                                imguiDataType = ImGuiDataType_S16;
+                                break;
+                            case 32:
+                                imguiDataType = ImGuiDataType_S32;
+                                break;
+                            case 64:
+                                imguiDataType = ImGuiDataType_S64;
+                                break;
+                            default:
+                                bSupportedType = false;
+                                break;
+                            }
+                            break;
+                        }
+                    },
+                    [&](ShaderReflectionData::Float const& floatComponent) {
+                        bool bSupportedFloat{ true };
+                        ImGuiDataType imguiDataType{ ImGuiDataType_Float };
+                        switch (numericType.componentBitWidth)
+                        {
+                        case 64:
+                            imguiDataType = ImGuiDataType_Double;
+                            break;
+                        case 32:
+                            imguiDataType = ImGuiDataType_Float;
+                            break;
+                        default:
+                            bSupportedFloat = false;
+                            break;
+                        }
+                    },
+                }, numericType.componentType);
+
+                if (!bSupportedType)
+                {
+                    ImGui::Text(fmt::format("Unsupported component bit width {} for member {}", numericType.componentBitWidth, member.name).c_str());
+                }
+
+                // SPIR-V aggregate types are column major. 
+                // Columns are members, and rows are components of a vector/column.
+                for (uint32_t column{ 0 }; column < columns; column++)
+                {
+                    size_t const byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                    uint8_t* const pDataPointer{ &backingData[byteOffset] };
+
+                    // Check that ImGui won't modify out of bounds data
+                    assert((byteOffset + rows * numericType.componentBitWidth / 8) <= backingData.size());
+
+                    std::string const rowLabel{ fmt::format("{}##{}", member.name, column) };
+
+                    // void pointer since it could be unsigned OR signed. Could be split up.
+                    ImGui::InputScalarN(rowLabel.c_str(), imguiDataType, reinterpret_cast<void*>(pDataPointer), rows);
+                }
+            },
+        }, member.type.typeData);
+    }
+}
 void Engine::imguiPushShaderControl(ShaderWrapper& shader)
 {
     if (ImGui::CollapsingHeader(fmt::format("{} controls", shader.name()).c_str()))
@@ -638,127 +979,21 @@ void Engine::imguiPushShaderControl(ShaderWrapper& shader)
             if (ImGui::CollapsingHeader(fmt::format("\"{}\", entry point \"{}\"", pushConstant.name, entryPoint).c_str()))
             {
                 std::span<uint8_t> const pushConstantMappedData{ shader.mapRuntimePushConstant(entryPoint) };
-                uint8_t* const pPushConstantData{ pushConstantMappedData.data() };
 
-                for (ShaderReflectionData::StructureMember const& pushConstantMember : pushConstant.type.members)
-                {
-                    std::visit(overloaded{
-                        [&](ShaderReflectionData::UnsupportedType const& unsupportedMember) {
-                            ImGui::Text(fmt::format("Unsupported member \"{}\"", pushConstantMember.name).c_str());
-                        },
-                        [&](ShaderReflectionData::NumericType const& numericMember) {
-
-                            // Gather format data
-                            uint32_t columns{ 0 };
-                            uint32_t rows{ 0 };
-                            std::visit(overloaded{
-                                [&](ShaderReflectionData::Scalar const& scalar) {
-                                    columns = 1;
-                                    rows = 1;
-                                },
-                                [&](ShaderReflectionData::Vector const& vector) {
-                                    columns = 1;
-                                    rows = vector.componentCount;
-                                },
-                                [&](ShaderReflectionData::Matrix const& matrix) {
-                                    columns = matrix.columnCount;
-                                    rows = matrix.rowCount;
-                                },
-                            }, numericMember.format);
-
-                            bool bSupportedType{ true };
-                            ImGuiDataType imguiDataType{ ImGuiDataType_Float };
-                            std::visit(overloaded{
-                                [&](ShaderReflectionData::Integer const& integerComponent) {
-                                    assert(integerComponent.signedness == 0 || integerComponent.signedness == 1);
-
-                                    switch (integerComponent.signedness)
-                                    {
-                                    case 0: //unsigned
-                                        switch (numericMember.componentBitWidth)
-                                        {
-                                        case 8:
-                                            imguiDataType = ImGuiDataType_U8;
-                                            break;
-                                        case 16:
-                                            imguiDataType = ImGuiDataType_U16;
-                                            break;
-                                        case 32:
-                                            imguiDataType = ImGuiDataType_U32;
-                                            break;
-                                        case 64:
-                                            imguiDataType = ImGuiDataType_U64;
-                                            break;
-                                        default:
-                                            bSupportedType = false;
-                                            break;
-                                        }
-                                        break;
-                                    default: //signed
-                                        switch (numericMember.componentBitWidth)
-                                        {
-                                        case 8:
-                                            imguiDataType = ImGuiDataType_S8;
-                                            break;
-                                        case 16:
-                                            imguiDataType = ImGuiDataType_S16;
-                                            break;
-                                        case 32:
-                                            imguiDataType = ImGuiDataType_S32;
-                                            break;
-                                        case 64:
-                                            imguiDataType = ImGuiDataType_S64;
-                                            break;
-                                        default:
-                                            bSupportedType = false;
-                                            break;
-                                        }
-                                        break;
-                                    }
-                                },
-                                [&](ShaderReflectionData::Float const& floatComponent) {
-                                    bool bSupportedFloat{ true };
-                                    ImGuiDataType imguiDataType{ ImGuiDataType_Float };
-                                    switch (numericMember.componentBitWidth)
-                                    {
-                                    case 64:
-                                        imguiDataType = ImGuiDataType_Double;
-                                        break;
-                                    case 32:
-                                        imguiDataType = ImGuiDataType_Float;
-                                        break;
-                                    default:
-                                        bSupportedFloat = false;
-                                        break;
-                                    }
-                                },
-                            }, numericMember.componentType);
-
-                            if (!bSupportedType)
-                            {
-                                ImGui::Text(fmt::format("Unsupported component bit width {} for member {}", numericMember.componentBitWidth, pushConstantMember.name).c_str());
-                            }
-
-                            for (uint32_t column{ 0 }; column < columns; column++)
-                            {
-                                size_t const byteOffset{ column * rows * numericMember.componentBitWidth / 8 + pushConstantMember.offsetBytes - pushConstant.layoutOffsetBytes };
-                                uint8_t* const pDataPointer{ &pushConstantMappedData[byteOffset] };
-
-                                // Check that ImGui won't modify out of bounds data
-                                assert((byteOffset + rows * numericMember.componentBitWidth / 8) <= pushConstantMappedData.size());
-
-                                std::string const rowLabel{ fmt::format("{}##{}", pushConstantMember.name, column) };
-
-                                // void pointer since it could be unsigned OR signed. Could be split up.
-                                ImGui::InputScalarN(rowLabel.c_str(), imguiDataType, reinterpret_cast<void*>(pDataPointer), rows);
-                            }
-                        },
-                        }, pushConstantMember.typeData);
-                }
+                imguiPushStructureControl(pushConstant.type, pushConstantMappedData);
             }
         }
         ImGui::Unindent(16.0f);
     }
+}
+
+void Engine::imguiPushGraphicsPipelineControl(GraphicsPipelineWrapper& pipeline)
+{
+    auto const& pushConstant{ pipeline.pushConstant.reflectionData };
+
+    std::span<uint8_t> backingData{ pipeline.mapPushConstant() };
+
+    imguiPushStructureControl(pushConstant.type, backingData);
 }
 
 void Engine::mainLoop()
@@ -795,9 +1030,10 @@ void Engine::mainLoop()
             m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
         };
 
-        if (ImGui::Begin("Background Shader"))
+        if (ImGui::Begin("Pipeline Controls"))
         {
-            ImGui::Text("Select shader to use:");
+            ImGui::Text("Select background shader to use:");
+            ImGui::Indent(32.0f);
             for (uint32_t index{ 0 }; index < m_computeShaders.size(); index++)
             {
                 ComputeShaderWrapper const& shader{ m_computeShaders[index] };
@@ -808,9 +1044,12 @@ void Engine::mainLoop()
             }
             ImGui::Separator();
             imguiPushShaderControl(currentComputeShader);
+            ImGui::Unindent(32.0f);
             ImGui::Separator();
-            imguiPushShaderControl(m_trianglePipeline.vertexShader);
-            imguiPushShaderControl(m_trianglePipeline.fragmentShader);
+            ImGui::Text("Mesh pipeline controls:");
+            ImGui::Indent(32.0f);
+            imguiPushGraphicsPipelineControl(m_meshPipeline);
+            ImGui::Unindent(32.0f);
         }
         ImGui::End();
 
@@ -1002,7 +1241,7 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
 
     vkCmdBeginRendering(cmd, &renderInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_trianglePipeline.pipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_meshPipeline.pipeline);
 
     VkViewport const viewport{
         .x{ 0 },
@@ -1028,31 +1267,23 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    ShaderReflectionData const& vertexReflectionData{ m_trianglePipeline.vertexShader.reflectionData() };
-    if (vertexReflectionData.defaultEntryPointHasPushConstant())
-    {
-        std::string const entryPoint{ vertexReflectionData.defaultEntryPoint };
-        std::span<uint8_t const> pushConstant{ m_trianglePipeline.vertexShader.readRuntimePushConstant(entryPoint) };
-        if (!m_trianglePipeline.vertexShader.validatePushConstant(pushConstant, entryPoint))
-        {
-            Error(fmt::format("Invalid push constant data detected by \"{}\"", m_trianglePipeline.vertexShader.name()));
-        }
-        vkCmdPushConstants(cmd, m_trianglePipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, vertexReflectionData.defaultPushConstant().layoutOffsetBytes, pushConstant.size(), pushConstant.data());
-    }
+    struct MeshDrawPushConstant {
+        glm::mat4x4 renderMatrix;
+        VkDeviceAddress vertexBuffer;
+        glm::vec4 tint;
+    };
 
-    ShaderReflectionData const& fragmentReflectionData{ m_trianglePipeline.fragmentShader.reflectionData() };
-    if (vertexReflectionData.defaultEntryPointHasPushConstant())
-    {
-        std::string const entryPoint{ fragmentReflectionData.defaultEntryPoint };
-        std::span<uint8_t const> pushConstant{ m_trianglePipeline.fragmentShader.readRuntimePushConstant(entryPoint) };
-        if (!m_trianglePipeline.fragmentShader.validatePushConstant(pushConstant, entryPoint))
-        {
-            Error(fmt::format("Invalid push constant data detected by \"{}\"", m_trianglePipeline.fragmentShader.name()));
-        }
-        vkCmdPushConstants(cmd, m_trianglePipeline.pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, fragmentReflectionData.defaultPushConstant().layoutOffsetBytes, pushConstant.size(), pushConstant.data());
-    }
+    MeshDrawPushConstant const currentPushConstant{
+        m_meshPipeline.readPushConstant<MeshDrawPushConstant>()
+    };
 
-    vkCmdDraw(cmd, 3, 1, 0, 0);
+    vkCmdPushConstants(cmd, m_meshPipeline.pipelineLayout,
+        m_meshPipeline.pushConstant.pipelineStages,
+        0, sizeof(MeshDrawPushConstant), &currentPushConstant
+    );
+    vkCmdBindIndexBuffer(cmd, m_rectangleMesh.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
     vkCmdEndRendering(cmd);
 }
@@ -1090,6 +1321,11 @@ void Engine::cleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
+
+    m_trianglePipeline.cleanup(m_device);
+    m_meshPipeline.cleanup(m_device);
+
+    m_rectangleMesh.cleanup(m_allocator);
 
     for (auto& shader : m_computeShaders)
     {

@@ -203,3 +203,13 @@ void PipelineBuilder::disableDepthTest()
 		.maxDepthBounds{ 1.0f },
 	};
 }
+
+std::span<uint8_t> GraphicsPipelineWrapper::mapPushConstant()
+{
+	return { pushConstant.buffer };
+}
+
+std::span<uint8_t const> GraphicsPipelineWrapper::readPushConstant() const
+{
+	return { pushConstant.buffer };
+}

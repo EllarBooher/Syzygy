@@ -22,18 +22,24 @@ struct ShaderReflectionData
 	struct Integer
 	{
 		bool signedness;
+
+		bool operator==(Integer const& other) const;
 	};
 
 	// Corresponds to OpTypeFloat
-	struct Float {};
+	using Float = std::monostate;
+	using Scalar = std::monostate;
 
-	struct Scalar {};
 	struct Vector {
 		uint32_t componentCount;
+
+		bool operator==(Vector const& other) const;
 	};
 	struct Matrix {
 		uint32_t columnCount;
 		uint32_t rowCount;
+
+		bool operator==(Matrix const& other) const;
 	};
 
 	struct NumericType
@@ -41,27 +47,33 @@ struct ShaderReflectionData
 		using ComponentType = std::variant<Integer, Float>;
 		using Format = std::variant<Scalar, Vector, Matrix>;
 
-		// May be an empty string for some types.
-		std::string name;
 		uint32_t componentBitWidth;
 		ComponentType componentType;
 		Format format;
+
+		bool operator==(NumericType const& other) const;
 	};
 
 	/**
 		Represents a type whose reflection data could not be generated,
 		usually because the specific type is not supported yet.
 	*/
-	struct UnsupportedType
+	using UnsupportedType = std::monostate;
+
+	struct SizedType
 	{
+		std::variant<NumericType, UnsupportedType> typeData;
+
 		std::string name;
+		uint32_t sizeBytes;
+		uint32_t paddedSizeBytes;
 	};
 
 	struct StructureMember
 	{
 		uint32_t offsetBytes;
 		std::string name;
-		std::variant<NumericType, UnsupportedType> typeData;
+		SizedType type;
 	};
 	// Corresponds to OpTypeStruct
 	struct Structure
@@ -72,6 +84,11 @@ struct ShaderReflectionData
 		// TODO: figure out what exactly determines the padding size
 		uint32_t paddedSizeBytes;
 		std::vector<StructureMember> members;
+
+		/**
+			Mutually checks if the members of this struct match any bitwise overlapping members in the other struct.
+		*/
+		bool logicallyCompatible(Structure const& other) const;
 	};
 
 	/*
@@ -90,6 +107,8 @@ struct ShaderReflectionData
 	{
 		Structure type{};
 		std::string name{};
+
+		// This does not impact the offset values generation in the type data.
 		uint32_t layoutOffsetBytes{ 0 };
 	};
 	std::map<std::string, PushConstant> pushConstantsByEntryPoint{};

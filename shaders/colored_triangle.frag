@@ -1,15 +1,30 @@
 #version 450
+#extension GL_EXT_buffer_reference : require
 
 layout (location = 0) in vec3 inColor;
 
 layout (location = 0) out vec4 outFragColor;
 
-layout( push_constant, std430 ) uniform ColorConstant
+struct Vertex {
+	vec3 position;
+	float uv_x;
+	vec3 normal;
+	float uv_y;
+	vec4 color;
+};
+
+layout(buffer_reference, std430) readonly buffer VertexBuffer{
+	Vertex vertices[];
+};
+
+layout( push_constant ) uniform RenderConstant
 {
-	layout(offset = 96) vec4 tint;
-} colorConstant;
+	mat4 renderMatrix;
+	VertexBuffer vertexBuffer;
+	vec4 tint;
+} renderConstant;
 
 void main()
 {
-	outFragColor = vec4(inColor, 1.0f) * colorConstant.tint;
+	outFragColor = vec4(inColor, 1.0f) * renderConstant.tint;
 }

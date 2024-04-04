@@ -78,8 +78,12 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			ShaderReflectionData::StructureMember const unsupportedMember{
 					.offsetBytes{ offsetBytes },
 					.name{ member.name },
-					.typeData{ ShaderReflectionData::UnsupportedType{
-						.name{ typeName }
+					.type{ ShaderReflectionData::SizedType{
+						.typeData{ ShaderReflectionData::UnsupportedType{} },
+
+						.name{ typeName },
+						.sizeBytes{ member.size },
+						.paddedSizeBytes{ member.padded_size },
 					} },
 			};
 
@@ -146,15 +150,19 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			processedMembers.push_back(ShaderReflectionData::StructureMember{
 				.offsetBytes{ offsetBytes },
 				.name{ member.name },
-				.typeData{
-					ShaderReflectionData::NumericType{
+				.type{
+					ShaderReflectionData::SizedType{
+						.typeData{ ShaderReflectionData::NumericType{
+							.componentBitWidth{ numericTraits.scalar.width },
+							.componentType{ componentType },
+							.format{ format },
+						}},
 						.name{ typeName },
-						.componentBitWidth{ numericTraits.scalar.width },
-						.componentType{ componentType },
-						.format{ format }
+						.sizeBytes{ member.size },
+						.paddedSizeBytes{ member.padded_size },
 					}
 				}
-				});
+			});
 		}
 
 		pushConstantsByEntryPoint[std::string{ entryPoint.name }] = ShaderReflectionData::PushConstant{
@@ -251,3 +259,100 @@ void ShaderWrapper::resetRuntimeData()
 
 	m_runtimePushConstantsByEntryPoint = runtimePushConstants;
 }
+
+bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other) const
+{
+	uint32_t memberIndex{ 0 };
+	uint32_t otherMemberIndex{ 0 };
+
+	size_t iterations{ 0 };
+	while (iterations < 100)
+	{
+		if (memberIndex >= members.size() || otherMemberIndex >= other.members.size())
+		{
+			// Reached the end without finding incompatible members, so the rest does not matter.
+			return true;
+		}
+
+		struct ByteRange {
+			uint32_t startByte{ 0 };
+			uint32_t endUnpaddedByte{ 0 };
+			uint32_t endPaddedByte{ 0 };
+		};
+		auto const getByteRange{
+			[&](StructureMember const& member) {
+				return ByteRange{
+					.startByte{ member.offsetBytes },
+					.endUnpaddedByte{ member.offsetBytes + member.type.sizeBytes },
+					.endPaddedByte{ member.offsetBytes + member.type.paddedSizeBytes },
+				};
+			}
+		};
+
+		StructureMember const& member{ members[memberIndex] };
+		StructureMember const& otherMember{ other.members[otherMemberIndex] };
+
+		ByteRange const memberRange{ getByteRange(member) };
+		ByteRange const otherMemberRange{ getByteRange(otherMember) };
+
+		// If the members overlap, their types must be compatible
+		
+		// Assert monotonicity so interval calculations are valid
+		assert(
+			memberRange.endPaddedByte >= memberRange.endUnpaddedByte
+			&& memberRange.endUnpaddedByte >= memberRange.startByte
+		);
+		assert(
+			otherMemberRange.endPaddedByte >= otherMemberRange.endUnpaddedByte
+			&& otherMemberRange.endUnpaddedByte >= otherMemberRange.startByte
+		);
+
+		if (memberRange.startByte < otherMemberRange.endPaddedByte
+			&& memberRange.endPaddedByte > otherMemberRange.startByte)
+		{
+			// For now, require members to be identical.
+			if (member.type.typeData != otherMember.type.typeData)
+			{
+				return false;
+			}
+		}
+		
+		if (memberRange.endUnpaddedByte <= otherMemberRange.endPaddedByte)
+		{
+			memberIndex += 1;
+		}
+		else
+		{
+			otherMemberIndex += 1;
+		}
+	}
+	Error(fmt::format("Ran out of iterations while checking shader structure compatibility between {} and {}."
+		, name
+		, other.name
+	));
+	return false;
+}
+
+bool ShaderReflectionData::NumericType::operator==(NumericType const& other) const
+{
+	return other.componentBitWidth == componentBitWidth
+		&& other.componentType == componentType
+		&& other.format == format;
+}
+
+bool ShaderReflectionData::Integer::operator==(Integer const& other) const
+{
+	return other.signedness == signedness;
+}
+
+bool ShaderReflectionData::Vector::operator==(Vector const& other) const
+{
+	return other.componentCount == componentCount;
+}
+
+bool ShaderReflectionData::Matrix::operator==(Matrix const& other) const
+{
+	return other.columnCount == columnCount
+		&& other.rowCount == rowCount;
+}
+
