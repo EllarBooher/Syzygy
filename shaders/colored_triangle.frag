@@ -20,11 +20,11 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 layout( push_constant ) uniform RenderConstant
 {
 	mat4 renderMatrix;
-	VertexBuffer vertexBuffer;
 	vec4 tint;
+	VertexBuffer vertexBuffer;
 } renderConstant;
 
 void main()
 {
-	outFragColor = vec4(inColor, 1.0f) * renderConstant.tint;
+	outFragColor = renderConstant.tint * vec4(inColor, 1.0f);
 }

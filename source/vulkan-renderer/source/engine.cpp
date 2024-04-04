@@ -18,6 +18,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <glm/gtx/transform.hpp>
+
 #include "initializers.hpp"
 #include "helpers.h"
 #include "images.hpp"
@@ -87,7 +89,7 @@ void Engine::initVulkan()
     initAllocator();
 
     initSwapchain();
-    initDrawTarget();
+    initDrawTargets();
     
     initCommands();
     initSyncStructures();
@@ -96,7 +98,6 @@ void Engine::initVulkan()
     updateDescriptors();
 
     initPipelines();
-    initTrianglePipeline();
     initMeshPipeline();
     initDefaultMeshData();
 
@@ -209,7 +210,7 @@ void Engine::initSwapchain()
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
 }
 
-void Engine::initDrawTarget()
+void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
 
@@ -218,10 +219,20 @@ void Engine::initDrawTarget()
         m_device,
         m_swapchainExtent,
         VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
         | VK_IMAGE_USAGE_STORAGE_BIT
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
+    );
+
+    m_depthImage = vkutil::allocateImage(
+        m_allocator,
+        m_device,
+        m_drawImage.imageExtent,
+        VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
 }
 
@@ -233,6 +244,12 @@ void Engine::cleanupSwapchain()
     {
         vkDestroyImageView(m_device, imageView, nullptr);
     }
+}
+
+void Engine::cleanupDrawTargets()
+{
+    m_drawImage.cleanup(m_device, m_allocator);
+    m_depthImage.cleanup(m_device, m_allocator);
 }
 
 void Engine::initCommands()
@@ -409,80 +426,6 @@ void Engine::initBackgroundPipelines(std::span<std::string const> shaders)
     }
 }
 
-void Engine::initTrianglePipeline()
-{
-    ShaderWrapper const vertShader{ vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", m_device) };
-    ShaderWrapper const fragShader{ vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", m_device) };
-
-    std::vector<VkPushConstantRange> pushConstantRanges{};
-    if (vertShader.reflectionData().defaultEntryPointHasPushConstant())
-    {
-        pushConstantRanges.push_back(vertShader.pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT));
-    }
-    if (fragShader.reflectionData().defaultEntryPointHasPushConstant())
-    {
-        pushConstantRanges.push_back(fragShader.pushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT));
-    }
-
-    for (uint32_t i{ 0 }; i < pushConstantRanges.size(); i++)
-    {
-        for (uint32_t j{ i + 1 }; j < pushConstantRanges.size(); j++)
-        {
-            VkPushConstantRange const& rangeOne{ pushConstantRanges[i] };
-            VkPushConstantRange const& rangeTwo{ pushConstantRanges[j] };
-
-            if ((rangeOne.stageFlags & rangeTwo.stageFlags) == 0)
-            {
-                continue;
-            }
-
-            if (!(rangeOne.offset + rangeOne.size <= rangeTwo.offset
-                || rangeOne.offset >= rangeTwo.offset + rangeTwo.size))
-            {
-                Warning(fmt::format("Overlapping push constant ranges discovered between \"{}\" and \"{}\""
-                    , vertShader.name()
-                    , fragShader.name()
-                ));
-            }
-        }
-    }
-
-    VkPipelineLayoutCreateInfo const layoutInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-        .pNext{ nullptr },
-
-        .flags{ 0 },
-
-        .setLayoutCount{ 0 },
-        .pSetLayouts{ nullptr },
-
-        .pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
-        .pPushConstantRanges{ pushConstantRanges.data() },
-    };
-
-    VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-    CheckVkResult(vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &pipelineLayout));
-
-    PipelineBuilder pipelineBuilder{};
-    pipelineBuilder.setShaders(vertShader, fragShader);
-    pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pipelineBuilder.setMultisamplingNone();
-    pipelineBuilder.disableBlending();
-    pipelineBuilder.disableDepthTest();
-
-    pipelineBuilder.setColorAttachmentFormat(m_drawImage.imageFormat);
-    pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
-
-    m_trianglePipeline = GraphicsPipelineWrapper{
-        .vertexShader{ vertShader },
-        .fragmentShader{ fragShader },
-        .pipeline{ pipelineBuilder.buildPipeline(m_device, pipelineLayout) },
-        .pipelineLayout{ pipelineLayout }
-    };
-}
-
 void Engine::initMeshPipeline()
 {
     ShaderWrapper const vertShader{ vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", m_device) };
@@ -535,10 +478,10 @@ void Engine::initMeshPipeline()
     pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
     pipelineBuilder.setMultisamplingNone();
     pipelineBuilder.disableBlending();
-    pipelineBuilder.disableDepthTest();
+    pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     pipelineBuilder.setColorAttachmentFormat(m_drawImage.imageFormat);
-    pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.setDepthFormat(m_depthImage.imageFormat);
 
     m_meshPipeline = GraphicsPipelineWrapper{
         .vertexShader{ vertShader },
@@ -556,58 +499,30 @@ void Engine::initMeshPipeline()
 
 void Engine::initDefaultMeshData()
 {
-    // Pipeline should be initialized with VK_FRONT_FACE_CLOCKWISE
+    m_testMeshes = loadGltfMeshes(this, "assets/vkguide/basicmesh.glb").value();
 
-    std::array<Vertex, 4> rectangleVertices{
-        Vertex{
-            .position{0.5,-0.5,0},
-            .uv_x{},
-            .normal{},
-            .uv_y{},
-            .color{0,0,0,1},
-        },
-        Vertex{
-            .position{0.5,0.5,0},
-            .uv_x{},
-            .normal{},
-            .uv_y{},
-            .color{0.5,0.5,0.5,1},
-        },
-        Vertex{
-            .position{-0.5,0.5,0},
-            .uv_x{},
-            .normal{},
-            .uv_y{},
-            .color{0,1,0,1},
-        },
-        Vertex{
-            .position{-0.5,-0.5,0},
-            .uv_x{},
-            .normal{},
-            .uv_y{},
-            .color{1,0,0,1},
-        },
-    };
+    assert(m_testMeshes.size() > 2);
 
-    std::array<uint32_t, 6> rectangleIndices{
-        0, 1, 2,
-        2, 3, 0,
-    };
-
-    m_rectangleMesh = uploadedMeshToGPU(rectangleIndices, rectangleVertices);
+    glm::mat4 view{ glm::translate(glm::vec3(0,1.0,0)) };
+    glm::mat4 projection{ glm::perspective(
+        glm::radians(70.f)
+        , static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
+        , 10'000.0f
+        , 0.1f
+    ) };
 
     struct MeshDrawPushConstant {
         glm::mat4x4 renderMatrix;
-        VkDeviceAddress vertexBuffer;
         glm::vec4 tint;
-    };
-    MeshDrawPushConstant const pushConstant{
-        .renderMatrix{ glm::mat4x4(1.0f) },
-        .vertexBuffer{ m_rectangleMesh.vertexBufferAddress },
-        .tint{ glm::vec4(1.0f) },
+        VkDeviceAddress vertexBuffer;
     };
 
-    // Copies are okay, just to test the interface
+    MeshDrawPushConstant const pushConstant{
+        .renderMatrix{ projection * view },
+        .tint{ glm::vec4(1.0f) },
+        .vertexBuffer{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
+    };
+
     m_meshPipeline.setPushConstant(pushConstant);
 }
 
@@ -695,7 +610,7 @@ void Engine::initImgui()
     // Handle DPI
 
     float const fontBaseSize{ 13.0f };
-    std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/ProggyClean.ttf"}).string() };
+    std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}).string() };
     ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.c_str(), fontBaseSize * m_dpiScale);
 
     ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
@@ -706,7 +621,7 @@ void Engine::initImgui()
 void Engine::resizeSwapchain()
 {
     vkDeviceWaitIdle(m_device);
-    m_drawImage.cleanup(m_device, m_allocator);
+    cleanupDrawTargets();
     cleanupSwapchain();
 
     int32_t width{ 0 }, height{ 0 };
@@ -715,7 +630,7 @@ void Engine::resizeSwapchain()
     m_windowExtent.height = static_cast<uint32_t>(height);
 
     initSwapchain();
-    initDrawTarget();
+    initDrawTargets();
 
     updateDescriptors();
 
@@ -778,7 +693,7 @@ AllocatedBuffer Engine::createBuffer(size_t allocationSize, VkBufferUsageFlags u
     return newBuffer;
 }
 
-GPUMeshBuffers Engine::uploadedMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
+GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
 {
     // Allocate buffer 
 
@@ -1050,6 +965,8 @@ void Engine::mainLoop()
             ImGui::Indent(32.0f);
             imguiPushGraphicsPipelineControl(m_meshPipeline);
             ImGui::Unindent(32.0f);
+            ImGui::Separator();
+            ImGui::DragFloat("Tweakable Parameter", &m_tweakableParam, 0.2f, 0.0f, 360.0f);
         }
         ImGui::End();
 
@@ -1082,6 +999,7 @@ void Engine::draw()
     recordDrawBackground(cmd, m_drawImage.image);
 
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     recordDrawGeometry(cmd);
 
@@ -1229,6 +1147,22 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
 
         .clearValue{},
     };
+    VkRenderingAttachmentInfo const depthAttachment{
+        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+        .pNext{ nullptr },
+
+        .imageView{ m_depthImage.imageView },
+        .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+
+        .resolveMode{ VK_RESOLVE_MODE_NONE },
+        .resolveImageView{ VK_NULL_HANDLE },
+        .resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+        .loadOp{ VK_ATTACHMENT_LOAD_OP_CLEAR },
+        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+        .clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+    };
 
     VkExtent2D const drawExtent{
         .width{m_drawImage.imageExtent.width},
@@ -1236,7 +1170,7 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
     };
     std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
     VkRenderingInfo const renderInfo{
-        vkinit::renderingInfo(drawExtent, colorAttachments)
+        vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
     };
 
     vkCmdBeginRendering(cmd, &renderInfo);
@@ -1269,21 +1203,44 @@ void Engine::recordDrawGeometry(VkCommandBuffer cmd)
 
     struct MeshDrawPushConstant {
         glm::mat4x4 renderMatrix;
-        VkDeviceAddress vertexBuffer;
         glm::vec4 tint;
+        VkDeviceAddress vertexBuffer;
     };
+
+    glm::mat4 view{ glm::rotate(glm::translate(glm::vec3(0,0,-8)), glm::radians(m_tweakableParam), glm::vec3(0,1.0,0)) };
+    glm::mat4 projection{ glm::perspective(
+        glm::radians(70.f)
+        , static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
+        , 10000.0f
+        , 0.1f
+    ) };
 
     MeshDrawPushConstant const currentPushConstant{
         m_meshPipeline.readPushConstant<MeshDrawPushConstant>()
     };
 
+    assert(m_testMeshes.size() > 2);
+    MeshDrawPushConstant const pushConstant{
+        .renderMatrix{ projection * view },
+        .tint{ currentPushConstant.tint },
+        .vertexBuffer{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
+    };
+
+    // Push back for the UI
+    m_meshPipeline.setPushConstant(pushConstant);
+
+    MeshAsset const& drawnMesh{ *m_testMeshes[2].get() };
+
     vkCmdPushConstants(cmd, m_meshPipeline.pipelineLayout,
         m_meshPipeline.pushConstant.pipelineStages,
-        0, sizeof(MeshDrawPushConstant), &currentPushConstant
+        0, sizeof(MeshDrawPushConstant), &pushConstant
     );
-    vkCmdBindIndexBuffer(cmd, m_rectangleMesh.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+    vkCmdBindIndexBuffer(cmd, drawnMesh.meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    assert(drawnMesh.surfaces.size() > 0);
+    GeometrySurface const& drawnSurface{ drawnMesh.surfaces[0] };
+    vkCmdDrawIndexed(cmd, drawnSurface.indexCount, 1, drawnSurface.firstIndex, 0, 0);
 
     vkCmdEndRendering(cmd);
 }
@@ -1296,7 +1253,7 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 
     std::vector<VkRenderingAttachmentInfo> colorAttachments{ colorAttachmentInfo };
     VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(VkExtent2D{ m_swapchainExtent.width, m_swapchainExtent.height }, colorAttachments)
+        vkinit::renderingInfo(VkExtent2D{ m_swapchainExtent.width, m_swapchainExtent.height }, colorAttachments, nullptr)
     };
 
     vkCmdBeginRendering(cmd, &renderingInfo);
@@ -1322,10 +1279,12 @@ void Engine::cleanup()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
-    m_trianglePipeline.cleanup(m_device);
     m_meshPipeline.cleanup(m_device);
 
-    m_rectangleMesh.cleanup(m_allocator);
+    for (auto const& mesh : m_testMeshes)
+    {
+        mesh.get()->meshBuffers.cleanup(m_allocator);
+    }
 
     for (auto& shader : m_computeShaders)
     {
@@ -1347,7 +1306,7 @@ void Engine::cleanup()
     vkDestroyFence(m_device, m_immFence, nullptr);
     vkDestroyCommandPool(m_device, m_immCommandPool, nullptr);
 
-    m_drawImage.cleanup(m_device, m_allocator);
+    cleanupDrawTargets();
     cleanupSwapchain();
 
     vmaDestroyAllocator(m_allocator);

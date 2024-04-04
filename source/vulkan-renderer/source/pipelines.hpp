@@ -18,7 +18,9 @@ public:
     void disableBlending();
     void setColorAttachmentFormat(VkFormat format);
     void setDepthFormat(VkFormat format);
+
     void disableDepthTest();
+    void enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp);
 
 private:
 	std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages{};

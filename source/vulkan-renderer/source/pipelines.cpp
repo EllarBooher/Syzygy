@@ -197,10 +197,30 @@ void PipelineBuilder::disableDepthTest()
 		.depthWriteEnable{ VK_FALSE },
 		.depthCompareOp{ VK_COMPARE_OP_NEVER },
 		.depthBoundsTestEnable{ VK_FALSE },
+		.stencilTestEnable{ VK_FALSE },
 		.front{},
 		.back{},
 		.minDepthBounds{ 0.0f },
 		.maxDepthBounds{ 1.0f },
+	};
+}
+
+void PipelineBuilder::enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp)
+{
+	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
+	.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
+	.pNext{ nullptr },
+
+	.flags{ 0 },
+	.depthTestEnable{ VK_TRUE },
+	.depthWriteEnable{ depthWriteEnable ? VK_TRUE : VK_FALSE },
+	.depthCompareOp{ compareOp },
+	.depthBoundsTestEnable{ VK_FALSE },
+	.stencilTestEnable{ VK_FALSE },
+	.front{},
+	.back{},
+	.minDepthBounds{ 0.0f },
+	.maxDepthBounds{ 1.0f },
 	};
 }
 

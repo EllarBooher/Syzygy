@@ -4,6 +4,7 @@
 
 #include <volk.h>
 #include <string>
+#include <span>
 
 /** Shorthand factory method for info structs, with reasonable defaults. */
 namespace vkinit {
@@ -49,7 +50,8 @@ namespace vkinit {
 
     VkRenderingInfo renderingInfo(
         VkExtent2D extent,
-        std::vector<VkRenderingAttachmentInfo> const& colorAttachment
+        std::span<VkRenderingAttachmentInfo const> colorAttachments,
+        VkRenderingAttachmentInfo const* pDepthAttachment
     );
 
     VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(

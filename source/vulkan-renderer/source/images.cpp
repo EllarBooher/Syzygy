@@ -64,6 +64,7 @@ AllocatedImage vkutil::allocateImage(
     VkDevice device,
     VkExtent3D extent,
     VkFormat format,
+    VkImageAspectFlags viewFlags,
     VkImageUsageFlags usageMask
 )
 {
@@ -93,7 +94,7 @@ AllocatedImage vkutil::allocateImage(
     VkImageViewCreateInfo const imageViewInfo = vkinit::imageViewCreateInfo(
         image.imageFormat,
         image.image,
-        VK_IMAGE_ASPECT_COLOR_BIT
+        viewFlags
     );
 
     CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));

@@ -157,7 +157,11 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
     };
 }
 
-VkRenderingInfo vkinit::renderingInfo(VkExtent2D extent, std::vector<VkRenderingAttachmentInfo> const& colorAttachment)
+VkRenderingInfo vkinit::renderingInfo(
+    VkExtent2D extent,
+    std::span<VkRenderingAttachmentInfo const> colorAttachments,
+    VkRenderingAttachmentInfo const* pDepthAttachment
+)
 {
     return {
         .sType{ VK_STRUCTURE_TYPE_RENDERING_INFO },
@@ -171,9 +175,9 @@ VkRenderingInfo vkinit::renderingInfo(VkExtent2D extent, std::vector<VkRendering
         .layerCount{ 1 },
         .viewMask{ 0 },
 
-        .colorAttachmentCount{ static_cast<uint32_t>(colorAttachment.size()) },
-        .pColorAttachments{ colorAttachment.data() },
-        .pDepthAttachment{ nullptr },
+        .colorAttachmentCount{ static_cast<uint32_t>(colorAttachments.size()) },
+        .pColorAttachments{ colorAttachments.data() },
+        .pDepthAttachment{ pDepthAttachment },
         .pStencilAttachment{ nullptr }
     };
 }

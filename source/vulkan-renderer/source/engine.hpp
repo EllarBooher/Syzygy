@@ -4,6 +4,7 @@
 #include "shaders.hpp"
 #include "pipelines.hpp"
 #include "descriptors.hpp"
+#include "assets.hpp"
 
 struct GLFWwindow;
 
@@ -65,9 +66,10 @@ private:
     void initInstanceSurfaceDevices();
     void initAllocator();
     void initSwapchain();
-    void initDrawTarget();
+    void initDrawTargets();
 
     void cleanupSwapchain();
+    void cleanupDrawTargets();
 
     void initCommands();
     void initSyncStructures();
@@ -77,7 +79,6 @@ private:
 
     void initPipelines();
     void initBackgroundPipelines(std::span<std::string const> shaders);
-    void initTrianglePipeline();
     
     void initMeshPipeline();
     void initDefaultMeshData();
@@ -115,6 +116,7 @@ private:
 
     /** This image is used as the render target, then copied onto the swapchain. */
     AllocatedImage m_drawImage{};
+    AllocatedImage m_depthImage{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
@@ -140,22 +142,25 @@ private:
     std::vector<ComputeShaderWrapper> m_computeShaders{};
     uint32_t m_computeShaderIndex{ 0 };
 
-    GraphicsPipelineWrapper m_trianglePipeline{};
     GraphicsPipelineWrapper m_meshPipeline{};
 
     // Buffers
 
     AllocatedBuffer createBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
-    GPUMeshBuffers uploadedMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
+public:
+    GPUMeshBuffers uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
 
+private:
     // Meshes
 
-    GPUMeshBuffers m_rectangleMesh{};
+    std::vector<std::shared_ptr<MeshAsset>> m_testMeshes{};
 
     // End Vulkan
 
     // Begin UI
+
+    float m_tweakableParam{};
 
     /**
         @param backingData The data to read/write to for the given structure. It should span the entire padded size,

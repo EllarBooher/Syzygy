@@ -7,6 +7,7 @@ add_library(vulkan-renderer STATIC
 	"source/pipelines.cpp"
 	"source/shaders.cpp"
 	"source/application.cpp"
+	"source/assets.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 

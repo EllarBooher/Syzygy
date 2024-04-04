@@ -10,6 +10,7 @@ namespace vkutil {
         VkDevice device,
         VkExtent3D extent, 
         VkFormat format, 
+        VkImageAspectFlags viewFlags,
         VkImageUsageFlags usageMask
     );
 
