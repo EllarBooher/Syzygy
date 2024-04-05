@@ -4,19 +4,27 @@
 
 struct DescriptorLayoutBuilder
 {
-	std::vector<VkDescriptorSetLayoutBinding> bindings;
-
 	/**
 	Saves a VkDescriptorSetLayoutBinding that defaults to having one element, with no pipeline stage access.
 	*/
-	void addBinding(uint32_t binding, VkDescriptorType type, VkShaderStageFlags stageMask = 0);
+	DescriptorLayoutBuilder& addBinding(
+		uint32_t binding, 
+		VkDescriptorType type, 
+		VkShaderStageFlags stageMask,
+		uint32_t count,
+		VkDescriptorBindingFlags flags
+	);
 	void clear();
 	
 	/**
 	@param shaderStages Additional shader stages to add to every binding.
 	@returns The newly allocated set.
 	*/
-	VkDescriptorSetLayout build(VkDevice device, VkShaderStageFlags shaderStages);
+	VkDescriptorSetLayout build(VkDevice device, VkDescriptorSetLayoutCreateFlags flags) const;
+
+private:
+	std::vector<VkDescriptorSetLayoutBinding> m_bindings;
+	std::vector<VkDescriptorBindingFlags> m_flags;
 };
 
 /**
@@ -32,7 +40,12 @@ public:
 
 	VkDescriptorPool getPool() const { return pool; }
 
-	void initPool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio const> poolRatios);
+	void initPool(
+		VkDevice device, 
+		uint32_t maxSets, 
+		std::span<PoolSizeRatio const> poolRatios,
+		VkDescriptorPoolCreateFlags flags
+	);
 	void clearDescriptors(VkDevice device);
 	void destroyPool(VkDevice device);
 

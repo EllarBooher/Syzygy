@@ -1,41 +1,53 @@
 #include "descriptors.hpp"
 #include "helpers.h"
 
-void DescriptorLayoutBuilder::addBinding(uint32_t binding, VkDescriptorType type, VkShaderStageFlags stageMask)
+DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
+	uint32_t binding, 
+	VkDescriptorType type, 
+	VkShaderStageFlags stageMask,
+	uint32_t count,
+	VkDescriptorBindingFlags flags
+)
 {
 	VkDescriptorSetLayoutBinding const newBinding{
 		.binding{ binding },
 		.descriptorType{ type },
-		.descriptorCount{ 1 },
+		.descriptorCount{ count },
 		.stageFlags{ stageMask },
 		.pImmutableSamplers{ nullptr }
 	};
 
-	bindings.push_back(newBinding);
+	m_flags.push_back(flags);
+	m_bindings.push_back(newBinding);
+
+	return *this;
 }
 
 void DescriptorLayoutBuilder::clear()
 {
-	bindings.clear();
+	m_flags.clear();
+	m_bindings.clear();
 }
 
-VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderStageFlags stageMask)
+VkDescriptorSetLayout DescriptorLayoutBuilder::build(
+	VkDevice device, 
+	VkDescriptorSetLayoutCreateFlags flags
+) const
 {
-	std::vector<VkDescriptorSetLayoutBinding> outBindings{};
+	VkDescriptorSetLayoutBindingFlagsCreateInfo const flagsInfo{
+		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO },
+		.pNext{ nullptr },
 
-	// Copy to in-place modify parameters
-	for (VkDescriptorSetLayoutBinding binding : bindings)
-	{
-		binding.stageFlags |= stageMask;
-		outBindings.push_back(binding);
-	}
+		.bindingCount{ static_cast<uint32_t>(m_flags.size()) },
+		.pBindingFlags{ m_flags.data() },
+	};
 
 	VkDescriptorSetLayoutCreateInfo const info{
 		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
-		.flags{ 0 },
-		.bindingCount{ static_cast<uint32_t>(outBindings.size()) },
-		.pBindings{ outBindings.data() },
+		.pNext{ &flagsInfo },
+		.flags{ flags },
+		.bindingCount{ static_cast<uint32_t>(m_bindings.size()) },
+		.pBindings{ m_bindings.data() },
 	};
 
 	VkDescriptorSetLayout set;
@@ -44,7 +56,12 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::build(VkDevice device, VkShaderSt
 	return set;
 }
 
-void DescriptorAllocator::initPool(VkDevice device, uint32_t maxSets, std::span<PoolSizeRatio const> poolRatios)
+void DescriptorAllocator::initPool(
+	VkDevice device, 
+	uint32_t maxSets, 
+	std::span<PoolSizeRatio const> poolRatios,
+	VkDescriptorPoolCreateFlags flags
+)
 {
 	std::vector<VkDescriptorPoolSize> poolSizes{};
 	for (PoolSizeRatio const& ratio : poolRatios)
@@ -59,7 +76,7 @@ void DescriptorAllocator::initPool(VkDevice device, uint32_t maxSets, std::span<
 
 	VkDescriptorPoolCreateInfo const poolInfo{
 		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO },
-		.flags{ 0 },
+		.flags{ flags },
 		.maxSets{ maxSets },
 		.poolSizeCount{ static_cast<uint32_t>(poolSizes.size()) },
 		.pPoolSizes{ poolSizes.data() },

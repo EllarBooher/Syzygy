@@ -316,11 +316,11 @@ void Engine::initDescriptors()
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
     };
 
-    m_globalDescriptorAllocator.initPool(m_device, 10, sizes);
+    m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
     { // compute draw binding, see gradient.comp
         DescriptorLayoutBuilder builder{};
-        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
         m_drawImageDescriptorLayout = builder.build(m_device, VK_SHADER_STAGE_COMPUTE_BIT);
     }
 
