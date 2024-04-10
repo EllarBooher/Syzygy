@@ -19,6 +19,8 @@
 #include <imgui_impl_vulkan.h>
 
 #include <glm/gtx/transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/random.hpp>
 
 #include "initializers.hpp"
 #include "helpers.h"
@@ -98,8 +100,9 @@ void Engine::initVulkan()
     updateDescriptors();
 
     initPipelines();
-    initMeshPipeline();
     initDefaultMeshData();
+    initWorld();
+    initInstancedPipeline();
 
     initImgui();
 
@@ -321,7 +324,7 @@ void Engine::initDescriptors()
     { // compute draw binding, see gradient.comp
         DescriptorLayoutBuilder builder{};
         builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
-        m_drawImageDescriptorLayout = builder.build(m_device, VK_SHADER_STAGE_COMPUTE_BIT);
+        m_drawImageDescriptorLayout = builder.build(m_device, 0);
     }
 
     m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
@@ -426,83 +429,64 @@ void Engine::initBackgroundPipelines(std::span<std::string const> shaders)
     }
 }
 
-void Engine::initMeshPipeline()
-{
-    ShaderWrapper const vertShader{ vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", m_device) };
-    ShaderWrapper const fragShader{ vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", m_device) };
-
-    assert(vertShader.reflectionData().defaultEntryPointHasPushConstant());
-
-    auto const& vertPushConstant{ vertShader.reflectionData().defaultPushConstant() };
-
-    VkPushConstantRange const pushConstantRange{
-        .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
-        .offset{ 0 }, // Offset is zero since we know the exact two shaders
-        .size{ vertPushConstant.type.paddedSizeBytes },
-    };
-
-    VkPipelineLayoutCreateInfo const layoutInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-        .pNext{ nullptr },
-
-        .flags{ 0 },
-
-        .setLayoutCount{ 0 },
-        .pSetLayouts{ nullptr },
-
-        .pushConstantRangeCount{ 1 },
-        .pPushConstantRanges{ &pushConstantRange },
-    };
-
-    VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-    CheckVkResult(vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &pipelineLayout));
-
-    PipelineBuilder pipelineBuilder{};
-    pipelineBuilder.setShaders(vertShader, fragShader);
-    pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-    pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    pipelineBuilder.setMultisamplingNone();
-    pipelineBuilder.disableBlending();
-    pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-    pipelineBuilder.setColorAttachmentFormat(m_drawImage.imageFormat);
-    pipelineBuilder.setDepthFormat(m_depthImage.imageFormat);
-
-    m_meshPipeline = GraphicsPipelineWrapper{
-        .vertexShader{ vertShader },
-        .fragmentShader{ fragShader },
-        .pipeline{ pipelineBuilder.buildPipeline(m_device, pipelineLayout) },
-        .pipelineLayout{ pipelineLayout },
-        .pushConstant{ PipelinePushConstant{
-            .engineDriven{ true },
-            .pipelineStages{ pushConstantRange.stageFlags },
-            .buffer{ std::vector<uint8_t>(pushConstantRange.size)},
-            .reflectionData{ vertPushConstant },
-        } },
-    };
-}
-
 void Engine::initDefaultMeshData()
 {
     m_testMeshes = loadGltfMeshes(this, "assets/vkguide/basicmesh.glb").value();
 
     assert(m_testMeshes.size() > 2);
+}
 
-    glm::mat4 view{ glm::translate(glm::vec3(0,1.0,0)) };
-    glm::mat4 projection{ glm::perspective(
-        glm::radians(70.f)
-        , static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
-        , 10'000.0f
-        , 0.1f
-    ) };
+glm::quat randomQuat()
+{
+    // https://stackoverflow.com/a/56794499
 
-    MeshDrawPushConstant const pushConstant{
-        .renderMatrix{ projection * view },
-        .vertexBufferAddress{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
-    };
+    glm::vec2 const xy{ glm::diskRand(1.0f) };
+    glm::vec2 const uv{ glm::diskRand(1.0f) };
 
-    m_meshPipeline.setPushConstant(pushConstant);
+    float const s{ glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv)) };
+
+    return glm::quat(s * uv.y, xy.x, xy.y, s * uv.x);
+}
+
+void Engine::initWorld()
+{
+    size_t const maxInstanceCount{ 1000 };
+    m_meshInstances = StagedBuffer::allocate(
+        m_device,
+        m_allocator,
+        sizeof(glm::mat4x4) * maxInstanceCount,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    );
+
+    std::vector<glm::mat4x4> generatedTransforms{};
+    for (int32_t x{ -10 }; x <= 10; x++)
+    {
+        for (int32_t z{ -10 }; z <= 10; z++)
+        {
+            generatedTransforms.push_back(
+                glm::translate(glm::vec3(x, 0, z)) 
+                * glm::toMat4(randomQuat()) 
+                * glm::scale(glm::vec3(0.2f))
+            );
+        }
+    }
+    memcpy(m_meshInstances.stagingBuffer.info.pMappedData, generatedTransforms.data(), sizeof(glm::mat4x4) * generatedTransforms.size());
+    m_meshInstanceCount = generatedTransforms.size();
+
+    immediateSubmit([&](VkCommandBuffer cmd) {
+        m_meshInstances.recordCopy(cmd, m_allocator);
+    });
+}
+
+void Engine::initInstancedPipeline()
+{
+    m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
+        m_device,
+        m_drawImage.imageFormat,
+        m_depthImage.imageFormat
+    );
+
+    InstancedMeshGraphicsPipeline& pipeline{ *m_instancePipeline.get() };
 }
 
 void Engine::initImgui()
@@ -648,30 +632,6 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
 }
 
-AllocatedBuffer Engine::createBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
-{
-    VkBufferCreateInfo const bufferInfo{
-        .sType{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO },
-        .pNext{ nullptr },
-
-        .size{ allocationSize },
-        .usage{ usage },
-    };
-
-    VmaAllocationCreateInfo const vmaAllocInfo{
-        .flags{ VMA_ALLOCATION_CREATE_MAPPED_BIT },
-        .usage{ memoryUsage },
-    };
-
-    AllocatedBuffer newBuffer{};
-    CheckVkResult(
-        vmaCreateBuffer(m_allocator, &bufferInfo, &vmaAllocInfo, 
-        &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info)
-    );
-
-    return newBuffer;
-}
-
 GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
 {
     // Allocate buffer 
@@ -679,19 +639,25 @@ GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::s
     size_t const indexBufferSize{ indices.size_bytes() };
     size_t const vertexBufferSize{ vertices.size_bytes() };
 
-    AllocatedBuffer const indexBuffer{ createBuffer(
+    AllocatedBuffer const indexBuffer{ AllocatedBuffer::allocate(
+        m_device,
+        m_allocator,
         indexBufferSize
         , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         | VK_BUFFER_USAGE_TRANSFER_DST_BIT
         , VMA_MEMORY_USAGE_GPU_ONLY
+        , 0
     ) };
 
-    AllocatedBuffer const vertexBuffer{ createBuffer(
+    AllocatedBuffer const vertexBuffer{ AllocatedBuffer::allocate(
+        m_device,
+        m_allocator,
         vertexBufferSize
         , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         | VK_BUFFER_USAGE_TRANSFER_DST_BIT
         | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
         , VMA_MEMORY_USAGE_GPU_ONLY
+        , 0 
     ) };
     VkBufferDeviceAddressInfo const addressInfo{
         .sType{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO },
@@ -703,10 +669,13 @@ GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::s
 
     // Copy data into buffer
 
-    AllocatedBuffer stagingBuffer{ createBuffer(
+    AllocatedBuffer stagingBuffer{ AllocatedBuffer::allocate(
+        m_device,
+        m_allocator,
         vertexBufferSize + indexBufferSize,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VMA_MEMORY_USAGE_CPU_ONLY
+        , VMA_ALLOCATION_CREATE_MAPPED_BIT
     ) };
 
     uint8_t* const data{ reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData()) };
@@ -891,16 +860,6 @@ void Engine::imguiPushShaderControl(ShaderWrapper& shader)
     }
 }
 
-void Engine::imguiPushGraphicsPipelineControl(GraphicsPipelineWrapper& pipeline)
-{
-    auto const& pushConstant{ pipeline.pushConstant.reflectionData };
-    bool const readOnly{ pipeline.pushConstant.engineDriven };
-
-    std::span<uint8_t> backingData{ pipeline.mapPushConstant() };
-
-    imguiPushStructureControl(pushConstant.type, readOnly, backingData);
-}
-
 template<typename T>
 void imguiStructureControls(T& structure);
 
@@ -954,10 +913,7 @@ void Engine::mainLoop()
             imguiPushShaderControl(currentComputeShader);
             ImGui::Unindent(32.0f);
             ImGui::Separator();
-            ImGui::Text("Mesh pipeline controls:");
-            ImGui::Indent(32.0f);
-            imguiPushGraphicsPipelineControl(m_meshPipeline);
-            ImGui::Unindent(32.0f);
+            ImGui::Text("Camera controls:");
             imguiStructureControls(m_cameraParameters);
         }
         ImGui::End();
@@ -1015,7 +971,16 @@ void Engine::draw()
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-    recordDrawGeometry(cmd);
+    //recordDrawGeometry(cmd);
+    m_instancePipeline->recordDrawCommands(
+        cmd,
+        m_cameraParameters.toProjView(getAspectRatio()),
+        m_drawImage,
+        m_depthImage,
+        *m_testMeshes[2],
+        m_meshInstances,
+        m_meshInstanceCount
+    );
 
     // End scene drawing
 
@@ -1143,108 +1108,6 @@ void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
     vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
 }
 
-void Engine::recordDrawGeometry(VkCommandBuffer cmd)
-{
-    VkRenderingAttachmentInfo const colorAttachment{
-        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-        .pNext{ nullptr },
-
-        .imageView{ m_drawImage.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
-        
-        .resolveMode{ VK_RESOLVE_MODE_NONE },
-        .resolveImageView{ VK_NULL_HANDLE },
-        .resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
-
-        .loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
-        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-
-        .clearValue{},
-    };
-    VkRenderingAttachmentInfo const depthAttachment{
-        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-        .pNext{ nullptr },
-
-        .imageView{ m_depthImage.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
-
-        .resolveMode{ VK_RESOLVE_MODE_NONE },
-        .resolveImageView{ VK_NULL_HANDLE },
-        .resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
-
-        .loadOp{ VK_ATTACHMENT_LOAD_OP_CLEAR },
-        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-
-        .clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
-    };
-
-    VkExtent2D const drawExtent{
-        .width{m_drawImage.imageExtent.width},
-        .height{m_drawImage.imageExtent.height},
-    };
-    std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
-    VkRenderingInfo const renderInfo{
-        vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
-    };
-
-    vkCmdBeginRendering(cmd, &renderInfo);
-
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_meshPipeline.pipeline);
-
-    VkViewport const viewport{
-        .x{ 0 },
-        .y{ 0 },
-        .width{ static_cast<float>(drawExtent.width) },
-        .height{ static_cast<float>(drawExtent.height) },
-        .minDepth{ 0.0f },
-        .maxDepth{ 1.0f },
-    };
-
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D const scissor{
-        .offset{
-            .x{ 0 },
-            .y{ 0 },
-        },
-        .extent{
-            .width{ drawExtent.width },
-            .height{ drawExtent.height },
-        },
-    };
-
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-    CameraParameters const& cameraParameters{ m_cameraParameters };
-    float const aspectRatio{
-        static_cast<float>(m_drawImage.imageExtent.width) / static_cast<float>(m_drawImage.imageExtent.height)
-    };
-
-    assert(m_testMeshes.size() > 2);
-    MeshDrawPushConstant const pushConstant{
-        .renderMatrix{ cameraParameters.toProjView(aspectRatio) },
-        .vertexBufferAddress{ m_testMeshes[2].get()->meshBuffers.vertexBufferAddress },
-    };
-
-    // Push back for the UI
-    m_meshPipeline.setPushConstant(pushConstant);
-
-    MeshAsset const& drawnMesh{ *m_testMeshes[2].get() };
-
-    vkCmdPushConstants(cmd, m_meshPipeline.pipelineLayout,
-        m_meshPipeline.pushConstant.pipelineStages,
-        0, sizeof(MeshDrawPushConstant), &pushConstant
-    );
-
-    vkCmdBindIndexBuffer(cmd, drawnMesh.meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-    assert(drawnMesh.surfaces.size() > 0);
-    GeometrySurface const& drawnSurface{ drawnMesh.surfaces[0] };
-    vkCmdDrawIndexed(cmd, drawnSurface.indexCount, 1, drawnSurface.firstIndex, 0, 0);
-
-    vkCmdEndRendering(cmd);
-}
-
 void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
@@ -1279,7 +1142,10 @@ void Engine::cleanup()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
-    m_meshPipeline.cleanup(m_device);
+    m_instancePipeline->cleanup(m_device);
+
+    m_meshInstances.cleanup(m_allocator);
+    m_meshInstanceCount = 0;
 
     for (auto const& mesh : m_testMeshes)
     {

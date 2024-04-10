@@ -208,28 +208,188 @@ void PipelineBuilder::disableDepthTest()
 void PipelineBuilder::enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp)
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
-	.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
-	.pNext{ nullptr },
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
+		.pNext{ nullptr },
 
-	.flags{ 0 },
-	.depthTestEnable{ VK_TRUE },
-	.depthWriteEnable{ depthWriteEnable ? VK_TRUE : VK_FALSE },
-	.depthCompareOp{ compareOp },
-	.depthBoundsTestEnable{ VK_FALSE },
-	.stencilTestEnable{ VK_FALSE },
-	.front{},
-	.back{},
-	.minDepthBounds{ 0.0f },
-	.maxDepthBounds{ 1.0f },
+		.flags{ 0 },
+		.depthTestEnable{ VK_TRUE },
+		.depthWriteEnable{ depthWriteEnable ? VK_TRUE : VK_FALSE },
+		.depthCompareOp{ compareOp },
+		.depthBoundsTestEnable{ VK_FALSE },
+		.stencilTestEnable{ VK_FALSE },
+		.front{},
+		.back{},
+		.minDepthBounds{ 0.0f },
+		.maxDepthBounds{ 1.0f },
 	};
 }
 
-std::span<uint8_t> GraphicsPipelineWrapper::mapPushConstant()
+InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
+	VkDevice device,
+	VkFormat colorAttachmentFormat,
+	VkFormat depthAttachmentFormat
+)
 {
-	return { pushConstant.buffer };
+	ShaderWrapper const vertexShader{ vkutil::loadShaderModule("shaders/instanced_mesh.vert.spv", device) };
+	ShaderWrapper const fragmentShader{ vkutil::loadShaderModule("shaders/instanced_mesh.frag.spv", device) };
+
+	ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+
+	assert(vertexPushConstant.type.paddedSizeBytes == sizeof(PushConstantType));
+
+	VkPushConstantRange const pushConstantRange{
+		.stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
+		.offset{ 0 },
+		.size{ sizeof(PushConstantType) },
+	};
+
+	VkPipelineLayoutCreateInfo const layoutInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.setLayoutCount{ 0 },
+		.pSetLayouts{ nullptr },
+
+		.pushConstantRangeCount{ 1 },
+		.pPushConstantRanges{ &pushConstantRange },
+	};
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
+
+	PipelineBuilder pipelineBuilder{};
+	pipelineBuilder.setShaders(vertexShader, fragmentShader);
+	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.setMultisamplingNone();
+	pipelineBuilder.disableBlending();
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	pipelineBuilder.setColorAttachmentFormat(colorAttachmentFormat);
+	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
+
+
+	m_vertexShader = vertexShader;
+	m_fragmentShader = fragmentShader;
+
+	m_graphicsPipelineLayout = pipelineLayout;
+	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
 }
 
-std::span<uint8_t const> GraphicsPipelineWrapper::readPushConstant() const
+void InstancedMeshGraphicsPipeline::recordDrawCommands(
+	VkCommandBuffer cmd,
+	glm::mat4x4 camera,
+	AllocatedImage const& color,
+	AllocatedImage const& depth,
+	MeshAsset const& mesh,
+	StagedBuffer const& transforms,
+	uint32_t instanceCount
+) const
 {
-	return { pushConstant.buffer };
+	VkRenderingAttachmentInfo const colorAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ color.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{},
+	};
+	VkRenderingAttachmentInfo const depthAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ depth.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ VK_ATTACHMENT_LOAD_OP_CLEAR },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+	};
+
+	VkExtent2D const drawExtent{
+		.width{color.imageExtent.width},
+		.height{color.imageExtent.height},
+	};
+	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
+	VkRenderingInfo const renderInfo{
+		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
+	};
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+	VkViewport const viewport{
+		.x{ 0 },
+		.y{ 0 },
+		.width{ static_cast<float>(drawExtent.width) },
+		.height{ static_cast<float>(drawExtent.height) },
+		.minDepth{ 0.0f },
+		.maxDepth{ 1.0f },
+	};
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D const scissor{
+		.offset{
+			.x{ 0 },
+			.y{ 0 },
+		},
+		.extent{
+			.width{ drawExtent.width },
+			.height{ drawExtent.height },
+		},
+	};
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	VkBuffer const indexBuffer{ mesh.meshBuffers.indexBuffer.buffer };
+	VkDeviceAddress const transformsAddress{ transforms.deviceBuffer.address };
+	VkDeviceAddress const verticesAddress{ mesh.meshBuffers.vertexBuffer.address };
+
+	assert(transformsAddress != 0);
+	assert(verticesAddress != 0);
+	PushConstantType const pushConstant{
+		.cameraTransform{ camera },
+		.vertexBufferAddress{ verticesAddress },
+		.transformBufferAddress{ transformsAddress }
+	};
+
+	vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+		VK_SHADER_STAGE_VERTEX_BIT,
+		0, sizeof(PushConstantType), &pushConstant
+	);
+
+	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
+
+	// Bind the entire index buffer of the mesh, but only draw a single surface.
+	vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, instanceCount, drawnSurface.firstIndex, 0, 0);
+
+	vkCmdEndRendering(cmd);
+}
+
+void InstancedMeshGraphicsPipeline::cleanup(VkDevice device)
+{
+	m_vertexShader.cleanup(device);
+	m_fragmentShader.cleanup(device);
+
+	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }

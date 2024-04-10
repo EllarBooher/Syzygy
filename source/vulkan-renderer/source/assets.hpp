@@ -3,6 +3,7 @@
 #include "engine_types.h"
 #include <optional>
 #include <filesystem>
+#include "buffers.hpp"
 
 /** An interval of indices from an index buffer. */
 struct GeometrySurface

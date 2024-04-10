@@ -36,40 +36,12 @@ struct AllocatedImage {
     }
 };
 
-struct AllocatedBuffer {
-    VmaAllocation allocation{ VK_NULL_HANDLE };
-    VmaAllocationInfo info{};
-    VkBuffer buffer{ VK_NULL_HANDLE };
-
-    void cleanup(VmaAllocator allocator)
-    {
-        vmaDestroyBuffer(allocator, buffer, allocation);
-    }
-};
-
 struct Vertex {
     glm::vec3 position;
     float uv_x;
     glm::vec3 normal;
     float uv_y;
     glm::vec4 color;
-};
-
-struct GPUMeshBuffers {
-    AllocatedBuffer indexBuffer;
-    AllocatedBuffer vertexBuffer;
-    VkDeviceAddress vertexBufferAddress;
-
-    void cleanup(VmaAllocator allocator)
-    {
-        indexBuffer.cleanup(allocator);
-        vertexBuffer.cleanup(allocator);
-    }
-};
-
-struct MeshDrawPushConstant {
-    glm::mat4x4 renderMatrix;
-    VkDeviceAddress vertexBufferAddress;
 };
 
 struct CameraParameters {

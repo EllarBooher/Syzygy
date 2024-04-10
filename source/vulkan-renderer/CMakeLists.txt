@@ -8,6 +8,7 @@ add_library(vulkan-renderer STATIC
 	"source/shaders.cpp"
 	"source/application.cpp"
 	"source/assets.cpp"
+	"source/buffers.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 
@@ -89,5 +90,5 @@ target_link_libraries(
 	fastgltf
 	fmt::fmt
 	volk
-	spirv-reflect-static
+	"spirv-reflect-static"
 )

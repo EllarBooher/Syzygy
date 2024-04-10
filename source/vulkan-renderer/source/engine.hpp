@@ -5,6 +5,7 @@
 #include "pipelines.hpp"
 #include "descriptors.hpp"
 #include "assets.hpp"
+#include "buffers.hpp"
 
 struct GLFWwindow;
 
@@ -46,7 +47,6 @@ private:
 
     void draw();
     void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
-    void recordDrawGeometry(VkCommandBuffer cmd);
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
 
     void cleanup();
@@ -79,9 +79,10 @@ private:
 
     void initPipelines();
     void initBackgroundPipelines(std::span<std::string const> shaders);
-    
-    void initMeshPipeline();
+
     void initDefaultMeshData();
+    void initWorld();
+    void initInstancedPipeline();
 
     void initImgui();
 
@@ -116,6 +117,13 @@ private:
 
     /** This image is used as the render target, then copied onto the swapchain. */
     AllocatedImage m_drawImage{};
+    float getAspectRatio() const {
+        auto const width{ static_cast<float>(m_drawImage.imageExtent.width) };
+        auto const height{ static_cast<float>(m_drawImage.imageExtent.height) };
+
+        return width / height;
+    }
+
     AllocatedImage m_depthImage{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames {};
@@ -142,11 +150,9 @@ private:
     std::vector<ComputeShaderWrapper> m_computeShaders{};
     uint32_t m_computeShaderIndex{ 0 };
 
-    GraphicsPipelineWrapper m_meshPipeline{};
-
-    // Buffers
-
-    AllocatedBuffer createBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+    std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
+    StagedBuffer m_meshInstances{};
+    uint32_t m_meshInstanceCount{ 0 };
 
 public:
     GPUMeshBuffers uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
@@ -182,5 +188,4 @@ private:
 
     /** Creates a imgui window that controls a shader. Will break when not in the right context in a draw loop. */
     void imguiPushShaderControl(ShaderWrapper& shader);
-    void imguiPushGraphicsPipelineControl(GraphicsPipelineWrapper& pipeline);
 };

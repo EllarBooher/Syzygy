@@ -4,6 +4,8 @@
 
 #include "engine_types.h"
 #include "shaders.hpp"
+#include "assets.hpp"
+#include "buffers.hpp"
 
 class PipelineBuilder {
 public:
@@ -43,56 +45,43 @@ private:
     VkFormat m_depthAttachmentFormat{ VK_FORMAT_UNDEFINED };
 };
 
-struct PipelinePushConstant
+/**
+    A graphics pipeline that manages its own resources and can render an array of matrices.
+*/
+class InstancedMeshGraphicsPipeline
 {
-    /** 
-        Indicates that a push constant's value is driven by the engine.
-        Useful to indicate to UI to make it readonly, or not read at all.
-    */
-    bool engineDriven{ true };
-    VkShaderStageFlags pipelineStages{};
-    std::vector<uint8_t> buffer{};
-    ShaderReflectionData::PushConstant reflectionData{};
-};
+public:
+    InstancedMeshGraphicsPipeline(
+        VkDevice device,
+        VkFormat colorAttachmentFormat,
+        VkFormat depthAttachmentFormat
+    );
 
-struct GraphicsPipelineWrapper
-{
-    ShaderWrapper vertexShader{};
-    ShaderWrapper fragmentShader{};
-    VkPipeline pipeline{ VK_NULL_HANDLE };
-    VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-    PipelinePushConstant pushConstant{};
+    void recordDrawCommands(
+        VkCommandBuffer cmd, 
+        glm::mat4x4 camera,
+        AllocatedImage const& color,
+        AllocatedImage const& depth,
+        MeshAsset const& mesh,
+        StagedBuffer const& transforms,
+        uint32_t instanceCount
+    ) const;
 
-    template<typename T>
-    inline T readPushConstant(size_t byteOffset = 0) const {
-        static_assert(
-            std::is_trivially_copyable<T>::value,
-            "push constant T must be trivially copyable"
-        );
-        assert(sizeof(T) + byteOffset <= pushConstant.buffer.size());
-        T const* const pValue{ reinterpret_cast<T const*>(pushConstant.buffer.data() + byteOffset) };
-        return *pValue;
-    }
+    void cleanup(VkDevice device);
 
-    template<typename T>
-    inline void setPushConstant(T value, size_t byteOffset = 0) {
-        static_assert(
-            std::is_trivially_copyable<T>::value, 
-            "push constant T must be trivially copyable"
-        );
-        assert(sizeof(T) + byteOffset <= pushConstant.buffer.size());
-        memcpy(pushConstant.buffer.data() + byteOffset, &value, sizeof(T));
-    }
+private:
+    ShaderWrapper m_vertexShader{};
+    ShaderWrapper m_fragmentShader{};
+    
+    VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
 
-    std::span<uint8_t> mapPushConstant();
-    std::span<uint8_t const> readPushConstant() const;
+    struct PushConstantType {
+        glm::mat4x4 cameraTransform{};
 
-    void cleanup(VkDevice device) {
-        vertexShader.cleanup(device);
-        fragmentShader.cleanup(device);
-        vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-        vkDestroyPipeline(device, pipeline, nullptr);
-    }
+        VkDeviceAddress vertexBufferAddress{};
+        VkDeviceAddress transformBufferAddress{};
+    };
 };
 
 namespace vkutil
