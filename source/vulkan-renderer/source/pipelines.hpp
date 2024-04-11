@@ -63,8 +63,7 @@ public:
         AllocatedImage const& color,
         AllocatedImage const& depth,
         MeshAsset const& mesh,
-        StagedBuffer const& transforms,
-        uint32_t instanceCount
+        TStagedBuffer<glm::mat4x4> const& transforms
     ) const;
 
     void cleanup(VkDevice device);

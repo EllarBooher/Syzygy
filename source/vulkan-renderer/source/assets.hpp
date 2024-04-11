@@ -15,7 +15,7 @@ struct GeometrySurface
 struct MeshAsset {
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
-    GPUMeshBuffers meshBuffers{};
+    std::unique_ptr<GPUMeshBuffers> meshBuffers{};
 };
 
 class Engine;

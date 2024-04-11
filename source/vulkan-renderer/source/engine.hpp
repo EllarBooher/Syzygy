@@ -151,11 +151,10 @@ private:
     uint32_t m_computeShaderIndex{ 0 };
 
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
-    StagedBuffer m_meshInstances{};
-    uint32_t m_meshInstanceCount{ 0 };
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
 
 public:
-    GPUMeshBuffers uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
+    std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
 
 private:
     // Meshes

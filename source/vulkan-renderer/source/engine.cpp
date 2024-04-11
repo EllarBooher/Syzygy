@@ -450,13 +450,13 @@ glm::quat randomQuat()
 
 void Engine::initWorld()
 {
-    size_t const maxInstanceCount{ 1000 };
-    m_meshInstances = StagedBuffer::allocate(
+    VkDeviceSize const maxInstanceCount{ 1000 };
+    m_meshInstances = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
         m_device,
         m_allocator,
-        sizeof(glm::mat4x4) * maxInstanceCount,
+        maxInstanceCount,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    );
+    ));
 
     std::vector<glm::mat4x4> generatedTransforms{};
     for (int32_t x{ -10 }; x <= 10; x++)
@@ -470,12 +470,14 @@ void Engine::initWorld()
             );
         }
     }
-    memcpy(m_meshInstances.stagingBuffer.info.pMappedData, generatedTransforms.data(), sizeof(glm::mat4x4) * generatedTransforms.size());
-    m_meshInstanceCount = generatedTransforms.size();
+    
+    m_meshInstances->stage(generatedTransforms);
 
     immediateSubmit([&](VkCommandBuffer cmd) {
-        m_meshInstances.recordCopy(cmd, m_allocator);
+        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
     });
+
+    m_meshInstances->completePendingCopy();
 }
 
 void Engine::initInstancedPipeline()
@@ -632,14 +634,14 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
 }
 
-GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
+std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
 {
     // Allocate buffer 
 
     size_t const indexBufferSize{ indices.size_bytes() };
     size_t const vertexBufferSize{ vertices.size_bytes() };
 
-    AllocatedBuffer const indexBuffer{ AllocatedBuffer::allocate(
+    AllocatedBuffer indexBuffer{ AllocatedBuffer::allocate(
         m_device,
         m_allocator,
         indexBufferSize
@@ -649,7 +651,7 @@ GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::s
         , 0
     ) };
 
-    AllocatedBuffer const vertexBuffer{ AllocatedBuffer::allocate(
+    AllocatedBuffer vertexBuffer{ AllocatedBuffer::allocate(
         m_device,
         m_allocator,
         vertexBufferSize
@@ -698,13 +700,7 @@ GPUMeshBuffers Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::s
         vkCmdCopyBuffer(cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy);
     });
 
-    stagingBuffer.cleanup(m_allocator);
-
-    return GPUMeshBuffers{
-        .indexBuffer{ indexBuffer },
-        .vertexBuffer{ vertexBuffer },
-        .vertexBufferAddress{ vertexBufferAddress },
-    };
+    return std::make_unique<GPUMeshBuffers>(std::move(indexBuffer), std::move(vertexBuffer));
 }
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -978,8 +974,7 @@ void Engine::draw()
         m_drawImage,
         m_depthImage,
         *m_testMeshes[2],
-        m_meshInstances,
-        m_meshInstanceCount
+        *m_meshInstances
     );
 
     // End scene drawing
@@ -1144,13 +1139,9 @@ void Engine::cleanup()
 
     m_instancePipeline->cleanup(m_device);
 
-    m_meshInstances.cleanup(m_allocator);
-    m_meshInstanceCount = 0;
+    m_meshInstances.reset(); 
 
-    for (auto const& mesh : m_testMeshes)
-    {
-        mesh.get()->meshBuffers.cleanup(m_allocator);
-    }
+    m_testMeshes.clear();
 
     for (auto& shader : m_computeShaders)
     {

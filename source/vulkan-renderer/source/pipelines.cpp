@@ -285,8 +285,7 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 	AllocatedImage const& color,
 	AllocatedImage const& depth,
 	MeshAsset const& mesh,
-	StagedBuffer const& transforms,
-	uint32_t instanceCount
+	TStagedBuffer<glm::mat4x4> const& transforms
 ) const
 {
 	VkRenderingAttachmentInfo const colorAttachment{
@@ -359,9 +358,11 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	VkBuffer const indexBuffer{ mesh.meshBuffers.indexBuffer.buffer };
-	VkDeviceAddress const transformsAddress{ transforms.deviceBuffer.address };
-	VkDeviceAddress const verticesAddress{ mesh.meshBuffers.vertexBuffer.address };
+	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
+
+	VkBuffer const indexBuffer{ meshBuffers.indexBuffer() };
+	VkDeviceAddress const transformsAddress{ transforms.address() };
+	VkDeviceAddress const verticesAddress{ meshBuffers.vertexAddress() };
 
 	assert(transformsAddress != 0);
 	assert(verticesAddress != 0);
@@ -380,7 +381,7 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	// Bind the entire index buffer of the mesh, but only draw a single surface.
 	vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, instanceCount, drawnSurface.firstIndex, 0, 0);
+	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, transforms.deviceSize(), drawnSurface.firstIndex, 0, 0);
 
 	vkCmdEndRendering(cmd);
 }
