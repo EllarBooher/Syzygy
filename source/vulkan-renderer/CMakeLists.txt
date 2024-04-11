@@ -43,8 +43,6 @@ FetchContent_MakeAvailable(imgui)
 # ImGui currently does not support CMake, so we create targets ourselves.
 set(IMGUI_BACKENDS_DIR ${imgui_SOURCE_DIR}/backends)
 
-message(HELLO ${imgui_SOURCE_DIR})
-
 add_library(imgui
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -69,6 +67,21 @@ target_compile_definitions(
 	VK_NO_PROTOTYPES # We use volk so we are dynamically linking the vulkan loader
 )
 
+FetchContent_MakeAvailable(implot)
+
+add_library(implot
+	${implot_SOURCE_DIR}/implot.cpp
+	${implot_SOURCE_DIR}/implot_items.cpp
+	${implot_SOURCE_DIR}/implot_internal.h
+)
+
+target_include_directories(implot PUBLIC ${implot_SOURCE_DIR})
+target_link_libraries(
+	implot
+	PRIVATE
+	imgui
+)
+
 FetchContent_MakeAvailable(vk-bootstrap)
 FetchContent_MakeAvailable(fastgltf)
 FetchContent_MakeAvailable(fmt)
@@ -86,6 +99,7 @@ target_link_libraries(
 	stb
 	glfw
 	imgui
+	implot
 	vk-bootstrap
 	fastgltf
 	fmt::fmt

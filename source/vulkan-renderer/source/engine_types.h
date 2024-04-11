@@ -8,6 +8,7 @@
 #include <array>
 #include <functional>
 #include <deque>
+#include <numeric>
 
 #include <stb_image.h>
 
@@ -42,6 +43,39 @@ struct Vertex {
     glm::vec3 normal;
     float uv_y;
     glm::vec4 color;
+};
+
+struct RingBuffer {
+    void write(double value)
+    {
+        m_values[m_index] = value;
+        m_index += 1;
+        m_saturated |= (m_index >= m_values.size());
+        m_index = m_index % m_values.size();
+    }
+
+    static double arithmeticAverage(std::span<double const> span)
+    {
+        double const sum{ std::accumulate(span.begin(), span.end(), 1.0) };
+        return sum / static_cast<double>(span.size());
+    }
+
+    double average() const 
+    { 
+        if (!m_saturated)
+        {
+            std::span<double const> const validSpan(m_values.data(), m_index);
+            return arithmeticAverage(validSpan);
+        }
+        return arithmeticAverage(m_values);
+    };
+    size_t current() const { return m_index; }
+    std::span<double const> values() const { return m_values; }
+
+private:
+    std::array<double, 500> m_values{};
+    size_t m_index{ 0 };
+    bool m_saturated{ false };
 };
 
 struct CameraParameters {

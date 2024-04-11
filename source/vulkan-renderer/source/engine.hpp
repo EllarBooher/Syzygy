@@ -45,6 +45,7 @@ private:
 
     void mainLoop();
 
+    void tickWorld(double deltaTimeSeconds);
     void draw();
     void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
@@ -53,6 +54,8 @@ private:
 
     bool m_initialized{ false };
     inline static Engine* m_loadedEngine{ nullptr };
+
+    RingBuffer m_fpsValues{};
 
     uint32_t m_frameNumber{ 0 };
     bool m_bRender{ true };

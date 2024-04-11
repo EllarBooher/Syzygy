@@ -18,6 +18,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <implot.h>
+
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/random.hpp>
@@ -522,6 +524,7 @@ void Engine::initImgui()
     CheckVkResult(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &imguiDescriptorPool));
 
     ImGui::CreateContext();
+    ImPlot::CreateContext();
 
     assert(m_swapchainImageFormat != VK_FORMAT_UNDEFINED);
     std::vector<VkFormat> const colorAttachmentFormats{ m_swapchainImageFormat };
@@ -873,6 +876,14 @@ void Engine::mainLoop()
             m_bRender = true;
         }
 
+        static double previousTimeSeconds{ 0 };
+        double const currentTimeSeconds{ glfwGetTime() };
+        double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
+        tickWorld(deltaTimeSeconds);
+        previousTimeSeconds = glfwGetTime();
+
+        m_fpsValues.write(1.0f / deltaTimeSeconds);
+
         if (!m_bRender)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -892,6 +903,24 @@ void Engine::mainLoop()
         ShaderWrapper& currentComputeShader{ 
             m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
         };
+
+        if (ImGui::Begin("Performance Information"))
+        {
+            ImGui::Text(fmt::format("FPS: {:.1f}", m_fpsValues.average()).c_str());
+            if (ImPlot::BeginPlot("FPS"))
+            {
+                std::span<double const> const fpsValues{ m_fpsValues.values() };
+
+                size_t const currentFrame{ m_fpsValues.current() };
+
+                ImPlot::SetupAxes("", "FPS", ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin);
+                ImPlot::SetupAxesLimits(0, fpsValues.size(), 0.0f, 320.0f);
+                ImPlot::PlotLine("Test", fpsValues.data(), fpsValues.size());
+                ImPlot::PlotInfLines("Current Frame", &currentFrame, 1);
+            }
+            ImPlot::EndPlot();
+        }
+        ImGui::End();
 
         if (ImGui::Begin("Pipeline Controls"))
         {
@@ -939,6 +968,11 @@ void imguiStructureControls<CameraParameters>(CameraParameters& structure)
     ImGui::DragScalarN("farPlane", ImGuiDataType_Float, &structure.far, 1, structure.far * 0.01f, &farPlaneMin, &farPlaneMax);
 
     ImGui::EndGroup();
+}
+
+void Engine::tickWorld(double deltaTimeSeconds)
+{
+
 }
 
 void Engine::draw()
@@ -1132,6 +1166,8 @@ void Engine::cleanup()
 
     CheckVkResult(vkDeviceWaitIdle(m_device));
         
+    ImPlot::DestroyContext();
+
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

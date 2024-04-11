@@ -46,6 +46,16 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+	implot
+	GIT_REPOSITORY https://github.com/epezent/implot
+	GIT_TAG v0.16
+	GIT_SHALLOW ON
+	GIT_PROGRESS ON
+	CONFIGURE_COMMAND ""
+	BUILD_COMMAND ""
+)
+
+FetchContent_Declare(
 	stb
 	GIT_REPOSITORY https://github.com/nothings/stb.git
 	GIT_TAG ae721c50eaf761660b4f90cc590453cdb0c2acd0
