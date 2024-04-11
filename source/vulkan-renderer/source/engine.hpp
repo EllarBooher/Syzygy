@@ -45,7 +45,7 @@ private:
 
     void mainLoop();
 
-    void tickWorld(double deltaTimeSeconds);
+    void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
     void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
@@ -155,6 +155,7 @@ private:
 
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
+    std::vector<glm::mat4x4> m_transformOriginals{};
 
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);

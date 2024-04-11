@@ -330,6 +330,56 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
 	};
 
+	if (transforms.deviceSize() > 0)
+	{
+		VkMemoryBarrier2 const transformBarrier{
+			.sType{ VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 },
+			.pNext{ nullptr },
+
+			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
+			.srcAccessMask{ VK_ACCESS_TRANSFER_WRITE_BIT },
+
+			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
+			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
+		};
+
+		VkBufferMemoryBarrier2 const bufferMemoryBarrier{
+			.sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
+			.pNext{ nullptr },
+
+			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
+			.srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
+
+			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
+			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
+
+			.srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
+			.dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
+
+			.buffer{ transforms.deviceBuffer() },
+			.offset{ 0 },
+			.size{ transforms.deviceSizeBytes() },
+		};
+
+		VkDependencyInfo const transformsDependency{
+			.sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
+			.pNext{ nullptr },
+
+			.dependencyFlags{ 0 },
+
+			.memoryBarrierCount{ 0 },
+			.pMemoryBarriers{ nullptr },
+
+			.bufferMemoryBarrierCount{ 1 },
+			.pBufferMemoryBarriers{ &bufferMemoryBarrier },
+
+			.imageMemoryBarrierCount{ 0 },
+			.pImageMemoryBarriers{ nullptr },
+		};
+
+		vkCmdPipelineBarrier2(cmd, &transformsDependency);
+	}
+
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);

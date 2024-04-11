@@ -47,16 +47,13 @@ AllocatedBuffer AllocatedBuffer::allocate(
 }
 
 
-/** Does not record any barriers. Requires the allocator to possibly flush the staging buffer. */
-
+/** 
+    Requires the allocator to possibly flush the staging buffer. 
+    This updates the assumed size of data on the device, which may not be accurate until the gpu copies the data.
+    Use a barrier before trying to access the data on the GPU.
+*/
 void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocator)
 {
-    if (m_pendingCopy)
-    {
-        Error("A StagedBuffer was told to record a copy command, but one has already been recorded without being finished.");
-    }
-    m_pendingCopy = true;
-
     CheckVkResult(vmaFlushAllocation(allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE));
 
     VkBufferCopy const copyInfo{
@@ -65,17 +62,6 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
         .size{ m_stagedSizeBytes },
     };
     vkCmdCopyBuffer(cmd, m_stagingBuffer.buffer, m_deviceBuffer.buffer, 1, &copyInfo);
-}
-
-void StagedBuffer::completePendingCopy()
-{
-    if (!m_pendingCopy)
-    {
-        Error("A StagedBuffer's copy was completed, but none was pending.");
-        return;
-    }
-
-    m_pendingCopy = false;
 
     m_deviceSizeBytes = m_stagedSizeBytes;
 }
@@ -87,11 +73,6 @@ VkDeviceAddress StagedBuffer::address() const
 
 void StagedBuffer::stage(std::span<uint8_t const> data)
 {
-    if (m_pendingCopy)
-    {
-        Warning("A StagedBuffer was told to stage some data, but a copy command is pending. Partial data may be read.");
-    }
-
     assert(data.size_bytes() <= m_stagingBuffer.info.size);
     m_stagedSizeBytes = data.size_bytes();
     memcpy(m_stagingBuffer.info.pMappedData, data.data(), data.size_bytes());

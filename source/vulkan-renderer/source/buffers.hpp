@@ -81,9 +81,9 @@ struct StagedBuffer {
 
     /** Does not record any barriers. Requires the allocator to possibly flush the staging buffer. */
     void recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocator);
-    void completePendingCopy();
 
     VkDeviceAddress address() const;
+    VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
 
     /** Copy an entire span of data into the staging buffer. */
     void stage(std::span<uint8_t const> data);
@@ -95,7 +95,7 @@ struct StagedBuffer {
     /** The number of bytes that have been copied to the staging buffer. */
     VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
 
-private:
+protected:
     StagedBuffer(AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer)
         : m_deviceBuffer(std::move(deviceBuffer))
         , m_stagingBuffer(std::move(stagingBuffer))
@@ -106,8 +106,6 @@ private:
 
     AllocatedBuffer m_stagingBuffer{};
     VkDeviceSize m_stagedSizeBytes{ 0 };
-
-    bool m_pendingCopy{ false };
 };
 
 template<typename T>
@@ -120,6 +118,11 @@ struct TStagedBuffer : public StagedBuffer
             data.size_bytes()
         );
         StagedBuffer::stage(bytes);
+    }
+
+    std::span<T> mapValidStaged()
+    {
+        return std::span<T>(reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize());
     }
 
     static TStagedBuffer<T> allocate(

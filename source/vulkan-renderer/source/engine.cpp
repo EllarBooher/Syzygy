@@ -460,12 +460,11 @@ void Engine::initWorld()
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     ));
 
-    std::vector<glm::mat4x4> generatedTransforms{};
     for (int32_t x{ -10 }; x <= 10; x++)
     {
         for (int32_t z{ -10 }; z <= 10; z++)
         {
-            generatedTransforms.push_back(
+            m_transformOriginals.push_back(
                 glm::translate(glm::vec3(x, 0, z)) 
                 * glm::toMat4(randomQuat()) 
                 * glm::scale(glm::vec3(0.2f))
@@ -473,13 +472,11 @@ void Engine::initWorld()
         }
     }
     
-    m_meshInstances->stage(generatedTransforms);
+    m_meshInstances->stage(m_transformOriginals);
 
     immediateSubmit([&](VkCommandBuffer cmd) {
         m_meshInstances->recordCopyToDevice(cmd, m_allocator);
     });
-
-    m_meshInstances->completePendingCopy();
 }
 
 void Engine::initInstancedPipeline()
@@ -879,7 +876,7 @@ void Engine::mainLoop()
         static double previousTimeSeconds{ 0 };
         double const currentTimeSeconds{ glfwGetTime() };
         double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
-        tickWorld(deltaTimeSeconds);
+        tickWorld(currentTimeSeconds, deltaTimeSeconds);
         previousTimeSeconds = glfwGetTime();
 
         m_fpsValues.write(1.0f / deltaTimeSeconds);
@@ -970,9 +967,24 @@ void imguiStructureControls<CameraParameters>(CameraParameters& structure)
     ImGui::EndGroup();
 }
 
-void Engine::tickWorld(double deltaTimeSeconds)
+void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
 {
+    std::span<glm::mat4x4> const transforms{ m_meshInstances->mapValidStaged() };
+    size_t index{ 0 };
+    for (int32_t x{ -10 }; x <= 10; x++)
+    {
+        for (int32_t z{ -10 }; z <= 10; z++)
+        {
+            glm::mat4x4& transform{ transforms[index] };
+            glm::mat4x4 const& original{ m_transformOriginals[index] };
 
+            double const y{ std::sin(totalTime + (x - (-10) + z - (-10)) / 3.1415) };
+
+            transform = glm::translate(glm::vec3(0.0, y, 0.0)) * original;
+
+            index += 1;
+        }
+    }
 }
 
 void Engine::draw()
@@ -1000,6 +1012,8 @@ void Engine::draw()
 
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+    m_meshInstances->recordCopyToDevice(cmd, m_allocator);
 
     //recordDrawGeometry(cmd);
     m_instancePipeline->recordDrawCommands(
