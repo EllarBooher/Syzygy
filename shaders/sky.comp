@@ -1,0 +1,172 @@
+#version 460
+#extension GL_EXT_debug_printf : enable
+//size of a workgroup for compute
+layout (local_size_x = 16, local_size_y = 16) in;
+layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+
+layout( push_constant ) uniform Camera
+{
+	mat4 inverseProjectionView;
+	vec3 cameraPosition;
+} camera;
+
+bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirection, float radius, out float t0, out float t1)
+{
+	const float rayDot = dot(-rayOrigin, rayDirection);
+	const float discriminant = rayDot * rayDot - dot(rayOrigin, rayOrigin) + radius * radius;
+
+	if (discriminant < 0.0)
+	{
+		return false;
+	}
+
+	const float tRadius = sqrt(discriminant);
+	t0 = rayDot - tRadius;
+	t1 = rayDot + tRadius;
+
+	return true;
+}
+
+vec3 computeAtmosphereLight(vec3 viewOrigin, vec3 viewEnd)
+{
+	// Constants and implementation derived from:
+	// https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
+
+	/* Original constants, below ones are tweaked to avoid precision issues
+	const float earthRadiusMeters = 6378000;
+	viewOrigin += vec3(0.0,-earthRadiusMeters,0.0) - vec3(0.0,50.0,0.0);
+	const float atmosphereRadiusMeters = 6420000;
+	const vec3 earthOrigin = vec3(0.0);
+	const vec3 missColor = vec3(1.0,0.0,1.0);
+	const vec3 directionToSun = normalize(vec3(0.0,1.0,0.0));
+	const float pi = 3.1415;
+	const float altitudeDecayRayleigh = 7994.0;
+	const float altitudeDecayMie = 1200.0;
+	const vec3 scatteringCoefficientRayleigh = vec3(0.0000038,0.0000135, 0.0000331);
+	const vec3 scatteringCoefficientMie = vec3(0.000021);
+	*/
+
+	const float earthRadiusMeters = 10000;
+	viewOrigin += vec3(0.0,-earthRadiusMeters,0.0) - vec3(0.0,50.0,0.0);
+	const float atmosphereRadiusMeters = earthRadiusMeters + 42000;
+	const vec3 earthOrigin = vec3(0.0);
+	const vec3 missColor = vec3(1.0,0.0,1.0);
+	const vec3 directionToSun = normalize(vec3(0.0,1.0,0.0));
+	const float pi = 3.1415;
+	const float altitudeDecayRayleigh = 7994.0;
+	const float altitudeDecayMie = 1200.0;
+	const vec3 scatteringCoefficientRayleigh = vec3(0.0000038,0.0000135, 0.0000331);
+	const vec3 scatteringCoefficientMie = vec3(0.000021);
+
+	const vec3 origin = earthOrigin - viewOrigin;
+	const vec3 direction = normalize(viewEnd - viewOrigin);
+
+	float t0, t1;
+	if (!raySphereIntersection(origin, direction, atmosphereRadiusMeters, t0, t1) || t1 < 0.0)
+	{
+		return missColor;
+	}
+	const float tSampleStart = max(t0, 0.0); // Only sample forward from the origin
+	const float tSampleEnd = t1;
+
+	vec3 contributionRayleigh = vec3(0.0);
+	vec3 contributionMie = vec3(0.0);
+
+	float opticalDepthRayleigh = 0;
+	float opticalDepthMie = 0;
+
+	const float cosineSun = dot(direction, directionToSun);
+
+	const float phaseRayleigh = 3.0 / (16.0 * pi) 
+		* (1.0 + cosineSun * cosineSun);
+
+	const float anisotropyMie = 0.76;
+	const float phaseMie = 3.0 / (8.0 * pi) 
+		* ((1.0 - anisotropyMie * anisotropyMie) * (1.0 + cosineSun * cosineSun)) 
+		/ ((2.0 + cosineSun * cosineSun) * pow(1.0 + anisotropyMie * anisotropyMie - 2.0 * cosineSun * anisotropyMie, 1.5));
+
+	const uint sampleCount = 16;
+	const float segmentLength = (tSampleEnd - tSampleStart) / sampleCount;
+	for(uint i = 0; i < sampleCount; i++)
+	{
+		// We sample the middle of each segment
+
+		const vec3 samplePosition = origin + (float(i) + 0.5) * segmentLength * direction;
+		if (gl_GlobalInvocationID.xy == vec2(0,0))
+		{
+			debugPrintfEXT("SamplePosition (%f,%f,%f)", samplePosition.x,samplePosition.y,samplePosition.z);
+		}		
+
+		const float altitude = length(samplePosition) - earthRadiusMeters;
+		if (altitude < 0.0)
+		{
+			return vec3(0.0,1.0,1.0);
+		}
+		
+		// These measure the optical depth or "density" of particles contributing to rayleigh/mie scattering
+		const float depthRayleigh = exp(-altitude / altitudeDecayRayleigh) * segmentLength;
+		const float depthMie = exp(-altitude / altitudeDecayMie) * segmentLength;
+
+		opticalDepthRayleigh += depthRayleigh;
+		opticalDepthMie += depthMie;
+
+		float t0Light, t1Light;
+		raySphereIntersection(samplePosition, directionToSun, atmosphereRadiusMeters, t0Light, t1Light);
+
+		const uint sampleCountLight = 8;
+		const float segmentLengthLight = (t1Light - 0.0) / float(sampleCountLight);
+		float opticalDepthLightRayleigh = 0.0;
+		float opticalDepthLightMie = 0.0;
+		for (uint j = 0; j < sampleCountLight; j++)
+		{
+			const vec3 samplePositionLight = samplePosition + (float(j) + 0.5) * segmentLengthLight * directionToSun;
+			
+			const vec3 DEBUG_DELTA = samplePositionLight - samplePosition;
+			if (gl_GlobalInvocationID.xy == vec2(0,0))
+			{
+				debugPrintfEXT("SamplePositionLight delta (%f,%f,%f)", DEBUG_DELTA.x,DEBUG_DELTA.y,DEBUG_DELTA.z);
+			}			
+			const float altitudeLight = length(samplePositionLight) - earthRadiusMeters;
+			if (altitudeLight < 0.0)
+			{
+				break;
+			}
+			opticalDepthLightRayleigh += exp(-altitudeLight / altitudeDecayRayleigh) * segmentLengthLight;
+			opticalDepthLightMie += exp(-altitudeLight / altitudeDecayMie) * segmentLengthLight;
+
+			// This light ray is only contributed when it never intersects the ground
+			// We ignore secondary contributions
+			if (j == sampleCountLight - 1)
+			{
+				const vec3 tau = scatteringCoefficientRayleigh * (opticalDepthRayleigh + opticalDepthLightRayleigh)
+							   + scatteringCoefficientMie * 1.1f * (opticalDepthMie + opticalDepthLightMie);
+
+				const vec3 attenuation = vec3(exp(-tau.x),exp(-tau.y),exp(-tau.z));
+				contributionRayleigh += attenuation * depthRayleigh;
+				contributionMie += attenuation * depthMie;
+			}
+		}
+	}
+
+	const vec3 color =(contributionRayleigh * scatteringCoefficientRayleigh * phaseRayleigh + contributionMie * scatteringCoefficientMie * phaseMie) * 20.0;
+
+	return color;
+}
+
+void main() 
+{
+	vec2 size = imageSize(image);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    if(texelCoord.x < size.x && texelCoord.y < size.y)
+    {
+		vec2 screenSpaceUV = vec2((gl_GlobalInvocationID.xy / size) - 0.5) * 2.0;
+
+		vec4 nearPlanePosition = camera.inverseProjectionView * vec4(screenSpaceUV, 1.0, 1.0);
+		nearPlanePosition /= nearPlanePosition.w;
+
+		vec3 skyColor = computeAtmosphereLight(camera.cameraPosition, nearPlanePosition.xyz);
+
+		imageStore(image, texelCoord, vec4(skyColor, 1.0));
+	}
+}
