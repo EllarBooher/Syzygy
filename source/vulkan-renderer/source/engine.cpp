@@ -914,8 +914,8 @@ void Engine::mainLoop()
                 ImPlot::SetupAxesLimits(0, fpsValues.size(), 0.0f, 320.0f);
                 ImPlot::PlotLine("Test", fpsValues.data(), fpsValues.size());
                 ImPlot::PlotInfLines("Current Frame", &currentFrame, 1);
-            }
             ImPlot::EndPlot();
+        }
         }
         ImGui::End();
 
