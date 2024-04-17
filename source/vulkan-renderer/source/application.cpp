@@ -6,7 +6,14 @@
 
 Application::Application()
 {
-    m_engine = Engine::loadEngine();
+    try
+    {
+        m_engine = Engine::loadEngine();
+    }
+    catch (std::exception const& exception)
+    {
+        std::cerr << exception.what() << std::endl;
+    }
 }
 
 Application::~Application()
