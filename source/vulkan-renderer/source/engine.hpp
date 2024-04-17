@@ -6,6 +6,7 @@
 #include "descriptors.hpp"
 #include "assets.hpp"
 #include "buffers.hpp"
+#include "engineparams.hpp"
 
 struct GLFWwindow;
 
@@ -172,6 +173,8 @@ private:
 
     // Scene
 
+    float m_targetFPS{ 160.0 };
+    uint32_t m_cameraIndex{ 0 };
     CameraParameters m_cameraParameters{
         .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
         .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
@@ -180,20 +183,11 @@ private:
         .far{ 10000.0f },
     };
 
+    uint32_t m_atmosphereIndex{ 0 };
+    AtmosphereParameters m_atmosphereParameters{};
+
+    std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
+    std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
+
     // End Vulkan
-
-    // Begin UI
-
-    /**
-        @param backingData The data to read/write to for the given structure. It should span the entire padded size,
-        even parts members do not overlap with.
-    */
-    void imguiPushStructureControl(
-        ShaderReflectionData::Structure const& structure, 
-        bool readOnly,
-        std::span<uint8_t> backingData
-    );
-
-    /** Creates a imgui window that controls a shader. Will break when not in the right context in a draw loop. */
-    void imguiPushShaderControl(ShaderWrapper& shader);
 };

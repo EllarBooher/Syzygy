@@ -79,62 +79,6 @@ private:
     bool m_saturated{ false };
 };
 
-struct CameraParameters {
-    glm::vec3 cameraPosition{ 0.0f, 0.0f, 0.0f };
-    glm::vec3 eulerAngles{ 0.0f, 0.0f, 0.0f };
-    float fov{ 90.0f };
-    float near{ 0.0f };
-    float far{ 1.0f };
-
-    /** Returns the matrix that transforms from camera-local space to world space */
-    glm::mat4 transform() const
-    {
-        return glm::translate(cameraPosition) * glm::orientate4(eulerAngles);
-    }
-
-    glm::mat4 view() const
-    {
-        return glm::inverse(transform());
-    }
-
-    glm::mat4 rotation() const
-    {
-        return glm::orientate4(eulerAngles);
-    }
-
-    glm::mat4 projection(float aspectRatio) const
-    {
-        // We use LH perspective matrix since we swap the near and far plane for better 
-        // distribution of floating point precision.
-        return glm::perspectiveLH_ZO(
-            glm::radians(fov)
-            , aspectRatio
-            , far
-            , near
-        );
-    }
-
-    /** 
-        Generates the projection * view matrix that transforms from world to clip space.
-        Aspect ratio is a function of the drawn surface, so it is passed in at generation time.
-        Produces a right handed matrix- x is right, y is down, and z is forward.
-    */
-    glm::mat4 toProjView(float aspectRatio) const
-    {
-        return projection(aspectRatio) * view();
-    }
-
-    /**
-        Returns a vector that represents the position of the (+,+) corner of the near plane in local space.
-    */
-    glm::vec3 nearPlaneExtent(float aspectRatio) const
-    {
-        float const tanHalfFOV{ glm::tan(glm::radians(fov)) };
-
-        return near * glm::vec3{ aspectRatio * tanHalfFOV, tanHalfFOV, 1.0 };
-    }
-};
-
 /** A quick and dirty way to keep track of the destruction order for vulkan objects. */
 class DeletionQueue {
 public:

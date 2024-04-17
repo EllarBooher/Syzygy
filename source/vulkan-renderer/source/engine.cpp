@@ -24,18 +24,17 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 
-
 #include <glm/gtx/string_cast.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-#include <glm/gtx/transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
 
 #include "initializers.hpp"
 #include "helpers.h"
 #include "images.hpp"
 #include "descriptors.hpp"
 #include "pipelines.hpp"
+
+#include "ui/engineui.hpp"
 
 Engine::Engine()
 {
@@ -460,17 +459,12 @@ glm::quat randomQuat()
 
 void Engine::initWorld()
 {
-    VkDeviceSize const maxInstanceCount{ 1000 };
-    m_meshInstances = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-        m_device,
-        m_allocator,
-        maxInstanceCount,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    ));
+    int32_t const coordinateMin{ -40 };
+    int32_t const coordinateMax{ 40 };
 
-    for (int32_t x{ -10 }; x <= 10; x++)
+    for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
     {
-        for (int32_t z{ -10 }; z <= 10; z++)
+        for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
         {
             m_transformOriginals.push_back(
                 glm::translate(glm::vec3(x, 0, z)) 
@@ -479,7 +473,16 @@ void Engine::initWorld()
             );
         }
     }
-    
+
+    VkDeviceSize const maxInstanceCount{ m_transformOriginals.size() };
+    m_meshInstances = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+        m_device,
+        m_allocator,
+        maxInstanceCount,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    ));
+
+
     m_meshInstances->stage(m_transformOriginals);
 
     immediateSubmit([&](VkCommandBuffer cmd) {
@@ -503,6 +506,36 @@ void Engine::initWorld()
     immediateSubmit([&](VkCommandBuffer cmd) {
         m_worldStaticTransforms->recordCopyToDevice(cmd, m_allocator);
     });
+
+    { // Camera
+        m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
+            m_device,
+            m_allocator,
+            1,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
+        std::vector<GPUTypes::Camera> const cameras{ m_cameraParameters.toDeviceEquivalent(getAspectRatio()) };
+        m_camerasBuffer->stage(cameras);
+
+        immediateSubmit([&](VkCommandBuffer cmd) {
+            m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
+        });
+    }
+
+    { // Atmosphere
+        m_atmospheresBuffer = std::make_unique<TStagedBuffer<GPUTypes::Atmosphere>>(TStagedBuffer<GPUTypes::Atmosphere>::allocate(
+            m_device,
+            m_allocator,
+            1,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
+        std::vector<GPUTypes::Atmosphere> const atmospheres{ m_atmosphereParameters.toDeviceEquivalent() };
+        m_atmospheresBuffer->stage(atmospheres);
+
+        immediateSubmit([&](VkCommandBuffer cmd) {
+            m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
+        });
+    }
 }
 
 void Engine::initInstancedPipeline()
@@ -735,162 +768,6 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const
     return std::make_unique<GPUMeshBuffers>(std::move(indexBuffer), std::move(vertexBuffer));
 }
 
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-void Engine::imguiPushStructureControl(
-    ShaderReflectionData::Structure const& structure, 
-    bool readOnly,
-    std::span<uint8_t> backingData
-)
-{
-    for (ShaderReflectionData::StructureMember const& member : structure.members)
-    {
-        std::visit(overloaded{
-            [&](ShaderReflectionData::UnsupportedType const& unsupportedType) {
-                ImGui::Text(fmt::format("Unsupported member \"{}\"", member.name).c_str());
-            },
-            [&](ShaderReflectionData::NumericType const& numericType) {
-
-                // Gather format data
-                uint32_t columns{ 0 };
-                uint32_t rows{ 0 };
-                std::visit(overloaded{
-                    [&](ShaderReflectionData::Scalar const& scalar) {
-                        columns = 1;
-                        rows = 1;
-                    },
-                    [&](ShaderReflectionData::Vector const& vector) {
-                        columns = 1;
-                        rows = vector.componentCount;
-                    },
-                    [&](ShaderReflectionData::Matrix const& matrix) {
-                        columns = matrix.columnCount;
-                        rows = matrix.rowCount;
-                    },
-                }, numericType.format);
-
-                bool bSupportedType{ true };
-                ImGuiDataType imguiDataType{ ImGuiDataType_Float };
-                std::visit(overloaded{
-                    [&](ShaderReflectionData::Integer const& integerComponent) {
-                        assert(integerComponent.signedness == 0 || integerComponent.signedness == 1);
-
-                        switch (integerComponent.signedness)
-                        {
-                        case 0: //unsigned
-                            switch (numericType.componentBitWidth)
-                            {
-                            case 8:
-                                imguiDataType = ImGuiDataType_U8;
-                                break;
-                            case 16:
-                                imguiDataType = ImGuiDataType_U16;
-                                break;
-                            case 32:
-                                imguiDataType = ImGuiDataType_U32;
-                                break;
-                            case 64:
-                                imguiDataType = ImGuiDataType_U64;
-                                break;
-                            default:
-                                bSupportedType = false;
-                                break;
-                            }
-                            break;
-                        default: //signed
-                            switch (numericType.componentBitWidth)
-                            {
-                            case 8:
-                                imguiDataType = ImGuiDataType_S8;
-                                break;
-                            case 16:
-                                imguiDataType = ImGuiDataType_S16;
-                                break;
-                            case 32:
-                                imguiDataType = ImGuiDataType_S32;
-                                break;
-                            case 64:
-                                imguiDataType = ImGuiDataType_S64;
-                                break;
-                            default:
-                                bSupportedType = false;
-                                break;
-                            }
-                            break;
-                        }
-                    },
-                    [&](ShaderReflectionData::Float const& floatComponent) {
-                        bool bSupportedFloat{ true };
-                        ImGuiDataType imguiDataType{ ImGuiDataType_Float };
-                        switch (numericType.componentBitWidth)
-                        {
-                        case 64:
-                            imguiDataType = ImGuiDataType_Double;
-                            break;
-                        case 32:
-                            imguiDataType = ImGuiDataType_Float;
-                            break;
-                        default:
-                            bSupportedFloat = false;
-                            break;
-                        }
-                    },
-                }, numericType.componentType);
-
-                if (!bSupportedType)
-                {
-                    ImGui::Text(fmt::format("Unsupported component bit width {} for member {}", numericType.componentBitWidth, member.name).c_str());
-                }
-
-                // SPIR-V aggregate types are column major. 
-                // Columns are members, and rows are components of a vector/column.
-                for (uint32_t column{ 0 }; column < columns; column++)
-                {
-                    size_t const byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
-                    uint8_t* const pDataPointer{ &backingData[byteOffset] };
-
-                    // Check that ImGui won't modify out of bounds data
-                    assert((byteOffset + rows * numericType.componentBitWidth / 8) <= backingData.size());
-
-                    std::string const rowLabel{ fmt::format("{}##{}", member.name, column) };
-
-                    ImGui::BeginDisabled(readOnly);
-                    ImGui::InputScalarN(
-                        rowLabel.c_str(), 
-                        imguiDataType, 
-                        reinterpret_cast<void*>(pDataPointer), 
-                        rows
-                    );
-                    ImGui::EndDisabled();
-                }
-            },
-        }, member.type.typeData);
-    }
-}
-void Engine::imguiPushShaderControl(ShaderWrapper& shader)
-{
-    if (ImGui::CollapsingHeader(fmt::format("{} controls", shader.name()).c_str()))
-    {
-        ImGui::Indent(16.0f);
-        if (shader.reflectionData().pushConstantsByEntryPoint.empty())
-        {
-            ImGui::Text("No push constants.");
-        }
-        for (auto const& [entryPoint, pushConstant] : shader.reflectionData().pushConstantsByEntryPoint)
-        {
-            if (ImGui::CollapsingHeader(fmt::format("\"{}\", entry point \"{}\"", pushConstant.name, entryPoint).c_str()))
-            {
-                std::span<uint8_t> const pushConstantMappedData{ shader.mapRuntimePushConstant(entryPoint) };
-
-                imguiPushStructureControl(pushConstant.type, false, pushConstantMappedData);
-            }
-        }
-        ImGui::Unindent(16.0f);
-    }
-}
-
-template<typename T>
-void imguiStructureControls(T& structure);
-
 void Engine::mainLoop()
 {
     while (!glfwWindowShouldClose(m_window)) {
@@ -906,123 +783,91 @@ void Engine::mainLoop()
         }
 
         static double previousTimeSeconds{ 0 };
-        double const currentTimeSeconds{ glfwGetTime() };
-        double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
-        tickWorld(currentTimeSeconds, deltaTimeSeconds);
-        previousTimeSeconds = glfwGetTime();
 
-        m_fpsValues.write(1.0f / deltaTimeSeconds);
-
-        if (!m_bRender)
+        if (glfwGetTime() >= previousTimeSeconds + 1.0 / m_targetFPS)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            continue;
-        }
+            double const currentTimeSeconds{ glfwGetTime() };
+            double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
+            tickWorld(currentTimeSeconds, deltaTimeSeconds);
+            previousTimeSeconds = glfwGetTime();
 
-        if (m_resizeRequested)
-        {
-            Log("Resizing swapchain.");
-            resizeSwapchain();
-        }
+            double const instantFPS{ 1.0f / deltaTimeSeconds };
 
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+            m_fpsValues.write(instantFPS);
 
-        ShaderWrapper& currentComputeShader{ 
-            m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
-        };
-
-        if (ImGui::Begin("Performance Information"))
-        {
-            ImGui::Text(fmt::format("FPS: {:.1f}", m_fpsValues.average()).c_str());
-            if (ImPlot::BeginPlot("FPS"))
+            if (!m_bRender)
             {
-                std::span<double const> const fpsValues{ m_fpsValues.values() };
-
-                size_t const currentFrame{ m_fpsValues.current() };
-
-                ImPlot::SetupAxes("", "FPS", ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin);
-                ImPlot::SetupAxesLimits(0, fpsValues.size(), 0.0f, 320.0f);
-                ImPlot::PlotLine("Test", fpsValues.data(), fpsValues.size());
-                ImPlot::PlotInfLines("Current Frame", &currentFrame, 1);
-            ImPlot::EndPlot();
-        }
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Pipeline Controls"))
-        {
-            ImGui::Text("Select background shader to use:");
-            ImGui::Indent(32.0f);
-            for (uint32_t index{ 0 }; index < m_computeShaders.size(); index++)
-            {
-                ComputeShaderWrapper const& shader{ m_computeShaders[index] };
-                if (ImGui::Button(shader.computeShader.name().c_str()))
-                {
-                    m_computeShaderIndex = index;
-                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
             }
-            ImGui::Separator();
-            imguiPushShaderControl(currentComputeShader);
-            ImGui::Unindent(32.0f);
-            ImGui::Separator();
-            ImGui::Text("Camera controls:");
-            imguiStructureControls(m_cameraParameters);
+
+            if (m_resizeRequested)
+            {
+                Log("Resizing swapchain.");
+                resizeSwapchain();
+            }
+
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            ShaderWrapper& currentComputeShader{
+                m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
+            };
+
+            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+
+            if (ImGui::Begin("Pipeline Controls"))
+            {
+                ImGui::Text("Select background shader to use:");
+                ImGui::Indent(32.0f);
+                for (uint32_t index{ 0 }; index < m_computeShaders.size(); index++)
+                {
+                    ComputeShaderWrapper const& shader{ m_computeShaders[index] };
+                    if (ImGui::Button(shader.computeShader.name().c_str()))
+                    {
+                        m_computeShaderIndex = index;
+                    }
+                }
+                ImGui::Separator();
+                imguiStructureControls(currentComputeShader);
+                ImGui::Unindent(32.0f);
+                ImGui::Separator();
+                ImGui::Text("Camera controls:");
+                imguiStructureControls(m_cameraParameters);
+                ImGui::Separator();
+                imguiStructureControls(m_atmosphereParameters);
+            }
+            ImGui::End();
+
+            ImGui::Render();
+            draw();
         }
-        ImGui::End();
-
-        ImGui::Render();
-        draw();
     }
-}
-
-void imguiStructureControls<CameraParameters>(CameraParameters& structure)
-{
-    ImGui::BeginGroup();
-    ImGui::Text("Camera Parameters");
-    ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
-    ImGui::DragScalarN("eulerAngles", ImGuiDataType_Float, &structure.eulerAngles, 3, 0.1f);
-
-    float const fovMin{ 0.0f };
-    float const fovMax{ 180.0f };
-    ImGui::DragScalarN("fov", ImGuiDataType_Float, &structure.fov, 1, 1.0f, &fovMin, &fovMax);
-
-    float const nearPlaneMin{ 0.01f };
-    float const nearPlaneMax{ structure.far - 0.01f };
-    ImGui::DragScalarN("nearPlane", ImGuiDataType_Float, &structure.near, 1, structure.near * 0.01f, &nearPlaneMin, &nearPlaneMax);
-
-    float const farPlaneMin{ structure.near + 0.01f };
-    float const farPlaneMax{ 1'000'000.0f };
-    ImGui::DragScalarN("farPlane", ImGuiDataType_Float, &structure.far, 1, structure.far * 0.01f, &farPlaneMin, &farPlaneMax);
-
-    ImGui::EndGroup();
 }
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
 {
     std::span<glm::mat4x4> const transforms{ m_meshInstances->mapValidStaged() };
     size_t index{ 0 };
-    for (int32_t x{ -10 }; x <= 10; x++)
+    for (glm::mat4x4 const& transformOriginal : m_transformOriginals)
     {
-        for (int32_t z{ -10 }; z <= 10; z++)
-        {
-            glm::mat4x4& transform{ transforms[index] };
-            glm::mat4x4 const& original{ m_transformOriginals[index] };
+        glm::mat4x4& transform{ transforms[index] };
+        
+        glm::vec4 const position = transformOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
 
-            double const y{ std::sin(totalTime + (x - (-10) + z - (-10)) / 3.1415) };
+        double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
 
-            transform = glm::translate(glm::vec3(0.0, y, 0.0)) * original;
+        transform = glm::translate(glm::vec3(0.0, y, 0.0)) * transformOriginal;
 
-            index += 1;
-        }
+        index += 1;
     }
 }
 
 void Engine::draw()
 {
     FrameData& currentFrame = getCurrentFrame();
-    
+
     uint64_t const timeoutNanoseconds = 1'000'000'000; // 1 second
     CheckVkResult(vkWaitForFences(m_device, 1, &currentFrame.renderFence, VK_TRUE, timeoutNanoseconds));
 
@@ -1040,10 +885,40 @@ void Engine::draw()
 
     // Begin scene drawing
 
+    { // Copy cameras to gpu
+        std::span<GPUTypes::Camera> const stagedCameras{ m_camerasBuffer->mapValidStaged() };
+        if (stagedCameras.size() <= m_cameraIndex)
+        {
+            Warning("CameraIndex does not point to valid camera, resetting to 0.");
+            m_cameraIndex = 0;
+        }
+        if (stagedCameras.size() > 0 && m_cameraIndex < stagedCameras.size())
+        {
+            stagedCameras[m_cameraIndex] = m_cameraParameters.toDeviceEquivalent(getAspectRatio());
+        }
+        m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
+    }
+
+    { // Copy atmospheres to gpu
+        std::span<GPUTypes::Atmosphere> const stagedAtmospheres{ m_atmospheresBuffer->mapValidStaged() };
+        if (stagedAtmospheres.size() <= m_atmosphereIndex)
+        {
+            Warning("CameraIndex does not point to valid camera, resetting to 0.");
+            m_atmosphereIndex = 0;
+        }
+        if (stagedAtmospheres.size() > 0 && m_atmosphereIndex < stagedAtmospheres.size())
+        {
+            stagedAtmospheres[m_atmosphereIndex] = m_atmosphereParameters.toDeviceEquivalent();
+        }
+        m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
+    }
+
     m_backgroundPipeline->recordDrawCommands(
         cmd,
-        getAspectRatio(),
-        m_cameraParameters,
+        m_cameraIndex,
+        *m_camerasBuffer,
+        m_atmosphereIndex,
+        *m_atmospheresBuffer,
         m_drawImageDescriptors,
         VkExtent2D{
             .width{ m_drawImage.imageExtent.width },
@@ -1056,7 +931,6 @@ void Engine::draw()
 
     m_meshInstances->recordCopyToDevice(cmd, m_allocator);
 
-    //recordDrawGeometry(cmd);
     m_instancePipeline->recordDrawCommands(
         cmd,
         m_cameraParameters.toProjView(getAspectRatio()),
@@ -1177,31 +1051,6 @@ void Engine::draw()
     m_frameNumber++;
 }
 
-void Engine::recordDrawBackground(VkCommandBuffer cmd, VkImage image)
-{
-    ComputeShaderWrapper const& currentComputeShader{
-        m_computeShaders[m_computeShaderIndex % m_computeShaders.size()]
-    };
-
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputeShader.pipeline);
-
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, currentComputeShader.pipelineLayout, 0, 1, &m_drawImageDescriptors, 0, nullptr);
-
-    ShaderReflectionData const& reflectionData{ currentComputeShader.computeShader.reflectionData() };
-    if (reflectionData.defaultEntryPointHasPushConstant())
-    {
-        std::string const entryPoint{ reflectionData.defaultEntryPoint };
-        std::span<uint8_t const> pushConstant{ currentComputeShader.computeShader.readRuntimePushConstant(entryPoint) };
-        if (!currentComputeShader.computeShader.validatePushConstant(pushConstant, entryPoint))
-        {
-            Error(fmt::format("Invalid push constant data detected by \"{}\"", currentComputeShader.computeShader.name()));
-        }
-        vkCmdPushConstants(cmd, currentComputeShader.pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, pushConstant.size(), pushConstant.data());
-    }
-
-    vkCmdDispatch(cmd, std::ceil(m_drawImage.imageExtent.width / 16.0), std::ceil(m_drawImage.imageExtent.height / 16.0), 1);
-}
-
 void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
@@ -1243,6 +1092,8 @@ void Engine::cleanup()
 
     m_meshInstances.reset(); 
     m_worldStaticTransforms.reset();
+    m_atmospheresBuffer.reset();
+    m_camerasBuffer.reset();
 
     m_testMeshes.clear();
 

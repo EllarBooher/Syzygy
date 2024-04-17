@@ -509,9 +509,12 @@ BackgroundComputePipeline::BackgroundComputePipeline(
 	m_computePipeline = pipeline;
 }
 
-void BackgroundComputePipeline::recordDrawCommands(VkCommandBuffer cmd
-	, double aspectRatio
-	, CameraParameters const& camera
+void BackgroundComputePipeline::recordDrawCommands(
+	VkCommandBuffer cmd
+	, uint32_t cameraIndex
+	, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+	, uint32_t atmosphereIndex
+	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer
 	, VkDescriptorSet colorSet
 	, VkExtent2D colorExtent
 ) const
@@ -520,11 +523,14 @@ void BackgroundComputePipeline::recordDrawCommands(VkCommandBuffer cmd
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipelineLayout, 0, 1, &colorSet, 0, nullptr);
 
-	//Log(glm::to_string(inverseProjectionView));
+	camerasBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+	atmospheresBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
 	PushConstantType const pushConstant{
-		.inverseProjection{ glm::inverse(camera.projection(aspectRatio)) },
-		.rotation{ camera.rotation() },
-		.cameraPosition{ camera.cameraPosition },
+		.cameraIndex{ cameraIndex },
+		.atmosphereIndex{ atmosphereIndex },
+		.cameraBuffer{ camerasBuffer.address() },
+		.atmosphereBuffer{ atmospheresBuffer.address() },
 	};
 
 	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0

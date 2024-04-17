@@ -3,6 +3,9 @@
 #include <type_traits>
 
 #include "engine_types.h"
+
+#include "gputypes.hpp"
+
 #include "shaders.hpp"
 #include "assets.hpp"
 #include "buffers.hpp"
@@ -94,8 +97,10 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
-        double aspectRatio,
-        CameraParameters const& camera,
+        uint32_t cameraIndex,
+        TStagedBuffer<GPUTypes::Camera> const& camerasBuffer,
+        uint32_t atmosphereIndex,
+        TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer,
         VkDescriptorSet colorSet,
         VkExtent2D colorExtent
     ) const;
@@ -109,11 +114,14 @@ private:
     VkPipelineLayout m_computePipelineLayout{ VK_NULL_HANDLE };
 
     struct PushConstantType {
-        glm::mat4x4 inverseProjection{};
-        glm::mat4x4 rotation{};
-
-        glm::vec3 cameraPosition{};
+        uint32_t cameraIndex{};
         uint8_t padding0[4];
+
+        uint32_t atmosphereIndex{};
+        uint8_t padding1[4];
+
+        VkDeviceAddress cameraBuffer{};
+        VkDeviceAddress atmosphereBuffer{};
     };
 };
 

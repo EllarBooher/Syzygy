@@ -9,6 +9,7 @@ add_library(vulkan-renderer STATIC
 	"source/application.cpp"
 	"source/assets.cpp"
 	"source/buffers.cpp"
+	"source/ui/engineui.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 
@@ -53,7 +54,7 @@ add_library(imgui
 # Backends
 	${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
 	${IMGUI_BACKENDS_DIR}/imgui_impl_vulkan.cpp
-)
+ )
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${IMGUI_BACKENDS_DIR})
 target_link_libraries(
 	imgui

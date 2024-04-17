@@ -119,3 +119,45 @@ VkDeviceSize StagedBuffer::stagingCapacityBytes() const
 {
     return m_stagingBuffer.info.size;
 }
+
+void StagedBuffer::recordTotalCopyBarrier(
+    VkCommandBuffer cmd
+    , VkPipelineStageFlags2 destinationStage
+) const
+{
+    VkBufferMemoryBarrier2 const bufferMemoryBarrier{
+        .sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
+        .pNext{ nullptr },
+
+        .srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
+        .srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
+
+        .dstStageMask{ destinationStage },
+        .dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
+
+        .srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
+        .dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
+
+        .buffer{ deviceBuffer() },
+        .offset{ 0 },
+        .size{ deviceSizeBytes() },
+    };
+
+    VkDependencyInfo const transformsDependency{
+        .sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
+        .pNext{ nullptr },
+
+        .dependencyFlags{ 0 },
+
+        .memoryBarrierCount{ 0 },
+        .pMemoryBarriers{ nullptr },
+
+        .bufferMemoryBarrierCount{ 1 },
+        .pBufferMemoryBarriers{ &bufferMemoryBarrier },
+
+        .imageMemoryBarrierCount{ 0 },
+        .pImageMemoryBarriers{ nullptr },
+    };
+
+    vkCmdPipelineBarrier2(cmd, &transformsDependency);
+}

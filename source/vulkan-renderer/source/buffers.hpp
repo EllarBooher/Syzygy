@@ -95,6 +95,9 @@ struct StagedBuffer {
     /** The number of bytes that have been copied to the staging buffer. */
     VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
 
+    // Records a barrier with a source mask for transfer copies, and a destination map for all reads
+    void recordTotalCopyBarrier(VkCommandBuffer cmd, VkPipelineStageFlags2 destinationStage) const;
+
 protected:
     StagedBuffer(AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer)
         : m_deviceBuffer(std::move(deviceBuffer))
