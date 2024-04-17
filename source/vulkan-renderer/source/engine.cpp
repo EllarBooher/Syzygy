@@ -36,6 +36,14 @@
 
 #include "ui/engineui.hpp"
 
+CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
+    .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
+    .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
+    .fov{ 70.0f },
+    .near{ 0.1f },
+    .far{ 10000.0f },
+};
+
 Engine::Engine()
 {
     init();
@@ -834,9 +842,9 @@ void Engine::mainLoop()
                 ImGui::Unindent(32.0f);
                 ImGui::Separator();
                 ImGui::Text("Camera controls:");
-                imguiStructureControls(m_cameraParameters);
+                imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
-                imguiStructureControls(m_atmosphereParameters);
+                imguiStructureControls(m_atmosphereParameters, AtmosphereParameters{});
             }
             ImGui::End();
 

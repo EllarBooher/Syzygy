@@ -175,13 +175,8 @@ private:
 
     float m_targetFPS{ 160.0 };
     uint32_t m_cameraIndex{ 0 };
-    CameraParameters m_cameraParameters{
-        .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
-        .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
-        .fov{ 70.0f },
-        .near{ 0.1f },
-        .far{ 10000.0f },
-    };
+    static CameraParameters const m_defaultCameraParameters;
+    CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
     uint32_t m_atmosphereIndex{ 0 };
     AtmosphereParameters m_atmosphereParameters{};

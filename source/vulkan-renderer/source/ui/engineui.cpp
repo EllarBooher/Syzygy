@@ -31,27 +31,24 @@ void imguiPerformanceWindow(
     ImGui::End();
 }
 
-template<>
-void imguiStructureControls<CameraParameters>(CameraParameters& structure)
+static bool RightJustifiedButton(std::string const& label, std::string const& suffix)
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Camera Parameters");
-    ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
-    ImGui::DragScalarN("eulerAngles", ImGuiDataType_Float, &structure.eulerAngles, 3, 0.1f);
+    std::string const fullLabel = fmt::format("{}##{}", label, suffix);
+    ImVec2 const textSize{ ImGui::CalcTextSize(fullLabel.c_str(), nullptr, true) };
 
-    float const fovMin{ 0.0f };
-    float const fovMax{ 180.0f };
-    ImGui::DragScalarN("fov", ImGuiDataType_Float, &structure.fov, 1, 1.0f, &fovMin, &fovMax);
+    float const buttonWidth{ textSize.x + 20.0f };
 
-    float const nearPlaneMin{ 0.01f };
-    float const nearPlaneMax{ structure.far - 0.01f };
-    ImGui::DragScalarN("nearPlane", ImGuiDataType_Float, &structure.near, 1, structure.near * 0.01f, &nearPlaneMin, &nearPlaneMax);
+    ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
+    return ImGui::SmallButton(fullLabel.c_str());
+}
 
-    float const farPlaneMin{ structure.near + 0.01f };
-    float const farPlaneMax{ 1'000'000.0f };
-    ImGui::DragScalarN("farPlane", ImGuiDataType_Float, &structure.far, 1, structure.far * 0.01f, &farPlaneMin, &farPlaneMax);
-
-    ImGui::EndGroup();
+template<typename T>
+static void ResetButton(std::string const& label, T& value, T const& defaultValue)
+{
+    if (RightJustifiedButton("Reset", label))
+    {
+        value = defaultValue;
+    }
 }
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -209,22 +206,126 @@ void imguiStructureControls<ShaderWrapper>(ShaderWrapper& shader)
     }
 }
 
+static void DragScalarFloats(
+    std::string const& label
+    , std::span<float> values
+    , float min
+    , float max
+    , ImGuiSliderFlags flags = 0
+    , std::string format = "%f"
+)
+{
+    ImGui::DragScalarN(
+        label.c_str()
+        , ImGuiDataType_Float
+        , values.data(), values.size()
+        , 0.0f
+        , &min
+        , &max
+        , format.c_str()
+        , flags
+    );
+}
+
+template<typename T>
+struct is_glm_vec : std::false_type
+{};
+
+template<size_t N, typename T>
+struct is_glm_vec<glm::vec<N, T>> : std::true_type
+{};
+
+template<typename T>
+static void DragScalarFloats(
+    std::string const& label
+    , T& values
+    , float min
+    , float max
+    , ImGuiSliderFlags flags = 0
+    , std::string format = "%f"
+)
+{
+    static_assert(sizeof(T) % 4 == 0);
+    static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
+    size_t constexpr N = sizeof(T) / 4;
+    DragScalarFloats(label, std::span<float>(reinterpret_cast<float*>(&values), N), min, max, flags, format);
+}
+
+// Templating for value types that cannot be implicitely converted to span of floats.
+template<typename T>
+static void FractionalCoefficientSlider(std::string const& label, T& values)
+{
+    DragScalarFloats(
+        label
+        , values
+        , 0.0
+        , 1.0
+        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
+        , "%.8f"
+    );
+}
+
 template<>
-void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphere)
+void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphere, AtmosphereParameters const& defaultValues)
 {
     ImGui::BeginGroup();
-
     ImGui::Text("Atmosphere Parameters");
-    ImGui::DragScalarN("directionToSun", ImGuiDataType_Float, &atmosphere.directionToSun, 3, 0.1f);
+    ResetButton("atmosphereParameters", atmosphere, defaultValues);
 
-    ImGui::DragScalar("earthRadiusMeters", ImGuiDataType_Float, &atmosphere.earthRadiusMeters, 0.1f);
-    ImGui::DragScalar("atmosphereRadiusMeters", ImGuiDataType_Float, &atmosphere.atmosphereRadiusMeters, 0.1f);
+    atmosphere.directionToSun = glm::normalize(atmosphere.directionToSun);
+    DragScalarFloats("Direction to Sun", atmosphere.directionToSun, -1.0f, 1.0f);
+    ResetButton("directionToSun", atmosphere.directionToSun, defaultValues.directionToSun);
 
-    ImGui::DragScalarN("scatteringCoefficientRayleigh", ImGuiDataType_Float, &atmosphere.scatteringCoefficientRayleigh, 3, 0.1f);
-    ImGui::DragScalar("altitudeDecayRayleigh", ImGuiDataType_Float, &atmosphere.altitudeDecayRayleigh, 0.1f);
+    DragScalarFloats(
+        "Earth Radius (meters)", atmosphere.earthRadiusMeters
+        , 1.0f, atmosphere.atmosphereRadiusMeters
+        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
+    );
+    ResetButton("earthRadiusMeters", atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters);
 
-    ImGui::DragScalarN("scatteringCoefficientMie", ImGuiDataType_Float, &atmosphere.scatteringCoefficientMie, 3, 0.1f);
-    ImGui::DragScalar("altitudeDecayMie", ImGuiDataType_Float, &atmosphere.altitudeDecayMie, 0.1f);
+    DragScalarFloats(
+        "Atmosphere Radius (meters)", atmosphere.atmosphereRadiusMeters
+        , atmosphere.earthRadiusMeters, 1'000'000'000.0f
+        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
+    );
+    ResetButton("atmosphereRadiusMeters", atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters);
+
+    FractionalCoefficientSlider("Rayleigh Scattering Coefficient", atmosphere.scatteringCoefficientRayleigh);
+    ResetButton("scatteringCoefficientRayleigh", atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh);
+
+    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, 0.0f, 10'000.0f);
+    ResetButton("altitudeDecayRayleigh", atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh);
+
+    FractionalCoefficientSlider("Mie Scattering Coefficient", atmosphere.scatteringCoefficientMie);
+    ResetButton("scatteringCoefficientMie", atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie);
+
+    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, 0.0f, 10'000.0f);
+    ResetButton("altitudeDecayMie", atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<CameraParameters>(CameraParameters& structure, CameraParameters const& defaultValues)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Camera Parameters");
+    ResetButton("cameraParameters", structure, defaultValues);
+
+    ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
+    ResetButton("cameraPosition", structure.cameraPosition, defaultValues.cameraPosition);
+
+    DragScalarFloats("eulerAngles", structure.eulerAngles, glm::radians(-90.0f), glm::radians(90.0f));
+    ResetButton("eulerAngles", structure.eulerAngles, defaultValues.eulerAngles);
+
+    DragScalarFloats("fov", structure.fov, 0.0f, 180.0f, 0, "%.0f");
+    ResetButton("fov", structure.fov, defaultValues.fov);
+
+    DragScalarFloats("nearPlane", structure.near, 0.01f, structure.far, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    ResetButton("nearPlane", structure.near, std::min(structure.far, defaultValues.near));
+
+    DragScalarFloats("farPlane", structure.far, structure.near + 0.01f, 1'000'000.0f, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    ResetButton("farPlane", structure.far, std::max(structure.near, defaultValues.far));
 
     ImGui::EndGroup();
 }

@@ -3,6 +3,9 @@
 #include <span>
 
 template<typename T>
+void imguiStructureControls(T& structure, T const& defaultValues);
+
+template<typename T>
 void imguiStructureControls(T& structure);
 
 void imguiPerformanceWindow(
