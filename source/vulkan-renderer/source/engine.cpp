@@ -24,6 +24,13 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 
+
+#include <glm/gtx/string_cast.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec4.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
+
 #include "initializers.hpp"
 #include "helpers.h"
 #include "images.hpp"
@@ -104,6 +111,7 @@ void Engine::initVulkan()
     initPipelines();
     initDefaultMeshData();
     initWorld();
+    initBackgroundPipeline();
     initInstancedPipeline();
 
     initImgui();
@@ -477,6 +485,24 @@ void Engine::initWorld()
     immediateSubmit([&](VkCommandBuffer cmd) {
         m_meshInstances->recordCopyToDevice(cmd, m_allocator);
     });
+
+    glm::mat4x4 floorTransform{
+        glm::scale(glm::vec3{ 5.0,0.1,10000.0 })
+    };
+    std::vector<glm::mat4x4> const floorTransforms{ floorTransform };
+
+    m_worldStaticTransforms = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+        m_device,
+        m_allocator,
+        1,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    ));
+
+    m_worldStaticTransforms->stage(floorTransforms);
+
+    immediateSubmit([&](VkCommandBuffer cmd) {
+        m_worldStaticTransforms->recordCopyToDevice(cmd, m_allocator);
+    });
 }
 
 void Engine::initInstancedPipeline()
@@ -486,8 +512,14 @@ void Engine::initInstancedPipeline()
         m_drawImage.imageFormat,
         m_depthImage.imageFormat
     );
+}
 
-    InstancedMeshGraphicsPipeline& pipeline{ *m_instancePipeline.get() };
+void Engine::initBackgroundPipeline()
+{
+    m_backgroundPipeline = std::make_unique<BackgroundComputePipeline>(
+        m_device,
+        m_drawImageDescriptorLayout
+    );
 }
 
 void Engine::initImgui()
@@ -950,7 +982,7 @@ void imguiStructureControls<CameraParameters>(CameraParameters& structure)
     ImGui::BeginGroup();
     ImGui::Text("Camera Parameters");
     ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
-    ImGui::DragScalarN("eulerAngles", ImGuiDataType_Float, &structure.eulerAngles, 3, 0.2f);
+    ImGui::DragScalarN("eulerAngles", ImGuiDataType_Float, &structure.eulerAngles, 3, 0.1f);
 
     float const fovMin{ 0.0f };
     float const fovMax{ 180.0f };
@@ -1008,7 +1040,16 @@ void Engine::draw()
 
     // Begin scene drawing
 
-    recordDrawBackground(cmd, m_drawImage.image);
+    m_backgroundPipeline->recordDrawCommands(
+        cmd,
+        getAspectRatio(),
+        m_cameraParameters,
+        m_drawImageDescriptors,
+        VkExtent2D{
+            .width{ m_drawImage.imageExtent.width },
+            .height{ m_drawImage.imageExtent.height },
+        }
+    );
 
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1019,10 +1060,20 @@ void Engine::draw()
     m_instancePipeline->recordDrawCommands(
         cmd,
         m_cameraParameters.toProjView(getAspectRatio()),
+        false,
         m_drawImage,
         m_depthImage,
         *m_testMeshes[2],
         *m_meshInstances
+    );
+    m_instancePipeline->recordDrawCommands(
+        cmd,
+        m_cameraParameters.toProjView(getAspectRatio()),
+        true,
+        m_drawImage,
+        m_depthImage,
+        *m_testMeshes[0],
+        *m_worldStaticTransforms
     );
 
     // End scene drawing
@@ -1188,8 +1239,10 @@ void Engine::cleanup()
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
     m_instancePipeline->cleanup(m_device);
+    m_backgroundPipeline->cleanup(m_device);
 
     m_meshInstances.reset(); 
+    m_worldStaticTransforms.reset();
 
     m_testMeshes.clear();
 

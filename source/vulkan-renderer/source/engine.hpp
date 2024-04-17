@@ -86,6 +86,7 @@ private:
     void initDefaultMeshData();
     void initWorld();
     void initInstancedPipeline();
+    void initBackgroundPipeline();
 
     void initImgui();
 
@@ -157,6 +158,10 @@ private:
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
     std::vector<glm::mat4x4> m_transformOriginals{};
 
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_worldStaticTransforms{};
+
+    std::unique_ptr<BackgroundComputePipeline> m_backgroundPipeline{};
+
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
 
@@ -168,8 +173,8 @@ private:
     // Scene
 
     CameraParameters m_cameraParameters{
-        .cameraPosition{ glm::vec3(0.0f,0.0f,-8.0f) },
-        .eulerAngles{ glm::vec3(0.0f,0.0f,0.0f) },
+        .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
+        .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
         .fov{ 70.0f },
         .near{ 0.1f },
         .far{ 10000.0f },

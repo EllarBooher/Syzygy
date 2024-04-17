@@ -60,6 +60,7 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd, 
         glm::mat4x4 camera,
+        bool reuseDepthAttachment,
         AllocatedImage const& color,
         AllocatedImage const& depth,
         MeshAsset const& mesh,
@@ -80,6 +81,39 @@ private:
 
         VkDeviceAddress vertexBufferAddress{};
         VkDeviceAddress transformBufferAddress{};
+    };
+};
+
+class BackgroundComputePipeline
+{
+public:
+    BackgroundComputePipeline(
+        VkDevice device, 
+        VkDescriptorSetLayout drawImageDescriptorLayout
+    );
+
+    void recordDrawCommands(
+        VkCommandBuffer cmd,
+        double aspectRatio,
+        CameraParameters const& camera,
+        VkDescriptorSet colorSet,
+        VkExtent2D colorExtent
+    ) const;
+
+    void cleanup(VkDevice device);
+
+private:
+    ShaderWrapper m_skyShader{};
+
+    VkPipeline m_computePipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_computePipelineLayout{ VK_NULL_HANDLE };
+
+    struct PushConstantType {
+        glm::mat4x4 inverseProjection{};
+        glm::mat4x4 rotation{};
+
+        glm::vec3 cameraPosition{};
+        uint8_t padding0[4];
     };
 };
 

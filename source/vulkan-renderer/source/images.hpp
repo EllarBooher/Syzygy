@@ -4,6 +4,9 @@
 #include "engine_types.h"
 
 namespace vkutil {
+    /**
+        Transitions the layout of an image, putting in a full memory barrier for all
+    */
     void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
     AllocatedImage allocateImage(
         VmaAllocator allocator,

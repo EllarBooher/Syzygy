@@ -282,6 +282,7 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 void InstancedMeshGraphicsPipeline::recordDrawCommands(
 	VkCommandBuffer cmd,
 	glm::mat4x4 camera,
+	bool reuseDepthAttachment,
 	AllocatedImage const& color,
 	AllocatedImage const& depth,
 	MeshAsset const& mesh,
@@ -304,6 +305,10 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 		.clearValue{},
 	};
+	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment 
+		? VK_ATTACHMENT_LOAD_OP_LOAD 
+		: VK_ATTACHMENT_LOAD_OP_CLEAR
+	};
 	VkRenderingAttachmentInfo const depthAttachment{
 		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
 		.pNext{ nullptr },
@@ -315,7 +320,7 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 		.resolveImageView{ VK_NULL_HANDLE },
 		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
 
-		.loadOp{ VK_ATTACHMENT_LOAD_OP_CLEAR },
+		.loadOp{ depthLoadOp },
 		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
 
 		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
@@ -332,17 +337,6 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	if (transforms.deviceSize() > 0)
 	{
-		VkMemoryBarrier2 const transformBarrier{
-			.sType{ VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 },
-			.pNext{ nullptr },
-
-			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
-			.srcAccessMask{ VK_ACCESS_TRANSFER_WRITE_BIT },
-
-			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
-			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
-		};
-
 		VkBufferMemoryBarrier2 const bufferMemoryBarrier{
 			.sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
 			.pNext{ nullptr },
@@ -443,4 +437,107 @@ void InstancedMeshGraphicsPipeline::cleanup(VkDevice device)
 
 	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
+}
+
+BackgroundComputePipeline::BackgroundComputePipeline(
+	VkDevice device, 
+	VkDescriptorSetLayout drawImageDescriptorLayout
+)
+{
+	ShaderWrapper const skyShader{ vkutil::loadShaderModule("shaders/sky.comp.spv", device) };
+
+	ShaderReflectionData::PushConstant const& skyPushConstant{ skyShader.reflectionData().defaultPushConstant() };
+	
+	{
+		size_t const skyShaderPushConstantSize{ skyPushConstant.type.paddedSizeBytes };
+		size_t const pushConstantSize{ sizeof(PushConstantType) };
+
+		if (skyShaderPushConstantSize != pushConstantSize)
+		{
+			Warning(fmt::format("Loaded shader had a push constant of size {}, while implementation expects {}."
+				, skyShaderPushConstantSize
+				, pushConstantSize
+			));
+		}
+	}
+
+	VkPushConstantRange const pushConstantRange{
+		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
+		.offset{ 0 },
+		.size{ sizeof(PushConstantType) },
+	};
+
+	VkPipelineLayoutCreateInfo const layoutInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.setLayoutCount{ 1 },
+		.pSetLayouts{ &drawImageDescriptorLayout },
+
+		.pushConstantRangeCount{ 1 },
+		.pPushConstantRanges{ &pushConstantRange },
+	};
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
+
+	VkPipelineShaderStageCreateInfo const stageInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.stage{ VK_SHADER_STAGE_COMPUTE_BIT },
+		.module{ skyShader.shaderModule() },
+		.pName{ skyShader.reflectionData().defaultEntryPoint.c_str()},
+	};
+
+	VkComputePipelineCreateInfo const computePipelineCreateInfo{
+		.sType{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.stage{ stageInfo },
+		.layout{ pipelineLayout },
+	};
+
+	VkPipeline pipeline{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline));
+
+	m_skyShader = skyShader;
+
+	m_computePipelineLayout = pipelineLayout;
+	m_computePipeline = pipeline;
+}
+
+void BackgroundComputePipeline::recordDrawCommands(VkCommandBuffer cmd
+	, double aspectRatio
+	, CameraParameters const& camera
+	, VkDescriptorSet colorSet
+	, VkExtent2D colorExtent
+) const
+{
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipelineLayout, 0, 1, &colorSet, 0, nullptr);
+
+	//Log(glm::to_string(inverseProjectionView));
+	PushConstantType const pushConstant{
+		.inverseProjection{ glm::inverse(camera.projection(aspectRatio)) },
+		.rotation{ camera.rotation() },
+		.cameraPosition{ camera.cameraPosition },
+	};
+
+	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0
+		, sizeof(PushConstantType), &pushConstant
+	);
+
+	vkCmdDispatch(cmd, std::ceil(colorExtent.width / 16.0), std::ceil(colorExtent.height / 16.0), 1);
+}
+
+void BackgroundComputePipeline::cleanup(VkDevice device)
+{
+	m_skyShader.cleanup(device);
+
+	vkDestroyPipeline(device, m_computePipeline, nullptr);
+	vkDestroyPipelineLayout(device, m_computePipelineLayout, nullptr);
 }
