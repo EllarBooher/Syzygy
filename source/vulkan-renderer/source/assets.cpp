@@ -11,6 +11,8 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 
+#include <fstream>
+
 #include "helpers.h"
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* engine, std::string localPath)
@@ -148,4 +150,45 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* en
     }
 
     return newMeshes;
+}
+
+AssetLoadingResult loadAssetFile(std::string const& localPath, VkDevice device)
+{
+    std::unique_ptr<std::filesystem::path> const pPath = DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(localPath));
+    if (pPath == nullptr)
+    {
+        return { AssetLoadingError{
+            .message{fmt::format("Unable to parse path at \"{}\", this indicates the asset does not exist or the path is malformed", localPath)}
+        } };
+    }
+    std::filesystem::path const path = *pPath.get();
+
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+    {
+        return { AssetLoadingError{
+            .message{fmt::format("Unable to parse path at \"{}\", this indicates the asset does not exist or the path is malformed", localPath)}
+        } };
+    }
+
+    size_t const fileSizeBytes = static_cast<size_t>(file.tellg());
+    if (fileSizeBytes == 0)
+    {
+        return { AssetLoadingError{
+            .message{fmt::format("Shader file is empty at \"{}\"", localPath)}
+        } };
+    }
+
+    std::vector<uint8_t> buffer(fileSizeBytes);
+
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char*>(buffer.data()), fileSizeBytes);
+
+    file.close();
+
+    return { AssetFile{
+        .fileName{ path.filename().string() },
+        .fileBytes{ buffer },
+    } };
 }

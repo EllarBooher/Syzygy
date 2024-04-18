@@ -15,7 +15,7 @@ public:
     PipelineBuilder() {};
 
     VkPipeline buildPipeline(VkDevice device, VkPipelineLayout layout) const;
-    void setShaders(ShaderWrapper const& vertexShader, ShaderWrapper const& fragmentShader);
+    void setShaders(ShaderModuleReflected const& vertexShader, ShaderModuleReflected const& fragmentShader);
     void setInputTopology(VkPrimitiveTopology topology);
     void setPolygonMode(VkPolygonMode mode);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
@@ -48,8 +48,8 @@ private:
     VkFormat m_depthAttachmentFormat{ VK_FORMAT_UNDEFINED };
 };
 
-/**
-    A graphics pipeline that manages its own resources and can render an array of matrices.
+/*
+* A graphics pipeline that renders multiple instances of a single mesh.
 */
 class InstancedMeshGraphicsPipeline
 {
@@ -73,8 +73,8 @@ public:
     void cleanup(VkDevice device);
 
 private:
-    ShaderWrapper m_vertexShader{};
-    ShaderWrapper m_fragmentShader{};
+    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
+    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
     
     VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
@@ -85,8 +85,18 @@ private:
         VkDeviceAddress vertexBufferAddress{};
         VkDeviceAddress transformBufferAddress{};
     };
+
+    PushConstantType m_pushConstant;
+
+public:
+    PushConstantType const& pushConstant() const { return m_pushConstant; };
 };
 
+/*
+* A compute pipeline that renders the scattering of sunlight in the sky.
+* It models all light from the sun as reaching the camera via primary scattering,
+* so it produces inaccurate results in thin atmospheres.
+*/
 class BackgroundComputePipeline
 {
 public:
@@ -107,8 +117,16 @@ public:
 
     void cleanup(VkDevice device);
 
+    std::span<uint8_t const> pushConstantBytes() const
+    {
+        return std::span<uint8_t const>(
+            reinterpret_cast<uint8_t const*>(&m_pushConstant)
+            , sizeof(PushConstantType)
+        );
+    }
+
 private:
-    ShaderWrapper m_skyShader{};
+    ShaderModuleReflected m_skyShader{ ShaderModuleReflected::MakeInvalid() };
 
     VkPipeline m_computePipeline{ VK_NULL_HANDLE };
     VkPipelineLayout m_computePipelineLayout{ VK_NULL_HANDLE };
@@ -123,9 +141,40 @@ private:
         VkDeviceAddress cameraBuffer{};
         VkDeviceAddress atmosphereBuffer{};
     };
+
+    /*
+    * A cached copy of the push constants that were last sent to the GPU during recording.
+    * This value is not read by the pipeline and is only useful to reflect the intended state on the GPU.
+    */
+    PushConstantType mutable m_pushConstant;
+
+public:
+    PushConstantType const& pushConstant() const { return m_pushConstant; };
+    ShaderReflectionData::PushConstant const& pushConstantReflected() const 
+    { 
+        return m_skyShader.reflectionData().defaultPushConstant(); 
+    };
 };
 
-namespace vkutil
+/*
+* A generic compute pipeline driven entirely by a push constant.
+*/
+class GenericComputePipeline
 {
-	ShaderWrapper loadShaderModule(std::string const& localPath, VkDevice device);
-}
+public:
+    GenericComputePipeline(
+        VkDevice device,
+        VkDescriptorSetLayout drawImageDescriptorLayout
+    );
+
+    void recordDrawCommands(
+        VkCommandBuffer cmd
+    ) const;
+
+    void cleanup(VkDevice device);
+
+    std::span<uint8_t const> pushConstantBytes() const;
+
+private:
+    std::vector<ShaderObjectReflected> m_shaders{};
+};

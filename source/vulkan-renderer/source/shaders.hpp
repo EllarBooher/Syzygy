@@ -54,6 +54,12 @@ struct ShaderReflectionData
 		bool operator==(NumericType const& other) const;
 	};
 
+	// TODO: add info of what it points to
+	struct Pointer
+	{
+		bool operator==(Pointer const& other) const = default;
+	};
+
 	/**
 		Represents a type whose reflection data could not be generated,
 		usually because the specific type is not supported yet.
@@ -62,7 +68,7 @@ struct ShaderReflectionData
 
 	struct SizedType
 	{
-		std::variant<NumericType, UnsupportedType> typeData;
+		std::variant<NumericType, Pointer, UnsupportedType> typeData;
 
 		std::string name;
 		uint32_t sizeBytes;
@@ -116,68 +122,136 @@ struct ShaderReflectionData
 	std::string defaultEntryPoint{};
 
 	bool defaultEntryPointHasPushConstant() const { return pushConstantsByEntryPoint.contains(defaultEntryPoint); }
-	PushConstant const& defaultPushConstant() const { return pushConstantsByEntryPoint.at(defaultEntryPoint); }
+	PushConstant const& defaultPushConstant() const 
+	{ 
+		return pushConstantsByEntryPoint.at(defaultEntryPoint); 
+	}
 };
 
-struct ShaderWrapper
+class ShaderReflectedBase
 {
-	static ShaderWrapper Invalid() { return ShaderWrapper("", {}, VK_NULL_HANDLE); }
-	static ShaderWrapper FromBytecode(VkDevice device, std::string name, std::span<uint8_t const> spirv_bytecode);
+public:
+	ShaderReflectedBase() = delete;
 
-	VkShaderModule shaderModule() const { return m_shaderModule; }
 	ShaderReflectionData const& reflectionData() const { return m_reflectionData; }
 	std::string name() const { return m_name; }
-	VkPushConstantRange pushConstantRange(VkShaderStageFlags stageMask) const;
 
-	std::span<uint8_t> mapRuntimePushConstant(std::string entryPoint);
-	std::span<uint8_t const> readRuntimePushConstant(std::string entryPoint) const;
+	void cleanup(VkDevice device);
 
-	template<typename T, int N>
-	inline bool validatePushConstant(std::array<T, N> pushConstantData, std::string entryPoint) const
-	{
-		std::span<uint8_t const> byteSpan{ reinterpret_cast<uint8_t const*>(pushConstantData.data()), sizeof(T) * N };
-		return validatePushConstant(byteSpan, entryPoint);
-	}
-
-	inline bool validatePushConstant(std::span<uint8_t const> pushConstantData, std::string entryPoint) const
-	{
-		ShaderReflectionData::PushConstant const& pushConstant{ m_reflectionData.pushConstantsByEntryPoint.at(entryPoint) };
-
-		// The push constant in a shader has padding up to the layout(offset) specifier.
-		// We assume the data we are pushing is the rest of the struct past that offset.
-		if (pushConstant.type.sizeBytes - pushConstant.layoutOffsetBytes != pushConstantData.size())
-		{
-			return false;
-		}
-
-		// TODO: check types of each member
-		return true;
-	}
-
-	void cleanup(VkDevice device) const;
-
-	bool isValid() const { return m_shaderModule != VK_NULL_HANDLE; }
-
-	void resetRuntimeData();
-
-	ShaderWrapper() {};
-private:
-	ShaderWrapper(std::string name, ShaderReflectionData reflectionData, VkShaderModule shaderModule)
+protected:
+	ShaderReflectedBase(
+		std::string name,
+		ShaderReflectionData reflectionData,
+		std::variant<VkShaderModule, VkShaderEXT> shaderHandle
+	)
 		: m_name(name)
 		, m_reflectionData(reflectionData)
-		, m_shaderModule(shaderModule)
-	{};
+		, m_shaderHandle(shaderHandle)
+	{}
 
+	VkShaderModule shaderModule() const { return std::get<VkShaderModule>(m_shaderHandle); }
+	VkShaderEXT shaderObject() const { return std::get<VkShaderEXT>(m_shaderHandle); }
+
+private:
 	std::string m_name{};
 	ShaderReflectionData m_reflectionData{};
-	VkShaderModule m_shaderModule{ VK_NULL_HANDLE };
-
-	std::map<std::string, std::vector<uint8_t>> m_runtimePushConstantsByEntryPoint{};
+	std::variant<VkShaderModule, VkShaderEXT> m_shaderHandle{};
 };
+
+class ShaderModuleReflected : public ShaderReflectedBase
+{
+private:
+	ShaderModuleReflected(
+		std::string name,
+		ShaderReflectionData reflectionData,
+		VkShaderModule shaderHandle
+	)
+		: ShaderReflectedBase(name, reflectionData, shaderHandle)
+	{}
+
+public:
+	static std::optional<ShaderModuleReflected> FromBytecode(
+		VkDevice device
+		, std::string name
+		, std::span<uint8_t const> spirvBytecode
+	);
+	static ShaderModuleReflected MakeInvalid()
+	{
+		return ShaderModuleReflected("", {}, VK_NULL_HANDLE);
+	}
+
+	VkShaderModule shaderModule() const { return ShaderReflectedBase::shaderModule(); }
+};
+
+class ShaderObjectReflected : public ShaderReflectedBase
+{
+private:
+	ShaderObjectReflected(
+		std::string name,
+		ShaderReflectionData reflectionData,
+		VkShaderEXT shaderHandle
+	)
+		: ShaderReflectedBase(name, reflectionData, shaderHandle)
+	{}
+
+public:
+	static std::optional<ShaderObjectReflected> FromBytecode(
+		VkDevice device
+		, std::string name
+		, std::span<uint8_t const> spirvBytecode
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, std::span<VkPushConstantRange const> pushConstantRanges
+		, VkSpecializationInfo specializationInfo
+	);
+	// Compiles a shader object, but derives push constant data from reflection
+	static std::optional<ShaderObjectReflected> FromBytecodeReflected(
+		VkDevice device
+		, std::string name
+		, std::span<uint8_t const> spirvBytecode
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, VkSpecializationInfo specializationInfo
+	);
+
+	static ShaderObjectReflected MakeInvalid()
+	{
+		return ShaderObjectReflected("", {}, VK_NULL_HANDLE);
+	}
+
+	VkShaderEXT shaderObject() const { return ShaderReflectedBase::shaderObject(); }
+};
+
+namespace vkutils
+{
+	template<typename T>
+	struct ShaderResult
+	{
+		T shader;
+		VkResult result;
+	};
+
+	ShaderResult<VkShaderEXT> CompileShaderObject(
+		VkDevice device
+		, std::span<uint8_t const> spirvBytecode
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, std::span<VkPushConstantRange const> pushConstantRanges
+		, VkSpecializationInfo specializationInfo
+	);
+
+	ShaderResult<VkShaderModule> CompileShaderModule(
+		VkDevice device
+		, std::span<uint8_t const> spirvBytecode
+	);
+}
 
 struct ComputeShaderWrapper
 {
-	ShaderWrapper computeShader{};
+	ShaderModuleReflected computeShader{ ShaderModuleReflected::MakeInvalid() };
 	VkPipeline pipeline{ VK_NULL_HANDLE };
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
 

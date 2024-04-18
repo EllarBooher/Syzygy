@@ -10,6 +10,7 @@ add_library(vulkan-renderer STATIC
 	"source/assets.cpp"
 	"source/buffers.cpp"
 	"source/ui/engineui.cpp"
+	"source/ui/pipelineui.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 

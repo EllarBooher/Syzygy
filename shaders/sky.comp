@@ -115,20 +115,6 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 
 	const float pi = 3.141592653589793;
 
-	/*
-	const float earthRadiusMeters = 6378000;
-	const float atmosphereRadiusMeters = 6420000;
-
-	origin -= vec3(0.0, earthRadiusMeters, 0.0);
-
-	const vec3 directionToSun = normalize(vec3(0.0,-1.0,0.0));
-	//const float pi = 3.141592653589793;
-	const float altitudeDecayRayleigh = 7994.0;
-	const float altitudeDecayMie = 1200.0;
-	const vec3 scatteringCoefficientRayleigh = vec3(0.0000038,0.0000135, 0.0000331);
-	const vec3 scatteringCoefficientMie = vec3(0.000021);
-	*/
-	
 	const float earthRadiusMeters = atmosphereParameters.earthRadiusMeters;
 	const float atmosphereRadiusMeters = atmosphereParameters.atmosphereRadiusMeters;
 
@@ -194,7 +180,7 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 		float t0Light, t1Light;
 		raySphereIntersection(samplePosition, directionToSun, atmosphereRadiusMeters, t0Light, t1Light);
 
-		const uint sampleCountLight = 16;
+		const uint sampleCountLight = 32;
 		const float segmentLengthLight = (t1Light - 0.0) / float(sampleCountLight);
 		float opticalDepthLightRayleigh = 0.0;
 		float opticalDepthLightMie = 0.0;

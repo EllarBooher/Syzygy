@@ -82,8 +82,6 @@ private:
     void updateDescriptors();
 
     void initPipelines();
-    void initBackgroundPipelines(std::span<std::string const> shaders);
-
     void initDefaultMeshData();
     void initWorld();
     void initInstancedPipeline();
@@ -151,9 +149,6 @@ private:
     VkDescriptorSet m_drawImageDescriptors{ VK_NULL_HANDLE };
 
     // Pipelines
-
-    std::vector<ComputeShaderWrapper> m_computeShaders{};
-    uint32_t m_computeShaderIndex{ 0 };
 
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};

@@ -3,6 +3,7 @@
 #include "engine_types.h"
 #include <optional>
 #include <filesystem>
+#include <variant>
 #include "buffers.hpp"
 
 /** An interval of indices from an index buffer. */
@@ -21,3 +22,18 @@ struct MeshAsset {
 class Engine;
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* engine, std::string localPath);
+
+struct AssetFile
+{
+    std::string fileName{};
+    std::vector<uint8_t> fileBytes{};
+};
+
+struct AssetLoadingError
+{
+    std::string message{};
+};
+
+using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
+
+AssetLoadingResult loadAssetFile(std::string const& localPath, VkDevice device);

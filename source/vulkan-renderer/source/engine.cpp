@@ -35,6 +35,7 @@
 #include "pipelines.hpp"
 
 #include "ui/engineui.hpp"
+#include "ui/pipelineui.hpp"
 
 CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
     .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
@@ -380,71 +381,8 @@ void Engine::initPipelines()
         "shaders/gradient_color.comp.spv",
         "shaders/booleanpush.comp.spv"
     };
-    initBackgroundPipelines(computeShaders);
 }
 
-void Engine::initBackgroundPipelines(std::span<std::string const> shaders)
-{
-    for (auto& oldShader : m_computeShaders)
-    {
-        oldShader.cleanup(m_device);
-    }
-    m_computeShaders.clear();
-    for (std::string const& shaderName : shaders)
-    {
-        ShaderWrapper shader = vkutil::loadShaderModule(shaderName, m_device);
-        if (!shader.isValid())
-        {
-            shader = ShaderWrapper::Invalid();
-            Error("Error when building compute shader.");
-        }
-
-        std::vector<VkPushConstantRange> pushConstants{};
-        if (shader.reflectionData().defaultEntryPointHasPushConstant())
-        {
-            pushConstants.push_back(shader.pushConstantRange(VK_SHADER_STAGE_COMPUTE_BIT));
-        }
-        VkPipelineLayoutCreateInfo const computeLayout{
-            .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-            .pNext{ nullptr },
-
-            .setLayoutCount{ 1 },
-            .pSetLayouts{ &m_drawImageDescriptorLayout },
-
-            .pushConstantRangeCount{ static_cast<uint32_t>(pushConstants.size()) },
-            .pPushConstantRanges{ pushConstants.data()},
-        };
-
-        VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-        CheckVkResult(vkCreatePipelineLayout(m_device, &computeLayout, nullptr, &pipelineLayout));
-
-        VkPipelineShaderStageCreateInfo const stageInfo{
-            .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
-            .pNext{ nullptr },
-
-            .stage{ VK_SHADER_STAGE_COMPUTE_BIT },
-            .module{ shader.shaderModule() },
-            .pName{ shader.reflectionData().defaultEntryPoint.c_str()},
-        };
-
-        VkComputePipelineCreateInfo const computePipelineCreateInfo{
-            .sType{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO },
-            .pNext{ nullptr },
-
-            .stage{ stageInfo },
-            .layout{ pipelineLayout },
-        };
-
-        VkPipeline pipeline{ VK_NULL_HANDLE };
-        CheckVkResult(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline));
-
-        m_computeShaders.push_back(ComputeShaderWrapper{
-            .computeShader{ shader },
-            .pipeline{ pipeline },
-            .pipelineLayout{ pipelineLayout },
-        });
-    }
-}
 
 void Engine::initDefaultMeshData()
 {
@@ -819,29 +757,16 @@ void Engine::mainLoop()
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            ShaderWrapper& currentComputeShader{
-                m_computeShaders[m_computeShaderIndex % m_computeShaders.size()].computeShader
-            };
-
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
 
             if (ImGui::Begin("Pipeline Controls"))
             {
-                ImGui::Text("Select background shader to use:");
-                ImGui::Indent(32.0f);
-                for (uint32_t index{ 0 }; index < m_computeShaders.size(); index++)
-                {
-                    ComputeShaderWrapper const& shader{ m_computeShaders[index] };
-                    if (ImGui::Button(shader.computeShader.name().c_str()))
-                    {
-                        m_computeShaderIndex = index;
-                    }
-                }
-                ImGui::Separator();
-                imguiStructureControls(currentComputeShader);
-                ImGui::Unindent(32.0f);
-                ImGui::Separator();
-                ImGui::Text("Camera controls:");
+                imguiPipelineControls(*m_backgroundPipeline);
+            }
+            ImGui::End();
+
+            if (ImGui::Begin("Engine Controls"))
+            {
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, AtmosphereParameters{});
@@ -1104,11 +1029,6 @@ void Engine::cleanup()
     m_camerasBuffer.reset();
 
     m_testMeshes.clear();
-
-    for (auto& shader : m_computeShaders)
-    {
-        shader.cleanup(m_device);
-    }
 
     m_globalDescriptorAllocator.destroyPool(m_device);
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
