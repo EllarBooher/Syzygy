@@ -163,18 +163,60 @@ class GenericComputePipeline
 {
 public:
     GenericComputePipeline(
-        VkDevice device,
-        VkDescriptorSetLayout drawImageDescriptorLayout
+        VkDevice device
+        , VkDescriptorSetLayout drawImageDescriptorLayout
+        , std::span<std::string const> shaderPaths
     );
 
     void recordDrawCommands(
         VkCommandBuffer cmd
+        , VkDescriptorSet drawImageDescriptors
+        , VkExtent2D drawExtent
     ) const;
 
     void cleanup(VkDevice device);
 
-    std::span<uint8_t const> pushConstantBytes() const;
+    std::span<uint8_t> mapPushConstantBytes()
+    {
+        return m_shaderPushConstants[m_shaderIndex];
+    }
+    std::span<uint8_t const> readPushConstantBytes() const
+    {
+        return m_shaderPushConstants[m_shaderIndex];
+    }
+
+    ShaderObjectReflected const& currentShader() const
+    {
+        return m_shaders[m_shaderIndex];
+    }
+    VkPipelineLayout currentLayout() const
+    {
+        return m_layouts[m_shaderIndex];
+    }
+
+    void selectShader(size_t index)
+    {
+        size_t const count{ m_shaders.size() };
+        if (count == 0)
+        {
+            return;
+        }
+        else if (index >= count)
+        {
+            Warning(fmt::format("Shader index {} is out of bounds of {}", index, count));
+            return;
+        }
+
+        m_shaderIndex = index;
+    }
+    size_t shaderIndex() { return m_shaderIndex; };
+    size_t shaderCount() { return m_shaders.size(); };
+    std::span<ShaderObjectReflected const> shaders() { return m_shaders; };
 
 private:
+    size_t m_shaderIndex{ 0 };
+
     std::vector<ShaderObjectReflected> m_shaders{};
+    std::vector<std::vector<uint8_t>> m_shaderPushConstants{};
+    std::vector<VkPipelineLayout> m_layouts{}; 
 };

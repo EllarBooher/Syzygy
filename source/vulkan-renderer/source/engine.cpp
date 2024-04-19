@@ -121,6 +121,7 @@ void Engine::initVulkan()
     initWorld();
     initBackgroundPipeline();
     initInstancedPipeline();
+    initGenericComputePipelines();
 
     initImgui();
 
@@ -161,11 +162,21 @@ void Engine::initInstanceSurfaceDevices()
     features12.bufferDeviceAddress = true;
     features12.descriptorIndexing = true;
 
+    VkPhysicalDeviceShaderObjectFeaturesEXT const shaderObjectFeature
+    {
+        .sType{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT },
+        .pNext{ nullptr },
+
+        .shaderObject{ VK_TRUE },
+    };
+
     vkb::PhysicalDeviceSelector selector{ vkbInstance };
     vkb::Result<vkb::PhysicalDevice> physicalDeviceBuildResult = selector
         .set_minimum_version(1, 3)
         .set_required_features_13(features13)
         .set_required_features_12(features12)
+        .add_required_extension_features(shaderObjectFeature)
+        .add_required_extension(VK_EXT_SHADER_OBJECT_EXTENSION_NAME)
         .set_surface(m_surface)
         .select();
     vkb::PhysicalDevice vkbPhysicalDevice = UnwrapVkbResult(physicalDeviceBuildResult);
@@ -501,6 +512,21 @@ void Engine::initBackgroundPipeline()
     );
 }
 
+void Engine::initGenericComputePipelines()
+{
+    std::vector<std::string> const shaderPaths
+    {
+        "shaders/booleanpush.comp.spv"
+        , "shaders/gradient.comp.spv"
+        , "shaders/gradient_color.comp.spv"
+    };
+    m_computePipelines = std::make_unique<GenericComputePipeline>(
+        m_device,
+        m_drawImageDescriptorLayout,
+        shaderPaths
+    );
+}
+
 void Engine::initImgui()
 {
     Log("Initializing ImGui...");
@@ -761,7 +787,15 @@ void Engine::mainLoop()
 
             if (ImGui::Begin("Pipeline Controls"))
             {
-                imguiPipelineControls(*m_backgroundPipeline);
+                ImGui::Checkbox("Use Compute Sky Volume Rendering", &m_useSkyShader);
+                if (m_useSkyShader)
+                {
+                    imguiPipelineControls<BackgroundComputePipeline const>(*m_backgroundPipeline);
+                }
+                else
+                {
+                    imguiPipelineControls<GenericComputePipeline>(*m_computePipelines);
+                }
             }
             ImGui::End();
 
@@ -846,18 +880,29 @@ void Engine::draw()
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
-    m_backgroundPipeline->recordDrawCommands(
-        cmd,
-        m_cameraIndex,
-        *m_camerasBuffer,
-        m_atmosphereIndex,
-        *m_atmospheresBuffer,
-        m_drawImageDescriptors,
-        VkExtent2D{
-            .width{ m_drawImage.imageExtent.width },
-            .height{ m_drawImage.imageExtent.height },
-        }
-    );
+    if (m_useSkyShader)
+    {
+        m_backgroundPipeline->recordDrawCommands(
+            cmd,
+            m_cameraIndex,
+            *m_camerasBuffer,
+            m_atmosphereIndex,
+            *m_atmospheresBuffer,
+            m_drawImageDescriptors,
+            VkExtent2D{
+                .width{ m_drawImage.imageExtent.width },
+                .height{ m_drawImage.imageExtent.height },
+            }
+        );
+    }
+    else 
+    {
+        m_computePipelines->recordDrawCommands(
+            cmd,
+            m_drawImageDescriptors,
+            VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
+        );
+    }
 
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1022,6 +1067,7 @@ void Engine::cleanup()
 
     m_instancePipeline->cleanup(m_device);
     m_backgroundPipeline->cleanup(m_device);
+    m_computePipelines->cleanup(m_device);
 
     m_meshInstances.reset(); 
     m_worldStaticTransforms.reset();

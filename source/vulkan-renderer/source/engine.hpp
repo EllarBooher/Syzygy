@@ -48,7 +48,6 @@ private:
 
     void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
-    void recordDrawBackground(VkCommandBuffer cmd, VkImage image);
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
 
     void cleanup();
@@ -86,6 +85,7 @@ private:
     void initWorld();
     void initInstancedPipeline();
     void initBackgroundPipeline();
+    void initGenericComputePipelines();
 
     void initImgui();
 
@@ -156,7 +156,9 @@ private:
 
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_worldStaticTransforms{};
 
+    bool m_useSkyShader{ true };
     std::unique_ptr<BackgroundComputePipeline> m_backgroundPipeline{};
+    std::unique_ptr<GenericComputePipeline> m_computePipelines{};
 
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);

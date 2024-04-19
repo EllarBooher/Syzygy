@@ -1,4 +1,4 @@
 #pragma once
 
 template<class T>
-void imguiPipelineControls(T const& pipeline);
+void imguiPipelineControls(T& pipeline);

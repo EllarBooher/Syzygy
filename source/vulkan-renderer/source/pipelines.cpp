@@ -216,6 +216,39 @@ static std::optional<ShaderModuleReflected> loadShaderModule(
 		}, fileLoadingResult
 	);
 }
+static std::optional<ShaderObjectReflected> loadShaderObject(
+	VkDevice device
+	, std::string path
+	, VkShaderStageFlagBits stage
+	, VkShaderStageFlags nextStage
+	, std::span<VkDescriptorSetLayout const> layouts
+	, VkSpecializationInfo specializationInfo
+)
+{
+	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
+
+	return std::visit(
+		overloaded{
+			[&](AssetFile const& file)
+			{
+				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecodeReflected(
+					device
+					, file.fileName
+					, file.fileBytes
+					, stage
+					, nextStage
+					, layouts
+					, specializationInfo
+				)};
+			},
+			[&](AssetLoadingError const& error)
+			{
+				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				return std::optional<ShaderObjectReflected>{};
+			}
+		}, fileLoadingResult
+	);
+}
 
 InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	VkDevice device,
@@ -539,4 +572,108 @@ void BackgroundComputePipeline::cleanup(VkDevice device)
 
 	vkDestroyPipeline(device, m_computePipeline, nullptr);
 	vkDestroyPipelineLayout(device, m_computePipelineLayout, nullptr);
+}
+
+GenericComputePipeline::GenericComputePipeline(
+	VkDevice device
+	, VkDescriptorSetLayout drawImageDescriptorLayout
+	, std::span<std::string const> shaderPaths
+)
+{
+	std::vector<VkDescriptorSetLayout> const layouts{ drawImageDescriptorLayout };
+
+	m_shaders.clear();
+	for (std::string const& shaderPath : shaderPaths)
+	{
+		ShaderObjectReflected const shader{
+			loadShaderObject(
+				device
+				, shaderPath
+				, VK_SHADER_STAGE_COMPUTE_BIT
+				, 0
+				, layouts
+				, {}
+			).value()
+		};
+
+		std::vector<VkPushConstantRange> ranges{};
+		if (shader.reflectionData().defaultEntryPointHasPushConstant())
+		{
+			ShaderReflectionData::PushConstant const& pushConstant{ shader.reflectionData().defaultPushConstant() };
+			m_shaderPushConstants.push_back(
+				std::vector<uint8_t>(pushConstant.type.sizeBytes, 0)
+			);
+
+			ranges.push_back(VkPushConstantRange{
+				.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
+				.offset{ pushConstant.layoutOffsetBytes },
+				.size{ pushConstant.type.sizeBytes },
+			});
+		}
+		else
+		{
+			m_shaderPushConstants.push_back({});
+		}
+
+		m_shaders.push_back(
+			shader
+		);
+
+		VkPipelineLayoutCreateInfo const layoutCreateInfo{
+			.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+			.pNext{ nullptr },
+
+			.flags{ 0 },
+
+			.setLayoutCount{ 1 },
+			.pSetLayouts{ &drawImageDescriptorLayout },
+
+			.pushConstantRangeCount{ static_cast<uint32_t>(ranges.size()) },
+			.pPushConstantRanges{ ranges.data() },
+		};
+
+		VkPipelineLayout layout{ VK_NULL_HANDLE };
+		LogVkResult(vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout), "Creating shader object pipeline layout");
+		m_layouts.push_back(layout);
+	}
+}
+
+void GenericComputePipeline::recordDrawCommands(
+	VkCommandBuffer cmd
+	, VkDescriptorSet drawImageDescriptors
+	, VkExtent2D drawExtent
+) const
+{
+	ShaderObjectReflected const& shader{ currentShader() };
+
+	VkShaderStageFlagBits const stage{ VK_SHADER_STAGE_COMPUTE_BIT };
+	VkShaderEXT const shaderObject{ shader.shaderObject() };
+	VkPipelineLayout const layout{ currentLayout() };
+
+	vkCmdBindShadersEXT(cmd, 1, &stage, &shaderObject);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 0, 1, &drawImageDescriptors, 0, nullptr);
+
+	ShaderReflectionData const& reflectionData{ shader.reflectionData() };
+	if (reflectionData.defaultEntryPointHasPushConstant())
+	{
+		std::span<uint8_t const> pushConstantBytes{ readPushConstantBytes() };
+		uint32_t const offset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+
+		vkCmdPushConstants(cmd, layout, stage, offset, pushConstantBytes.size(), pushConstantBytes.data());
+	}
+
+	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+}
+
+void GenericComputePipeline::cleanup(VkDevice device)
+{
+	for (ShaderObjectReflected& shader : m_shaders)
+	{
+		shader.cleanup(device);
+	}
+	for (VkPipelineLayout const& layout : m_layouts)
+	{
+		vkDestroyPipelineLayout(device, layout, nullptr);
+	}
 }

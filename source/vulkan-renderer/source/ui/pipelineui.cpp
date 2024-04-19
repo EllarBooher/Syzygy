@@ -230,3 +230,30 @@ void imguiPipelineControls(BackgroundComputePipeline const& pipeline)
 
     imguiPushStructureControl(pipeline.pushConstantReflected().type, true, pushConstantBytes);
 }
+
+template<>
+void imguiPipelineControls(GenericComputePipeline& pipeline)
+{
+    size_t const currentShaderIndex{ pipeline.shaderIndex() };
+
+    size_t index{ 0 };
+    for (ShaderObjectReflected const& shader : pipeline.shaders())
+    {
+        if (ImGui::Button(fmt::format("{}##shader{}", shader.name(), index).c_str()))
+        {
+            pipeline.selectShader(index);
+        }
+        index += 1;
+    }
+
+    ShaderObjectReflected const& currentShader{ pipeline.currentShader() };
+    ShaderReflectionData const& reflectionData{ currentShader.reflectionData() };
+    if (reflectionData.defaultEntryPointHasPushConstant())
+    {
+        imguiPushStructureControl(reflectionData.defaultPushConstant().type, false, pipeline.mapPushConstantBytes());
+    }
+    else
+    {
+        ImGui::Text("No push constants.");
+    }
+}
