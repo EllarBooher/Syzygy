@@ -13,6 +13,7 @@ Application::Application()
     catch (std::exception const& exception)
     {
         std::cerr << "Failed to load engine:" << exception.what() << std::endl;
+        m_engine.reset();
     }
 }
 

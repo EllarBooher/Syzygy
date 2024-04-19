@@ -15,6 +15,8 @@ public:
     /** Runs in a blocking manner. Returns control when execution ends. */
     void run();
 
+    bool loadedSuccessfully() const { return m_engine.get() != nullptr; };
+
 private:
     std::unique_ptr<Engine> m_engine{ nullptr };
 };
