@@ -42,10 +42,8 @@ layout(buffer_reference, std430) readonly buffer AtmosphereBuffer{
 layout( push_constant ) uniform PushConstant
 {
 	uint cameraIndex;
-	uint padding0;
 
 	uint atmosphereIndex;
-	uint padding1;
 
 	CameraBuffer cameraBuffer;
 	AtmosphereBuffer atmosphereBuffer;

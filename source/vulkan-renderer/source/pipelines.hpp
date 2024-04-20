@@ -133,13 +133,11 @@ private:
 
     struct PushConstantType {
         uint32_t cameraIndex{};
-        uint8_t padding0[4];
-
         uint32_t atmosphereIndex{};
-        uint8_t padding1[4];
-
         VkDeviceAddress cameraBuffer{};
+
         VkDeviceAddress atmosphereBuffer{};
+        uint8_t padding0[8]{};
     };
 
     /*
