@@ -114,8 +114,18 @@ struct ShaderReflectionData
 		Structure type{};
 		std::string name{};
 
-		// This does not impact the offset values generation in the type data.
+		// This is the minimum offset in the struct.
+		// The reflection data will include the implicit padding before this offset in the total size.
 		uint32_t layoutOffsetBytes{ 0 };
+
+		VkPushConstantRange totalRange(VkShaderStageFlags stageFlags) const
+		{
+			return VkPushConstantRange{
+				.stageFlags{ stageFlags },
+				.offset{ layoutOffsetBytes },
+				.size{ type.sizeBytes - layoutOffsetBytes },
+			};
+		}
 	};
 	std::map<std::string, PushConstant> pushConstantsByEntryPoint{};
 

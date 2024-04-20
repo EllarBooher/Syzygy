@@ -209,9 +209,9 @@ public:
 
         m_shaderIndex = index;
     }
-    size_t shaderIndex() { return m_shaderIndex; };
-    size_t shaderCount() { return m_shaders.size(); };
-    std::span<ShaderObjectReflected const> shaders() { return m_shaders; };
+    size_t shaderIndex() const { return m_shaderIndex; };
+    size_t shaderCount() const { return m_shaders.size(); };
+    std::span<ShaderObjectReflected const> shaders() const { return m_shaders; };
 
 private:
     size_t m_shaderIndex{ 0 };

@@ -347,11 +347,7 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 	if (reflectionData.defaultEntryPointHasPushConstant())
 	{
 		ShaderReflectionData::PushConstant const& pushConstant{ reflectionData.defaultPushConstant() };
-		pushConstantRanges.push_back(VkPushConstantRange{
-			.stageFlags{ static_cast<VkShaderStageFlags>(stage) },
-			.offset{ pushConstant.layoutOffsetBytes },
-			.size{ pushConstant.type.paddedSizeBytes },
-		});
+		pushConstantRanges.push_back(pushConstant.totalRange(stage));
 	}
 
 	vkutils::ShaderResult<VkShaderEXT> compilationResult{

@@ -80,7 +80,6 @@ private:
 
     void updateDescriptors();
 
-    void initPipelines();
     void initDefaultMeshData();
     void initWorld();
     void initInstancedPipeline();

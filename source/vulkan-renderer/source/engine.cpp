@@ -116,7 +116,6 @@ void Engine::initVulkan()
 
     updateDescriptors();
 
-    initPipelines();
     initDefaultMeshData();
     initWorld();
     initBackgroundPipeline();
@@ -385,16 +384,6 @@ void Engine::updateDescriptors()
     vkUpdateDescriptorSets(m_device, 1, &drawImageWrite, 0, nullptr);
 }
 
-void Engine::initPipelines()
-{
-    std::vector<std::string> computeShaders{
-        "shaders/gradient.comp.spv",
-        "shaders/gradient_color.comp.spv",
-        "shaders/booleanpush.comp.spv"
-    };
-}
-
-
 void Engine::initDefaultMeshData()
 {
     m_testMeshes = loadGltfMeshes(this, "assets/vkguide/basicmesh.glb").value();
@@ -517,8 +506,9 @@ void Engine::initGenericComputePipelines()
     std::vector<std::string> const shaderPaths
     {
         "shaders/booleanpush.comp.spv"
-        , "shaders/gradient.comp.spv"
         , "shaders/gradient_color.comp.spv"
+        , "shaders/sparse_push_constant.comp.spv"
+        , "shaders/matrix_color.comp.spv"
     };
     m_computePipelines = std::make_unique<GenericComputePipeline>(
         m_device,

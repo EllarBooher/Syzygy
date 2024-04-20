@@ -585,7 +585,7 @@ GenericComputePipeline::GenericComputePipeline(
 	m_shaders.clear();
 	for (std::string const& shaderPath : shaderPaths)
 	{
-		ShaderObjectReflected const shader{
+		std::optional<ShaderObjectReflected> loadResult{ 
 			loadShaderObject(
 				device
 				, shaderPath
@@ -593,22 +593,24 @@ GenericComputePipeline::GenericComputePipeline(
 				, 0
 				, layouts
 				, {}
-			).value()
+			) 
 		};
+
+		if (!loadResult.has_value()) { continue; }
+
+		ShaderObjectReflected const shader{ loadResult.value() };
 
 		std::vector<VkPushConstantRange> ranges{};
 		if (shader.reflectionData().defaultEntryPointHasPushConstant())
 		{
 			ShaderReflectionData::PushConstant const& pushConstant{ shader.reflectionData().defaultPushConstant() };
+			// For the buffer, we allocate extra bytes to the push constant to simplify the offset math.
+			// Host side, we write to a subset of this buffer, then only copy the necessary range to the device.
 			m_shaderPushConstants.push_back(
-				std::vector<uint8_t>(pushConstant.type.sizeBytes, 0)
+				std::vector<uint8_t>(pushConstant.type.paddedSizeBytes, 0)
 			);
 
-			ranges.push_back(VkPushConstantRange{
-				.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-				.offset{ pushConstant.layoutOffsetBytes },
-				.size{ pushConstant.type.sizeBytes },
-			});
+			ranges.push_back(pushConstant.totalRange(VK_SHADER_STAGE_COMPUTE_BIT));
 		}
 		else
 		{
@@ -660,7 +662,7 @@ void GenericComputePipeline::recordDrawCommands(
 		std::span<uint8_t const> pushConstantBytes{ readPushConstantBytes() };
 		uint32_t const offset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
 
-		vkCmdPushConstants(cmd, layout, stage, offset, pushConstantBytes.size(), pushConstantBytes.data());
+		vkCmdPushConstants(cmd, layout, stage, offset, pushConstantBytes.size() - offset, pushConstantBytes.data() + offset);
 	}
 
 	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
