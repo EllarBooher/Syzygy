@@ -6,16 +6,16 @@
 #include <glm/gtx/euler_angles.hpp>
 
 struct AtmosphereParameters {
-    glm::vec3 directionToSun{ 0.0, -1.0, 0.0 };
+    glm::vec3 directionToSun{ 1.0, 0.0, 0.0 };
 
-    float earthRadiusMeters{ 6378000 };
-    float atmosphereRadiusMeters{ 6420000 };
+    float earthRadiusMeters{ 0.0 };
+    float atmosphereRadiusMeters{ 0.0 };
 
-    glm::vec3 scatteringCoefficientRayleigh{ 0.0000038, 0.0000135, 0.0000331 };
-    float altitudeDecayRayleigh{ 7994.0 };
+    glm::vec3 scatteringCoefficientRayleigh{ 1.0 };
+    float altitudeDecayRayleigh{ 1.0 };
 
-    glm::vec3 scatteringCoefficientMie{ 0.000021 };
-    float altitudeDecayMie{ 1200.0 };
+    glm::vec3 scatteringCoefficientMie{ 1.0 };
+    float altitudeDecayMie{ 1.0 };
 
     GPUTypes::Atmosphere toDeviceEquivalent() const
     {

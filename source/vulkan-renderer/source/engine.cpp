@@ -45,6 +45,19 @@ CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
     .far{ 10000.0f },
 };
 
+AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
+    .directionToSun{ glm::vec3(0.0, -1.0, 0.0) },
+
+    .earthRadiusMeters{ 6378000 },
+    .atmosphereRadiusMeters{ 6420000 },
+
+    .scatteringCoefficientRayleigh{ glm::vec3(0.0000038, 0.0000135, 0.0000331) },
+    .altitudeDecayRayleigh{ 7994.0 },
+
+    .scatteringCoefficientMie{ glm::vec3(0.000021) },
+    .altitudeDecayMie{ 1200.0 },
+};
+
 Engine::Engine()
 {
     init();
@@ -793,7 +806,7 @@ void Engine::mainLoop()
             {
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
-                imguiStructureControls(m_atmosphereParameters, AtmosphereParameters{});
+                imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
             }
             ImGui::End();
 
@@ -860,7 +873,7 @@ void Engine::draw()
         std::span<GPUTypes::Atmosphere> const stagedAtmospheres{ m_atmospheresBuffer->mapValidStaged() };
         if (stagedAtmospheres.size() <= m_atmosphereIndex)
         {
-            Warning("CameraIndex does not point to valid camera, resetting to 0.");
+            Warning("AtmosphereIndex does not point to valid atmosphere, resetting to 0.");
             m_atmosphereIndex = 0;
         }
         if (stagedAtmospheres.size() > 0 && m_atmosphereIndex < stagedAtmospheres.size())

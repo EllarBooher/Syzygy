@@ -175,7 +175,8 @@ private:
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
     uint32_t m_atmosphereIndex{ 0 };
-    AtmosphereParameters m_atmosphereParameters{};
+    static AtmosphereParameters const m_defaultAtmosphereParameters;
+    AtmosphereParameters m_atmosphereParameters{ m_defaultAtmosphereParameters };
 
     std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
     std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
