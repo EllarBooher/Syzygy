@@ -1,6 +1,6 @@
 #include "images.hpp"
 
-#include "helpers.h"
+#include "helpers.hpp"
 #include "initializers.hpp"
 
 VkOffset3D ExtentToOffset(VkExtent3D extent)

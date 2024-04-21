@@ -34,10 +34,6 @@ target_compile_definitions(
 FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
 
-FetchContent_MakeAvailable(stb)
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-
 FetchContent_MakeAvailable(glfw)
 
 FetchContent_MakeAvailable(imgui)
@@ -89,16 +85,22 @@ FetchContent_MakeAvailable(fastgltf)
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(volk)
 
-set(SPIRV_REFLECT_EXECUTABLE OFF)
-set(SPIRV_REFLECT_STATIC_LIB ON)
-FetchContent_MakeAvailable(spirv-reflect)
+# When using spirv-reflect's CMakeLists, spirv-reflect.h could not be found (in VS2022) 
+# unless configuring CMake twice after deleting the cache.
+# Thus, the we include the source instead of fetching it and configure the target ourselves
+set(SPIRV-REFLECT_SOURCE_DIR "${CMAKE_SOURCE_DIR}/thirdparty/spirv-reflect")
+add_library(spirv-reflect
+	${SPIRV-REFLECT_SOURCE_DIR}/spirv_reflect.cpp
+	${SPIRV-REFLECT_SOURCE_DIR}/spirv_reflect.h
+)
+target_include_directories(spirv-reflect PUBLIC ${SPIRV-REFLECT_SOURCE_DIR})
 
 target_link_libraries(
 	vulkan-renderer 
 	PUBLIC
+	spirv-reflect
 	glm
 	VulkanMemoryAllocator
-	stb
 	glfw
 	imgui
 	implot
@@ -106,5 +108,4 @@ target_link_libraries(
 	fastgltf
 	fmt::fmt
 	volk
-	"spirv-reflect-static"
 )

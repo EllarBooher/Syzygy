@@ -1,8 +1,8 @@
 #pragma once
 
-#include "engine_types.h"
+#include "enginetypes.hpp"
 
-#include "helpers.h"
+#include "helpers.hpp"
 
 #include <vk_mem_alloc.h>
 

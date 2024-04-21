@@ -1,5 +1,5 @@
 #include "descriptors.hpp"
-#include "helpers.h"
+#include "helpers.hpp"
 
 DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	uint32_t binding, 

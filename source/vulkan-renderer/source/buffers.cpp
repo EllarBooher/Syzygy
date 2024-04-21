@@ -1,5 +1,5 @@
 #include "buffers.hpp"
-#include "helpers.h"
+#include "helpers.hpp"
 
 AllocatedBuffer AllocatedBuffer::allocate(
     VkDevice device,

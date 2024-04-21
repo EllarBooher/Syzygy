@@ -1,7 +1,7 @@
 #include "pipelines.hpp"
 
 #include <fstream>
-#include "helpers.h"
+#include "helpers.hpp"
 #include "initializers.hpp"
 #include "shaders.hpp"
 

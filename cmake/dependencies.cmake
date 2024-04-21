@@ -1,6 +1,6 @@
 include(FetchContent)
 # Disquiet to see git clone progress
-set(FETCHCONTENT_QUIET OFF)
+set(FETCHCONTENT_QUIET ON)
 
 FetchContent_Declare(
 	fmt
@@ -56,16 +56,6 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-	stb
-	GIT_REPOSITORY https://github.com/nothings/stb.git
-	GIT_TAG ae721c50eaf761660b4f90cc590453cdb0c2acd0
-	GIT_SHALLOW ON
-	GIT_PROGRESS ON
-	CONFIGURE_COMMAND ""
-	BUILD_COMMAND ""
-)
-
-FetchContent_Declare(
 	vk-bootstrap
 	GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap.git
 	GIT_TAG v1.3.280
@@ -85,14 +75,6 @@ FetchContent_Declare(
 	volk
 	GIT_REPOSITORY https://github.com/zeux/volk.git
 	GIT_TAG 1.3.270
-	GIT_SHALLOW ON
-	GIT_PROGRESS ON
-)
-
-FetchContent_Declare(
-	spirv-reflect
-	GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
-	GIT_TAG vulkan-sdk-1.3.280.0
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
 )

@@ -29,7 +29,7 @@
 #include <glm/vec4.hpp>
 
 #include "initializers.hpp"
-#include "helpers.h"
+#include "helpers.hpp"
 #include "images.hpp"
 #include "descriptors.hpp"
 #include "pipelines.hpp"

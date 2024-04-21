@@ -4,6 +4,7 @@
 #include <implot.h>
 #include <fmt/format.h>
 
+#include "pipelineui.hpp"
 #include "../shaders.hpp"
 #include "../engineparams.hpp"
 

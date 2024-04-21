@@ -1,7 +1,5 @@
 #include "assets.hpp"
 
-#include <stb_image.h>
-
 #include "engine.hpp"
 #include "initializers.hpp"
 
@@ -13,7 +11,7 @@
 
 #include <fstream>
 
-#include "helpers.h"
+#include "helpers.hpp"
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* engine, std::string localPath)
 {
