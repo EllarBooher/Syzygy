@@ -1,0 +1,488 @@
+#include "shaders.hpp"
+
+#include "helpers.hpp"
+#include <spirv_reflect.h>
+
+ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spirv_bytecode)
+{
+	SpvReflectShaderModule module;
+	SpvReflectResult const result = spvReflectCreateShaderModule(
+		spirv_bytecode.size_bytes(),
+		spirv_bytecode.data(),
+		&module
+	);
+
+	uint32_t pushConstantCounts;
+	spvReflectEnumeratePushConstants(
+		&module,
+		&pushConstantCounts,
+		nullptr
+	);
+	std::vector<SpvReflectBlockVariable*> pushConstants(pushConstantCounts);
+	spvReflectEnumeratePushConstants(
+		&module,
+		&pushConstantCounts,
+		pushConstants.data()
+	);
+
+	std::map<std::string, ShaderReflectionData::PushConstant> pushConstantsByEntryPoint{};
+	for (auto const pEntryPoint : std::span<SpvReflectEntryPoint* const>(&module.entry_points, module.entry_point_count))
+	{
+		SpvReflectEntryPoint const& entryPoint{ *pEntryPoint };
+
+		SpvReflectResult result;
+		SpvReflectBlockVariable const* pPushConstant{ spvReflectGetEntryPointPushConstantBlock(&module, entryPoint.name, &result) };
+
+		if (result == SPV_REFLECT_RESULT_ERROR_ELEMENT_NOT_FOUND)
+		{
+			// No push constant on the entry point
+			continue;
+		}
+
+		// The only way the result is not success is if 1) the module is null or 2) the entry point does not exist, which we both know to be false.
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+		SpvReflectBlockVariable const& pushConstant{ *pPushConstant };
+
+		std::vector<ShaderReflectionData::StructureMember> processedMembers{};
+
+		assert(pushConstant.type_description->op == SpvOp::SpvOpTypeStruct);
+
+		// Process members
+		std::span<SpvReflectBlockVariable> const members{ pushConstant.members, pushConstant.member_count };
+		for (SpvReflectBlockVariable const& member : members)
+		{
+			// Parse spirv-reflect type descriptions into type-safe form
+
+			uint32_t const offsetBytes{ member.offset };
+
+			SpvReflectTypeDescription const& typeDescription{ *member.type_description };
+			SpvReflectNumericTraits const& numericTraits{ typeDescription.traits.numeric };
+
+			// SPIR-V type names are empty for built in types ?
+			std::string const typeName{ typeDescription.type_name == nullptr ? "" : typeDescription.type_name };
+
+			uint32_t const bitWidth = member.numeric.scalar.width;
+
+			// For early exit, if the type ends up being unsupported
+
+			ShaderReflectionData::StructureMember const unsupportedMember{
+					.offsetBytes{ offsetBytes },
+					.name{ member.name },
+					.type{ ShaderReflectionData::SizedType{
+						.typeData{ ShaderReflectionData::UnsupportedType{} },
+
+						.name{ typeName },
+						.sizeBytes{ member.size },
+						.paddedSizeBytes{ member.padded_size },
+					} },
+			};
+
+			SpvReflectTypeFlags const numericTypesMask{ 0x0000FFFF };
+
+			if (typeDescription.type_flags & SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_REF)
+			{
+				// SpirV-reflect should only add this flag if the type is an OpTypePointer
+				processedMembers.push_back(ShaderReflectionData::StructureMember{
+					.offsetBytes{ offsetBytes },
+					.name{ member.name },
+					.type{
+						ShaderReflectionData::SizedType{
+							.typeData{ ShaderReflectionData::Pointer{} },
+							.name{ typeName },
+							.sizeBytes{ member.size },
+							.paddedSizeBytes{ member.padded_size },
+						}
+					}
+				});
+			}
+			else if ((typeDescription.type_flags & (~numericTypesMask)) == 0)
+			{
+				uint32_t const typeFlagComponentTypeMask{ 0x000000FF };
+				ShaderReflectionData::NumericType::ComponentType componentType;
+				switch (typeDescription.type_flags & typeFlagComponentTypeMask)
+				{
+				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_INT:
+					componentType = ShaderReflectionData::Integer{
+						.signedness{ static_cast<bool>(numericTraits.scalar.signedness) }
+					};
+					break;
+				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_FLOAT:
+					componentType = ShaderReflectionData::Float{};
+					break;
+				default:
+					Warning(fmt::format("Unsupported push constant member type \"{}\" for \"{}\""
+						, std::to_string(typeDescription.type_flags & typeFlagComponentTypeMask)
+						, member.name)
+					);
+					processedMembers.push_back(unsupportedMember);
+					continue;
+				}
+
+				uint32_t const typeFlagFormatMask{ 0x0000FF00 };
+				ShaderReflectionData::NumericType::Format format;
+				switch (typeDescription.type_flags & typeFlagFormatMask)
+				{
+				case 0:
+					format = ShaderReflectionData::Scalar{};
+					break;
+				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_VECTOR:
+					format = ShaderReflectionData::Vector{
+						.componentCount{ numericTraits.vector.component_count }
+					};
+					break;
+				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX | SPV_REFLECT_TYPE_FLAG_VECTOR:
+					format = ShaderReflectionData::Matrix{
+						.columnCount{ numericTraits.matrix.column_count },
+						.rowCount{ numericTraits.matrix.row_count }
+					};
+					break;
+				default:
+					Warning(fmt::format("Unsupported push constant member format \"{}\" for \"{}\""
+						, std::to_string(typeDescription.type_flags & typeFlagFormatMask)
+						, member.name)
+					);
+					processedMembers.push_back(unsupportedMember);
+					continue;
+				}
+
+				processedMembers.push_back(ShaderReflectionData::StructureMember{
+					.offsetBytes{ offsetBytes },
+					.name{ member.name },
+					.type{
+						ShaderReflectionData::SizedType{
+							.typeData{ ShaderReflectionData::NumericType{
+								.componentBitWidth{ numericTraits.scalar.width },
+								.componentType{ componentType },
+								.format{ format },
+							}},
+							.name{ typeName },
+							.sizeBytes{ member.size },
+							.paddedSizeBytes{ member.padded_size },
+						}
+					}
+				});
+			}
+			else
+			{
+				Warning(fmt::format("Unsupported push constant member flag types \"{}\" for \"{}\""
+					, std::to_string(typeDescription.type_flags)
+					, member.name)
+				);
+				processedMembers.push_back(unsupportedMember);
+				continue;
+			}
+		}
+
+		pushConstantsByEntryPoint[std::string{ entryPoint.name }] = ShaderReflectionData::PushConstant{
+			.type{
+				.name{	pushConstant.type_description->type_name },
+				.sizeBytes{ pushConstant.size },
+				.paddedSizeBytes{ pushConstant.padded_size },
+				.members{ processedMembers },
+			},
+			.name{ pushConstant.name },
+			.layoutOffsetBytes{ pushConstant.offset }
+		};
+	}
+
+	std::string defaultEntryPoint{ module.entry_point_name };
+
+	spvReflectDestroyShaderModule(&module);
+
+	return ShaderReflectionData{
+		.pushConstantsByEntryPoint{ pushConstantsByEntryPoint },
+		.defaultEntryPoint{ defaultEntryPoint },
+	};
+}
+
+bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other) const
+{
+	uint32_t memberIndex{ 0 };
+	uint32_t otherMemberIndex{ 0 };
+
+	size_t iterations{ 0 };
+	while (iterations < 100)
+	{
+		if (memberIndex >= members.size() || otherMemberIndex >= other.members.size())
+		{
+			// Reached the end without finding incompatible members, so the rest does not matter.
+			return true;
+		}
+
+		struct ByteRange {
+			uint32_t startByte{ 0 };
+			uint32_t endUnpaddedByte{ 0 };
+			uint32_t endPaddedByte{ 0 };
+		};
+		auto const getByteRange{
+			[&](StructureMember const& member) {
+				return ByteRange{
+					.startByte{ member.offsetBytes },
+					.endUnpaddedByte{ member.offsetBytes + member.type.sizeBytes },
+					.endPaddedByte{ member.offsetBytes + member.type.paddedSizeBytes },
+				};
+			}
+		};
+
+		StructureMember const& member{ members[memberIndex] };
+		StructureMember const& otherMember{ other.members[otherMemberIndex] };
+
+		ByteRange const memberRange{ getByteRange(member) };
+		ByteRange const otherMemberRange{ getByteRange(otherMember) };
+
+		// If the members overlap, their types must be compatible
+		
+		// Assert monotonicity so interval calculations are valid
+		assert(
+			memberRange.endPaddedByte >= memberRange.endUnpaddedByte
+			&& memberRange.endUnpaddedByte >= memberRange.startByte
+		);
+		assert(
+			otherMemberRange.endPaddedByte >= otherMemberRange.endUnpaddedByte
+			&& otherMemberRange.endUnpaddedByte >= otherMemberRange.startByte
+		);
+
+		if (memberRange.startByte < otherMemberRange.endPaddedByte
+			&& memberRange.endPaddedByte > otherMemberRange.startByte)
+		{
+			// For now, require members to be identical.
+			if (member.type.typeData != otherMember.type.typeData)
+			{
+				return false;
+			}
+		}
+		
+		if (memberRange.endUnpaddedByte <= otherMemberRange.endPaddedByte)
+		{
+			memberIndex += 1;
+		}
+		else
+		{
+			otherMemberIndex += 1;
+		}
+	}
+	Error(fmt::format("Ran out of iterations while checking shader structure compatibility between {} and {}."
+		, name
+		, other.name
+	));
+	return false;
+}
+
+bool ShaderReflectionData::NumericType::operator==(NumericType const& other) const
+{
+	return other.componentBitWidth == componentBitWidth
+		&& other.componentType == componentType
+		&& other.format == format;
+}
+
+bool ShaderReflectionData::Integer::operator==(Integer const& other) const
+{
+	return other.signedness == signedness;
+}
+
+bool ShaderReflectionData::Vector::operator==(Vector const& other) const
+{
+	return other.componentCount == componentCount;
+}
+
+bool ShaderReflectionData::Matrix::operator==(Matrix const& other) const
+{
+	return other.columnCount == columnCount
+		&& other.rowCount == rowCount;
+}
+
+std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
+	VkDevice device
+	, std::string name
+	, std::span<uint8_t const> spirvBytecode
+	, VkShaderStageFlagBits stage
+	, VkShaderStageFlags nextStage
+	, std::span<VkDescriptorSetLayout const> layouts
+	, std::span<VkPushConstantRange const> pushConstantRanges
+	, VkSpecializationInfo specializationInfo
+)
+{
+	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+
+	vkutils::ShaderResult<VkShaderEXT> compilationResult{
+		vkutils::CompileShaderObject(
+			device
+			, spirvBytecode
+			, stage
+			, nextStage
+			, layouts
+			, pushConstantRanges
+			, specializationInfo
+		)
+	};
+
+	LogVkResult(compilationResult.result, fmt::format("Created Shader Object {}", name));
+	if (compilationResult.result != VK_SUCCESS)
+	{
+		return {};
+	}
+
+	return ShaderObjectReflected(
+		name,
+		reflectionData,
+		compilationResult.shader
+	);
+}
+
+std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflected(
+	VkDevice device
+	, std::string name
+	, std::span<uint8_t const> spirvBytecode
+	, VkShaderStageFlagBits stage
+	, VkShaderStageFlags nextStage
+	, std::span<VkDescriptorSetLayout const> layouts
+	, VkSpecializationInfo specializationInfo
+)
+{
+	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+
+	if (reflectionData.defaultEntryPointHasPushConstant())
+	{
+		ShaderReflectionData::PushConstant const& pushConstant{ reflectionData.defaultPushConstant() };
+		pushConstantRanges.push_back(pushConstant.totalRange(stage));
+	}
+
+	vkutils::ShaderResult<VkShaderEXT> compilationResult{
+		vkutils::CompileShaderObject(
+			device
+			, spirvBytecode
+			, stage
+			, nextStage
+			, layouts
+			, pushConstantRanges
+			, specializationInfo
+		)
+	};
+
+	LogVkResult(compilationResult.result, fmt::format("Created Shader Object {}", name));
+	if (compilationResult.result != VK_SUCCESS)
+	{
+		return {};
+	}
+
+	return ShaderObjectReflected(
+		name,
+		reflectionData,
+		compilationResult.shader
+	);
+}
+
+std::optional<ShaderModuleReflected> ShaderModuleReflected::FromBytecode(
+	VkDevice device
+	, std::string name
+	, std::span<uint8_t const> spirvBytecode
+)
+{
+	vkutils::ShaderResult<VkShaderModule> compilationResult{
+		vkutils::CompileShaderModule(device, spirvBytecode)
+	};
+
+	if (compilationResult.result != VK_SUCCESS)
+	{
+		LogVkResult(compilationResult.result, fmt::format("Failed to create shader module {}", name));
+		return {};
+	}
+
+	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+
+	Log(fmt::format("Successfully compiled ShaderModuleReflected: {}", name));
+	return ShaderModuleReflected(
+		name,
+		reflectionData,
+		compilationResult.shader
+	);
+}
+
+
+template<class... Ts>
+struct overloaded : Ts...
+{
+	using Ts::operator()...;
+};
+void ShaderReflectedBase::cleanup(VkDevice device)
+{
+	std::visit(
+		overloaded{
+			[&](VkShaderModule module)
+			{
+				vkDestroyShaderModule(device, module, nullptr);
+			},
+			[&](VkShaderEXT object)
+			{
+				vkDestroyShaderEXT(device, object, nullptr);
+			}
+		}, m_shaderHandle
+	);
+}
+
+vkutils::ShaderResult<VkShaderEXT> vkutils::CompileShaderObject(
+	VkDevice device
+	, std::span<uint8_t const> spirvBytecode
+	, VkShaderStageFlagBits stage
+	, VkShaderStageFlags nextStage
+	, std::span<VkDescriptorSetLayout const> layouts
+	, std::span<VkPushConstantRange const> pushConstantRanges
+	, VkSpecializationInfo specializationInfo
+)
+{
+	VkShaderCreateInfoEXT const createInfo{
+		.sType{ VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.stage{ stage },
+		.nextStage{ nextStage },
+
+		.codeType{ VkShaderCodeTypeEXT::VK_SHADER_CODE_TYPE_SPIRV_EXT },
+		.codeSize{ spirvBytecode.size() },
+		.pCode{ spirvBytecode.data() },
+
+		.pName{"main"},
+
+		.setLayoutCount{ static_cast<uint32_t>(layouts.size()) },
+		.pSetLayouts{ layouts.data() },
+
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
+
+		.pSpecializationInfo{ &specializationInfo },
+	};
+
+	VkShaderEXT shaderObject{ VK_NULL_HANDLE };
+	VkResult const result{ vkCreateShadersEXT(device, 1, &createInfo, nullptr, &shaderObject) };
+
+	return ShaderResult<VkShaderEXT>{
+		.shader{ shaderObject },
+		.result{ result },
+	};
+}
+
+vkutils::ShaderResult<VkShaderModule> vkutils::CompileShaderModule(VkDevice device, std::span<uint8_t const> spirvBytecode)
+{
+	VkShaderModuleCreateInfo const createInfo{
+		.sType{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.codeSize{ spirvBytecode.size() },
+		.pCode{ reinterpret_cast<uint32_t const*>(spirvBytecode.data()) },
+	};
+
+	VkShaderModule shaderModule{ VK_NULL_HANDLE };
+	VkResult const result{ vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) };
+
+	return ShaderResult<VkShaderModule>{
+		.shader{ shaderModule },
+		.result{ result },
+	};
+}

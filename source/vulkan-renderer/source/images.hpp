@@ -1,16 +1,19 @@
 #pragma once
 
 #include <volk.h>
-#include <engine_types.h>
+#include "enginetypes.hpp"
 
 namespace vkutil {
+    /**
+        Transitions the layout of an image, putting in a full memory barrier for all
+    */
     void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
     AllocatedImage allocateImage(
         VmaAllocator allocator,
         VkDevice device,
-        DeletionQueue& deletionQueue,
         VkExtent3D extent, 
         VkFormat format, 
+        VkImageAspectFlags viewFlags,
         VkImageUsageFlags usageMask
     );
 

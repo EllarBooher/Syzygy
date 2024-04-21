@@ -1,6 +1,6 @@
 #include "images.hpp"
 
-#include "helpers.h"
+#include "helpers.hpp"
 #include "initializers.hpp"
 
 VkOffset3D ExtentToOffset(VkExtent3D extent)
@@ -62,9 +62,9 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
 AllocatedImage vkutil::allocateImage(
     VmaAllocator allocator,
     VkDevice device,
-    DeletionQueue& deletionQueue,
     VkExtent3D extent,
     VkFormat format,
+    VkImageAspectFlags viewFlags,
     VkImageUsageFlags usageMask
 )
 {
@@ -94,15 +94,10 @@ AllocatedImage vkutil::allocateImage(
     VkImageViewCreateInfo const imageViewInfo = vkinit::imageViewCreateInfo(
         image.imageFormat,
         image.image,
-        VK_IMAGE_ASPECT_COLOR_BIT
+        viewFlags
     );
 
     CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
-
-    deletionQueue.pushFunction([=]() {
-        vkDestroyImageView(device, image.imageView, nullptr);
-        vmaDestroyImage(allocator, image.image, image.allocation);
-    });
 
     return image;
 }

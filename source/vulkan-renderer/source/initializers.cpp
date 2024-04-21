@@ -139,3 +139,60 @@ VkImageViewCreateInfo vkinit::imageViewCreateInfo(VkFormat format, VkImage image
     };
 }
 
+VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
+    VkImageView view, 
+    VkClearValue clearValue, 
+    bool useClearValue,
+    VkImageLayout layout)
+{
+    return {
+        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+        .pNext{ nullptr },
+
+        .imageView{ view },
+        .imageLayout{ layout },
+        .loadOp{ useClearValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD },
+        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+        .clearValue{ clearValue },
+    };
+}
+
+VkRenderingInfo vkinit::renderingInfo(
+    VkExtent2D extent,
+    std::span<VkRenderingAttachmentInfo const> colorAttachments,
+    VkRenderingAttachmentInfo const* pDepthAttachment
+)
+{
+    return {
+        .sType{ VK_STRUCTURE_TYPE_RENDERING_INFO },
+        .pNext{ nullptr },
+
+        .flags{ 0 },
+        .renderArea{
+            .offset{ 0, 0 },
+            .extent{ extent }
+            },
+        .layerCount{ 1 },
+        .viewMask{ 0 },
+
+        .colorAttachmentCount{ static_cast<uint32_t>(colorAttachments.size()) },
+        .pColorAttachments{ colorAttachments.data() },
+        .pDepthAttachment{ pDepthAttachment },
+        .pStencilAttachment{ nullptr }
+    };
+}
+
+VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module, std::string const& entryPoint)
+{
+    return VkPipelineShaderStageCreateInfo{
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
+        .pNext{ nullptr },
+
+        .flags{ 0 },
+        .stage{ stage },
+        .module{ module },
+        .pName{ entryPoint.c_str() },
+        .pSpecializationInfo{ nullptr },
+    };
+}
+
