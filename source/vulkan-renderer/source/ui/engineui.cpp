@@ -22,12 +22,12 @@ void imguiPerformanceWindow(
         float const minFPS{ 10.0 };
         float const maxFPS{ 1000.0 };
         ImGui::DragScalar("Target FPS", ImGuiDataType_Float, &targetFPS, 1.0, &minFPS, &maxFPS, nullptr, ImGuiSliderFlags_AlwaysClamp);
-        if (ImPlot::BeginPlot("FPS"))
+        if (ImPlot::BeginPlot("FPS", ImVec2(-1,200)))
         {
             ImPlot::SetupAxes("", "FPS", ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin);
             ImPlot::SetupAxesLimits(0, fpsValues.size(), 0.0f, 320.0f);
-            ImPlot::PlotLine("Test", fpsValues.data(), fpsValues.size());
-            ImPlot::PlotInfLines("Current Frame", &currentFrame, 1);
+            ImPlot::PlotLine("##fpsValues", fpsValues.data(), fpsValues.size());
+            ImPlot::PlotInfLines("##current", &currentFrame, 1);
             ImPlot::EndPlot();
         }
     }

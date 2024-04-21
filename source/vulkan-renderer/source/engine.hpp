@@ -59,7 +59,7 @@ private:
 
     uint32_t m_frameNumber{ 0 };
     bool m_bRender{ true };
-    VkExtent2D m_windowExtent{ 1700, 900 };
+    VkExtent2D m_windowExtent{ 1920, 1080 };
 
     GLFWwindow* m_window{ nullptr };
 
