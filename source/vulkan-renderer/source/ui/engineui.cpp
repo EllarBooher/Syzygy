@@ -5,6 +5,8 @@
 #include <fmt/format.h>
 
 #include "pipelineui.hpp"
+
+#include "../assets.hpp"
 #include "../shaders.hpp"
 #include "../engineparams.hpp"
 
@@ -30,6 +32,55 @@ void imguiPerformanceWindow(
         }
     }
     ImGui::End();
+}
+
+void imguiMeshInstanceControls(
+    bool& shouldRender
+    , std::span<std::shared_ptr<MeshAsset> const> meshes
+    , size_t& meshIndexSelected
+)
+{
+    ImGui::Checkbox("Render Mesh Instances", &shouldRender);
+    ImGui::Indent(10.0f);
+    ImGui::BeginDisabled(!shouldRender);
+    {
+        ImGui::Text("Select loaded mesh to use:");
+        size_t meshIndex{ 0 };
+        for (std::shared_ptr<MeshAsset> asset : meshes)
+        {
+            MeshAsset const& mesh{ *asset };
+
+            if (ImGui::RadioButton(mesh.name.c_str(), meshIndexSelected == meshIndex))
+            {
+                meshIndexSelected = meshIndex;
+            }
+            meshIndex += 1;
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::Unindent(10.0f);
+}
+
+void imguiBackgroundRenderingControls(bool& useAtmosphereCompute, AtmosphereComputePipeline const& atmospherePipeline, GenericComputeCollectionPipeline& genericComputePipeline)
+{
+    ImGui::Text("Background Rendering:");
+    if (ImGui::RadioButton("Atmosphere Volume Rendering", useAtmosphereCompute))
+    {
+        useAtmosphereCompute = true;
+    }
+    if (ImGui::RadioButton("Generic Single Shader Compute Collection", !useAtmosphereCompute))
+    {
+        useAtmosphereCompute = false;
+    }
+
+    if (useAtmosphereCompute)
+    {
+        imguiPipelineControls<AtmosphereComputePipeline const>(atmospherePipeline);
+    }
+    else
+    {
+        imguiPipelineControls<GenericComputeCollectionPipeline>(genericComputePipeline);
+    }
 }
 
 static bool RightJustifiedButton(std::string const& label, std::string const& suffix)

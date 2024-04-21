@@ -149,15 +149,17 @@ private:
 
     // Pipelines
 
+    bool m_renderMeshInstances{ true };
+    size_t m_testMeshUsed{ 0 };
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
     std::vector<glm::mat4x4> m_transformOriginals{};
 
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_worldStaticTransforms{};
 
-    bool m_useSkyShader{ true };
-    std::unique_ptr<BackgroundComputePipeline> m_backgroundPipeline{};
-    std::unique_ptr<GenericComputePipeline> m_computePipelines{};
+    bool m_useAtmosphereCompute{ true };
+    std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};
+    std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
 
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);

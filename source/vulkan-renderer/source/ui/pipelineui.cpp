@@ -29,11 +29,12 @@ static void imguiPushStructureControl(
     std::span<T> backingData
 )
 {
-    // This whole method is bad and should be refactored in a way to not need this templating
+    // TODO: This whole method is bad and should be refactored in a way to not need this templating
     static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value);
 
     ShaderReflectionData::Structure const& structure{ pushConstant.type };
 
+    ImGui::Text("%s (%s)", "Push Constant", readOnly ? "Read Only" : "Mutable");
     {
         ImGui::BeginTable("Push Constant Reflection Data", 2
             , ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg
@@ -280,7 +281,7 @@ void imguiPipelineControls(InstancedMeshGraphicsPipeline const& pipeline)
 }
 
 template<>
-void imguiPipelineControls(BackgroundComputePipeline const& pipeline)
+void imguiPipelineControls(AtmosphereComputePipeline const& pipeline)
 {
     std::span<uint8_t const> const pushConstantBytes{
         reinterpret_cast<uint8_t const*>(&pipeline.pushConstant())
@@ -288,26 +289,29 @@ void imguiPipelineControls(BackgroundComputePipeline const& pipeline)
     };
 
     ImGui::Separator();
-    ImGui::Text("Sky Shader");
+    ImGui::Text(pipeline.shader().name().c_str());
 
     imguiPushStructureControl(pipeline.pushConstantReflected(), true, pushConstantBytes);
 }
 
 template<>
-void imguiPipelineControls(GenericComputePipeline& pipeline)
+void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
 {
-    size_t const currentShaderIndex{ pipeline.shaderIndex() };
+    { // Shader selection
+        ImGui::Indent(10.0f);
+        size_t const currentShaderIndex{ pipeline.shaderIndex() };
 
-    size_t index{ 0 };
-    for (ShaderObjectReflected const& shader : pipeline.shaders())
-    {
-        if (ImGui::Button(fmt::format("{}##shader{}", shader.name(), index).c_str()))
+        size_t index{ 0 };
+        for (ShaderObjectReflected const& shader : pipeline.shaders())
         {
-            pipeline.selectShader(index);
+            if (ImGui::RadioButton(fmt::format("{}##shader{}", shader.name(), index).c_str(), index == currentShaderIndex))
+            {
+                pipeline.selectShader(index);
+            }
+            index += 1;
         }
-        index += 1;
+        ImGui::Unindent(10.0f);
     }
-
     ImGui::Separator();
 
     ShaderObjectReflected const& currentShader{ pipeline.currentShader() };

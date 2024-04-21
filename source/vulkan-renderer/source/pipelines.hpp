@@ -97,10 +97,10 @@ public:
 * It models all light from the sun as reaching the camera via primary scattering,
 * so it produces inaccurate results in thin atmospheres.
 */
-class BackgroundComputePipeline
+class AtmosphereComputePipeline
 {
 public:
-    BackgroundComputePipeline(
+    AtmosphereComputePipeline(
         VkDevice device, 
         VkDescriptorSetLayout drawImageDescriptorLayout
     );
@@ -124,6 +124,8 @@ public:
             , sizeof(PushConstantType)
         );
     }
+
+    ShaderModuleReflected const& shader() const { return m_skyShader; };
 
 private:
     ShaderModuleReflected m_skyShader{ ShaderModuleReflected::MakeInvalid() };
@@ -155,12 +157,13 @@ public:
 };
 
 /*
-* A generic compute pipeline driven entirely by a push constant.
+* A generic compute pipeline driven entirely by a push constant. 
+* Supports multiple shader objects, swapping between them and only using one of them during dispatch.
 */
-class GenericComputePipeline
+class GenericComputeCollectionPipeline
 {
 public:
-    GenericComputePipeline(
+    GenericComputeCollectionPipeline(
         VkDevice device
         , VkDescriptorSetLayout drawImageDescriptorLayout
         , std::span<std::string const> shaderPaths

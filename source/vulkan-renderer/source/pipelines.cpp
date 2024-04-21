@@ -465,7 +465,7 @@ void InstancedMeshGraphicsPipeline::cleanup(VkDevice device)
 	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }
 
-BackgroundComputePipeline::BackgroundComputePipeline(
+AtmosphereComputePipeline::AtmosphereComputePipeline(
 	VkDevice device, 
 	VkDescriptorSetLayout drawImageDescriptorLayout
 )
@@ -535,7 +535,7 @@ BackgroundComputePipeline::BackgroundComputePipeline(
 	m_computePipeline = pipeline;
 }
 
-void BackgroundComputePipeline::recordDrawCommands(
+void AtmosphereComputePipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, uint32_t cameraIndex
 	, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
@@ -566,7 +566,7 @@ void BackgroundComputePipeline::recordDrawCommands(
 	vkCmdDispatch(cmd, std::ceil(colorExtent.width / 16.0), std::ceil(colorExtent.height / 16.0), 1);
 }
 
-void BackgroundComputePipeline::cleanup(VkDevice device)
+void AtmosphereComputePipeline::cleanup(VkDevice device)
 {
 	m_skyShader.cleanup(device);
 
@@ -574,7 +574,7 @@ void BackgroundComputePipeline::cleanup(VkDevice device)
 	vkDestroyPipelineLayout(device, m_computePipelineLayout, nullptr);
 }
 
-GenericComputePipeline::GenericComputePipeline(
+GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 	VkDevice device
 	, VkDescriptorSetLayout drawImageDescriptorLayout
 	, std::span<std::string const> shaderPaths
@@ -640,7 +640,7 @@ GenericComputePipeline::GenericComputePipeline(
 	}
 }
 
-void GenericComputePipeline::recordDrawCommands(
+void GenericComputeCollectionPipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, VkDescriptorSet drawImageDescriptors
 	, VkExtent2D drawExtent
@@ -668,7 +668,7 @@ void GenericComputePipeline::recordDrawCommands(
 	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
 }
 
-void GenericComputePipeline::cleanup(VkDevice device)
+void GenericComputeCollectionPipeline::cleanup(VkDevice device)
 {
 	for (ShaderObjectReflected& shader : m_shaders)
 	{

@@ -508,7 +508,7 @@ void Engine::initInstancedPipeline()
 
 void Engine::initBackgroundPipeline()
 {
-    m_backgroundPipeline = std::make_unique<BackgroundComputePipeline>(
+    m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
         m_device,
         m_drawImageDescriptorLayout
     );
@@ -523,7 +523,7 @@ void Engine::initGenericComputePipelines()
         , "shaders/sparse_push_constant.comp.spv"
         , "shaders/matrix_color.comp.spv"
     };
-    m_computePipelines = std::make_unique<GenericComputePipeline>(
+    m_genericComputePipeline = std::make_unique<GenericComputeCollectionPipeline>(
         m_device,
         m_drawImageDescriptorLayout,
         shaderPaths
@@ -790,15 +790,17 @@ void Engine::mainLoop()
 
             if (ImGui::Begin("Pipeline Controls"))
             {
-                ImGui::Checkbox("Use Compute Sky Volume Rendering", &m_useSkyShader);
-                if (m_useSkyShader)
-                {
-                    imguiPipelineControls<BackgroundComputePipeline const>(*m_backgroundPipeline);
-                }
-                else
-                {
-                    imguiPipelineControls<GenericComputePipeline>(*m_computePipelines);
-                }
+                imguiMeshInstanceControls(
+                    m_renderMeshInstances,
+                    m_testMeshes,
+                    m_testMeshUsed
+                );
+                ImGui::Separator();
+                imguiBackgroundRenderingControls(
+                    m_useAtmosphereCompute,
+                    *m_atmospherePipeline,
+                    *m_genericComputePipeline
+                );
             }
             ImGui::End();
 
@@ -883,9 +885,9 @@ void Engine::draw()
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
-    if (m_useSkyShader)
+    if (m_useAtmosphereCompute)
     {
-        m_backgroundPipeline->recordDrawCommands(
+        m_atmospherePipeline->recordDrawCommands(
             cmd,
             m_cameraIndex,
             *m_camerasBuffer,
@@ -900,7 +902,7 @@ void Engine::draw()
     }
     else 
     {
-        m_computePipelines->recordDrawCommands(
+        m_genericComputePipeline->recordDrawCommands(
             cmd,
             m_drawImageDescriptors,
             VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
@@ -910,27 +912,29 @@ void Engine::draw()
     vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-    m_meshInstances->recordCopyToDevice(cmd, m_allocator);
+    if (m_renderMeshInstances)
+    {
+        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
 
-    m_instancePipeline->recordDrawCommands(
-        cmd,
-        m_cameraParameters.toProjView(getAspectRatio()),
-        false,
-        m_drawImage,
-        m_depthImage,
-        *m_testMeshes[2],
-        *m_meshInstances
-    );
-    m_instancePipeline->recordDrawCommands(
-        cmd,
-        m_cameraParameters.toProjView(getAspectRatio()),
-        true,
-        m_drawImage,
-        m_depthImage,
-        *m_testMeshes[0],
-        *m_worldStaticTransforms
-    );
-
+        m_instancePipeline->recordDrawCommands(
+            cmd,
+            m_cameraParameters.toProjView(getAspectRatio()),
+            false,
+            m_drawImage,
+            m_depthImage,
+            *m_testMeshes[m_testMeshUsed],
+            *m_meshInstances
+        );
+        m_instancePipeline->recordDrawCommands(
+            cmd,
+            m_cameraParameters.toProjView(getAspectRatio()),
+            true,
+            m_drawImage,
+            m_depthImage,
+            *m_testMeshes[m_testMeshUsed],
+            *m_worldStaticTransforms
+        );
+    }
     // End scene drawing
 
     // Copy image to swapchain
@@ -1069,8 +1073,8 @@ void Engine::cleanup()
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
     m_instancePipeline->cleanup(m_device);
-    m_backgroundPipeline->cleanup(m_device);
-    m_computePipelines->cleanup(m_device);
+    m_atmospherePipeline->cleanup(m_device);
+    m_genericComputePipeline->cleanup(m_device);
 
     m_meshInstances.reset(); 
     m_worldStaticTransforms.reset();
