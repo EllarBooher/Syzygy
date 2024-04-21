@@ -107,7 +107,7 @@ StagedBuffer StagedBuffer::allocate(
     ) };
 
     // Don't worry about where these buffers were actually allocated for now, even if this leads to wasteful copies.
-    // If they allocated on the wrong host/device, oh well
+    // TODO: verify where these buffers allocated, and handle if they fail
 
     return StagedBuffer(
         std::move(deviceBuffer)

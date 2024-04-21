@@ -58,8 +58,9 @@ struct AllocatedBuffer {
     );
 };
 
-/** 
-    Manages a buffer on the host and a buffer on the GPU. Tracks how many bytes are valid on either side.
+/*
+* Manages a buffer on the host and a buffer on the device. Tracks how many bytes are valid on either side,
+* based on what this structure copies to them. 
 */
 struct StagedBuffer {
     StagedBuffer() = delete;
