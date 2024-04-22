@@ -1,6 +1,6 @@
 # VulkanRenderer
 
-The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan. In order to aid learning and demonstration, the engine is designed with a focus in configurability and exposing internals of the rendering going on.
+The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan. In order to aid learning and demonstration, the engine is designed with a focus in configurability and exposing the internals of the rendering.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ CMake is configured to use FetchContent to pull most of the following dependenci
 - [fmt](https://github.com/fmtlib/fmt.git)
 - [glfw](https://github.com/glfw/glfw.git)
 - [glm](https://github.com/g-truc/glm.git)
-- [implot](https://github.com/epezent/implot), a library which extents Dear ImGui to add real-time plots
+- [implot](https://github.com/epezent/implot), a library which extends Dear ImGui to add real-time plots
 - [spirv-reflect](https://github.com/KhronosGroup/SPIRV-Reflect.git)
 - [vk-bootstrap](https://github.com/charles-lunarg/vk-bootstrap.git)
 - [volk](https://github.com/zeux/volk.git)
