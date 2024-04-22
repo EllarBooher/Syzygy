@@ -23,6 +23,8 @@ namespace GPUTypes
 
         glm::mat4x4 view;
 
+        glm::mat4x4 viewInverseTranspose;
+
         glm::mat4x4 rotation;
 
         glm::vec3 position;

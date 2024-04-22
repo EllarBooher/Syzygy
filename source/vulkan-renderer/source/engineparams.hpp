@@ -44,6 +44,7 @@ struct CameraParameters {
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
+            .viewInverseTranspose{ glm::transpose(glm::inverse(view())) },
             .rotation{ rotation() },
             .position{ cameraPosition },
             .padding0{}
