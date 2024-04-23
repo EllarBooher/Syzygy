@@ -261,7 +261,17 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 
 	ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
 
-	assert(vertexPushConstant.type.paddedSizeBytes == sizeof(PushConstantType));
+	{
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes };
+		size_t const pipelinePushConstantSize{ sizeof(PushConstantType) };
+
+		if(vertexPushConstantSize != pipelinePushConstantSize) {
+			Warning(fmt::format("Loaded shader had a push constant of size {}, while implementation expects {}."
+				, vertexPushConstantSize
+				, pipelinePushConstantSize
+			));
+		}
+	}
 
 	VkPushConstantRange const pushConstantRange{
 		.stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
@@ -306,13 +316,15 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 }
 
 void InstancedMeshGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer cmd,
-	glm::mat4x4 camera,
-	bool reuseDepthAttachment,
-	AllocatedImage const& color,
-	AllocatedImage const& depth,
-	MeshAsset const& mesh,
-	TStagedBuffer<glm::mat4x4> const& transforms
+	VkCommandBuffer cmd
+	, bool reuseDepthAttachment
+	, AllocatedImage const& color
+	, AllocatedImage const& depth
+	, uint32_t cameraIndex
+	, TStagedBuffer<GPUTypes::Camera> const& cameras
+	, MeshAsset const& mesh
+	, TStagedBuffer<glm::mat4x4> const& models
+	, TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
 ) const
 {
 	VkRenderingAttachmentInfo const colorAttachment{
@@ -361,44 +373,9 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
 	};
 
-	if (transforms.deviceSize() > 0)
-	{
-		VkBufferMemoryBarrier2 const bufferMemoryBarrier{
-			.sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
-			.pNext{ nullptr },
-
-			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
-			.srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
-
-			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
-			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
-
-			.srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-			.dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-
-			.buffer{ transforms.deviceBuffer() },
-			.offset{ 0 },
-			.size{ transforms.deviceSizeBytes() },
-		};
-
-		VkDependencyInfo const transformsDependency{
-			.sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
-			.pNext{ nullptr },
-
-			.dependencyFlags{ 0 },
-
-			.memoryBarrierCount{ 0 },
-			.pMemoryBarriers{ nullptr },
-
-			.bufferMemoryBarrierCount{ 1 },
-			.pBufferMemoryBarriers{ &bufferMemoryBarrier },
-
-			.imageMemoryBarrierCount{ 0 },
-			.pImageMemoryBarriers{ nullptr },
-		};
-
-		vkCmdPipelineBarrier2(cmd, &transformsDependency);
-	}
+	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+	models.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+	modelInverseTransposes.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -430,16 +407,12 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
 
-	VkBuffer const indexBuffer{ meshBuffers.indexBuffer() };
-	VkDeviceAddress const transformsAddress{ transforms.address() };
-	VkDeviceAddress const verticesAddress{ meshBuffers.vertexAddress() };
-
-	assert(transformsAddress != 0);
-	assert(verticesAddress != 0);
 	PushConstantType const pushConstant{
-		.cameraTransform{ camera },
-		.vertexBufferAddress{ verticesAddress },
-		.transformBufferAddress{ transformsAddress }
+		.vertexBufferAddress{ meshBuffers.vertexAddress() },
+		.modelBufferAddress{ models.deviceAddress() },
+		.modelInverseTransposeBufferAddress{ modelInverseTransposes.deviceAddress() },
+		.cameraBufferAddress{ cameras.deviceAddress() },
+		.cameraIndex{ cameraIndex },
 	};
 
 	vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
@@ -450,8 +423,8 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
 
 	// Bind the entire index buffer of the mesh, but only draw a single surface.
-	vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, transforms.deviceSize(), drawnSurface.firstIndex, 0, 0);
+	vkCmdBindIndexBuffer(cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, models.deviceSize(), drawnSurface.firstIndex, 0, 0);
 
 	vkCmdEndRendering(cmd);
 }
@@ -555,8 +528,8 @@ void AtmosphereComputePipeline::recordDrawCommands(
 	m_pushConstant = PushConstantType{
 		.cameraIndex{ cameraIndex },
 		.atmosphereIndex{ atmosphereIndex },
-		.cameraBuffer{ camerasBuffer.address() },
-		.atmosphereBuffer{ atmospheresBuffer.address() },
+		.cameraBuffer{ camerasBuffer.deviceAddress() },
+		.atmosphereBuffer{ atmospheresBuffer.deviceAddress() },
 	};
 
 	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0

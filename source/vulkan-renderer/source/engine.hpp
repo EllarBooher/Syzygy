@@ -39,7 +39,7 @@ public:
 
 private:
     void init();
-    
+
     void initWindow();
 
     void initVulkan();
@@ -128,7 +128,7 @@ private:
 
     AllocatedImage m_depthImage{};
 
-    std::array<FrameData, FRAME_OVERLAP> m_frames {};
+    std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
     // Immediate submit structures
@@ -152,10 +152,15 @@ private:
     bool m_renderMeshInstances{ true };
     size_t m_testMeshUsed{ 0 };
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
-    std::vector<glm::mat4x4> m_transformOriginals{};
 
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_worldStaticTransforms{};
+    struct MeshInstances
+    {
+        std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+        std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+
+        std::vector<glm::mat4x4> originals{};
+    };
+    MeshInstances m_meshInstances{};
 
     bool m_useAtmosphereCompute{ true };
     std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};

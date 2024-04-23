@@ -18,13 +18,13 @@ struct AllocatedBuffer {
         : allocator(other.allocator)
         , allocation(other.allocation)
         , info(other.info)
-        , address(other.address)
+        , deviceAddress(other.deviceAddress)
         , buffer(other.buffer)
     {
         other.allocator = VK_NULL_HANDLE;
         other.allocation = VK_NULL_HANDLE;
         other.info = {};
-        other.address = {};
+        other.deviceAddress = {};
         other.buffer = VK_NULL_HANDLE;
     };
 
@@ -44,7 +44,7 @@ struct AllocatedBuffer {
     VmaAllocator allocator{ VK_NULL_HANDLE };
     VmaAllocation allocation{ VK_NULL_HANDLE };
     VmaAllocationInfo info{};
-    VkDeviceAddress address{};
+    VkDeviceAddress deviceAddress{};
 
     VkBuffer buffer{ VK_NULL_HANDLE };
 
@@ -80,23 +80,26 @@ struct StagedBuffer {
         VkBufferUsageFlags bufferUsage
     );
 
-    /** Does not record any barriers. Requires the allocator to possibly flush the staging buffer. */
+    /** Does not record any barriers. */
     void recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocator);
 
-    VkDeviceAddress address() const;
+    VkDeviceAddress deviceAddress() const;
     VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
 
     /** Copy an entire span of data into the staging buffer. */
     void stage(std::span<uint8_t const> data);
 
-    /** The number of bytes that have been successfully copied to the GPU. */
-    VkDeviceSize deviceSizeBytes() const { return m_deviceSizeBytes; };
+    /*
+    * This structure cannot know exactly how many bytes are up-to-date on the GPU-side buffer. 
+    * Therefore this parameter is updated upon recording a copy, and poses a read-after-write hazard.
+    */
+    VkDeviceSize deviceSizeQueuedBytes() const { return m_deviceSizeBytes; };
 
-    VkDeviceSize stagingCapacityBytes() const;
+    VkDeviceSize stagingCapacityBytes() const { return m_stagingBuffer.info.size; };
     /** The number of bytes that have been copied to the staging buffer. */
     VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
 
-    // Records a barrier with a source mask for transfer copies, and a destination map for all reads
+    /** Records a barrier with a source mask for transfer copies, and a destination map for all reads */
     void recordTotalCopyBarrier(VkCommandBuffer cmd, VkPipelineStageFlags2 destinationStage) const;
 
 protected:
@@ -142,7 +145,7 @@ struct TStagedBuffer : public StagedBuffer
 
     VkDeviceSize deviceSize() const
     {
-        return StagedBuffer::deviceSizeBytes() / sizeof(T);
+        return StagedBuffer::deviceSizeQueuedBytes() / sizeof(T);
     }
 
     VkDeviceSize stagingCapacity() const
@@ -172,10 +175,10 @@ struct GPUMeshBuffers {
 
     GPUMeshBuffers& operator=(GPUMeshBuffers&& other) = default;
 
-    VkDeviceAddress indexAddress() { return m_indexBuffer.address; }
+    VkDeviceAddress indexAddress() { return m_indexBuffer.deviceAddress; }
     VkBuffer indexBuffer() { return m_indexBuffer.buffer; }
 
-    VkDeviceAddress vertexAddress() { return m_vertexBuffer.address; }
+    VkDeviceAddress vertexAddress() { return m_vertexBuffer.deviceAddress; }
     VkBuffer vertexBuffer() { return m_vertexBuffer.buffer; }
 
 private:

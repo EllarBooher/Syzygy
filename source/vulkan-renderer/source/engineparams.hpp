@@ -4,6 +4,7 @@
 
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 struct AtmosphereParameters {
     glm::vec3 directionToSun{ 1.0, 0.0, 0.0 };
@@ -44,7 +45,7 @@ struct CameraParameters {
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
-            .viewInverseTranspose{ glm::transpose(glm::inverse(view())) },
+            .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
             .position{ cameraPosition },
             .padding0{}

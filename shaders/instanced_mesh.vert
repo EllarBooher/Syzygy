@@ -5,32 +5,47 @@
 layout(location = 0) out vec3 outColor;
 layout(location = 1) out vec2 outUV;
 
+#include "types/camera.glsl"
 #include "types/vertex.glsl"
+
+layout(buffer_reference, std430) readonly buffer CameraBuffer{
+	Camera cameras[];
+};
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
-layout(buffer_reference, std430) readonly buffer TransformBuffer{
-	mat4 transforms[];
+layout(buffer_reference, std430) readonly buffer ModelBuffer{
+	mat4 models[];
+};
+
+layout(buffer_reference, std430) readonly buffer ModelInverseTransposeBuffer{
+	mat4 modelInverseTransposes[];
 };
 
 layout( push_constant ) uniform RenderConstant
 {
-	mat4 renderMatrix;
 	VertexBuffer vertexBuffer;
-	TransformBuffer transformBuffer;
+	ModelBuffer modelBuffer;
+	ModelInverseTransposeBuffer modelInverseTransposeBuffer;
+	CameraBuffer cameraBuffer;
+	uint cameraIndex;
 } renderConstant;
 
 void main()
 {
-	mat4 transform = renderConstant.transformBuffer.transforms[gl_InstanceIndex];
-
-	Vertex vertex = renderConstant.vertexBuffer.vertices[gl_VertexIndex];
+	mat4 model = renderConstant.modelBuffer.models[gl_InstanceIndex];
+	mat4 modelInverseTranspose = renderConstant.modelInverseTransposeBuffer.modelInverseTransposes[gl_InstanceIndex];
 	
-	gl_Position = renderConstant.renderMatrix * transform * vec4(vertex.position, 1.0f);
+	Vertex vertex = renderConstant.vertexBuffer.vertices[gl_VertexIndex];
+	Camera camera = renderConstant.cameraBuffer.cameras[renderConstant.cameraIndex];
 
-	outColor = vertex.color.rgb;
+	gl_Position = camera.projection * camera.view * model * vec4(vertex.position, 1.0f);
+
+	vec3 normal = vec3(modelInverseTranspose * vec4(vertex.normal, 0.0));
+
+	outColor = 0.5 * normal + 0.5;
 	outUV.x = vertex.uv_x;
 	outUV.y = vertex.uv_y;
 }

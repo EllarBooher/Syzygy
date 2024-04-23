@@ -29,7 +29,7 @@ AllocatedBuffer AllocatedBuffer::allocate(
             &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info)
     );
 
-    newBuffer.address = 0;
+    newBuffer.deviceAddress = 0;
     if (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
     {
         VkBufferDeviceAddressInfo const addressInfo{
@@ -38,7 +38,7 @@ AllocatedBuffer AllocatedBuffer::allocate(
 
             .buffer{ newBuffer.buffer },
         };
-        newBuffer.address = vkGetBufferDeviceAddress(device, &addressInfo);
+        newBuffer.deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
     }
 
     newBuffer.allocator = allocator;
@@ -66,9 +66,9 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
     m_deviceSizeBytes = m_stagedSizeBytes;
 }
 
-VkDeviceAddress StagedBuffer::address() const
+VkDeviceAddress StagedBuffer::deviceAddress() const
 {
-    return m_deviceBuffer.address;
+    return m_deviceBuffer.deviceAddress;
 }
 
 void StagedBuffer::stage(std::span<uint8_t const> data)
@@ -115,11 +115,6 @@ StagedBuffer StagedBuffer::allocate(
     );
 }
 
-VkDeviceSize StagedBuffer::stagingCapacityBytes() const
-{
-    return m_stagingBuffer.info.size;
-}
-
 void StagedBuffer::recordTotalCopyBarrier(
     VkCommandBuffer cmd
     , VkPipelineStageFlags2 destinationStage
@@ -140,7 +135,7 @@ void StagedBuffer::recordTotalCopyBarrier(
 
         .buffer{ deviceBuffer() },
         .offset{ 0 },
-        .size{ deviceSizeBytes() },
+        .size{ deviceSizeQueuedBytes() },
     };
 
     VkDependencyInfo const transformsDependency{

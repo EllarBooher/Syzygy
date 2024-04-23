@@ -22,6 +22,7 @@
 
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/random.hpp>
 
 #include <glm/gtx/string_cast.hpp>
@@ -421,50 +422,53 @@ void Engine::initWorld()
     int32_t const coordinateMin{ -40 };
     int32_t const coordinateMax{ 40 };
 
-    for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+    if (m_meshInstances.models != nullptr || m_meshInstances.modelInverseTransposes != nullptr)
     {
-        for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
-        {
-            m_transformOriginals.push_back(
-                glm::translate(glm::vec3(x, 0, z)) 
-                * glm::toMat4(randomQuat()) 
-                * glm::scale(glm::vec3(0.2f))
-            );
-        }
+        Warning("initWorld called when World already initialized");
+        return;
     }
 
-    VkDeviceSize const maxInstanceCount{ m_transformOriginals.size() };
-    m_meshInstances = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-        m_device,
-        m_allocator,
-        maxInstanceCount,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    ));
+    { // Mesh Instances
+        for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+        {
+            for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
+            {
+                m_meshInstances.originals.push_back(
+                    glm::translate(glm::vec3(x, 0, z))
+                    * glm::toMat4(randomQuat())
+                    * glm::scale(glm::vec3(0.2f))
+                );
+            }
+        }
 
+        VkDeviceSize const maxInstanceCount{ m_meshInstances.originals.size() };
+        m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+            m_device,
+            m_allocator,
+            maxInstanceCount,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
+        m_meshInstances.modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+            m_device,
+            m_allocator,
+            maxInstanceCount,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
 
-    m_meshInstances->stage(m_transformOriginals);
+        std::vector<glm::mat4x4> modelInverseTransposes{};
+        for (glm::mat4x4 const& model : m_meshInstances.originals)
+        {
+            modelInverseTransposes.push_back(glm::inverseTranspose(model));
+        }
 
-    immediateSubmit([&](VkCommandBuffer cmd) {
-        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
-    });
+        m_meshInstances.models->stage(m_meshInstances.originals);
+        m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
 
-    glm::mat4x4 floorTransform{
-        glm::scale(glm::vec3{ 5.0,0.1,10000.0 })
-    };
-    std::vector<glm::mat4x4> const floorTransforms{ floorTransform };
-
-    m_worldStaticTransforms = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-        m_device,
-        m_allocator,
-        1,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    ));
-
-    m_worldStaticTransforms->stage(floorTransforms);
-
-    immediateSubmit([&](VkCommandBuffer cmd) {
-        m_worldStaticTransforms->recordCopyToDevice(cmd, m_allocator);
-    });
+        immediateSubmit([&](VkCommandBuffer cmd) {
+            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+        });
+    }
 
     { // Camera
         m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
@@ -820,17 +824,27 @@ void Engine::mainLoop()
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
 {
-    std::span<glm::mat4x4> const transforms{ m_meshInstances->mapValidStaged() };
-    size_t index{ 0 };
-    for (glm::mat4x4 const& transformOriginal : m_transformOriginals)
+    std::span<glm::mat4x4> const models{ m_meshInstances.models->mapValidStaged() };
+    std::span<glm::mat4x4> const modelInverseTransposes{ m_meshInstances.modelInverseTransposes->mapValidStaged() };
+
+    if (models.size() != modelInverseTransposes.size())
     {
-        glm::mat4x4& transform{ transforms[index] };
-        
-        glm::vec4 const position = transformOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
+        Warning("models and modelInverseTransposes out of sync");
+        return;
+    }
+
+    size_t index{ 0 };
+    for (glm::mat4x4 const& modelOriginal : m_meshInstances.originals)
+    {
+        glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
 
         double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
 
-        transform = glm::translate(glm::vec3(0.0, y, 0.0)) * transformOriginal;
+        models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
+        // In general, the model inverse transposes only need to be updated once per tick,
+        // before rendering and after the last update of the model matrices.
+        // For now, we only update once per tick, so we just compute it here.
+        modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
 
         index += 1;
     }
@@ -914,25 +928,19 @@ void Engine::draw()
 
     if (m_renderMeshInstances)
     {
-        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
+        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
 
         m_instancePipeline->recordDrawCommands(
-            cmd,
-            m_cameraParameters.toProjView(getAspectRatio()),
-            false,
-            m_drawImage,
-            m_depthImage,
-            *m_testMeshes[m_testMeshUsed],
-            *m_meshInstances
-        );
-        m_instancePipeline->recordDrawCommands(
-            cmd,
-            m_cameraParameters.toProjView(getAspectRatio()),
-            true,
-            m_drawImage,
-            m_depthImage,
-            *m_testMeshes[m_testMeshUsed],
-            *m_worldStaticTransforms
+            cmd
+            , false
+            , m_drawImage
+            , m_depthImage
+            , m_cameraIndex
+            , *m_camerasBuffer
+            , *m_testMeshes[m_testMeshUsed]
+            , *m_meshInstances.models
+            , *m_meshInstances.modelInverseTransposes
         );
     }
     // End scene drawing
@@ -1076,8 +1084,9 @@ void Engine::cleanup()
     m_atmospherePipeline->cleanup(m_device);
     m_genericComputePipeline->cleanup(m_device);
 
-    m_meshInstances.reset(); 
-    m_worldStaticTransforms.reset();
+    m_meshInstances.models.reset();
+    m_meshInstances.modelInverseTransposes.reset();
+
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
 

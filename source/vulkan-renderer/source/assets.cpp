@@ -125,7 +125,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* en
         }
 
         // Set the colors to the normals for debugging
-        bool constexpr overrideColors{ true };
+        bool constexpr overrideColors{ false };
         if (overrideColors) {
             for (Vertex& vertex : vertices) {
                 vertex.color = glm::vec4(vertex.normal, 1.0f);

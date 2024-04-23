@@ -61,13 +61,15 @@ public:
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd, 
-        glm::mat4x4 camera,
-        bool reuseDepthAttachment,
-        AllocatedImage const& color,
-        AllocatedImage const& depth,
-        MeshAsset const& mesh,
-        TStagedBuffer<glm::mat4x4> const& transforms
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , AllocatedImage const& color
+        , AllocatedImage const& depth
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , MeshAsset const& mesh
+        , TStagedBuffer<glm::mat4x4> const& models
+        , TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
     ) const;
 
     void cleanup(VkDevice device);
@@ -80,10 +82,14 @@ private:
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
 
     struct PushConstantType {
-        glm::mat4x4 cameraTransform{};
-
         VkDeviceAddress vertexBufferAddress{};
-        VkDeviceAddress transformBufferAddress{};
+        VkDeviceAddress modelBufferAddress{};
+
+        VkDeviceAddress modelInverseTransposeBufferAddress{};
+        VkDeviceAddress cameraBufferAddress{};
+
+        uint32_t cameraIndex{ 0 };
+        uint8_t padding0[8];
     };
 
     PushConstantType m_pushConstant;
