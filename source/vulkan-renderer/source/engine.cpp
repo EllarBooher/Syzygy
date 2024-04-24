@@ -47,10 +47,12 @@ CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
 };
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
-    .directionToSun{ glm::vec3(0.0, -1.0, 0.0) },
+    .sunEulerAngles{ glm::vec3(0.0, 0.0, 0.0) },
 
     .earthRadiusMeters{ 6378000 },
     .atmosphereRadiusMeters{ 6420000 },
+
+    .groundColor{ 0.9, 0.8, 0.6 },
 
     .scatteringCoefficientRayleigh{ glm::vec3(0.0000038, 0.0000135, 0.0000331) },
     .altitudeDecayRayleigh{ 7994.0 },
@@ -805,6 +807,8 @@ void Engine::mainLoop()
                     *m_atmospherePipeline,
                     *m_genericComputePipeline
                 );
+                ImGui::Separator();
+                imguiPipelineControls<InstancedMeshGraphicsPipeline const>(*m_instancePipeline);
             }
             ImGui::End();
 
@@ -847,6 +851,24 @@ void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
         modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
 
         index += 1;
+    }
+
+    // Atmosphere
+    {
+        AtmosphereParameters::AnimationParameters const atmosphereAnimation{ m_atmosphereParameters.animation };
+        if (atmosphereAnimation.animateSun)
+        {
+            bool const isNight{ m_atmosphereParameters.directionToSun().y > 0.2f };
+
+            if (isNight && atmosphereAnimation.skipNight)
+            {
+                m_atmosphereParameters.sunEulerAngles.x = -1.0 * glm::sign(atmosphereAnimation.animationSpeed) * glm::radians(100.0f);
+            }
+            else
+            {
+                m_atmosphereParameters.sunEulerAngles.x += deltaTimeSeconds * atmosphereAnimation.animationSpeed;
+            }
+        }
     }
 }
 
@@ -938,6 +960,8 @@ void Engine::draw()
             , m_depthImage
             , m_cameraIndex
             , *m_camerasBuffer
+            , m_atmosphereIndex
+            , *m_atmospheresBuffer
             , *m_testMeshes[m_testMeshUsed]
             , *m_meshInstances.models
             , *m_meshInstances.modelInverseTransposes

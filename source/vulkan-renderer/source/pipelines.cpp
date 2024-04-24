@@ -5,6 +5,8 @@
 #include "initializers.hpp"
 #include "shaders.hpp"
 
+#include <glm/gtx/intersect.hpp>
+
 VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layout) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
@@ -256,28 +258,47 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	VkFormat depthAttachmentFormat
 )
 {
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/instanced_mesh.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/instanced_mesh.frag.spv").value() };
+	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/blinnphong/phong.frag.spv").value() };
 
-	ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+	{ 
+		// Vertex push constant
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant()};
 
-	{
-		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes };
-		size_t const pipelinePushConstantSize{ sizeof(PushConstantType) };
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
+		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
 
-		if(vertexPushConstantSize != pipelinePushConstantSize) {
-			Warning(fmt::format("Loaded shader had a push constant of size {}, while implementation expects {}."
+		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
 				, vertexPushConstantSize
-				, pipelinePushConstantSize
+				, vertexPushConstantSizeExpected
 			));
 		}
-	}
 
-	VkPushConstantRange const pushConstantRange{
-		.stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
-		.offset{ 0 },
-		.size{ sizeof(PushConstantType) },
-	};
+		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+		
+		// Fragment push constant
+		ShaderReflectionData::PushConstant const& fragmentPushConstant{ fragmentShader.reflectionData().defaultPushConstant() };
+
+		size_t const fragmentPushConstantSize{ fragmentPushConstant.type.paddedSizeBytes - fragmentPushConstant.layoutOffsetBytes };
+		size_t const fragmentPushConstantSizeExpected{ sizeof(FragmentPushConstant) };
+
+		if (fragmentPushConstantSize != fragmentPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded fragment push constant had a push constant of size {}, while implementation expects {}."
+				, fragmentPushConstantSize
+				, fragmentPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(fragmentPushConstant.totalRange(VK_SHADER_STAGE_FRAGMENT_BIT));
+
+		// We don't pack the push constants super tight for now
+		if (fragmentPushConstant.layoutOffsetBytes < vertexPushConstant.type.paddedSizeBytes)
+		{
+			Warning("Fragment push constant overlaps with vertex push constant.");
+		}
+	}
 
 	VkPipelineLayoutCreateInfo const layoutInfo{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
@@ -288,8 +309,8 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 		.setLayoutCount{ 0 },
 		.pSetLayouts{ nullptr },
 
-		.pushConstantRangeCount{ 1 },
-		.pPushConstantRanges{ &pushConstantRange },
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
 	};
 
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
@@ -322,6 +343,8 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 	, AllocatedImage const& depth
 	, uint32_t cameraIndex
 	, TStagedBuffer<GPUTypes::Camera> const& cameras
+	, uint32_t atmosphereIndex
+	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
 	, MeshAsset const& mesh
 	, TStagedBuffer<glm::mat4x4> const& models
 	, TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
@@ -407,18 +430,38 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
 
-	PushConstantType const pushConstant{
-		.vertexBufferAddress{ meshBuffers.vertexAddress() },
-		.modelBufferAddress{ models.deviceAddress() },
-		.modelInverseTransposeBufferAddress{ modelInverseTransposes.deviceAddress() },
-		.cameraBufferAddress{ cameras.deviceAddress() },
-		.cameraIndex{ cameraIndex },
-	};
+	{ // Vertex push constant
+		VertexPushConstant const vertexPushConstant{
+			.vertexBufferAddress{ meshBuffers.vertexAddress() },
+			.modelBufferAddress{ models.deviceAddress() },
+			.modelInverseTransposeBufferAddress{ modelInverseTransposes.deviceAddress() },
+			.cameraBufferAddress{ cameras.deviceAddress() },
+			.cameraIndex{ cameraIndex },
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0, sizeof(VertexPushConstant), &vertexPushConstant
+		);
+		m_vertexPushConstant = vertexPushConstant;
+	}
 
-	vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
-		VK_SHADER_STAGE_VERTEX_BIT,
-		0, sizeof(PushConstantType), &pushConstant
-	);
+	{ // Fragment push constant
+		GPUTypes::Atmosphere const& currentAtmosphere{ atmospheres.readValidStaged()[atmosphereIndex] };
+
+		FragmentPushConstant const fragmentPushConstant{
+			.lightDirectionViewSpace{ cameras.readValidStaged()[cameraIndex].view * glm::vec4(currentAtmosphere.directionToSun,0.0) },
+			.diffuseColor{ glm::vec4(0.8) },
+			.specularColor{ glm::vec4(1.0) },
+			.atmosphereBuffer{ atmospheres.deviceAddress() },
+			.atmosphereIndex{ atmosphereIndex },
+			.shininess{ 32.0 }
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_FRAGMENT_BIT,
+			m_fragmentShader.reflectionData().defaultPushConstant().layoutOffsetBytes, sizeof(FragmentPushConstant), &fragmentPushConstant
+		);
+		m_fragmentPushConstant = fragmentPushConstant;
+	}
 
 	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
 

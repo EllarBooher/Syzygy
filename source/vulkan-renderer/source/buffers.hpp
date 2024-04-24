@@ -132,6 +132,11 @@ struct TStagedBuffer : public StagedBuffer
         return std::span<T>(reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize());
     }
 
+    std::span<T const> readValidStaged() const
+    {
+        return std::span<T const>(reinterpret_cast<T const*>(m_stagingBuffer.info.pMappedData), stagedSize());
+    }
+
     static TStagedBuffer<T> allocate(
         VkDevice device,
         VmaAllocator allocator,

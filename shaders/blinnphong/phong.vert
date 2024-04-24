@@ -2,12 +2,13 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
-#include "../types/camera.glsl"
-#include "../types/vertex.glsl"
-
 layout(location = 0) out vec3 outColor;
 layout(location = 1) out vec2 outUV;
 layout(location = 2) out vec3 outNormal;
+layout(location = 3) out vec3 outPosition;
+
+#include "../types/camera.glsl"
+#include "../types/vertex.glsl"
 
 layout(buffer_reference, std430) readonly buffer CameraBuffer{
 	Camera cameras[];
@@ -27,7 +28,6 @@ layout(buffer_reference, std430) readonly buffer ModelInverseTransposeBuffer{
 
 layout( push_constant ) uniform RenderConstant
 {
-	mat4 renderMatrix;
 	VertexBuffer vertexBuffer;
 	ModelBuffer modelBuffer;
 	ModelInverseTransposeBuffer modelInverseTransposeBuffer;
@@ -42,8 +42,12 @@ void main()
 	Vertex vertex = renderConstant.vertexBuffer.vertices[gl_VertexIndex];
 	Camera camera = renderConstant.cameraBuffer.cameras[renderConstant.cameraIndex];
 
-	gl_Position = renderConstant.renderMatrix * model * vec4(vertex.position, 1.0);
-	outNormal = vec3(modelInverseTranspose * camera.viewInverseTranspose * vec4(vertex.normal, 0.0));
+	vec4 positionViewSpace = camera.view * model * vec4(vertex.position, 1.0f);
+
+	gl_Position = camera.projection * positionViewSpace;
+
+	outNormal = vec3(camera.viewInverseTranspose * modelInverseTranspose * vec4(vertex.normal, 0.0));
+	outPosition = positionViewSpace.xyz;
 
 	outColor = vertex.color.rgb;
 	outUV.x = vertex.uv_x;

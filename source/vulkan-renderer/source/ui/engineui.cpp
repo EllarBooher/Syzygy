@@ -129,7 +129,7 @@ struct is_glm_vec : std::false_type
 {};
 
 template<size_t N, typename T>
-struct is_glm_vec<glm::vec<N, T>> : std::true_type
+struct is_glm_vec<glm::vec<N, T>> : std::is_same<T, float>
 {};
 
 template<typename T>
@@ -163,15 +163,43 @@ static void FractionalCoefficientSlider(std::string const& label, T& values)
 }
 
 template<>
-void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphere, AtmosphereParameters const& defaultValues)
+void imguiStructureControls<AtmosphereParameters>(
+    AtmosphereParameters& atmosphere
+    , AtmosphereParameters const& defaultValues
+)
 {
     ImGui::BeginGroup();
     ImGui::Text("Atmosphere Parameters");
     ResetButton("atmosphereParameters", atmosphere, defaultValues);
 
-    atmosphere.directionToSun = glm::normalize(atmosphere.directionToSun);
-    DragScalarFloats("Direction to Sun", atmosphere.directionToSun, -1.0f, 1.0f);
-    ResetButton("directionToSun", atmosphere.directionToSun, defaultValues.directionToSun);
+    { // Sun direction controls
+        ImGui::Checkbox("Animate Sun", &atmosphere.animation.animateSun);
+        ImGui::Indent(10.0f);
+
+        DragScalarFloats("Speed##sun", atmosphere.animation.animationSpeed, 0.0, 100.0);
+        ResetButton("sunSpeed", atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed);
+
+        ImGui::Checkbox("Night Multiplier##sun", &atmosphere.animation.skipNight);
+        
+        ImGui::BeginDisabled(atmosphere.animation.animateSun);
+        DragScalarFloats("sunEulerAngles", atmosphere.sunEulerAngles, -glm::radians(180.0), glm::radians(180.0));
+        ResetButton("sunEulerAngles", atmosphere.sunEulerAngles, defaultValues.sunEulerAngles);
+        ImGui::EndDisabled();
+
+        ImGui::BeginDisabled(true);
+        {
+            glm::vec3 direction{ atmosphere.directionToSun() };
+            DragScalarFloats("directionToSun", direction, -1.0, 1.0);
+        }
+        ImGui::EndDisabled();
+        ImGui::Unindent(10.0f);
+    }
+
+    DragScalarFloats(
+        "Ground Diffuse Color", atmosphere.groundColor
+        , 0.0f, 1.0f
+    );
+    ResetButton("groundColor", atmosphere.groundColor, defaultValues.groundColor);
 
     DragScalarFloats(
         "Earth Radius (meters)", atmosphere.earthRadiusMeters
@@ -203,7 +231,10 @@ void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphe
 }
 
 template<>
-void imguiStructureControls<CameraParameters>(CameraParameters& structure, CameraParameters const& defaultValues)
+void imguiStructureControls<CameraParameters>(
+    CameraParameters& structure
+    , CameraParameters const& defaultValues
+)
 {
     ImGui::BeginGroup();
     ImGui::Text("Camera Parameters");
@@ -212,8 +243,9 @@ void imguiStructureControls<CameraParameters>(CameraParameters& structure, Camer
     ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
     ResetButton("cameraPosition", structure.cameraPosition, defaultValues.cameraPosition);
 
-    DragScalarFloats("eulerAngles", structure.eulerAngles, glm::radians(-90.0f), glm::radians(90.0f));
+    DragScalarFloats("eulerAngles", structure.eulerAngles, glm::radians(-180.0f), glm::radians(180.0f));
     ResetButton("eulerAngles", structure.eulerAngles, defaultValues.eulerAngles);
+    structure.eulerAngles.x = glm::clamp(structure.eulerAngles.x, -glm::radians(90.0f), glm::radians(90.0f));
 
     DragScalarFloats("fov", structure.fov, 0.0f, 180.0f, 0, "%.0f");
     ResetButton("fov", structure.fov, defaultValues.fov);

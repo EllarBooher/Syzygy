@@ -28,7 +28,7 @@ namespace GPUTypes
         glm::mat4x4 rotation;
 
         glm::vec3 position;
-        uint8_t padding0[4];
+        uint8_t padding0[4]{};
     };
 
     struct Atmosphere
@@ -42,7 +42,15 @@ namespace GPUTypes
         glm::vec3 scatteringCoefficientMie;
         float altitudeDecayMie;
 
-        uint8_t padding0[4 * 3]; //vec3
+        // An estimate of bounce lighting
+        glm::vec3 ambientColor;
         float atmosphereRadiusMeters;
+
+        // The sunlight that reaches the camera
+        glm::vec3 sunlightColor;
+        uint8_t padding0[4]{};
+
+        glm::vec3 groundColor;
+        uint8_t padding1[4]{};
     };
 }
