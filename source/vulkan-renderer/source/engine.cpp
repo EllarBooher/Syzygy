@@ -791,8 +791,6 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const
 #if VKRENDERER_COMPILE_WITH_TESTING
 void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 {
-    debugLines.clear();
-
     glm::quat const boxOrientation{
         glm::toQuat(glm::orientate3(glm::vec3(currentTimeSeconds, currentTimeSeconds * glm::euler<float>(),0.0)))
     };
@@ -831,6 +829,9 @@ void Engine::mainLoop()
         {
             double const currentTimeSeconds{ glfwGetTime() };
             double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
+
+            m_debugLines.clear();
+
             tickWorld(currentTimeSeconds, deltaTimeSeconds);
 #if VKRENDERER_COMPILE_WITH_TESTING
             testDebugLines(currentTimeSeconds, m_debugLines);
