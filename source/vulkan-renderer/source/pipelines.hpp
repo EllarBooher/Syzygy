@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <set>
 
 #include "enginetypes.hpp"
 
@@ -18,6 +19,7 @@ public:
     void setShaders(ShaderModuleReflected const& vertexShader, ShaderModuleReflected const& fragmentShader);
     void setInputTopology(VkPrimitiveTopology topology);
     void setPolygonMode(VkPolygonMode mode);
+    void pushDynamicState(VkDynamicState dynamicState);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void setMultisamplingNone();
     void disableBlending();
@@ -29,12 +31,14 @@ public:
 
 private:
 	std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages{};
+    std::set<VkDynamicState> m_dynamicStates{};
 
 	VkPipelineInputAssemblyStateCreateInfo m_inputAssembly{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO },
     };
 	VkPipelineRasterizationStateCreateInfo m_rasterizer{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO }
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO },
+        .lineWidth{ 1.0 },
     };
     VkPipelineColorBlendAttachmentState m_colorBlendAttachment{};
     VkPipelineMultisampleStateCreateInfo m_multisampling{
@@ -247,4 +251,56 @@ private:
     std::vector<ShaderObjectReflected> m_shaders{};
     std::vector<std::vector<uint8_t>> m_shaderPushConstants{};
     std::vector<VkPipelineLayout> m_layouts{}; 
+};
+
+/*
+* A pipeline that draws debug geometry such as lines and points in a compute pass
+* TODO: combine this with the other compute pipeline
+*/
+class DebugLineComputePipeline
+{
+public:
+    DebugLineComputePipeline(
+        VkDevice device,
+        VkFormat colorAttachmentFormat,
+        VkFormat depthAttachmentFormat
+    );
+
+    void recordDrawCommands(
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , float lineWidth
+        , AllocatedImage const& color
+        , AllocatedImage const& depth
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , TStagedBuffer<Vertex> const& endpoints
+        , TStagedBuffer<uint32_t> const& indices
+    ) const;
+
+    void cleanup(VkDevice device);
+
+private:
+    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
+    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
+
+    struct VertexPushConstant
+    {
+        VkDeviceAddress vertexBuffer{};
+        VkDeviceAddress cameraBuffer{};
+
+        uint32_t cameraIndex{ 0 };
+        uint8_t padding0[12]{};
+    };
+
+    VertexPushConstant mutable m_vertexPushConstant{};
+
+    VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
+
+public:
+    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
+    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+
+    ShaderModuleReflected const& fragmentShader() const { return m_fragmentShader; };
 };

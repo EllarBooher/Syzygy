@@ -86,8 +86,13 @@ struct StagedBuffer {
     VkDeviceAddress deviceAddress() const;
     VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
 
-    /** Copy an entire span of data into the staging buffer. */
+    /** Copy an entire span of data into the staging buffer, and resets its size. */
     void stage(std::span<uint8_t const> data);
+
+    /** Pushes new data into the staging buffer. */
+    void push(std::span<uint8_t const> data);
+
+    void clearStaged();
 
     /*
     * This structure cannot know exactly how many bytes are up-to-date on the GPU-side buffer. 
@@ -100,7 +105,11 @@ struct StagedBuffer {
     VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
 
     /** Records a barrier with a source mask for transfer copies, and a destination map for all reads */
-    void recordTotalCopyBarrier(VkCommandBuffer cmd, VkPipelineStageFlags2 destinationStage) const;
+    void recordTotalCopyBarrier(
+        VkCommandBuffer cmd
+        , VkPipelineStageFlags2 destinationStage
+        , VkAccessFlags2 destinationAccessFlags
+    ) const;
 
 protected:
     StagedBuffer(AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer)
@@ -125,6 +134,14 @@ struct TStagedBuffer : public StagedBuffer
             data.size_bytes()
         );
         StagedBuffer::stage(bytes);
+    }
+    void push(std::span<T const> data)
+    {
+        std::span<uint8_t const> const bytes(
+            reinterpret_cast<uint8_t const*>(data.data()),
+            data.size_bytes()
+        );
+        StagedBuffer::push(bytes);
     }
 
     std::span<T> mapValidStaged()

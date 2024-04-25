@@ -134,6 +134,7 @@ void Engine::initVulkan()
 
     initDefaultMeshData();
     initWorld();
+    initDebug();
     initBackgroundPipeline();
     initInstancedPipeline();
     initGenericComputePipelines();
@@ -169,13 +170,22 @@ void Engine::initInstanceSurfaceDevices()
 
     // create VkPhysicalDevice and VkDevice
 
-    VkPhysicalDeviceVulkan13Features features13{};
-    features13.dynamicRendering = true;
-    features13.synchronization2 = true;
+    VkPhysicalDeviceVulkan13Features const features13
+    {
+        .synchronization2{ VK_TRUE },
+        .dynamicRendering{ VK_TRUE },
+    };
 
-    VkPhysicalDeviceVulkan12Features features12{};
-    features12.bufferDeviceAddress = true;
-    features12.descriptorIndexing = true;
+    VkPhysicalDeviceVulkan12Features const features12
+    {
+        .descriptorIndexing{ VK_TRUE },
+        .bufferDeviceAddress{ VK_TRUE },
+    };
+    
+    VkPhysicalDeviceFeatures const features
+    {
+        .wideLines{ VK_TRUE },
+    };
 
     VkPhysicalDeviceShaderObjectFeaturesEXT const shaderObjectFeature
     {
@@ -185,11 +195,11 @@ void Engine::initInstanceSurfaceDevices()
         .shaderObject{ VK_TRUE },
     };
 
-    vkb::PhysicalDeviceSelector selector{ vkbInstance };
-    vkb::Result<vkb::PhysicalDevice> physicalDeviceBuildResult = selector
+    vkb::Result<vkb::PhysicalDevice> const physicalDeviceBuildResult = vkb::PhysicalDeviceSelector{ vkbInstance }
         .set_minimum_version(1, 3)
         .set_required_features_13(features13)
         .set_required_features_12(features12)
+        .set_required_features(features)
         .add_required_extension_features(shaderObjectFeature)
         .add_required_extension(VK_EXT_SHADER_OBJECT_EXTENSION_NAME)
         .set_surface(m_surface)
@@ -501,6 +511,31 @@ void Engine::initWorld()
             m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
         });
     }
+}
+
+void Engine::initDebug()
+{
+    m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
+        m_device,
+        m_drawImage.imageFormat,
+        m_depthImage.imageFormat
+    );
+    m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
+        TStagedBuffer<uint32_t>::allocate(
+            m_device,
+            m_allocator,
+            1000,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        )
+    );
+    m_debugLines.vertices = std::make_unique<TStagedBuffer<Vertex>>(
+        TStagedBuffer<Vertex>::allocate(
+            m_device,
+            m_allocator,
+            1000,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
 }
 
 void Engine::initInstancedPipeline()
@@ -817,6 +852,8 @@ void Engine::mainLoop()
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
+                ImGui::Separator();
+                imguiStructureControls(m_debugLines);
             }
             ImGui::End();
 
@@ -967,6 +1004,23 @@ void Engine::draw()
             , *m_meshInstances.modelInverseTransposes
         );
     }
+
+    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+        m_debugLines.recordCopy(cmd, m_allocator);
+
+        m_debugLines.pipeline->recordDrawCommands(
+            cmd
+            , false
+            , m_debugLines.lineWidth
+            , m_drawImage
+            , m_depthImage
+            , m_cameraIndex
+            , *m_camerasBuffer
+            , *m_debugLines.vertices
+            , *m_debugLines.indices
+        );
+    }
+
     // End scene drawing
 
     // Copy image to swapchain
@@ -1115,6 +1169,7 @@ void Engine::cleanup()
     m_camerasBuffer.reset();
 
     m_testMeshes.clear();
+    m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);

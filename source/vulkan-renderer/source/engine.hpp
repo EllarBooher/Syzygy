@@ -7,6 +7,7 @@
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "engineparams.hpp"
+#include "debuglines.hpp"
 
 struct GLFWwindow;
 
@@ -82,6 +83,7 @@ private:
 
     void initDefaultMeshData();
     void initWorld();
+    void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
     void initGenericComputePipelines();
@@ -152,7 +154,7 @@ private:
     bool m_renderMeshInstances{ true };
     size_t m_testMeshUsed{ 0 };
     std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
-
+ 
     struct MeshInstances
     {
         std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
@@ -161,6 +163,8 @@ private:
         std::vector<glm::mat4x4> originals{};
     };
     MeshInstances m_meshInstances{};
+
+    DebugLines m_debugLines{};
 
     bool m_useAtmosphereCompute{ true };
     std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};

@@ -6,6 +6,7 @@
 
 #include "pipelineui.hpp"
 
+#include "../debuglines.hpp"
 #include "../assets.hpp"
 #include "../shaders.hpp"
 #include "../engineparams.hpp"
@@ -255,6 +256,25 @@ void imguiStructureControls<CameraParameters>(
 
     DragScalarFloats("farPlane", structure.far, structure.near + 0.01f, 1'000'000.0f, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
     ResetButton("farPlane", structure.far, std::max(structure.near, defaultValues.far));
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<DebugLines>(
+    DebugLines& structure
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Debug Lines");
+
+    ImGui::BeginDisabled(!structure.pipeline || !structure.indices || !structure.vertices);
+    ImGui::Checkbox("enabled", &structure.enabled);
+    ResetButton("enabled", structure.enabled, false);
+    ImGui::EndDisabled();
+
+    DragScalarFloats("lineWidth", structure.lineWidth, 1.0, 10.0);
+    ResetButton("lineWidth", structure.lineWidth, 1.0f);
 
     ImGui::EndGroup();
 }

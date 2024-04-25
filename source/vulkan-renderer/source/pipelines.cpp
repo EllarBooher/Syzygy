@@ -36,7 +36,12 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO }
 	};
 
-	std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	std::vector<VkDynamicState> dynamicStates{m_dynamicStates.begin(), m_dynamicStates.end()};
+
+	// We insert these by default since we have no methods for setting the static state for now
+	dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+	dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
 	VkPipelineDynamicStateCreateInfo const dynamicInfo{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO },
 
@@ -82,7 +87,7 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 	};
 
 	VkPipeline pipeline{ VK_NULL_HANDLE };
-	CheckVkResult(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));
+	LogVkResult(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline), "Building graphics pipeline");
 	return pipeline;
 }
 
@@ -110,7 +115,11 @@ void PipelineBuilder::setInputTopology(VkPrimitiveTopology topology)
 void PipelineBuilder::setPolygonMode(VkPolygonMode mode)
 {
 	m_rasterizer.polygonMode = mode;
-	m_rasterizer.lineWidth = 1.0f;
+}
+
+void PipelineBuilder::pushDynamicState(VkDynamicState dynamicState)
+{
+	m_dynamicStates.insert(dynamicState);
 }
 
 void PipelineBuilder::setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace)
@@ -396,9 +405,9 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
 	};
 
-	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
-	models.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
-	modelInverseTransposes.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	models.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	modelInverseTransposes.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -565,8 +574,8 @@ void AtmosphereComputePipeline::recordDrawCommands(
 
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipelineLayout, 0, 1, &colorSet, 0, nullptr);
 
-	camerasBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-	atmospheresBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+	camerasBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	atmospheresBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
 	m_pushConstant = PushConstantType{
 		.cameraIndex{ cameraIndex },
@@ -694,4 +703,187 @@ void GenericComputeCollectionPipeline::cleanup(VkDevice device)
 	{
 		vkDestroyPipelineLayout(device, layout, nullptr);
 	}
+}
+
+DebugLineComputePipeline::DebugLineComputePipeline(
+	VkDevice device
+	, VkFormat colorAttachmentFormat
+	, VkFormat depthAttachmentFormat
+)
+{
+	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() };
+
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+	{
+		// Vertex push constant
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
+		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
+
+		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
+				, vertexPushConstantSize
+				, vertexPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+	}
+
+	VkPipelineLayoutCreateInfo const layoutInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.setLayoutCount{ 0 },
+		.pSetLayouts{ nullptr },
+
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
+	};
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
+
+	PipelineBuilder pipelineBuilder{};
+	pipelineBuilder.setShaders(vertexShader, fragmentShader);
+	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.pushDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	pipelineBuilder.setMultisamplingNone();
+	pipelineBuilder.disableBlending();
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_ALWAYS);
+
+	pipelineBuilder.setColorAttachmentFormat(colorAttachmentFormat);
+	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
+
+	m_vertexShader = vertexShader;
+	m_fragmentShader = fragmentShader;
+
+	m_graphicsPipelineLayout = pipelineLayout;
+	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
+}
+
+void DebugLineComputePipeline::recordDrawCommands(
+	VkCommandBuffer cmd
+	, bool reuseDepthAttachment
+	, float lineWidth
+	, AllocatedImage const& color
+	, AllocatedImage const& depth
+	, uint32_t cameraIndex
+	, TStagedBuffer<GPUTypes::Camera> const& cameras
+	, TStagedBuffer<Vertex> const& endpoints
+	, TStagedBuffer<uint32_t> const& indices
+) const
+{
+	VkRenderingAttachmentInfo const colorAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ color.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{},
+	};
+	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment
+		? VK_ATTACHMENT_LOAD_OP_LOAD
+		: VK_ATTACHMENT_LOAD_OP_CLEAR
+	};
+	VkRenderingAttachmentInfo const depthAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ depth.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ depthLoadOp },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+	};
+
+	VkExtent2D const drawExtent{
+		.width{color.imageExtent.width},
+		.height{color.imageExtent.height},
+	};
+	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
+	VkRenderingInfo const renderInfo{
+		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
+	};
+
+	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	endpoints.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	indices.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT, VK_ACCESS_2_INDEX_READ_BIT);
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+	vkCmdSetLineWidth(cmd, lineWidth);
+
+	VkViewport const viewport{
+		.x{ 0 },
+		.y{ 0 },
+		.width{ static_cast<float>(drawExtent.width) },
+		.height{ static_cast<float>(drawExtent.height) },
+		.minDepth{ 0.0f },
+		.maxDepth{ 1.0f },
+	};
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D const scissor{
+		.offset{
+			.x{ 0 },
+			.y{ 0 },
+		},
+		.extent{
+			.width{ drawExtent.width },
+			.height{ drawExtent.height },
+		},
+	};
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	{ // Vertex push constant
+		VertexPushConstant const vertexPushConstant{
+			.vertexBuffer{ endpoints.deviceAddress() },
+			.cameraBuffer{ cameras.deviceAddress() },
+			.cameraIndex{ cameraIndex },
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0, sizeof(VertexPushConstant), &vertexPushConstant
+		);
+		m_vertexPushConstant = vertexPushConstant;
+	}
+
+	// Bind the entire index buffer of the mesh, but only draw a single surface.
+	vkCmdBindIndexBuffer(cmd, indices.deviceBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDraw(cmd, indices.deviceSize(), 1, 0, 0);
+
+	vkCmdEndRendering(cmd);
+}
+
+void DebugLineComputePipeline::cleanup(VkDevice device)
+{
+	m_fragmentShader.cleanup(device);
+	m_vertexShader.cleanup(device);
+
+	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }
