@@ -880,6 +880,7 @@ void Engine::mainLoop()
 
             if (ImGui::Begin("Engine Controls"))
             {
+                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
@@ -970,7 +971,15 @@ void Engine::draw()
         }
         if (stagedCameras.size() > 0 && m_cameraIndex < stagedCameras.size())
         {
-            stagedCameras[m_cameraIndex] = m_cameraParameters.toDeviceEquivalent(getAspectRatio());
+            GPUTypes::Camera const cameraGPU{
+                m_useOrthographicProjection
+                ? m_cameraParameters.toDeviceEquivalentOrthographic(
+                        getAspectRatio()
+                        , 5.0
+                    )
+                : m_cameraParameters.toDeviceEquivalent(getAspectRatio())
+            };
+            stagedCameras[m_cameraIndex] = cameraGPU;
         }
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
     }

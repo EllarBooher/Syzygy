@@ -109,8 +109,24 @@ struct CameraParameters {
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition },
-            .padding0{}
+            .position{ cameraPosition }
+        };
+    }
+
+    GPUTypes::Camera toDeviceEquivalentOrthographic(
+        float aspectRatio
+        , float planeDistance
+    ) const
+    {
+        glm::mat4x4 const projection{ projectionOrthographic(aspectRatio, planeDistance) };
+
+        return GPUTypes::Camera{
+            .projection{ projection },
+            .inverseProjection{ glm::inverse(projection) },
+            .view{ view() },
+            .viewInverseTranspose{ glm::inverseTranspose(view()) },
+            .rotation{ rotation() },
+            .position{ cameraPosition }
         };
     }
 
@@ -137,6 +153,22 @@ struct CameraParameters {
         return glm::perspectiveLH_ZO(
             glm::radians(fov)
             , aspectRatio
+            , far
+            , near
+        );
+    }
+
+    glm::mat4 projectionOrthographic(float aspectRatio, float distance) const
+    {
+        // An orthographic projection has one view plane, so we compute it from the fov and distance.
+
+        float const height = glm::tan(fov / 2.0) * distance;
+        
+        return glm::orthoLH_ZO(
+            -aspectRatio * height
+            , aspectRatio * height
+            , -height
+            , height
             , far
             , near
         );

@@ -183,6 +183,7 @@ private:
 
     float m_targetFPS{ 160.0 };
     uint32_t m_cameraIndex{ 0 };
+    bool m_useOrthographicProjection{ 0 };
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
