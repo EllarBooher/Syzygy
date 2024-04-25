@@ -261,6 +261,39 @@ void imguiStructureControls<CameraParameters>(
 }
 
 template<>
+void imguiStructureDisplay<DrawResultsGraphics>(
+    DrawResultsGraphics const& structure
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Graphics Draw Results");
+    ImGui::Indent(10.0);
+
+    ImGui::BeginTable("drawResultsGraphics", 2);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Draw Calls");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.drawCalls);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Vertices Drawn");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.verticesDrawn);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Indices Drawn");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.indicesDrawn);
+
+    ImGui::EndTable();
+
+    ImGui::Unindent(10.0);
+
+    ImGui::EndGroup();
+}
+
+template<>
 void imguiStructureControls<DebugLines>(
     DebugLines& structure
 )
@@ -275,6 +308,8 @@ void imguiStructureControls<DebugLines>(
 
     DragScalarFloats("lineWidth", structure.lineWidth, 1.0, 10.0);
     ResetButton("lineWidth", structure.lineWidth, 1.0f);
+
+    imguiStructureDisplay(structure.lastFrameDrawResults);
 
     ImGui::EndGroup();
 }

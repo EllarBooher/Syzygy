@@ -28,6 +28,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include "initializers.hpp"
 #include "helpers.hpp"
@@ -1005,20 +1006,45 @@ void Engine::draw()
         );
     }
 
-    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
-        m_debugLines.recordCopy(cmd, m_allocator);
+    { // Debug lines
+        {
+            // Show off the functionality of the debug lines
+            // TODO: remove this
 
-        m_debugLines.pipeline->recordDrawCommands(
-            cmd
-            , false
-            , m_debugLines.lineWidth
-            , m_drawImage
-            , m_depthImage
-            , m_cameraIndex
-            , *m_camerasBuffer
-            , *m_debugLines.vertices
-            , *m_debugLines.indices
-        );
+            m_debugLines.clear();
+
+            m_debugLines.pushBox(
+                glm::vec3{ 0.0, -3.0, 0.0 }
+                , randomQuat()
+                , glm::vec3{ 1.0, 1.0, 1.0 }
+            );
+
+            m_debugLines.pushRectangle(
+                glm::vec3{ 2.0, -2.0, 0.0 }
+                , glm::quatLookAt(glm::vec3(-1.0,-1.0,1.0), glm::vec3(-1.0, -1.0, -1.0))
+                , glm::vec2{ 3.0, 1.0 }
+            );
+        }
+
+        m_debugLines.lastFrameDrawResults = {};
+
+        if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+            m_debugLines.recordCopy(cmd, m_allocator);
+
+            DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_debugLines.lineWidth
+                , m_drawImage
+                , m_depthImage
+                , m_cameraIndex
+                , *m_camerasBuffer
+                , *m_debugLines.vertices
+                , *m_debugLines.indices
+            ) };
+
+            m_debugLines.lastFrameDrawResults = drawResults;
+        }
     }
 
     // End scene drawing

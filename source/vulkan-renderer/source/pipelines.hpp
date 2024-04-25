@@ -11,6 +11,13 @@
 #include "assets.hpp"
 #include "buffers.hpp"
 
+struct DrawResultsGraphics
+{
+    size_t drawCalls{ 0 };
+    size_t verticesDrawn{ 0 };
+    size_t indicesDrawn{ 0 };
+};
+
 class PipelineBuilder {
 public:
     PipelineBuilder() {};
@@ -266,7 +273,7 @@ public:
         VkFormat depthAttachmentFormat
     );
 
-    void recordDrawCommands(
+    DrawResultsGraphics recordDrawCommands(
         VkCommandBuffer cmd
         , bool reuseDepthAttachment
         , float lineWidth

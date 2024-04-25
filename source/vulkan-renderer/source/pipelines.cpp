@@ -768,7 +768,7 @@ DebugLineComputePipeline::DebugLineComputePipeline(
 	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
 }
 
-void DebugLineComputePipeline::recordDrawCommands(
+DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, bool reuseDepthAttachment
 	, float lineWidth
@@ -877,6 +877,12 @@ void DebugLineComputePipeline::recordDrawCommands(
 	vkCmdDraw(cmd, indices.deviceSize(), 1, 0, 0);
 
 	vkCmdEndRendering(cmd);
+
+	return DrawResultsGraphics{
+		.drawCalls{ 1 },
+		.verticesDrawn{ endpoints.deviceSize() },
+		.indicesDrawn{ indices.deviceSize() }
+	};
 }
 
 void DebugLineComputePipeline::cleanup(VkDevice device)
