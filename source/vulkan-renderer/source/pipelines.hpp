@@ -61,13 +61,17 @@ public:
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd, 
-        glm::mat4x4 camera,
-        bool reuseDepthAttachment,
-        AllocatedImage const& color,
-        AllocatedImage const& depth,
-        MeshAsset const& mesh,
-        TStagedBuffer<glm::mat4x4> const& transforms
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , AllocatedImage const& color
+        , AllocatedImage const& depth
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , uint32_t atmosphereIndex
+        , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
+        , MeshAsset const& mesh
+        , TStagedBuffer<glm::mat4x4> const& models
+        , TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
     ) const;
 
     void cleanup(VkDevice device);
@@ -79,17 +83,40 @@ private:
     VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
 
-    struct PushConstantType {
-        glm::mat4x4 cameraTransform{};
-
+    struct VertexPushConstant {
         VkDeviceAddress vertexBufferAddress{};
-        VkDeviceAddress transformBufferAddress{};
+        VkDeviceAddress modelBufferAddress{};
+
+        VkDeviceAddress modelInverseTransposeBufferAddress{};
+        VkDeviceAddress cameraBufferAddress{};
+
+        uint32_t cameraIndex{ 0 };
+        uint8_t padding0[12]{};
     };
 
-    PushConstantType m_pushConstant;
+    struct FragmentPushConstant {
+        glm::vec4 lightDirectionViewSpace{};
+
+        glm::vec4 diffuseColor{};
+
+        glm::vec4 specularColor{};
+
+        VkDeviceAddress atmosphereBuffer{};
+        uint32_t atmosphereIndex{ 0 };
+        float shininess{ 0.0f };
+    };
+
+    VertexPushConstant mutable m_vertexPushConstant{};
+    FragmentPushConstant mutable m_fragmentPushConstant{};
 
 public:
-    PushConstantType const& pushConstant() const { return m_pushConstant; };
+    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
+    ShaderModuleReflected const& fragmentShader() const { return m_fragmentShader; };
+    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
+
+    FragmentPushConstant const& fragmentPushConstant() const { return m_fragmentPushConstant; };
+    ShaderReflectionData::PushConstant const& fragmentPushConstantReflected() const { return m_fragmentShader.reflectionData().defaultPushConstant(); };
 };
 
 /*

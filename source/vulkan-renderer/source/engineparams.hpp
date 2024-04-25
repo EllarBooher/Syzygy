@@ -4,12 +4,32 @@
 
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/gtx/intersect.hpp>
 
 struct AtmosphereParameters {
-    glm::vec3 directionToSun{ 1.0, 0.0, 0.0 };
+    struct AnimationParameters
+    {
+        bool animateSun{ false };
+        float animationSpeed{ 1.0f };
+        bool skipNight{ false };
+    };
+
+    AnimationParameters animation{};
+
+    glm::vec3 sunEulerAngles{ 0.0, 0.0, 0.0 };
+
+    glm::vec3 directionToSun() const
+    {
+        return glm::vec3(
+            glm::orientate3(sunEulerAngles) * glm::vec3(0.0, -1.0, 0.0)
+        );
+    }
 
     float earthRadiusMeters{ 0.0 };
     float atmosphereRadiusMeters{ 0.0 };
+
+    glm::vec3 groundColor{ 1.0 };
 
     glm::vec3 scatteringCoefficientRayleigh{ 1.0 };
     float altitudeDecayRayleigh{ 1.0 };
@@ -17,16 +37,59 @@ struct AtmosphereParameters {
     glm::vec3 scatteringCoefficientMie{ 1.0 };
     float altitudeDecayMie{ 1.0 };
 
+    // Returns an estimate of the color of sunlight that has reached the origin.
+    glm::vec4 computeSunlight() const
+    {
+        float const surfaceCosine{ glm::dot(directionToSun(), glm::vec3{0.0,-1.0,0.0})};
+        if (surfaceCosine <= 0.0)
+        {
+            return glm::vec4(0.0, 0.0, 0.0, 1.0);
+        }
+
+        glm::vec3 const start{ 0.0, -earthRadiusMeters, 0.0 };
+        float outDistance{ 0.0 };
+        glm::intersectRaySphere(
+            start
+            , directionToSun()
+            , glm::vec3(0.0)
+            , atmosphereRadiusMeters * atmosphereRadiusMeters
+            , outDistance
+        );
+
+        float const atmosphereThickness{ outDistance };
+        // Calculations derived from sky.comp, we do a single ray straight up to get an idea of the ambient color
+        float const opticalDepthRayleigh{ altitudeDecayRayleigh / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayRayleigh)) };
+        float const opticalDepthMie{ altitudeDecayMie / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayMie)) };
+
+        glm::vec3 const tau{
+            scatteringCoefficientRayleigh * opticalDepthRayleigh
+            + 1.1f * scatteringCoefficientMie * opticalDepthMie
+        };
+        glm::vec3 const attenuation{
+            glm::exp(-tau)
+        };
+
+        return glm::vec4(attenuation, 1.0);
+    };
+
     GPUTypes::Atmosphere toDeviceEquivalent() const
     {
+        // TODO: move these computations out to somewhere more sensible
+
+        glm::vec4 const sunlight{ computeSunlight() };
+        glm::vec3 const sunDirection{ glm::normalize(directionToSun()) };
+
         return GPUTypes::Atmosphere{
-            .directionToSun{ glm::normalize(directionToSun) },
+            .directionToSun{ sunDirection },
             .earthRadiusMeters{ earthRadiusMeters },
             .scatteringCoefficientRayleigh{ scatteringCoefficientRayleigh },
             .altitudeDecayRayleigh{ altitudeDecayRayleigh },
             .scatteringCoefficientMie{ scatteringCoefficientMie },
             .altitudeDecayMie{ altitudeDecayMie },
+            .ambientColor{ glm::vec3(sunlight) * groundColor * glm::dot(sunDirection, glm::vec3(0.0,-1.0,0.0))},
             .atmosphereRadiusMeters{ atmosphereRadiusMeters },
+            .sunlightColor{ glm::vec3(sunlight) },
+            .groundColor{ groundColor },
         };
     }
 };
@@ -44,6 +107,7 @@ struct CameraParameters {
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
+            .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
             .position{ cameraPosition },
             .padding0{}

@@ -5,6 +5,8 @@
 #include "initializers.hpp"
 #include "shaders.hpp"
 
+#include <glm/gtx/intersect.hpp>
+
 VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layout) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
@@ -256,18 +258,47 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	VkFormat depthAttachmentFormat
 )
 {
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/instanced_mesh.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/instanced_mesh.frag.spv").value() };
+	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/blinnphong/phong.frag.spv").value() };
 
-	ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+	{ 
+		// Vertex push constant
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant()};
 
-	assert(vertexPushConstant.type.paddedSizeBytes == sizeof(PushConstantType));
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
+		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
 
-	VkPushConstantRange const pushConstantRange{
-		.stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
-		.offset{ 0 },
-		.size{ sizeof(PushConstantType) },
-	};
+		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
+				, vertexPushConstantSize
+				, vertexPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+		
+		// Fragment push constant
+		ShaderReflectionData::PushConstant const& fragmentPushConstant{ fragmentShader.reflectionData().defaultPushConstant() };
+
+		size_t const fragmentPushConstantSize{ fragmentPushConstant.type.paddedSizeBytes - fragmentPushConstant.layoutOffsetBytes };
+		size_t const fragmentPushConstantSizeExpected{ sizeof(FragmentPushConstant) };
+
+		if (fragmentPushConstantSize != fragmentPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded fragment push constant had a push constant of size {}, while implementation expects {}."
+				, fragmentPushConstantSize
+				, fragmentPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(fragmentPushConstant.totalRange(VK_SHADER_STAGE_FRAGMENT_BIT));
+
+		// We don't pack the push constants super tight for now
+		if (fragmentPushConstant.layoutOffsetBytes < vertexPushConstant.type.paddedSizeBytes)
+		{
+			Warning("Fragment push constant overlaps with vertex push constant.");
+		}
+	}
 
 	VkPipelineLayoutCreateInfo const layoutInfo{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
@@ -278,8 +309,8 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 		.setLayoutCount{ 0 },
 		.pSetLayouts{ nullptr },
 
-		.pushConstantRangeCount{ 1 },
-		.pPushConstantRanges{ &pushConstantRange },
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
 	};
 
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
@@ -306,13 +337,17 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 }
 
 void InstancedMeshGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer cmd,
-	glm::mat4x4 camera,
-	bool reuseDepthAttachment,
-	AllocatedImage const& color,
-	AllocatedImage const& depth,
-	MeshAsset const& mesh,
-	TStagedBuffer<glm::mat4x4> const& transforms
+	VkCommandBuffer cmd
+	, bool reuseDepthAttachment
+	, AllocatedImage const& color
+	, AllocatedImage const& depth
+	, uint32_t cameraIndex
+	, TStagedBuffer<GPUTypes::Camera> const& cameras
+	, uint32_t atmosphereIndex
+	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
+	, MeshAsset const& mesh
+	, TStagedBuffer<glm::mat4x4> const& models
+	, TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
 ) const
 {
 	VkRenderingAttachmentInfo const colorAttachment{
@@ -361,44 +396,9 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
 	};
 
-	if (transforms.deviceSize() > 0)
-	{
-		VkBufferMemoryBarrier2 const bufferMemoryBarrier{
-			.sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
-			.pNext{ nullptr },
-
-			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
-			.srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
-
-			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
-			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
-
-			.srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-			.dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-
-			.buffer{ transforms.deviceBuffer() },
-			.offset{ 0 },
-			.size{ transforms.deviceSizeBytes() },
-		};
-
-		VkDependencyInfo const transformsDependency{
-			.sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
-			.pNext{ nullptr },
-
-			.dependencyFlags{ 0 },
-
-			.memoryBarrierCount{ 0 },
-			.pMemoryBarriers{ nullptr },
-
-			.bufferMemoryBarrierCount{ 1 },
-			.pBufferMemoryBarriers{ &bufferMemoryBarrier },
-
-			.imageMemoryBarrierCount{ 0 },
-			.pImageMemoryBarriers{ nullptr },
-		};
-
-		vkCmdPipelineBarrier2(cmd, &transformsDependency);
-	}
+	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+	models.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
+	modelInverseTransposes.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -430,28 +430,44 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
 
-	VkBuffer const indexBuffer{ meshBuffers.indexBuffer() };
-	VkDeviceAddress const transformsAddress{ transforms.address() };
-	VkDeviceAddress const verticesAddress{ meshBuffers.vertexAddress() };
+	{ // Vertex push constant
+		VertexPushConstant const vertexPushConstant{
+			.vertexBufferAddress{ meshBuffers.vertexAddress() },
+			.modelBufferAddress{ models.deviceAddress() },
+			.modelInverseTransposeBufferAddress{ modelInverseTransposes.deviceAddress() },
+			.cameraBufferAddress{ cameras.deviceAddress() },
+			.cameraIndex{ cameraIndex },
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0, sizeof(VertexPushConstant), &vertexPushConstant
+		);
+		m_vertexPushConstant = vertexPushConstant;
+	}
 
-	assert(transformsAddress != 0);
-	assert(verticesAddress != 0);
-	PushConstantType const pushConstant{
-		.cameraTransform{ camera },
-		.vertexBufferAddress{ verticesAddress },
-		.transformBufferAddress{ transformsAddress }
-	};
+	{ // Fragment push constant
+		GPUTypes::Atmosphere const& currentAtmosphere{ atmospheres.readValidStaged()[atmosphereIndex] };
 
-	vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
-		VK_SHADER_STAGE_VERTEX_BIT,
-		0, sizeof(PushConstantType), &pushConstant
-	);
+		FragmentPushConstant const fragmentPushConstant{
+			.lightDirectionViewSpace{ cameras.readValidStaged()[cameraIndex].view * glm::vec4(currentAtmosphere.directionToSun,0.0) },
+			.diffuseColor{ glm::vec4(0.8) },
+			.specularColor{ glm::vec4(1.0) },
+			.atmosphereBuffer{ atmospheres.deviceAddress() },
+			.atmosphereIndex{ atmosphereIndex },
+			.shininess{ 32.0 }
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_FRAGMENT_BIT,
+			m_fragmentShader.reflectionData().defaultPushConstant().layoutOffsetBytes, sizeof(FragmentPushConstant), &fragmentPushConstant
+		);
+		m_fragmentPushConstant = fragmentPushConstant;
+	}
 
 	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
 
 	// Bind the entire index buffer of the mesh, but only draw a single surface.
-	vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, transforms.deviceSize(), drawnSurface.firstIndex, 0, 0);
+	vkCmdBindIndexBuffer(cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, models.deviceSize(), drawnSurface.firstIndex, 0, 0);
 
 	vkCmdEndRendering(cmd);
 }
@@ -555,8 +571,8 @@ void AtmosphereComputePipeline::recordDrawCommands(
 	m_pushConstant = PushConstantType{
 		.cameraIndex{ cameraIndex },
 		.atmosphereIndex{ atmosphereIndex },
-		.cameraBuffer{ camerasBuffer.address() },
-		.atmosphereBuffer{ atmospheresBuffer.address() },
+		.cameraBuffer{ camerasBuffer.deviceAddress() },
+		.atmosphereBuffer{ atmospheresBuffer.deviceAddress() },
 	};
 
 	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0

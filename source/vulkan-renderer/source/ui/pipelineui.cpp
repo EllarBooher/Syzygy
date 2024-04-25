@@ -117,7 +117,16 @@ static void imguiPushStructureControl(
 
                     std::string const memberLabel{ fmt::format("##{}", member.name) };
 
-                    T* const pDataPointer{ &backingData[member.offsetBytes] };
+                    size_t byteOffset{ member.offsetBytes };
+
+                    if (structure.paddedSizeBytes > backingData.size())
+                    {
+                        // Hacky fix for when backingdata is offset
+                        // TODO: Make runtime push constant data consistant with offsets
+                        byteOffset -= pushConstant.layoutOffsetBytes;
+                    }
+
+                    T* const pDataPointer{ &backingData[byteOffset] };
 
                     ImGui::TableSetColumnIndex(columnIndexValue);
 
@@ -238,7 +247,19 @@ static void imguiPushStructureControl(
                     // We render each "column" of the spirv data type as a "row" of imgui inputs to avoid flipping.
                     for (uint32_t column{ 0 }; column < columns; column++)
                     {
-                        size_t const byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                        size_t byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                        if (structure.paddedSizeBytes > backingData.size())
+                        {
+                            // Hacky fix for when backingdata is offset
+                            // TODO: Make runtime push constant data consistant with offsets
+                            byteOffset -= pushConstant.layoutOffsetBytes;
+                        }
+
+                        if (byteOffset > backingData.size())
+                        {
+                            Warning("Offset ");
+                        }
+
                         T* const pDataPointer{ &backingData[byteOffset] };
 
                         // Check that ImGui won't modify out of bounds data
@@ -254,7 +275,10 @@ static void imguiPushStructureControl(
                                 rowLabel.c_str(),
                                 imguiDataType,
                                 reinterpret_cast<void*>(const_cast<uint8_t*>(pDataPointer)),
-                                rows
+                                rows,
+                                nullptr,
+                                nullptr,
+                                imguiDataType == ImGuiDataType_Float ? "%.6f" : nullptr
                             );
                             ImGui::PopItemWidth();
                         }
@@ -274,10 +298,27 @@ static void imguiPushStructureControl(
 template<>
 void imguiPipelineControls(InstancedMeshGraphicsPipeline const& pipeline)
 {
-    std::span<uint8_t const> const pushConstantBytes{ 
-        reinterpret_cast<uint8_t const*>(&pipeline.pushConstant())
-        , sizeof(pipeline.pushConstant())
-    };
+    ImGui::Separator();
+
+    { // Vertex
+        std::span<uint8_t const> const vertexPushConstantBytes{
+            reinterpret_cast<uint8_t const*>(&pipeline.vertexPushConstant())
+            , sizeof(decltype(pipeline.vertexPushConstant()))
+        };
+
+        ImGui::Text(pipeline.vertexShader().name().c_str());
+        imguiPushStructureControl(pipeline.vertexPushConstantReflected(), true, vertexPushConstantBytes);
+    }
+
+    { // Fragment
+        std::span<uint8_t const> const fragmentPushConstantBytes{
+            reinterpret_cast<uint8_t const*>(&pipeline.fragmentPushConstant())
+            , sizeof(decltype(pipeline.fragmentPushConstant()))
+        };
+
+        ImGui::Text(pipeline.fragmentShader().name().c_str());
+        imguiPushStructureControl(pipeline.fragmentPushConstantReflected(), true, fragmentPushConstantBytes);
+    }
 }
 
 template<>
