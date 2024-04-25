@@ -13,6 +13,9 @@ void imguiStructureControls(T& structure, T const& defaultValues);
 template<typename T>
 void imguiStructureControls(T& structure);
 
+template<typename T>
+void imguiStructureDisplay(T const& structure);
+
 void imguiMeshInstanceControls(
     bool& shouldRender,
     std::span<std::shared_ptr<MeshAsset> const> meshes,

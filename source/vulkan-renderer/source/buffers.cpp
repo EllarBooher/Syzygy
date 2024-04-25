@@ -73,9 +73,21 @@ VkDeviceAddress StagedBuffer::deviceAddress() const
 
 void StagedBuffer::stage(std::span<uint8_t const> data)
 {
-    assert(data.size_bytes() <= m_stagingBuffer.info.size);
-    m_stagedSizeBytes = data.size_bytes();
-    memcpy(m_stagingBuffer.info.pMappedData, data.data(), data.size_bytes());
+    clearStaged();
+    push(data);
+}
+
+void StagedBuffer::push(std::span<uint8_t const> data)
+{
+    assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
+    uint8_t* const start{ reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData) + m_stagedSizeBytes };
+    memcpy(start, data.data(), data.size_bytes());
+    m_stagedSizeBytes += data.size_bytes();
+}
+
+void StagedBuffer::clearStaged()
+{
+    m_stagedSizeBytes = 0;
 }
 
 StagedBuffer StagedBuffer::allocate(
@@ -118,6 +130,7 @@ StagedBuffer StagedBuffer::allocate(
 void StagedBuffer::recordTotalCopyBarrier(
     VkCommandBuffer cmd
     , VkPipelineStageFlags2 destinationStage
+    , VkAccessFlags2 destinationAccessFlags
 ) const
 {
     VkBufferMemoryBarrier2 const bufferMemoryBarrier{
@@ -128,7 +141,7 @@ void StagedBuffer::recordTotalCopyBarrier(
         .srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
 
         .dstStageMask{ destinationStage },
-        .dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
+        .dstAccessMask{ destinationAccessFlags },
 
         .srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
         .dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
