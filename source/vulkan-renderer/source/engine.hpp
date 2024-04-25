@@ -50,6 +50,7 @@ private:
     void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
+    void recordDrawDebugLines(VkCommandBuffer cmd);
 
     void cleanup();
 

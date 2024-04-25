@@ -39,6 +39,8 @@
 #include "ui/engineui.hpp"
 #include "ui/pipelineui.hpp"
 
+#define VKRENDERER_COMPILE_WITH_TESTING 0
+
 CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
     .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
     .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
@@ -785,6 +787,30 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const
     return std::make_unique<GPUMeshBuffers>(std::move(indexBuffer), std::move(vertexBuffer));
 }
 
+// TODO: Once scenes are made, extract this to a testing scene
+#if VKRENDERER_COMPILE_WITH_TESTING
+void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
+{
+    debugLines.clear();
+
+    glm::quat const boxOrientation{
+        glm::toQuat(glm::orientate3(glm::vec3(currentTimeSeconds, currentTimeSeconds * glm::euler<float>(),0.0)))
+    };
+
+    debugLines.pushBox(
+        glm::vec3(3.0 * glm::cos(2.0 * currentTimeSeconds), -2.0, 3.0 * glm::sin(2.0 * currentTimeSeconds))
+        , boxOrientation
+        , glm::vec3{ 1.0, 1.0, 1.0 }
+    );
+
+    debugLines.pushRectangle(
+        glm::vec3{ 2.0, -2.0, 0.0 }
+        , glm::quatLookAt(glm::vec3(-1.0, -1.0, 1.0), glm::vec3(-1.0, -1.0, -1.0))
+        , glm::vec2{ 3.0, 1.0 }
+    );
+}
+#endif
+
 void Engine::mainLoop()
 {
     while (!glfwWindowShouldClose(m_window)) {
@@ -806,6 +832,9 @@ void Engine::mainLoop()
             double const currentTimeSeconds{ glfwGetTime() };
             double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
             tickWorld(currentTimeSeconds, deltaTimeSeconds);
+#if VKRENDERER_COMPILE_WITH_TESTING
+            testDebugLines(currentTimeSeconds, m_debugLines);
+#endif
             previousTimeSeconds = glfwGetTime();
 
             double const instantFPS{ 1.0f / deltaTimeSeconds };
@@ -1006,46 +1035,7 @@ void Engine::draw()
         );
     }
 
-    { // Debug lines
-        {
-            // Show off the functionality of the debug lines
-            // TODO: remove this
-
-            m_debugLines.clear();
-
-            m_debugLines.pushBox(
-                glm::vec3{ 0.0, -3.0, 0.0 }
-                , randomQuat()
-                , glm::vec3{ 1.0, 1.0, 1.0 }
-            );
-
-            m_debugLines.pushRectangle(
-                glm::vec3{ 2.0, -2.0, 0.0 }
-                , glm::quatLookAt(glm::vec3(-1.0,-1.0,1.0), glm::vec3(-1.0, -1.0, -1.0))
-                , glm::vec2{ 3.0, 1.0 }
-            );
-        }
-
-        m_debugLines.lastFrameDrawResults = {};
-
-        if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
-            m_debugLines.recordCopy(cmd, m_allocator);
-
-            DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
-                cmd
-                , false
-                , m_debugLines.lineWidth
-                , m_drawImage
-                , m_depthImage
-                , m_cameraIndex
-                , *m_camerasBuffer
-                , *m_debugLines.vertices
-                , *m_debugLines.indices
-            ) };
-
-            m_debugLines.lastFrameDrawResults = drawResults;
-        }
-    }
+    recordDrawDebugLines(cmd);
 
     // End scene drawing
 
@@ -1164,6 +1154,29 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     vkCmdEndRendering(cmd);
+}
+
+void Engine::recordDrawDebugLines(VkCommandBuffer cmd)
+{
+    m_debugLines.lastFrameDrawResults = {};
+
+    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+        m_debugLines.recordCopy(cmd, m_allocator);
+
+        DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
+            cmd
+            , false
+            , m_debugLines.lineWidth
+            , m_drawImage
+            , m_depthImage
+            , m_cameraIndex
+            , *m_camerasBuffer
+            , *m_debugLines.vertices
+            , *m_debugLines.indices
+        ) };
+
+        m_debugLines.lastFrameDrawResults = drawResults;
+    }
 }
 
 void Engine::cleanup()
