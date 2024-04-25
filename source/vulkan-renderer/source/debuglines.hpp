@@ -109,6 +109,7 @@ struct DebugLines
     void cleanup(VkDevice device, VmaAllocator allocator)
     {
         pipeline->cleanup(device);
+        pipeline.reset();
         vertices.reset();
         indices.reset();
     }
