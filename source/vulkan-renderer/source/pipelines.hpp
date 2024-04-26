@@ -23,14 +23,13 @@ public:
     PipelineBuilder() {};
 
     VkPipeline buildPipeline(VkDevice device, VkPipelineLayout layout) const;
-    void setShaders(ShaderModuleReflected const& vertexShader, ShaderModuleReflected const& fragmentShader);
+    void pushShader(ShaderModuleReflected const& shader, VkShaderStageFlagBits stage);
     void setInputTopology(VkPrimitiveTopology topology);
     void setPolygonMode(VkPolygonMode mode);
     void pushDynamicState(VkDynamicState dynamicState);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void setMultisamplingNone();
-    void disableBlending();
-    void setColorAttachmentFormat(VkFormat format);
+    void setColorAttachment(VkFormat format);
     void setDepthFormat(VkFormat format);
 
     void disableDepthTest();
@@ -47,7 +46,23 @@ private:
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO },
         .lineWidth{ 1.0 },
     };
-    VkPipelineColorBlendAttachmentState m_colorBlendAttachment{};
+
+    struct ColorAttachmentSpecification
+    {
+        VkFormat format{ VK_FORMAT_UNDEFINED };
+
+        // TODO: expose blending in pipeline builder
+        VkPipelineColorBlendAttachmentState blending{
+            .blendEnable{ VK_FALSE },
+            .colorWriteMask{
+                VK_COLOR_COMPONENT_R_BIT
+                | VK_COLOR_COMPONENT_G_BIT
+                | VK_COLOR_COMPONENT_B_BIT
+                | VK_COLOR_COMPONENT_A_BIT
+            }
+        };
+    };
+
     VkPipelineMultisampleStateCreateInfo m_multisampling{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO }
     };
@@ -55,8 +70,52 @@ private:
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO }
     };
 
-    VkFormat m_colorAttachmentFormat{ VK_FORMAT_UNDEFINED };
+    std::optional<ColorAttachmentSpecification> m_colorAttachment{};
     VkFormat m_depthAttachmentFormat{ VK_FORMAT_UNDEFINED };
+};
+
+// This pipeline does an offscreen pass of some geometry to write depth information
+class OffscreenPassInstancedMeshGraphicsPipeline
+{
+public:
+    OffscreenPassInstancedMeshGraphicsPipeline(
+        VkDevice device,
+        VkFormat depthAttachmentFormat
+    );
+
+    void recordDrawCommands(
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , AllocatedImage const& depth
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , MeshAsset const& mesh
+        , TStagedBuffer<glm::mat4x4> const& models
+    ) const;
+
+    void cleanup(VkDevice device);
+
+private:
+    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
+
+    VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
+
+    struct VertexPushConstant {
+        VkDeviceAddress vertexBufferAddress{};
+        VkDeviceAddress modelBufferAddress{};
+
+        VkDeviceAddress cameraBufferAddress{};
+        uint32_t cameraIndex{ 0 };
+        uint8_t padding0[4]{};
+    };
+
+    VertexPushConstant mutable m_vertexPushConstant{};
+
+public:
+    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
+    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
 };
 
 /*

@@ -84,6 +84,7 @@ private:
 
     void initDefaultMeshData();
     void initWorld();
+    void initShadowPass();
     void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
@@ -130,6 +131,23 @@ private:
     }
 
     AllocatedImage m_depthImage{};
+
+    struct ShadowPass
+    {
+        AllocatedImage depthImage{};
+        std::unique_ptr<OffscreenPassInstancedMeshGraphicsPipeline> pipeline{};
+        // float depthBias{ 1.25f };
+        // float depthBiasSlope{ 1.75f };
+
+        void cleanup(VkDevice device, VmaAllocator allocator)
+        {
+            depthImage.cleanup(device, allocator);
+            pipeline->cleanup(device);
+            pipeline.reset();
+            depthImage = {};
+        }
+    };
+    ShadowPass m_shadowPass{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
@@ -195,6 +213,7 @@ private:
     AtmosphereParameters m_atmosphereParameters{ m_defaultAtmosphereParameters };
 
     std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
+
     std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
 
     // End Vulkan

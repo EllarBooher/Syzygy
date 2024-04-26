@@ -137,6 +137,7 @@ void Engine::initVulkan()
 
     initDefaultMeshData();
     initWorld();
+    initShadowPass();
     initDebug();
     initBackgroundPipeline();
     initInstancedPipeline();
@@ -513,6 +514,24 @@ void Engine::initWorld()
             m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
         });
     }
+}
+
+void Engine::initShadowPass()
+{
+    m_shadowPass.depthImage = vkutil::allocateImage(
+        m_allocator,
+        m_device,
+        m_drawImage.imageExtent,
+        VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        VK_IMAGE_USAGE_SAMPLED_BIT // read in main render pass
+        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+
+    m_shadowPass.pipeline = std::make_unique<OffscreenPassInstancedMeshGraphicsPipeline>(
+        m_device,
+        VK_FORMAT_D32_SFLOAT
+    );
 }
 
 void Engine::initDebug()
@@ -1002,52 +1021,63 @@ void Engine::draw()
             : m_cameraIndexMain
         };
 
-    if (m_useAtmosphereCompute)
-    {
-        m_atmospherePipeline->recordDrawCommands(
-            cmd,
-                cameraIndex,
-            *m_camerasBuffer,
-            m_atmosphereIndex,
-            *m_atmospheresBuffer,
-            m_drawImageDescriptors,
-            VkExtent2D{
-                .width{ m_drawImage.imageExtent.width },
-                .height{ m_drawImage.imageExtent.height },
-            }
-        );
-    }
-    else 
-    {
-        m_genericComputePipeline->recordDrawCommands(
-            cmd,
-            m_drawImageDescriptors,
-            VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
-        );
-    }
+        if (m_useAtmosphereCompute)
+        {
+            m_atmospherePipeline->recordDrawCommands(
+                cmd,
+                    cameraIndex,
+                *m_camerasBuffer,
+                m_atmosphereIndex,
+                *m_atmospheresBuffer,
+                m_drawImageDescriptors,
+                VkExtent2D{
+                    .width{ m_drawImage.imageExtent.width },
+                    .height{ m_drawImage.imageExtent.height },
+                }
+            );
+        }
+        else 
+        {
+            m_genericComputePipeline->recordDrawCommands(
+                cmd,
+                m_drawImageDescriptors,
+                VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
+            );
+        }
 
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-    if (m_renderMeshInstances)
-    {
-        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
-        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+        if (m_renderMeshInstances)
+        {
+            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
 
-        m_instancePipeline->recordDrawCommands(
-            cmd
-            , false
-            , m_drawImage
-            , m_depthImage
-                , cameraIndex
-            , *m_camerasBuffer
-            , m_atmosphereIndex
-            , *m_atmospheresBuffer
-            , *m_testMeshes[m_testMeshUsed]
-            , *m_meshInstances.models
-            , *m_meshInstances.modelInverseTransposes
-        );
-    }
+            m_shadowPass.pipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_shadowPass.depthImage
+                , m_cameraIndexShadowpass
+                , *m_camerasBuffer
+                , *m_testMeshes[m_testMeshUsed]
+                , *m_meshInstances.models
+            );
+
+            m_instancePipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_drawImage
+                , m_depthImage
+                    , cameraIndex
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , *m_testMeshes[m_testMeshUsed]
+                , *m_meshInstances.models
+                , *m_meshInstances.modelInverseTransposes
+            );
+        }
 
         recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
     }
@@ -1222,6 +1252,8 @@ void Engine::cleanup()
 
     m_meshInstances.models.reset();
     m_meshInstances.modelInverseTransposes.reset();
+
+    m_shadowPass.cleanup(m_device, m_allocator);
 
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
