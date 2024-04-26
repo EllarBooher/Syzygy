@@ -489,15 +489,14 @@ void Engine::initWorld()
         m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
             m_device,
             m_allocator,
-            1,
+            20,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
-        std::vector<GPUTypes::Camera> const cameras{ m_cameraParameters.toDeviceEquivalent(getAspectRatio()) };
-        m_camerasBuffer->stage(cameras);
+        m_camerasBuffer->push(GPUTypes::Camera{});
+        m_camerasBuffer->push(GPUTypes::Camera{});
 
-        immediateSubmit([&](VkCommandBuffer cmd) {
-            m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
-        });
+        m_cameraIndexMain = 0;
+        m_cameraIndexShadowpass = 1;
     }
 
     { // Atmosphere
@@ -881,6 +880,7 @@ void Engine::mainLoop()
             if (ImGui::Begin("Engine Controls"))
             {
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+                ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
@@ -963,25 +963,22 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        std::span<GPUTypes::Camera> const stagedCameras{ m_camerasBuffer->mapValidStaged() };
-        if (stagedCameras.size() <= m_cameraIndex)
-        {
-            Warning("CameraIndex does not point to valid camera, resetting to 0.");
-            m_cameraIndex = 0;
-        }
-        if (stagedCameras.size() > 0 && m_cameraIndex < stagedCameras.size())
-        {
-            GPUTypes::Camera const cameraGPU{
+        std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
+        cameras[m_cameraIndexMain] = { 
                 m_useOrthographicProjection
-                ? m_cameraParameters.toDeviceEquivalentOrthographic(
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(getAspectRatio(), 5.0)
+            : m_cameraParameters.toDeviceEquivalent(getAspectRatio()) 
+        };
+        cameras[m_cameraIndexShadowpass] = {
+            m_cameraParameters.makeShadowpassCamera(
                         getAspectRatio()
-                        , 5.0
+                , -m_atmosphereParameters.directionToSun()
+                , 20.0f
                     )
-                : m_cameraParameters.toDeviceEquivalent(getAspectRatio())
             };
-            stagedCameras[m_cameraIndex] = cameraGPU;
-        }
+
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
+
     }
 
     { // Copy atmospheres to gpu
@@ -998,11 +995,18 @@ void Engine::draw()
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
+    {
+        uint32_t const cameraIndex{
+            m_useShadowpassPerspective
+            ? m_cameraIndexShadowpass
+            : m_cameraIndexMain
+        };
+
     if (m_useAtmosphereCompute)
     {
         m_atmospherePipeline->recordDrawCommands(
             cmd,
-            m_cameraIndex,
+                cameraIndex,
             *m_camerasBuffer,
             m_atmosphereIndex,
             *m_atmospheresBuffer,
@@ -1035,7 +1039,7 @@ void Engine::draw()
             , false
             , m_drawImage
             , m_depthImage
-            , m_cameraIndex
+                , cameraIndex
             , *m_camerasBuffer
             , m_atmosphereIndex
             , *m_atmospheresBuffer
@@ -1045,7 +1049,8 @@ void Engine::draw()
         );
     }
 
-    recordDrawDebugLines(cmd);
+        recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
+    }
 
     // End scene drawing
 
@@ -1166,7 +1171,11 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
     vkCmdEndRendering(cmd);
 }
 
-void Engine::recordDrawDebugLines(VkCommandBuffer cmd)
+void Engine::recordDrawDebugLines(
+    VkCommandBuffer cmd
+    , uint32_t cameraIndex
+    , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+)
 {
     m_debugLines.lastFrameDrawResults = {};
 
@@ -1179,8 +1188,8 @@ void Engine::recordDrawDebugLines(VkCommandBuffer cmd)
             , m_debugLines.lineWidth
             , m_drawImage
             , m_depthImage
-            , m_cameraIndex
-            , *m_camerasBuffer
+            , cameraIndex
+            , camerasBuffer
             , *m_debugLines.vertices
             , *m_debugLines.indices
         ) };

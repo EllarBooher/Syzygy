@@ -6,6 +6,9 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/component_wise.hpp>
+
+#include "geometrystatics.hpp"
 
 struct AtmosphereParameters {
     struct AnimationParameters
@@ -111,6 +114,122 @@ struct CameraParameters {
             .rotation{ rotation() },
             .position{ cameraPosition }
         };
+    }
+
+    /*
+    * Creates an orthographic camera that captures the provided sphere
+    */
+    static GPUTypes::Camera makeOrthographic(
+        float aspectRatio
+        , glm::vec3 forward
+        , glm::vec3 center
+        , float radius
+    )
+    {
+        forward = glm::normalize(forward);
+        bool const cameraForwardIsUp{ glm::abs(glm::dot(forward, geometry::up)) > 0.99 };
+        glm::mat4x4 const cameraView = glm::lookAtRH(
+            center + (- 1.0f * radius * forward)
+            , center
+            , cameraForwardIsUp ? -geometry::forward : geometry::up
+        );
+        glm::mat4x4 const cameraViewInverse{ glm::inverse(cameraView) };
+
+        glm::vec4 const centerViewSpace{ cameraView * glm::vec4(center,1.0) };
+        // Radius is the same in view space
+
+        radius = glm::abs(radius);
+
+        glm::mat4x4 const projection{ 
+            glm::orthoLH_ZO(
+                centerViewSpace.x - radius * aspectRatio
+                , centerViewSpace.x + radius * aspectRatio
+                , centerViewSpace.y - radius
+                , centerViewSpace.y + radius
+                , centerViewSpace.z - radius
+                , centerViewSpace.z + radius
+            ) 
+        };
+        glm::vec3 const position{
+            glm::vec3(glm::inverse(cameraView) * glm::vec4(0.0,0.0,0.0,1.0))
+        };
+
+        return GPUTypes::Camera{
+            .projection{ projection },
+            .inverseProjection{ glm::inverse(projection) },
+            .view{ cameraView },
+            .viewInverseTranspose{ glm::inverseTranspose(cameraView) },
+            .rotation{ glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))) },
+            .position{ position }
+        };
+    }
+
+    static std::array<glm::vec3, 4> getFrustumPlanePoints(
+        glm::mat4x4 inverseView
+        , float distance
+    )
+    {
+        glm::vec3 const nearPlaneCenter{ inverseView * glm::vec4(0.0,0.0,distance,1.0) };
+        glm::vec3 const nearPlaneUp{ inverseView * glm::vec4(0.0,-1.0,0.0,0.0) };
+        glm::vec3 const nearPlaneRight{ inverseView * glm::vec4(1.0,0.0,0.0,0.0) };
+
+        std::array<glm::vec3, 4> const nearPlanePoints{
+            nearPlaneCenter + nearPlaneUp + nearPlaneRight
+            , nearPlaneCenter + nearPlaneUp - nearPlaneRight
+            , nearPlaneCenter - nearPlaneUp - nearPlaneRight
+            , nearPlaneCenter - nearPlaneUp + nearPlaneRight
+        };
+
+        return nearPlanePoints;
+    }
+
+    GPUTypes::Camera makeShadowpassCamera(
+        float aspectRatio
+        , glm::vec3 forward
+        , float shadowMaxRadius
+    )
+    {
+        std::array<glm::vec3, 4> const nearPlanePoints{
+            getFrustumPlanePoints(glm::inverse(view()), near)
+        };
+
+        // We compute a bounding sphere for the frustum before it hits the floor.
+        glm::vec3 pointSum{ 0.0 };
+        size_t count{ 0 };
+        float boundRadius{ 0.0 };
+        for (glm::vec3 const nearPlanePoint : nearPlanePoints)
+        {
+            pointSum += nearPlanePoint;
+            boundRadius += glm::max(boundRadius, glm::distance(cameraPosition, nearPlanePoint));
+            count += 1;
+
+            glm::vec3 const direction{ glm::normalize(glm::vec3(nearPlanePoint) - cameraPosition) };
+            float distance{ shadowMaxRadius };
+            bool const hit{ glm::intersectRayPlane(
+                cameraPosition
+                , direction
+                , glm::vec3(0.0)
+                , geometry::up
+                , distance
+            ) };
+
+            distance = hit ? glm::min(distance, shadowMaxRadius) : shadowMaxRadius;
+
+            glm::vec3 const farPoint{ cameraPosition + direction * shadowMaxRadius };
+
+            pointSum += farPoint;
+            boundRadius = glm::max(boundRadius, glm::distance(cameraPosition, farPoint));
+            count += 1;
+        }
+
+        glm::vec3 average{ pointSum / float(count) };
+
+        return makeOrthographic(
+            aspectRatio
+            , forward
+            , average
+            , glm::min(boundRadius, shadowMaxRadius)
+        );
     }
 
     GPUTypes::Camera toDeviceEquivalentOrthographic(

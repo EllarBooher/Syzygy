@@ -50,7 +50,7 @@ private:
     void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
-    void recordDrawDebugLines(VkCommandBuffer cmd);
+    void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
 
     void cleanup();
 
@@ -182,8 +182,11 @@ private:
     // Scene
 
     float m_targetFPS{ 160.0 };
-    uint32_t m_cameraIndex{ 0 };
-    bool m_useOrthographicProjection{ 0 };
+    uint32_t m_cameraIndexMain{ 0 };
+    uint32_t m_cameraIndexShadowpass{ 0 };
+
+    bool m_useOrthographicProjection{ false };
+    bool m_useShadowpassPerspective{ false };
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
