@@ -84,10 +84,10 @@ private:
 
     void initDefaultMeshData();
     void initWorld();
-    void initShadowPass();
     void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
+    void initShadowpassPipeline();
     void initGenericComputePipelines();
 
     void initImgui();
@@ -135,9 +135,14 @@ private:
     struct ShadowPass
     {
         AllocatedImage depthImage{};
+        VkSampler depthSampler{};
         std::unique_ptr<OffscreenPassInstancedMeshGraphicsPipeline> pipeline{};
-        // float depthBias{ 1.25f };
-        // float depthBiasSlope{ 1.75f };
+        float depthBias{ 2.00f };
+        float depthBiasSlope{ -1.75f };
+
+        glm::vec3 forward{0.0, 1.0, 0.0};
+        glm::vec3 center{0.0, 0.0, 0.0};
+        glm::vec3 extent{42.0, 16.0, 100.0};
 
         void cleanup(VkDevice device, VmaAllocator allocator)
         {

@@ -86,6 +86,8 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd
         , bool reuseDepthAttachment
+        , float depthBias
+        , float depthBiasSlope
         , AllocatedImage const& depth
         , uint32_t cameraIndex
         , TStagedBuffer<GPUTypes::Camera> const& cameras
@@ -125,9 +127,10 @@ class InstancedMeshGraphicsPipeline
 {
 public:
     InstancedMeshGraphicsPipeline(
-        VkDevice device,
-        VkFormat colorAttachmentFormat,
-        VkFormat depthAttachmentFormat
+        VkDevice device
+        , VkFormat colorAttachmentFormat
+        , VkFormat depthAttachmentFormat
+        , VkDescriptorSetLayout drawTargetDescriptor
     );
 
     void recordDrawCommands(
@@ -135,7 +138,9 @@ public:
         , bool reuseDepthAttachment
         , AllocatedImage const& color
         , AllocatedImage const& depth
+        , VkDescriptorSet shadowMapSet
         , uint32_t cameraIndex
+        , uint32_t cameraIndexShadowPass
         , TStagedBuffer<GPUTypes::Camera> const& cameras
         , uint32_t atmosphereIndex
         , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
@@ -161,7 +166,8 @@ private:
         VkDeviceAddress cameraBufferAddress{};
 
         uint32_t cameraIndex{ 0 };
-        uint8_t padding0[12]{};
+        uint32_t shadowpassCameraIndex{ 0 };
+        uint8_t padding0[8]{};
     };
 
     struct FragmentPushConstant {

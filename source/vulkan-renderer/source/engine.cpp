@@ -137,10 +137,10 @@ void Engine::initVulkan()
 
     initDefaultMeshData();
     initWorld();
-    initShadowPass();
     initDebug();
     initBackgroundPipeline();
     initInstancedPipeline();
+    initShadowpassPipeline();
     initGenericComputePipelines();
 
     initImgui();
@@ -295,6 +295,40 @@ void Engine::initDrawTargets()
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
+
+    m_shadowPass.depthImage = vkutil::allocateImage(
+        m_allocator,
+        m_device,
+        m_drawImage.imageExtent,
+        VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        VK_IMAGE_USAGE_SAMPLED_BIT // read in main render pass
+        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+
+    // Assume filtering is supported
+    VkSamplerCreateInfo const shadowMapSampler{
+        .sType{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO },
+        .pNext{ nullptr },
+        .flags{ 0 },
+        .magFilter{ VK_FILTER_LINEAR },
+        .minFilter{ VK_FILTER_LINEAR },
+        .mipmapMode{ VK_SAMPLER_MIPMAP_MODE_LINEAR },
+        .addressModeU{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+        .addressModeV{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+        .addressModeW{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+        .mipLodBias{ 0.0f },
+        .anisotropyEnable{ VK_FALSE },
+        .maxAnisotropy{ 1.0f },
+        .compareEnable{ VK_FALSE },
+        .compareOp{ VK_COMPARE_OP_NEVER },
+        .minLod{ 0.0f },
+        .maxLod{ 1.0f },
+        .borderColor{ VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE },
+        .unnormalizedCoordinates{ VK_FALSE },
+    };
+
+    LogVkResult(vkCreateSampler(m_device, &shadowMapSampler, nullptr, &m_shadowPass.depthSampler), "Creating Shadow Pass Sampler");
 }
 
 void Engine::cleanupSwapchain()
@@ -311,6 +345,9 @@ void Engine::cleanupDrawTargets()
 {
     m_drawImage.cleanup(m_device, m_allocator);
     m_depthImage.cleanup(m_device, m_allocator);
+
+    // TODO: decouple shadow pass size from normal draw targets 
+    m_shadowPass.depthImage.cleanup(m_device, m_allocator);
 }
 
 void Engine::initCommands()
@@ -374,7 +411,8 @@ void Engine::initDescriptors()
     // Set up the image used by the compute shader.
 
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5f },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f }
     };
 
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
@@ -382,6 +420,7 @@ void Engine::initDescriptors()
     { // compute draw binding, see gradient.comp
         DescriptorLayoutBuilder builder{};
         builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
+        builder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 0);
         m_drawImageDescriptorLayout = builder.build(m_device, 0);
     }
 
@@ -395,6 +434,8 @@ void Engine::updateDescriptors()
         .imageView{ m_drawImage.imageView },
         .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
     };
+
+    // TODO: make a separate descriptor set so shadow map does not share with compute draw
 
     VkWriteDescriptorSet const drawImageWrite{
         .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
@@ -411,7 +452,33 @@ void Engine::updateDescriptors()
         .pTexelBufferView{ nullptr },
     };
 
-    vkUpdateDescriptorSets(m_device, 1, &drawImageWrite, 0, nullptr);
+    VkDescriptorImageInfo const shadowMapInfo{
+        .sampler{ m_shadowPass.depthSampler },
+        .imageView{ m_shadowPass.depthImage.imageView },
+        .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL },
+    };
+
+    VkWriteDescriptorSet const shadowMapWrite{
+        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
+        .pNext{ nullptr },
+
+        .dstSet{ m_drawImageDescriptors },
+        .dstBinding{ 1 },
+        .dstArrayElement{ 0 },
+        .descriptorCount{ 1 },
+        .descriptorType{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER },
+
+        .pImageInfo{ &shadowMapInfo },
+        .pBufferInfo{ nullptr },
+        .pTexelBufferView{ nullptr },
+    };
+
+    std::vector<VkWriteDescriptorSet> const writes{
+        drawImageWrite
+        , shadowMapWrite
+    };
+
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
 void Engine::initDefaultMeshData()
@@ -516,24 +583,6 @@ void Engine::initWorld()
     }
 }
 
-void Engine::initShadowPass()
-{
-    m_shadowPass.depthImage = vkutil::allocateImage(
-        m_allocator,
-        m_device,
-        m_drawImage.imageExtent,
-        VK_FORMAT_D32_SFLOAT,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        VK_IMAGE_USAGE_SAMPLED_BIT // read in main render pass
-        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-    );
-
-    m_shadowPass.pipeline = std::make_unique<OffscreenPassInstancedMeshGraphicsPipeline>(
-        m_device,
-        VK_FORMAT_D32_SFLOAT
-    );
-}
-
 void Engine::initDebug()
 {
     m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
@@ -562,9 +611,10 @@ void Engine::initDebug()
 void Engine::initInstancedPipeline()
 {
     m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
-        m_device,
-        m_drawImage.imageFormat,
-        m_depthImage.imageFormat
+        m_device
+        , m_drawImage.imageFormat
+        , m_depthImage.imageFormat
+        , m_drawImageDescriptorLayout
     );
 }
 
@@ -573,6 +623,14 @@ void Engine::initBackgroundPipeline()
     m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
         m_device,
         m_drawImageDescriptorLayout
+    );
+}
+
+void Engine::initShadowpassPipeline()
+{
+    m_shadowPass.pipeline = std::make_unique<OffscreenPassInstancedMeshGraphicsPipeline>(
+        m_device,
+        VK_FORMAT_D32_SFLOAT
     );
 }
 
@@ -1011,6 +1069,9 @@ void Engine::draw()
         {
             stagedAtmospheres[m_atmosphereIndex] = m_atmosphereParameters.toDeviceEquivalent();
         }
+
+        m_shadowPass.forward = -m_atmosphereParameters.directionToSun();
+
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
@@ -1047,16 +1108,19 @@ void Engine::draw()
 
         vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-        vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
         if (m_renderMeshInstances)
         {
             m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
             m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
 
+            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
             m_shadowPass.pipeline->recordDrawCommands(
                 cmd
                 , false
+                , m_shadowPass.depthBias
+                , m_shadowPass.depthBiasSlope
                 , m_shadowPass.depthImage
                 , m_cameraIndexShadowpass
                 , *m_camerasBuffer
@@ -1064,12 +1128,16 @@ void Engine::draw()
                 , *m_meshInstances.models
             );
 
+            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+
             m_instancePipeline->recordDrawCommands(
                 cmd
                 , false
                 , m_drawImage
                 , m_depthImage
+                , m_drawImageDescriptors
                     , cameraIndex
+                , m_cameraIndexShadowpass
                 , *m_camerasBuffer
                 , m_atmosphereIndex
                 , *m_atmospheresBuffer

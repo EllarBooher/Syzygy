@@ -120,16 +120,17 @@ struct CameraParameters {
     * Creates an orthographic camera that captures the provided sphere
     */
     static GPUTypes::Camera makeOrthographic(
-        float aspectRatio
-        , glm::vec3 forward
+        glm::vec3 forward
         , glm::vec3 center
-        , float radius
+        , glm::vec3 extent
     )
     {
+        extent = glm::abs(extent);
+
         forward = glm::normalize(forward);
         bool const cameraForwardIsUp{ glm::abs(glm::dot(forward, geometry::up)) > 0.99 };
         glm::mat4x4 const cameraView = glm::lookAtRH(
-            center + (- 1.0f * radius * forward)
+            center + (-1.0f * glm::length(extent) * forward)
             , center
             , cameraForwardIsUp ? -geometry::forward : geometry::up
         );
@@ -138,16 +139,14 @@ struct CameraParameters {
         glm::vec4 const centerViewSpace{ cameraView * glm::vec4(center,1.0) };
         // Radius is the same in view space
 
-        radius = glm::abs(radius);
-
         glm::mat4x4 const projection{ 
             glm::orthoLH_ZO(
-                centerViewSpace.x - radius * aspectRatio
-                , centerViewSpace.x + radius * aspectRatio
-                , centerViewSpace.y - radius
-                , centerViewSpace.y + radius
-                , centerViewSpace.z - radius
-                , centerViewSpace.z + radius
+                centerViewSpace.x - extent.x
+                , centerViewSpace.x + extent.x
+                , centerViewSpace.y - extent.y
+                , centerViewSpace.y + extent.y
+                , centerViewSpace.z - extent.z
+                , centerViewSpace.z + extent.z
             ) 
         };
         glm::vec3 const position{
@@ -225,10 +224,13 @@ struct CameraParameters {
         glm::vec3 average{ pointSum / float(count) };
 
         return makeOrthographic(
-            aspectRatio
-            , forward
+            forward
             , average
-            , glm::min(boundRadius, shadowMaxRadius)
+            , glm::vec3(
+                aspectRatio * glm::min(boundRadius, shadowMaxRadius)
+                , glm::min(boundRadius, shadowMaxRadius)
+                , glm::min(boundRadius, shadowMaxRadius)
+            )
         );
     }
 

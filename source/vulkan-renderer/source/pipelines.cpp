@@ -260,9 +260,10 @@ static std::optional<ShaderObjectReflected> loadShaderObject(
 }
 
 InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
-	VkDevice device,
-	VkFormat colorAttachmentFormat,
-	VkFormat depthAttachmentFormat
+	VkDevice device
+	, VkFormat colorAttachmentFormat
+	, VkFormat depthAttachmentFormat
+	, VkDescriptorSetLayout drawTargetDescriptor
 )
 {
 	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
@@ -313,8 +314,8 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 
 		.flags{ 0 },
 
-		.setLayoutCount{ 0 },
-		.pSetLayouts{ nullptr },
+		.setLayoutCount{ 1 },
+		.pSetLayouts{ &drawTargetDescriptor },
 
 		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
 		.pPushConstantRanges{ pushConstantRanges.data() },
@@ -348,7 +349,9 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 	, bool reuseDepthAttachment
 	, AllocatedImage const& color
 	, AllocatedImage const& depth
+	, VkDescriptorSet shadowMapSet
 	, uint32_t cameraIndex
+	, uint32_t cameraIndexShadowPass
 	, TStagedBuffer<GPUTypes::Camera> const& cameras
 	, uint32_t atmosphereIndex
 	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
@@ -411,6 +414,8 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipelineLayout, 0, 1, &shadowMapSet, 0, nullptr);
+
 	VkViewport const viewport{
 		.x{ 0 },
 		.y{ 0 },
@@ -444,6 +449,7 @@ void InstancedMeshGraphicsPipeline::recordDrawCommands(
 			.modelInverseTransposeBufferAddress{ modelInverseTransposes.deviceAddress() },
 			.cameraBufferAddress{ cameras.deviceAddress() },
 			.cameraIndex{ cameraIndex },
+			.shadowpassCameraIndex{ cameraIndexShadowPass },
 		};
 		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
 			VK_SHADER_STAGE_VERTEX_BIT,
@@ -934,6 +940,8 @@ OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPi
 	pipelineBuilder.pushShader(vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
 	// NO fragment shader
 
+	pipelineBuilder.pushDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
+
 	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
 	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
@@ -953,6 +961,8 @@ OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPi
 void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, bool reuseDepthAttachment
+	, float depthBias
+	, float depthBiasSlope
 	, AllocatedImage const& depth
 	, uint32_t cameraIndex
 	, TStagedBuffer<GPUTypes::Camera> const& cameras
@@ -1019,6 +1029,8 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 	};
 
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
 
 	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
 
