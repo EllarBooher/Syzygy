@@ -1051,8 +1051,8 @@ void Engine::draw()
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = { 
                 m_useOrthographicProjection
-            ? m_cameraParameters.toDeviceEquivalentOrthographic(getAspectRatio(), 5.0)
-            : m_cameraParameters.toDeviceEquivalent(getAspectRatio()) 
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(m_drawImage.aspectRatio(), 5.0)
+            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio()) 
         };
 
         if (m_shadowPass.parameters.useSunlight)
@@ -1062,7 +1062,7 @@ void Engine::draw()
 
         cameras[m_cameraIndexShadowpass] = {
             m_cameraParameters.makeShadowpassCamera(
-                getAspectRatio()
+                m_shadowPass.depthImage.aspectRatio()
                 , m_shadowPass.parameters.directionalLightForward
                 , m_shadowPass.parameters.sceneCenter
                 , m_shadowPass.parameters.sceneExtent

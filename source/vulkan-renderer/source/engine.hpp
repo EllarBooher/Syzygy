@@ -124,12 +124,6 @@ private:
 
     /** This image is used as the render target, then copied onto the swapchain. */
     AllocatedImage m_drawImage{};
-    float getAspectRatio() const {
-        auto const width{ static_cast<float>(m_drawImage.imageExtent.width) };
-        auto const height{ static_cast<float>(m_drawImage.imageExtent.height) };
-
-        return width / height;
-    }
 
     AllocatedImage m_depthImage{};
 

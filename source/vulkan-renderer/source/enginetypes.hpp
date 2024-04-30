@@ -34,6 +34,15 @@ struct AllocatedImage {
         vkDestroyImageView(device, imageView, nullptr);
         vmaDestroyImage(allocator, image, allocation);
     }
+
+    // The value will be 0.0/inf/NaN for an image without valid bounds.
+    double aspectRatio() const
+    {
+        auto const width{ static_cast<float>(imageExtent.width) };
+        auto const height{ static_cast<float>(imageExtent.height) };
+
+        return width / height;
+    }
 };
 
 struct Vertex {
