@@ -11,6 +11,7 @@ add_library(vulkan-renderer STATIC
 	"source/buffers.cpp"
 	"source/ui/engineui.cpp"
 	"source/ui/pipelineui.cpp"
+	"source/geometryhelpers.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 

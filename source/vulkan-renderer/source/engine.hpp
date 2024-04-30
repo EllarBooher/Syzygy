@@ -141,8 +141,8 @@ private:
         float depthBiasSlope{ -1.75f };
 
         glm::vec3 forward{0.0, 1.0, 0.0};
-        glm::vec3 center{0.0, 0.0, 0.0};
-        glm::vec3 extent{42.0, 16.0, 100.0};
+        glm::vec3 center{0.0, -4.0, 0.0};
+        glm::vec3 extent{45.0, 4.0, 45.0};
 
         void cleanup(VkDevice device, VmaAllocator allocator)
         {

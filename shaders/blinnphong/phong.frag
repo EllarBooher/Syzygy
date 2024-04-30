@@ -31,40 +31,20 @@ layout (push_constant) uniform PushConstant
 	float shininess;
 } pushConstant;
 
+// Shadow mapping methodology adapted from 
+// https://github.com/SaschaWillems/Vulkan/blob/master/shaders/glsl/shadowmapping/scene.frag
+
 float sampleShadowMap(vec4 shadowCoord)
 {
-	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) 
+	if ( shadowCoord.z > 0.0 && shadowCoord.z < 1.0 ) 
 	{
 		float dist = texture( shadowMap, shadowCoord.st ).r;
-		if ( shadowCoord.w > 0.0 && dist > (shadowCoord.z + 0.005) ) 
+		if ( shadowCoord.w > 0.0 && dist - 0.001 > shadowCoord.z ) 
 		{
 			return 0.0;
 		}
 	}
 	return 1.0;
-}
-
-float filterShadowmap(vec4 shadowCoord)
-{
-	ivec2 texDim = textureSize(shadowMap, 0);
-	float scale = 1.5;
-	float dx = scale * 1.0 / float(texDim.x);
-	float dy = scale * 1.0 / float(texDim.y);
-
-	float shadowFactor = 0.0;
-	int count = 0;
-	int range = 1;
-	
-	for (int x = -range; x <= range; x++)
-	{
-		for (int y = -range; y <= range; y++)
-		{
-			shadowFactor += sampleShadowMap(shadowCoord + vec4(dx*x, dy*y, 0.0, 0.0));
-			count++;
-		}
-	
-	}
-	return shadowFactor / count;
 }
 
 void main()
@@ -103,8 +83,7 @@ void main()
 	const vec3 diffuseContribution = lambertian * pushConstant.diffuseColor.rgb * inColor * atmosphere.sunlightColor;
 	const vec3 specularContribution = specular * pushConstant.specularColor.rgb * atmosphere.sunlightColor;
 
-	const vec4 shadowCoord = vec4(shadowCoord.xyz / shadowCoord.w, shadowCoord.w);
-	const float attenuationShadow = filterShadowmap(shadowCoord / shadowCoord.w);
+	const float attenuationShadow = sampleShadowMap(shadowCoord);
 
 	outFragColor = vec4(
 		ambientContribution 

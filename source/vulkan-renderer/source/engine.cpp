@@ -42,7 +42,7 @@
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
 CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
-    .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
+    .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
     .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
     .fov{ 70.0f },
     .near{ 0.1f },
@@ -50,7 +50,7 @@ CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
 };
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
-    .sunEulerAngles{ glm::vec3(0.0, 0.0, 0.0) },
+    .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
 
     .earthRadiusMeters{ 6378000 },
     .atmosphereRadiusMeters{ 6420000 },
@@ -517,7 +517,7 @@ void Engine::initWorld()
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
             {
                 m_meshInstances.originals.push_back(
-                    glm::translate(glm::vec3(x, 0, z))
+                    glm::translate(glm::vec3(x, -4.0, z))
                     * glm::toMat4(randomQuat())
                     * glm::scale(glm::vec3(0.2f))
                 );
@@ -958,6 +958,15 @@ void Engine::mainLoop()
             {
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
                 ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
+                {
+                    ImGui::DragFloat("DepthBias", &m_shadowPass.depthBias);
+                    ImGui::DragFloat("DepthBiasSlope", &m_shadowPass.depthBiasSlope);
+                    ImGui::BeginDisabled();
+                    ImGui::DragFloat3("Forward", reinterpret_cast<float*>(&m_shadowPass.forward));
+                    ImGui::EndDisabled();
+                    ImGui::DragFloat3("Center", reinterpret_cast<float*>(&m_shadowPass.center));
+                    ImGui::DragFloat3("Extent", reinterpret_cast<float*>(&m_shadowPass.extent));
+                }
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
@@ -1048,10 +1057,11 @@ void Engine::draw()
         };
         cameras[m_cameraIndexShadowpass] = {
             m_cameraParameters.makeShadowpassCamera(
-                        getAspectRatio()
+                getAspectRatio()
                 , -m_atmosphereParameters.directionToSun()
-                , 20.0f
-                    )
+                , m_shadowPass.center
+                , m_shadowPass.extent
+            )
             };
 
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
