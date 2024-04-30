@@ -5,19 +5,24 @@
 struct ShadowPass
 {
     AllocatedImage depthImage{};
-    VkSampler depthSampler{};
+    VkSampler depthSampler{ VK_NULL_HANDLE };
     std::unique_ptr<OffscreenPassInstancedMeshGraphicsPipeline> pipeline{};
-    float depthBias{ 2.00f };
-    float depthBiasSlope{ -1.75f };
 
-    glm::vec3 forward{ 0.0, 1.0, 0.0 };
-    glm::vec3 center{ 0.0, -4.0, 0.0 };
-    glm::vec3 extent{ 45.0, 4.0, 45.0 };
+    VkDescriptorSetLayout shadowMapDescriptorLayout{ VK_NULL_HANDLE };
+    VkDescriptorSet shadowMapDescriptors{ VK_NULL_HANDLE };
 
+    ShadowPassParameters parameters;
+   
     void cleanup(VkDevice device, VmaAllocator allocator)
     {
         depthImage.cleanup(device, allocator);
+
+        vkDestroySampler(device, depthSampler, nullptr);
+
         pipeline->cleanup(device);
+
+        vkDestroyDescriptorSetLayout(device, shadowMapDescriptorLayout, nullptr);
+
         pipeline.reset();
         depthImage = {};
     }
