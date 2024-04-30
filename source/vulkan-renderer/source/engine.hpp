@@ -81,6 +81,8 @@ private:
     void initSyncStructures();
     void initDescriptors();
 
+    static ShadowPass initShadowpass(VkDevice, DescriptorAllocator&, VmaAllocator);
+
     void updateDescriptors();
 
     void initDefaultMeshData();
@@ -88,7 +90,7 @@ private:
     void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
-    void initShadowpassPipeline();
+
     void initGenericComputePipelines();
 
     void initImgui();
@@ -122,12 +124,14 @@ private:
 
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    /** This image is used as the render target, then copied onto the swapchain. */
+    // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};
 
+    // Depth image used for graphics passes
     AllocatedImage m_depthImage{};
 
     ShadowPass m_shadowPass{};
+    ShadowPassParameters m_shadowPassParameters{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }

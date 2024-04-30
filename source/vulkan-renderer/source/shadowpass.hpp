@@ -1,6 +1,8 @@
 #pragma once
 
 #include "enginetypes.hpp"
+#include "descriptors.hpp"
+#include "pipelines.hpp"
 
 struct ShadowPass
 {
@@ -10,8 +12,6 @@ struct ShadowPass
 
     VkDescriptorSetLayout shadowMapDescriptorLayout{ VK_NULL_HANDLE };
     VkDescriptorSet shadowMapDescriptors{ VK_NULL_HANDLE };
-
-    ShadowPassParameters parameters;
    
     void cleanup(VkDevice device, VmaAllocator allocator)
     {
@@ -26,4 +26,11 @@ struct ShadowPass
         pipeline.reset();
         depthImage = {};
     }
+
+    static ShadowPass create(
+        VkDevice device
+        , DescriptorAllocator& descriptorAllocator
+        , VmaAllocator allocator
+        , uint32_t shadowMapSize
+    );
 };

@@ -133,6 +133,8 @@ void Engine::initVulkan()
     initSyncStructures();
     initDescriptors();
 
+    m_shadowPass = std::move(initShadowpass(m_device, m_globalDescriptorAllocator, m_allocator));
+
     updateDescriptors();
 
     initDefaultMeshData();
@@ -140,7 +142,6 @@ void Engine::initVulkan()
     initDebug();
     initBackgroundPipeline();
     initInstancedPipeline();
-    initShadowpassPipeline();
     initGenericComputePipelines();
 
     initImgui();
@@ -295,40 +296,6 @@ void Engine::initDrawTargets()
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
-
-    m_shadowPass.depthImage = vkutil::allocateImage(
-        m_allocator,
-        m_device,
-        m_drawImage.imageExtent,
-        VK_FORMAT_D32_SFLOAT,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        VK_IMAGE_USAGE_SAMPLED_BIT // read in main render pass
-        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-    );
-
-    // Assume filtering is supported
-    VkSamplerCreateInfo const shadowMapSampler{
-        .sType{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO },
-        .pNext{ nullptr },
-        .flags{ 0 },
-        .magFilter{ VK_FILTER_LINEAR },
-        .minFilter{ VK_FILTER_LINEAR },
-        .mipmapMode{ VK_SAMPLER_MIPMAP_MODE_LINEAR },
-        .addressModeU{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-        .addressModeV{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-        .addressModeW{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-        .mipLodBias{ 0.0f },
-        .anisotropyEnable{ VK_FALSE },
-        .maxAnisotropy{ 1.0f },
-        .compareEnable{ VK_FALSE },
-        .compareOp{ VK_COMPARE_OP_NEVER },
-        .minLod{ 0.0f },
-        .maxLod{ 1.0f },
-        .borderColor{ VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE },
-        .unnormalizedCoordinates{ VK_FALSE },
-    };
-
-    LogVkResult(vkCreateSampler(m_device, &shadowMapSampler, nullptr, &m_shadowPass.depthSampler), "Creating Shadow Pass Sampler");
 }
 
 void Engine::cleanupSwapchain()
@@ -345,9 +312,6 @@ void Engine::cleanupDrawTargets()
 {
     m_drawImage.cleanup(m_device, m_allocator);
     m_depthImage.cleanup(m_device, m_allocator);
-
-    // TODO: decouple shadow pass size from normal draw targets 
-    m_shadowPass.depthImage.cleanup(m_device, m_allocator);
 }
 
 void Engine::initCommands()
@@ -422,14 +386,23 @@ void Engine::initDescriptors()
 
         m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
     }
+}
 
-    { // Set up shadow map descriptor
-        m_shadowPass.shadowMapDescriptorLayout = DescriptorLayoutBuilder{}
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 0)
-            .build(m_device, 0);
+ShadowPass Engine::initShadowpass(
+    VkDevice device
+    , DescriptorAllocator& descriptorAllocator
+    , VmaAllocator allocator
+)
+{
+    // TODO: Query the max image size for the shadow map
+    uint32_t constexpr shadowMapSize{ 16384 };
 
-        m_shadowPass.shadowMapDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_shadowPass.shadowMapDescriptorLayout);
-    }
+    return ShadowPass::create(
+        device,
+        descriptorAllocator,
+        allocator,
+        shadowMapSize
+    );
 }
 
 void Engine::updateDescriptors()
@@ -455,30 +428,8 @@ void Engine::updateDescriptors()
         .pTexelBufferView{ nullptr },
     };
 
-    VkDescriptorImageInfo const shadowMapInfo{
-        .sampler{ m_shadowPass.depthSampler },
-        .imageView{ m_shadowPass.depthImage.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL },
-    };
-
-    VkWriteDescriptorSet const shadowMapWrite{
-        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-        .pNext{ nullptr },
-
-        .dstSet{ m_shadowPass.shadowMapDescriptors },
-        .dstBinding{ 0 },
-        .dstArrayElement{ 0 },
-        .descriptorCount{ 1 },
-        .descriptorType{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER },
-
-        .pImageInfo{ &shadowMapInfo },
-        .pBufferInfo{ nullptr },
-        .pTexelBufferView{ nullptr },
-    };
-
     std::vector<VkWriteDescriptorSet> const writes{
         drawImageWrite
-        , shadowMapWrite
     };
 
     vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -626,14 +577,6 @@ void Engine::initBackgroundPipeline()
     m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
         m_device,
         m_drawImageDescriptorLayout
-    );
-}
-
-void Engine::initShadowpassPipeline()
-{
-    m_shadowPass.pipeline = std::make_unique<OffscreenPassInstancedMeshGraphicsPipeline>(
-        m_device,
-        VK_FORMAT_D32_SFLOAT
     );
 }
 
@@ -963,7 +906,7 @@ void Engine::mainLoop()
                 ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
                 ImGui::Separator();
                 ImGui::Indent(10.0f);
-                imguiStructureControls(m_shadowPass.parameters);
+                imguiStructureControls(m_shadowPassParameters);
                 ImGui::Unindent(10.0f);
                 ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
@@ -1055,17 +998,17 @@ void Engine::draw()
             : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio()) 
         };
 
-        if (m_shadowPass.parameters.useSunlight)
+        if (m_shadowPassParameters.useSunlight)
         {
-            m_shadowPass.parameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
+            m_shadowPassParameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
         }
 
         cameras[m_cameraIndexShadowpass] = {
             m_cameraParameters.makeShadowpassCamera(
                 m_shadowPass.depthImage.aspectRatio()
-                , m_shadowPass.parameters.directionalLightForward
-                , m_shadowPass.parameters.sceneCenter
-                , m_shadowPass.parameters.sceneExtent
+                , m_shadowPassParameters.directionalLightForward
+                , m_shadowPassParameters.sceneCenter
+                , m_shadowPassParameters.sceneExtent
             )
         };
 
@@ -1132,8 +1075,8 @@ void Engine::draw()
             m_shadowPass.pipeline->recordDrawCommands(
                 cmd
                 , false
-                , m_shadowPass.parameters.depthBias
-                , m_shadowPass.parameters.depthBiasSlope
+                , m_shadowPassParameters.depthBias
+                , m_shadowPassParameters.depthBiasSlope
                 , m_shadowPass.depthImage
                 , m_cameraIndexShadowpass
                 , *m_camerasBuffer

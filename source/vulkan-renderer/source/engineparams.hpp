@@ -161,8 +161,6 @@ struct CameraParameters {
             viewMin = glm::min(projected, viewMin);
         }
 
-        viewMin -= glm::vec3(1.0);
-        viewMax += glm::vec3(1.0);
         glm::mat4x4 const projection{
             geometry::projectionOrthoVk(viewMin, viewMax)
         };
@@ -253,5 +251,5 @@ struct ShadowPassParameters
     bool useSunlight{ true };
     glm::vec3 directionalLightForward{ 0.0, 1.0, 0.0 };
     glm::vec3 sceneCenter{ 0.0, -4.0, 0.0 };
-    glm::vec3 sceneExtent{ 45.0, 4.0, 45.0 };
+    glm::vec3 sceneExtent{ 40.5, 1.5, 40.5 };
 };
