@@ -39,7 +39,7 @@ float sampleShadowMap(vec4 shadowCoord)
 	if ( shadowCoord.z > 0.0 && shadowCoord.z < 1.0 ) 
 	{
 		float dist = texture( shadowMap, shadowCoord.st ).r;
-		if ( shadowCoord.w > 0.0 && dist - 0.001 > shadowCoord.z ) 
+		if ( shadowCoord.w > 0.0 && dist > shadowCoord.z ) 
 		{
 			return 0.0;
 		}

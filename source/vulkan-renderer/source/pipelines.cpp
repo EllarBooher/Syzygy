@@ -157,6 +157,11 @@ void PipelineBuilder::setDepthFormat(VkFormat format)
 	m_depthAttachmentFormat = format;
 }
 
+void PipelineBuilder::enableDepthBias()
+{
+	m_rasterizer.depthBiasEnable = VK_TRUE;
+}
+
 void PipelineBuilder::disableDepthTest()
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
@@ -941,6 +946,7 @@ OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPi
 	// NO fragment shader
 
 	pipelineBuilder.pushDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
+	pipelineBuilder.enableDepthBias();
 
 	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
@@ -1005,6 +1011,7 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
 
 	VkViewport const viewport{
 		.x{ 0 },
@@ -1030,7 +1037,6 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
 
 	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
 
