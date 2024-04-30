@@ -131,7 +131,7 @@ public:
         VkDevice device
         , VkFormat colorAttachmentFormat
         , VkFormat depthAttachmentFormat
-        , VkDescriptorSetLayout drawTargetDescriptor
+        , VkDescriptorSetLayout shadowMapDescriptorLayout
     );
 
     void recordDrawCommands(

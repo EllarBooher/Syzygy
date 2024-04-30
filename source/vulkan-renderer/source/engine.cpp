@@ -408,8 +408,6 @@ void Engine::initSyncStructures()
 
 void Engine::initDescriptors()
 {
-    // Set up the image used by the compute shader.
-
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5f },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f }
@@ -417,14 +415,21 @@ void Engine::initDescriptors()
 
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
-    { // compute draw binding, see gradient.comp
-        DescriptorLayoutBuilder builder{};
-        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
-        builder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 0);
-        m_drawImageDescriptorLayout = builder.build(m_device, 0);
+    { // Set up the image used by compute shaders.
+        m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
+            .build(m_device, 0);
+
+        m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
     }
 
-    m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+    { // Set up shadow map descriptor
+        m_shadowPass.shadowMapDescriptorLayout = DescriptorLayoutBuilder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 0)
+            .build(m_device, 0);
+
+        m_shadowPass.shadowMapDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_shadowPass.shadowMapDescriptorLayout);
+    }
 }
 
 void Engine::updateDescriptors()
@@ -434,8 +439,6 @@ void Engine::updateDescriptors()
         .imageView{ m_drawImage.imageView },
         .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
     };
-
-    // TODO: make a separate descriptor set so shadow map does not share with compute draw
 
     VkWriteDescriptorSet const drawImageWrite{
         .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
@@ -462,8 +465,8 @@ void Engine::updateDescriptors()
         .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
         .pNext{ nullptr },
 
-        .dstSet{ m_drawImageDescriptors },
-        .dstBinding{ 1 },
+        .dstSet{ m_shadowPass.shadowMapDescriptors },
+        .dstBinding{ 0 },
         .dstArrayElement{ 0 },
         .descriptorCount{ 1 },
         .descriptorType{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER },
@@ -614,7 +617,7 @@ void Engine::initInstancedPipeline()
         m_device
         , m_drawImage.imageFormat
         , m_depthImage.imageFormat
-        , m_drawImageDescriptorLayout
+        , m_shadowPass.shadowMapDescriptorLayout
     );
 }
 
@@ -1145,8 +1148,8 @@ void Engine::draw()
                 , false
                 , m_drawImage
                 , m_depthImage
-                , m_drawImageDescriptors
-                    , cameraIndex
+                , m_shadowPass.shadowMapDescriptors
+                , cameraIndex
                 , m_cameraIndexShadowpass
                 , *m_camerasBuffer
                 , m_atmosphereIndex
@@ -1331,7 +1334,6 @@ void Engine::cleanup()
     m_meshInstances.models.reset();
     m_meshInstances.modelInverseTransposes.reset();
 
-    m_shadowPass.cleanup(m_device, m_allocator);
 
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
@@ -1340,6 +1342,9 @@ void Engine::cleanup()
     m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
+
+    m_shadowPass.cleanup(m_device, m_allocator);
+
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
 
     for (FrameData const& frameData : m_frames)

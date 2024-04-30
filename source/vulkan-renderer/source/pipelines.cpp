@@ -268,7 +268,7 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	VkDevice device
 	, VkFormat colorAttachmentFormat
 	, VkFormat depthAttachmentFormat
-	, VkDescriptorSetLayout drawTargetDescriptor
+	, VkDescriptorSetLayout shadowMapDescriptorLayout
 )
 {
 	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
@@ -320,7 +320,7 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 		.flags{ 0 },
 
 		.setLayoutCount{ 1 },
-		.pSetLayouts{ &drawTargetDescriptor },
+		.pSetLayouts{ &shadowMapDescriptorLayout },
 
 		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
 		.pPushConstantRanges{ pushConstantRanges.data() },
