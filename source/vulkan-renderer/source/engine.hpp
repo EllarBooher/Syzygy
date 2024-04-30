@@ -7,6 +7,7 @@
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "engineparams.hpp"
+#include "shadowpass.hpp"
 #include "debuglines.hpp"
 
 struct GLFWwindow;
@@ -135,14 +136,10 @@ private:
     struct ShadowPass
     {
         AllocatedImage depthImage{};
-        VkSampler depthSampler{};
+        VkSampler depthSampler{ VK_NULL_HANDLE };
         std::unique_ptr<OffscreenPassInstancedMeshGraphicsPipeline> pipeline{};
-        float depthBias{ 2.00f };
-        float depthBiasSlope{ -1.75f };
 
-        glm::vec3 forward{0.0, 1.0, 0.0};
-        glm::vec3 center{0.0, -4.0, 0.0};
-        glm::vec3 extent{45.0, 4.0, 45.0};
+        ShadowPassParameters parameters;
 
         void cleanup(VkDevice device, VmaAllocator allocator)
         {
@@ -152,6 +149,7 @@ private:
             depthImage = {};
         }
     };
+
     ShadowPass m_shadowPass{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};

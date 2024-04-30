@@ -244,3 +244,14 @@ struct CameraParameters {
         return projection(aspectRatio) * view();
     }
 };
+
+struct ShadowPassParameters
+{
+    float depthBias{ 2.00f };
+    float depthBiasSlope{ -1.75f };
+
+    bool useSunlight{ true };
+    glm::vec3 directionalLightForward{ 0.0, 1.0, 0.0 };
+    glm::vec3 sceneCenter{ 0.0, -4.0, 0.0 };
+    glm::vec3 sceneExtent{ 45.0, 4.0, 45.0 };
+};

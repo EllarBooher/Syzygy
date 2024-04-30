@@ -958,15 +958,11 @@ void Engine::mainLoop()
             {
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
                 ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
-                {
-                    ImGui::DragFloat("DepthBias", &m_shadowPass.depthBias);
-                    ImGui::DragFloat("DepthBiasSlope", &m_shadowPass.depthBiasSlope);
-                    ImGui::BeginDisabled();
-                    ImGui::DragFloat3("Forward", reinterpret_cast<float*>(&m_shadowPass.forward));
-                    ImGui::EndDisabled();
-                    ImGui::DragFloat3("Center", reinterpret_cast<float*>(&m_shadowPass.center));
-                    ImGui::DragFloat3("Extent", reinterpret_cast<float*>(&m_shadowPass.extent));
-                }
+                ImGui::Separator();
+                ImGui::Indent(10.0f);
+                imguiStructureControls(m_shadowPass.parameters);
+                ImGui::Unindent(10.0f);
+                ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
@@ -1055,14 +1051,20 @@ void Engine::draw()
             ? m_cameraParameters.toDeviceEquivalentOrthographic(getAspectRatio(), 5.0)
             : m_cameraParameters.toDeviceEquivalent(getAspectRatio()) 
         };
+
+        if (m_shadowPass.parameters.useSunlight)
+        {
+            m_shadowPass.parameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
+        }
+
         cameras[m_cameraIndexShadowpass] = {
             m_cameraParameters.makeShadowpassCamera(
                 getAspectRatio()
-                , -m_atmosphereParameters.directionToSun()
-                , m_shadowPass.center
-                , m_shadowPass.extent
+                , m_shadowPass.parameters.directionalLightForward
+                , m_shadowPass.parameters.sceneCenter
+                , m_shadowPass.parameters.sceneExtent
             )
-            };
+        };
 
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
 
@@ -1079,8 +1081,6 @@ void Engine::draw()
         {
             stagedAtmospheres[m_atmosphereIndex] = m_atmosphereParameters.toDeviceEquivalent();
         }
-
-        m_shadowPass.forward = -m_atmosphereParameters.directionToSun();
 
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
@@ -1129,8 +1129,8 @@ void Engine::draw()
             m_shadowPass.pipeline->recordDrawCommands(
                 cmd
                 , false
-                , m_shadowPass.depthBias
-                , m_shadowPass.depthBiasSlope
+                , m_shadowPass.parameters.depthBias
+                , m_shadowPass.parameters.depthBiasSlope
                 , m_shadowPass.depthImage
                 , m_cameraIndexShadowpass
                 , *m_camerasBuffer
