@@ -3,9 +3,11 @@
 #include "gputypes.hpp"
 
 #include <glm/gtx/transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/intersect.hpp>
+
+#include "geometrystatics.hpp"
+#include "geometryhelpers.hpp"
 
 struct AtmosphereParameters {
     struct AnimationParameters
@@ -109,8 +111,84 @@ struct CameraParameters {
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition },
-            .padding0{}
+            .position{ cameraPosition }
+        };
+    }
+
+    // Make a projection camera that tightly contains 
+    GPUTypes::Camera makeShadowpassCamera(
+        float const aspectRatio
+        , glm::vec3 forward
+        , glm::vec3 const geometryCenter
+        , glm::vec3 geometryExtent
+    )
+    {
+        forward = glm::normalize(forward);
+        geometryExtent = glm::abs(geometryExtent);
+
+        bool const cameraForwardIsUp{ glm::abs(glm::dot(forward, geometry::up)) > 0.99 };
+        glm::vec3 const cameraPosition{ geometryCenter + (-1.0f * glm::length(geometryExtent) * forward) };
+
+        glm::mat4x4 const cameraView{
+            geometry::lookAtVk(
+                geometryCenter - glm::length(geometryExtent) * forward
+                , geometryCenter
+                , cameraForwardIsUp ? -geometry::forward : geometry::up
+            )
+        };
+
+        glm::mat4x4 const cameraViewInverse{ glm::inverse(cameraView) };
+
+        // Project every vertex of the AABB supplied, to determine how large the projection matrix needs to be
+
+        std::array<glm::vec3, 8> const aabbVertices{ geometry::collectAABBVertices(geometryCenter, geometryExtent) };
+
+        glm::vec3 const centerViewSpace{ cameraView * glm::vec4(geometryCenter,1.0) };
+        glm::vec3 const forwardViewSpace{ cameraView * glm::vec4(forward, 0.0) };
+
+        glm::vec3 viewMax{ std::numeric_limits<float>::lowest() };
+        glm::vec3 viewMin{ std::numeric_limits<float>::max() };
+        for (glm::vec3 const vertex : aabbVertices)
+        {
+            glm::vec3 const vertexViewSpace{ cameraView * glm::vec4(vertex,1.0) };
+            glm::vec3 const projected{ geometry::projectPointOnPlane(
+                centerViewSpace
+                , forwardViewSpace
+                , vertexViewSpace) 
+            };
+
+            viewMax = glm::max(projected, viewMax);
+            viewMin = glm::min(projected, viewMin);
+        }
+
+        glm::mat4x4 const projection{
+            geometry::projectionOrthoVk(viewMin, viewMax)
+        };
+
+        return GPUTypes::Camera{
+            .projection{ projection },
+            .inverseProjection{ glm::inverse(projection) },
+            .view{ cameraView },
+            .viewInverseTranspose{ glm::inverseTranspose(cameraView) },
+            .rotation{ glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))) },
+            .position{ cameraPosition }
+        };
+    }
+
+    GPUTypes::Camera toDeviceEquivalentOrthographic(
+        float aspectRatio
+        , float planeDistance
+    ) const
+    {
+        glm::mat4x4 const projection{ projectionOrthographic(aspectRatio, planeDistance) };
+
+        return GPUTypes::Camera{
+            .projection{ projection },
+            .inverseProjection{ glm::inverse(projection) },
+            .view{ view() },
+            .viewInverseTranspose{ glm::inverseTranspose(view()) },
+            .rotation{ rotation() },
+            .position{ cameraPosition }
         };
     }
 
@@ -142,6 +220,18 @@ struct CameraParameters {
         );
     }
 
+    glm::mat4 projectionOrthographic(float aspectRatio, float distance) const
+    {
+        // An orthographic projection has one view plane, so we compute it from the fov and distance.
+
+        float const height = glm::tan(fov / 2.0) * distance;
+        
+        glm::vec3 const min{ -aspectRatio * height, -height, near };
+        glm::vec3 const max{ aspectRatio * height, height, far };
+
+        return geometry::projectionOrthoVk(min, max);
+    }
+
     /**
         Generates the projection * view matrix that transforms from world to clip space.
         Aspect ratio is a function of the drawn surface, so it is passed in at generation time.
@@ -151,14 +241,15 @@ struct CameraParameters {
     {
         return projection(aspectRatio) * view();
     }
+};
 
-    /**
-        Returns a vector that represents the position of the (+,+) corner of the near plane in local space.
-    */
-    glm::vec3 nearPlaneExtent(float aspectRatio) const
-    {
-        float const tanHalfFOV{ glm::tan(glm::radians(fov)) };
+struct ShadowPassParameters
+{
+    float depthBias{ 2.00f };
+    float depthBiasSlope{ -1.75f };
 
-        return near * glm::vec3{ aspectRatio * tanHalfFOV, tanHalfFOV, 1.0 };
-    }
+    bool useSunlight{ true };
+    glm::vec3 directionalLightForward{ 0.0, 1.0, 0.0 };
+    glm::vec3 sceneCenter{ 0.0, -4.0, 0.0 };
+    glm::vec3 sceneExtent{ 40.5, 1.5, 40.5 };
 };

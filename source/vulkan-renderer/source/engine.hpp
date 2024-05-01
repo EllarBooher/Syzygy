@@ -7,6 +7,7 @@
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "engineparams.hpp"
+#include "shadowpass.hpp"
 #include "debuglines.hpp"
 
 struct GLFWwindow;
@@ -50,7 +51,7 @@ private:
     void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
-    void recordDrawDebugLines(VkCommandBuffer cmd);
+    void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
 
     void cleanup();
 
@@ -80,6 +81,8 @@ private:
     void initSyncStructures();
     void initDescriptors();
 
+    static ShadowPass initShadowpass(VkDevice, DescriptorAllocator&, VmaAllocator);
+
     void updateDescriptors();
 
     void initDefaultMeshData();
@@ -87,6 +90,7 @@ private:
     void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
+
     void initGenericComputePipelines();
 
     void initImgui();
@@ -120,16 +124,14 @@ private:
 
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    /** This image is used as the render target, then copied onto the swapchain. */
+    // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};
-    float getAspectRatio() const {
-        auto const width{ static_cast<float>(m_drawImage.imageExtent.width) };
-        auto const height{ static_cast<float>(m_drawImage.imageExtent.height) };
 
-        return width / height;
-    }
-
+    // Depth image used for graphics passes
     AllocatedImage m_depthImage{};
+
+    ShadowPass m_shadowPass{};
+    ShadowPassParameters m_shadowPassParameters{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
@@ -182,7 +184,11 @@ private:
     // Scene
 
     float m_targetFPS{ 160.0 };
-    uint32_t m_cameraIndex{ 0 };
+    uint32_t m_cameraIndexMain{ 0 };
+    uint32_t m_cameraIndexShadowpass{ 0 };
+
+    bool m_useOrthographicProjection{ false };
+    bool m_useShadowpassPerspective{ false };
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
@@ -191,6 +197,7 @@ private:
     AtmosphereParameters m_atmosphereParameters{ m_defaultAtmosphereParameters };
 
     std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
+
     std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
 
     // End Vulkan

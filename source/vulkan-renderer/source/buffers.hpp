@@ -143,6 +143,14 @@ struct TStagedBuffer : public StagedBuffer
         );
         StagedBuffer::push(bytes);
     }
+    void push(T const& data)
+    {
+        std::span<uint8_t const> const bytes(
+            reinterpret_cast<uint8_t const*>(&data),
+            sizeof(T)
+        );
+        StagedBuffer::push(bytes);
+    }
 
     std::span<T> mapValidStaged()
     {

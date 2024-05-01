@@ -8,6 +8,7 @@
 //size of a workgroup for compute
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+layout(set = 1, binding = 0) uniform sampler2D shadowMap;
 
 layout(buffer_reference, std430) readonly buffer CameraBuffer{
 	Camera cameras[];
@@ -25,7 +26,33 @@ layout( push_constant ) uniform PushConstant
 
 	CameraBuffer cameraBuffer;
 	AtmosphereBuffer atmosphereBuffer;
+
+	uint shadowPassCameraIndex;
 } pushConstant;
+
+float sampleShadowMap(vec4 shadowCoord)
+{
+	// We do not check bounds on the depth value, since we know we are casting shadows only on the ground.
+
+	float dist = texture( shadowMap, shadowCoord.st ).r;
+	if ( shadowCoord.w > 0.0 && dist > shadowCoord.z && dist > 0.0) 
+	{
+		return 0.0;
+	}
+	return 1.0;
+}
+
+vec4 getShadowmapCoord(vec3 worldPosition)
+{
+	const mat4 toTexCoordMat = mat4(
+		0.5, 0.0, 0.0, 0.0,
+		0.0, 0.5, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.5, 0.5, 0.0, 1.0
+	);
+	Camera shadowPassCamera = pushConstant.cameraBuffer.cameras[pushConstant.shadowPassCameraIndex];
+	return (toTexCoordMat * shadowPassCamera.projection * shadowPassCamera.view) * vec4(worldPosition, 1.0);
+}
 
 bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius, out float t0, out float t1)
 {
@@ -80,7 +107,43 @@ float computePhase(float reflectionCosine, float anisotropy)
 		/ ((2.0 + reflectionCosine * reflectionCosine) * pow(float(1.0 + anisotropy * anisotropy - 2.0 * reflectionCosine * anisotropy), 1.5));
 }
 
-vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmosphereParameters)
+vec3 blinnPhong(
+	const vec3 diffuseColor
+	, const vec3 specularColor
+	, const vec3 lightDirection
+	, const vec3 viewDirection
+	, const vec3 normal
+	, const vec3 ambientColor
+	, const vec3 lightColor
+	, const vec4 shadowMapCoord
+	)
+{
+	// See phong.frag
+
+	const float lambertian = max(dot(lightDirection, normal), 0.0);
+
+	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+	const float specularCosine = clamp(dot(halfwayDirection, normal), 0.0,1.0);
+
+	const float shininess = 16.0;
+
+	const float fade = smoothstep(0.0,0.01,lambertian);
+
+	const float specular = fade * pow(specularCosine, shininess);
+
+	const vec3 ambientContribution = diffuseColor * ambientColor;
+	const vec3 diffuseContribution = lambertian * diffuseColor * lightColor;
+	const vec3 specularContribution = specular * specularColor * lightColor;
+
+	const float attenuationShadow = sampleShadowMap(shadowMapCoord);
+
+	return vec3(
+		ambientContribution 
+		+ attenuationShadow * (diffuseContribution + specularContribution)
+	);
+}
+
+vec3 computeAtmosphereLight(const vec3 origin, const vec3 direction, const Atmosphere atmosphereParameters)
 {
 	/*
 	* Constants and implementation derived from:
@@ -94,7 +157,8 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 	const float earthRadiusMeters = atmosphereParameters.earthRadiusMeters;
 	const float atmosphereRadiusMeters = atmosphereParameters.atmosphereRadiusMeters;
 
-	origin -= vec3(0.0, earthRadiusMeters, 0.0);
+	// We shift the origin since otherwise our world coords would be at the center of the planet
+	vec3 shiftedOrigin = origin - vec3(0.0, earthRadiusMeters, 0.0);
 
 	const vec3 directionToSun = atmosphereParameters.directionToSun;
 	const float altitudeDecayRayleigh = atmosphereParameters.altitudeDecayRayleigh;
@@ -108,7 +172,7 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 	const vec3 exctinctionCoefficientMie = 1.1 * scatteringCoefficientMie;
 
 	float t0, t1;
-	const bool viewingAtmosphere = raySphereIntersection(origin, direction, atmosphereRadiusMeters, t0, t1);
+	const bool viewingAtmosphere = raySphereIntersection(shiftedOrigin, direction, atmosphereRadiusMeters, t0, t1);
 
 	if (!viewingAtmosphere || t1 < 0.0)
 	{
@@ -116,14 +180,14 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 	}
 
 	float t0Earth, t1Earth;
-	const bool hittingEarth = raySphereIntersection(origin, direction, earthRadiusMeters, t0Earth, t1Earth);
+	const bool hittingEarth = raySphereIntersection(shiftedOrigin, direction, earthRadiusMeters, t0Earth, t1Earth);
 
 	if (hittingEarth && t1Earth >= 0.0)
 	{
 		t1 = t0Earth;
 	}
 
-	const float tSampleStart = max(t0, 0.0); // Only sample forward from the origin
+	const float tSampleStart = max(t0, 0.0); // Only sample forward from the shiftedOrigin
 	const float tSampleEnd = t1;
 
 	vec3 contributionRayleigh = vec3(0.0);
@@ -143,7 +207,7 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 	{
 		// We sample the middle of each segment
 
-		const vec3 samplePosition = origin + ((float(i) + 0.5) * segmentLength + tSampleStart) * direction;
+		const vec3 samplePosition = shiftedOrigin + ((float(i) + 0.5) * segmentLength + tSampleStart) * direction;
 
 		const float altitude = length(samplePosition) - earthRadiusMeters;
 
@@ -195,7 +259,7 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 		+ contributionMie * scatteringCoefficientMie * phaseMie
 	);
 
-	if (hittingEarth && t1Earth >= 0.0)
+	if (hittingEarth && t0Earth >= 0.0)
 	{
 		const vec3 tau = exctinctionCoefficientRayleigh * opticalDepthRayleigh
 					+ exctinctionCoefficientMie * opticalDepthMie;
@@ -206,12 +270,22 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 		// Assume camera is a small height above the ground relative to the radius of the planet
 		// Thus normal of all points before the horizon will not vary much
 		const vec3 surfaceNormal = vec3(0.0,-1.0,0.0);
-		const float lambertian = max(dot(directionToSun, surfaceNormal),0.0); 
 
-		// Here we are adding the diffuse sunlight from the ground.
-		// We estimate that the direct light that reaches this point is similar to the 
-		// sunlight directly hitting the camera, since our altitude is small.
-		color += attenuation * lambertian * groundColor * sunlightColor;
+		const vec3 worldPosition = t0Earth * direction + origin;
+		const vec4 shadowMapCoord = getShadowmapCoord(worldPosition);
+
+		//TODO: extract these calculations into another render pass
+
+		color += attenuation * blinnPhong(
+			vec3(0.8)
+			, vec3(0.0)
+			, directionToSun
+			, -direction
+			, surfaceNormal
+			, atmosphereParameters.ambientColor
+			, atmosphereParameters.sunlightColor
+			, shadowMapCoord
+		);
 	}
 
 	return color;

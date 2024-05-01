@@ -4,10 +4,13 @@
 
 #include "../types/atmosphere.glsl"
 
+layout(set = 0, binding = 0) uniform sampler2D shadowMap;
+
 layout (location = 0) in vec3 inColor;
 layout (location = 1) in vec2 inUV;
 layout (location = 2) in vec3 normalInterpolated;
 layout (location = 3) in vec3 positionInterpolated;
+layout (location = 4) in vec4 shadowCoord;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -27,6 +30,22 @@ layout (push_constant) uniform PushConstant
 	uint atmosphereIndex;
 	float shininess;
 } pushConstant;
+
+// Shadow mapping methodology adapted from 
+// https://github.com/SaschaWillems/Vulkan/blob/master/shaders/glsl/shadowmapping/scene.frag
+
+float sampleShadowMap(vec4 shadowCoord)
+{
+	if ( shadowCoord.z > 0.0 && shadowCoord.z < 1.0 ) 
+	{
+		float dist = texture( shadowMap, shadowCoord.st ).r;
+		if ( shadowCoord.w > 0.0 && dist > shadowCoord.z ) 
+		{
+			return 0.0;
+		}
+	}
+	return 1.0;
+}
 
 void main()
 {
@@ -60,9 +79,15 @@ void main()
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 
-	const vec3 ambientContribution = inColor * atmosphere.ambientColor;
+	const vec3 ambientContribution = pushConstant.diffuseColor.rgb * atmosphere.ambientColor;
 	const vec3 diffuseContribution = lambertian * pushConstant.diffuseColor.rgb * inColor * atmosphere.sunlightColor;
 	const vec3 specularContribution = specular * pushConstant.specularColor.rgb * atmosphere.sunlightColor;
 
-	outFragColor = vec4(ambientContribution + diffuseContribution + specularContribution, 1.0);
+	const float attenuationShadow = sampleShadowMap(shadowCoord);
+
+	outFragColor = vec4(
+		ambientContribution 
+		+ attenuationShadow * (diffuseContribution + specularContribution)
+		, 1.0
+	);
 }

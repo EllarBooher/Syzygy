@@ -10,6 +10,7 @@
 #include "../assets.hpp"
 #include "../shaders.hpp"
 #include "../engineparams.hpp"
+#include "../shadowpass.hpp"
 
 void imguiPerformanceWindow(
     std::span<double const> fpsValues
@@ -310,6 +311,26 @@ void imguiStructureControls<DebugLines>(
     ResetButton("lineWidth", structure.lineWidth, 1.0f);
 
     imguiStructureDisplay(structure.lastFrameDrawResults);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<ShadowPassParameters>(
+    ShadowPassParameters& structure
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Shadow Pass Parameters");
+
+    ImGui::DragFloat("Depth Bias", &structure.depthBias);
+    ImGui::DragFloat("Depth Bias Slope", &structure.depthBiasSlope);
+    ImGui::Checkbox("Generate Shadows with Sun", &structure.useSunlight);
+    ImGui::BeginDisabled(structure.useSunlight);
+    ImGui::DragFloat3("Directional Light Forward Direction", reinterpret_cast<float*>(&structure.directionalLightForward));
+    ImGui::EndDisabled();
+    ImGui::DragFloat3("Scene Center", reinterpret_cast<float*>(&structure.sceneCenter));
+    ImGui::DragFloat3("Scene Extent", reinterpret_cast<float*>(&structure.sceneExtent));
 
     ImGui::EndGroup();
 }

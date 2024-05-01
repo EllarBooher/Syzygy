@@ -42,7 +42,7 @@
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
 CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
-    .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
+    .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
     .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
     .fov{ 70.0f },
     .near{ 0.1f },
@@ -50,7 +50,7 @@ CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
 };
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
-    .sunEulerAngles{ glm::vec3(0.0, 0.0, 0.0) },
+    .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
 
     .earthRadiusMeters{ 6378000 },
     .atmosphereRadiusMeters{ 6420000 },
@@ -132,6 +132,8 @@ void Engine::initVulkan()
     initCommands();
     initSyncStructures();
     initDescriptors();
+
+    m_shadowPass = std::move(initShadowpass(m_device, m_globalDescriptorAllocator, m_allocator));
 
     updateDescriptors();
 
@@ -370,21 +372,37 @@ void Engine::initSyncStructures()
 
 void Engine::initDescriptors()
 {
-    // Set up the image used by the compute shader.
-
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5f },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f }
     };
 
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
-    { // compute draw binding, see gradient.comp
-        DescriptorLayoutBuilder builder{};
-        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
-        m_drawImageDescriptorLayout = builder.build(m_device, 0);
-    }
+    { // Set up the image used by compute shaders.
+        m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
+            .build(m_device, 0);
 
-    m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+        m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+    }
+}
+
+ShadowPass Engine::initShadowpass(
+    VkDevice device
+    , DescriptorAllocator& descriptorAllocator
+    , VmaAllocator allocator
+)
+{
+    // TODO: Query the max image size for the shadow map
+    uint32_t constexpr shadowMapSize{ 16384 };
+
+    return ShadowPass::create(
+        device,
+        descriptorAllocator,
+        allocator,
+        shadowMapSize
+    );
 }
 
 void Engine::updateDescriptors()
@@ -410,7 +428,11 @@ void Engine::updateDescriptors()
         .pTexelBufferView{ nullptr },
     };
 
-    vkUpdateDescriptorSets(m_device, 1, &drawImageWrite, 0, nullptr);
+    std::vector<VkWriteDescriptorSet> const writes{
+        drawImageWrite
+    };
+
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
 void Engine::initDefaultMeshData()
@@ -449,7 +471,7 @@ void Engine::initWorld()
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
             {
                 m_meshInstances.originals.push_back(
-                    glm::translate(glm::vec3(x, 0, z))
+                    glm::translate(glm::vec3(x, -4.0, z))
                     * glm::toMat4(randomQuat())
                     * glm::scale(glm::vec3(0.2f))
                 );
@@ -489,15 +511,14 @@ void Engine::initWorld()
         m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
             m_device,
             m_allocator,
-            1,
+            20,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
-        std::vector<GPUTypes::Camera> const cameras{ m_cameraParameters.toDeviceEquivalent(getAspectRatio()) };
-        m_camerasBuffer->stage(cameras);
+        m_camerasBuffer->push(GPUTypes::Camera{});
+        m_camerasBuffer->push(GPUTypes::Camera{});
 
-        immediateSubmit([&](VkCommandBuffer cmd) {
-            m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
-        });
+        m_cameraIndexMain = 0;
+        m_cameraIndexShadowpass = 1;
     }
 
     { // Atmosphere
@@ -544,17 +565,19 @@ void Engine::initDebug()
 void Engine::initInstancedPipeline()
 {
     m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
-        m_device,
-        m_drawImage.imageFormat,
-        m_depthImage.imageFormat
+        m_device
+        , m_drawImage.imageFormat
+        , m_depthImage.imageFormat
+        , m_shadowPass.shadowMapDescriptorLayout
     );
 }
 
 void Engine::initBackgroundPipeline()
 {
     m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
-        m_device,
-        m_drawImageDescriptorLayout
+        m_device
+        , m_drawImageDescriptorLayout
+        , m_shadowPass.shadowMapDescriptorLayout
     );
 }
 
@@ -880,6 +903,13 @@ void Engine::mainLoop()
 
             if (ImGui::Begin("Engine Controls"))
             {
+                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+                ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
+                ImGui::Separator();
+                ImGui::Indent(10.0f);
+                imguiStructureControls(m_shadowPassParameters);
+                ImGui::Unindent(10.0f);
+                ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
@@ -957,22 +987,32 @@ void Engine::draw()
     VkCommandBufferBeginInfo const cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     CheckVkResult(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        std::span<GPUTypes::Camera> const stagedCameras{ m_camerasBuffer->mapValidStaged() };
-        if (stagedCameras.size() <= m_cameraIndex)
+        std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
+        cameras[m_cameraIndexMain] = { 
+                m_useOrthographicProjection
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(m_drawImage.aspectRatio(), 5.0)
+            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio()) 
+        };
+
+        if (m_shadowPassParameters.useSunlight)
         {
-            Warning("CameraIndex does not point to valid camera, resetting to 0.");
-            m_cameraIndex = 0;
+            m_shadowPassParameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
         }
-        if (stagedCameras.size() > 0 && m_cameraIndex < stagedCameras.size())
-        {
-            stagedCameras[m_cameraIndex] = m_cameraParameters.toDeviceEquivalent(getAspectRatio());
-        }
+
+        cameras[m_cameraIndexShadowpass] = {
+            m_cameraParameters.makeShadowpassCamera(
+                m_shadowPass.depthImage.aspectRatio()
+                , m_shadowPassParameters.directionalLightForward
+                , m_shadowPassParameters.sceneCenter
+                , m_shadowPassParameters.sceneExtent
+            )
+        };
+
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
+
     }
 
     { // Copy atmospheres to gpu
@@ -986,57 +1026,121 @@ void Engine::draw()
         {
             stagedAtmospheres[m_atmosphereIndex] = m_atmosphereParameters.toDeviceEquivalent();
         }
+
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
-    if (m_useAtmosphereCompute)
     {
-        m_atmospherePipeline->recordDrawCommands(
-            cmd,
-            m_cameraIndex,
-            *m_camerasBuffer,
-            m_atmosphereIndex,
-            *m_atmospheresBuffer,
-            m_drawImageDescriptors,
-            VkExtent2D{
-                .width{ m_drawImage.imageExtent.width },
-                .height{ m_drawImage.imageExtent.height },
-            }
-        );
+        uint32_t const cameraIndex{
+            m_useShadowpassPerspective
+            ? m_cameraIndexShadowpass
+            : m_cameraIndexMain
+        };
+
+        if (m_renderMeshInstances) // Shadow map pass
+        {
+            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+
+
+            m_shadowPass.pipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_shadowPassParameters.depthBias
+                , m_shadowPassParameters.depthBiasSlope
+                , m_shadowPass.depthImage
+                , m_cameraIndexShadowpass
+                , *m_camerasBuffer
+                , *m_testMeshes[m_testMeshUsed]
+                , *m_meshInstances.models
+            );
+
+            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        }
+        else
+        {
+            vkutil::transitionImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            );
+            VkClearDepthStencilValue const clearValue{
+                .depth{ 1.0 },
+            };
+            VkImageSubresourceRange const subresourceRange{
+                vkinit::imageSubresourceRange(VkImageAspectFlagBits::VK_IMAGE_ASPECT_DEPTH_BIT)
+            };
+            vkCmdClearDepthStencilImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                , &clearValue
+                , 1
+                , &subresourceRange
+            );
+            vkutil::transitionImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            );
+        }
+
+        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+        if (m_useAtmosphereCompute)
+        {
+            m_atmospherePipeline->recordDrawCommands(
+                cmd
+                , cameraIndex
+                , m_cameraIndexShadowpass
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , m_drawImageDescriptors
+                , m_shadowPass.shadowMapDescriptors
+                , VkExtent2D{
+                    .width{ m_drawImage.imageExtent.width },
+                    .height{ m_drawImage.imageExtent.height },
+                }
+            );
+        }
+        else
+        {
+            m_genericComputePipeline->recordDrawCommands(
+                cmd,
+                m_drawImageDescriptors,
+                VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
+            );
+        }
+
+        if (m_renderMeshInstances)
+        {
+            vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+            vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+            m_instancePipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_drawImage
+                , m_depthImage
+                , m_shadowPass.shadowMapDescriptors
+                , cameraIndex
+                , m_cameraIndexShadowpass
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , *m_testMeshes[m_testMeshUsed]
+                , *m_meshInstances.models
+                , *m_meshInstances.modelInverseTransposes
+            );
+        }
+
+        recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
     }
-    else 
-    {
-        m_genericComputePipeline->recordDrawCommands(
-            cmd,
-            m_drawImageDescriptors,
-            VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
-        );
-    }
-
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-    if (m_renderMeshInstances)
-    {
-        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
-        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
-
-        m_instancePipeline->recordDrawCommands(
-            cmd
-            , false
-            , m_drawImage
-            , m_depthImage
-            , m_cameraIndex
-            , *m_camerasBuffer
-            , m_atmosphereIndex
-            , *m_atmospheresBuffer
-            , *m_testMeshes[m_testMeshUsed]
-            , *m_meshInstances.models
-            , *m_meshInstances.modelInverseTransposes
-        );
-    }
-
-    recordDrawDebugLines(cmd);
 
     // End scene drawing
 
@@ -1157,7 +1261,11 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
     vkCmdEndRendering(cmd);
 }
 
-void Engine::recordDrawDebugLines(VkCommandBuffer cmd)
+void Engine::recordDrawDebugLines(
+    VkCommandBuffer cmd
+    , uint32_t cameraIndex
+    , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+)
 {
     m_debugLines.lastFrameDrawResults = {};
 
@@ -1170,8 +1278,8 @@ void Engine::recordDrawDebugLines(VkCommandBuffer cmd)
             , m_debugLines.lineWidth
             , m_drawImage
             , m_depthImage
-            , m_cameraIndex
-            , *m_camerasBuffer
+            , cameraIndex
+            , camerasBuffer
             , *m_debugLines.vertices
             , *m_debugLines.indices
         ) };
@@ -1205,6 +1313,7 @@ void Engine::cleanup()
     m_meshInstances.models.reset();
     m_meshInstances.modelInverseTransposes.reset();
 
+
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
 
@@ -1212,6 +1321,9 @@ void Engine::cleanup()
     m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
+
+    m_shadowPass.cleanup(m_device, m_allocator);
+
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
 
     for (FrameData const& frameData : m_frames)
