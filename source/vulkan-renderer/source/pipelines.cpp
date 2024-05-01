@@ -500,8 +500,9 @@ void InstancedMeshGraphicsPipeline::cleanup(VkDevice device)
 }
 
 AtmosphereComputePipeline::AtmosphereComputePipeline(
-	VkDevice device, 
-	VkDescriptorSetLayout drawImageDescriptorLayout
+	VkDevice device
+	, VkDescriptorSetLayout drawImageDescriptorLayout
+	, VkDescriptorSetLayout shadowMapDescriptorLayout
 )
 {
 	ShaderModuleReflected const skyShader{ loadShaderModule(device, "shaders/sky.comp.spv").value() };
@@ -521,23 +522,23 @@ AtmosphereComputePipeline::AtmosphereComputePipeline(
 		}
 	}
 
-	VkPushConstantRange const pushConstantRange{
-		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-		.offset{ 0 },
-		.size{ sizeof(PushConstantType) },
+	std::vector<VkDescriptorSetLayout> const descriptorLayouts{
+		drawImageDescriptorLayout
+		, shadowMapDescriptorLayout
 	};
-
+	std::vector<VkPushConstantRange> const pushConstantRanges{
+		VkPushConstantRange	{
+			.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
+			.offset{ 0 },
+			.size{ sizeof(PushConstantType) },
+		}
+	};
 	VkPipelineLayoutCreateInfo const layoutInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.flags{ 0 },
-
-		.setLayoutCount{ 1 },
-		.pSetLayouts{ &drawImageDescriptorLayout },
-
-		.pushConstantRangeCount{ 1 },
-		.pPushConstantRanges{ &pushConstantRange },
+		vkinit::pipelineLayoutCreateInfo(
+			0
+			, descriptorLayouts
+			, pushConstantRanges
+		)
 	};
 
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
@@ -572,16 +573,29 @@ AtmosphereComputePipeline::AtmosphereComputePipeline(
 void AtmosphereComputePipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, uint32_t cameraIndex
+	, uint32_t shadowPassCameraIndex
 	, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
 	, uint32_t atmosphereIndex
 	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer
 	, VkDescriptorSet colorSet
+	, VkDescriptorSet shadowMapSet
 	, VkExtent2D colorExtent
 ) const
 {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipelineLayout, 0, 1, &colorSet, 0, nullptr);
+	std::vector<VkDescriptorSet> const descriptorSets{
+		colorSet
+		, shadowMapSet
+	};
+
+	vkCmdBindDescriptorSets(
+		cmd
+		, VK_PIPELINE_BIND_POINT_COMPUTE
+		, m_computePipelineLayout
+		, 0, static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data()
+		, 0, nullptr
+	);
 
 	camerasBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 	atmospheresBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
@@ -591,6 +605,7 @@ void AtmosphereComputePipeline::recordDrawCommands(
 		.atmosphereIndex{ atmosphereIndex },
 		.cameraBuffer{ camerasBuffer.deviceAddress() },
 		.atmosphereBuffer{ atmospheresBuffer.deviceAddress() },
+		.shadowPassCameraIndex{ shadowPassCameraIndex },
 	};
 
 	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0

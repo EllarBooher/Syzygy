@@ -196,3 +196,23 @@ VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderSt
     };
 }
 
+VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(
+    VkPipelineLayoutCreateFlags const flags
+    , std::span<VkDescriptorSetLayout const> const layouts
+    , std::span<VkPushConstantRange const> const ranges
+)
+{
+    return {
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+        .pNext{ nullptr },
+
+        .flags{ flags },
+
+        .setLayoutCount{ static_cast<uint32_t>(layouts.size())},
+        .pSetLayouts{ layouts.data() },
+
+        .pushConstantRangeCount{ static_cast<uint32_t>(ranges.size()) },
+        .pPushConstantRanges{ ranges.data() },
+    };
+}
+

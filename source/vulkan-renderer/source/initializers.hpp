@@ -59,4 +59,10 @@ namespace vkinit {
         VkShaderModule module,
         std::string const& entryPoint
     );
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
+        VkPipelineLayoutCreateFlags flags
+        , std::span<VkDescriptorSetLayout const> layouts
+        , std::span<VkPushConstantRange const> ranges
+    );
 }

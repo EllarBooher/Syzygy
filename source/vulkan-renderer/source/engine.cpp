@@ -575,8 +575,9 @@ void Engine::initInstancedPipeline()
 void Engine::initBackgroundPipeline()
 {
     m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
-        m_device,
-        m_drawImageDescriptorLayout
+        m_device
+        , m_drawImageDescriptorLayout
+        , m_shadowPass.shadowMapDescriptorLayout
     );
 }
 
@@ -986,8 +987,6 @@ void Engine::draw()
     VkCommandBufferBeginInfo const cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     CheckVkResult(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
     // Begin scene drawing
 
     { // Copy cameras to gpu
@@ -1038,39 +1037,13 @@ void Engine::draw()
             : m_cameraIndexMain
         };
 
-        if (m_useAtmosphereCompute)
+        if (m_renderMeshInstances) // Shadow map pass
         {
-            m_atmospherePipeline->recordDrawCommands(
-                cmd,
-                    cameraIndex,
-                *m_camerasBuffer,
-                m_atmosphereIndex,
-                *m_atmospheresBuffer,
-                m_drawImageDescriptors,
-                VkExtent2D{
-                    .width{ m_drawImage.imageExtent.width },
-                    .height{ m_drawImage.imageExtent.height },
-                }
-            );
-        }
-        else 
-        {
-            m_genericComputePipeline->recordDrawCommands(
-                cmd,
-                m_drawImageDescriptors,
-                VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
-            );
-        }
+            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-        if (m_renderMeshInstances)
-        {
             m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
             m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
 
-            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
             m_shadowPass.pipeline->recordDrawCommands(
                 cmd
@@ -1085,6 +1058,69 @@ void Engine::draw()
             );
 
             vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        }
+        else
+        {
+            vkutil::transitionImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            );
+            VkClearDepthStencilValue const clearValue{
+                .depth{ 1.0 },
+            };
+            VkImageSubresourceRange const subresourceRange{
+                vkinit::imageSubresourceRange(VkImageAspectFlagBits::VK_IMAGE_ASPECT_DEPTH_BIT)
+            };
+            vkCmdClearDepthStencilImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                , &clearValue
+                , 1
+                , &subresourceRange
+            );
+            vkutil::transitionImage(
+                cmd
+                , m_shadowPass.depthImage.image
+                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            );
+        }
+
+        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+        if (m_useAtmosphereCompute)
+        {
+            m_atmospherePipeline->recordDrawCommands(
+                cmd
+                , cameraIndex
+                , m_cameraIndexShadowpass
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , m_drawImageDescriptors
+                , m_shadowPass.shadowMapDescriptors
+                , VkExtent2D{
+                    .width{ m_drawImage.imageExtent.width },
+                    .height{ m_drawImage.imageExtent.height },
+                }
+            );
+        }
+        else
+        {
+            m_genericComputePipeline->recordDrawCommands(
+                cmd,
+                m_drawImageDescriptors,
+                VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
+            );
+        }
+
+        if (m_renderMeshInstances)
+        {
+            vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+            vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
             m_instancePipeline->recordDrawCommands(
                 cmd

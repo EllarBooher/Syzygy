@@ -79,7 +79,7 @@ void main()
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 
-	const vec3 ambientContribution = inColor * atmosphere.ambientColor;
+	const vec3 ambientContribution = pushConstant.diffuseColor.rgb * atmosphere.ambientColor;
 	const vec3 diffuseContribution = lambertian * pushConstant.diffuseColor.rgb * inColor * atmosphere.sunlightColor;
 	const vec3 specularContribution = specular * pushConstant.specularColor.rgb * atmosphere.sunlightColor;
 

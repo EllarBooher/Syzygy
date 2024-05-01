@@ -205,18 +205,21 @@ class AtmosphereComputePipeline
 {
 public:
     AtmosphereComputePipeline(
-        VkDevice device, 
-        VkDescriptorSetLayout drawImageDescriptorLayout
+        VkDevice device
+        , VkDescriptorSetLayout drawImageDescriptorLayout
+        , VkDescriptorSetLayout shadowMapDescriptorLayout
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd,
-        uint32_t cameraIndex,
-        TStagedBuffer<GPUTypes::Camera> const& camerasBuffer,
-        uint32_t atmosphereIndex,
-        TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer,
-        VkDescriptorSet colorSet,
-        VkExtent2D colorExtent
+        VkCommandBuffer cmd
+        , uint32_t cameraIndex
+        , uint32_t shadowPassCameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+        , uint32_t atmosphereIndex
+        , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer
+        , VkDescriptorSet colorSet
+        , VkDescriptorSet shadowMapSet
+        , VkExtent2D colorExtent
     ) const;
 
     void cleanup(VkDevice device);
@@ -243,7 +246,8 @@ private:
         VkDeviceAddress cameraBuffer{};
 
         VkDeviceAddress atmosphereBuffer{};
-        uint8_t padding0[8]{};
+        uint32_t shadowPassCameraIndex{};
+        uint8_t padding0[4]{};
     };
 
     /*

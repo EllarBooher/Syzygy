@@ -12,7 +12,7 @@ ShadowPass ShadowPass::create(
     // The descriptor for accessing the shadow map in shaders
     VkDescriptorSetLayout const shadowMapDescriptorLayout{
         DescriptorLayoutBuilder{}
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, 0)
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
             .build(device, 0)
     };
 
