@@ -22,29 +22,6 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
-struct AllocatedImage {
-    VmaAllocation allocation{ VK_NULL_HANDLE };
-    VkImage image{ VK_NULL_HANDLE };
-    VkImageView imageView{ VK_NULL_HANDLE };
-    VkExtent3D imageExtent{};
-    VkFormat imageFormat{ VK_FORMAT_UNDEFINED };
-
-    void cleanup(VkDevice device, VmaAllocator allocator)
-    {
-        vkDestroyImageView(device, imageView, nullptr);
-        vmaDestroyImage(allocator, image, allocation);
-    }
-
-    // The value will be 0.0/inf/NaN for an image without valid bounds.
-    double aspectRatio() const
-    {
-        auto const width{ static_cast<float>(imageExtent.width) };
-        auto const height{ static_cast<float>(imageExtent.height) };
-
-        return width / height;
-    }
-};
-
 struct Vertex {
     glm::vec3 position;
     float uv_x;

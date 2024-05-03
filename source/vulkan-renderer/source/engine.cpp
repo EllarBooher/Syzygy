@@ -276,7 +276,7 @@ void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
 
-    m_drawImage = vkutil::allocateImage(
+    m_drawImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
         m_swapchainExtent,
@@ -288,7 +288,7 @@ void Engine::initDrawTargets()
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
     );
 
-    m_depthImage = vkutil::allocateImage(
+    m_depthImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
         m_drawImage.imageExtent,

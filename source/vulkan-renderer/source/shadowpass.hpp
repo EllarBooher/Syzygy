@@ -3,6 +3,7 @@
 #include "enginetypes.hpp"
 #include "descriptors.hpp"
 #include "pipelines.hpp"
+#include "images.hpp"
 
 struct ShadowPass
 {

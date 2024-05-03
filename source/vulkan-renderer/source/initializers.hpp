@@ -35,6 +35,11 @@ namespace vkinit {
         VkExtent3D extent
     );
 
+    VkSamplerCreateInfo samplerCreateInfo(
+        VkSamplerCreateFlags flags
+        , VkBorderColor borderColor
+    );
+
     VkImageViewCreateInfo imageViewCreateInfo(
         VkFormat format,
         VkImage image,

@@ -59,49 +59,6 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-AllocatedImage vkutil::allocateImage(
-    VmaAllocator allocator,
-    VkDevice device,
-    VkExtent3D extent,
-    VkFormat format,
-    VkImageAspectFlags viewFlags,
-    VkImageUsageFlags usageMask
-)
-{
-    AllocatedImage image{
-        .allocation{ VK_NULL_HANDLE },
-        .image{ VK_NULL_HANDLE },
-        .imageView{ VK_NULL_HANDLE },
-
-        .imageExtent = extent,
-        .imageFormat = format
-    };
-
-    VkImageCreateInfo const imageInfo = vkinit::imageCreateInfo(
-        image.imageFormat, 
-        VK_IMAGE_LAYOUT_UNDEFINED, 
-        usageMask, 
-        image.imageExtent
-    );
-
-    VmaAllocationCreateInfo imageAllocInfo = {
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    };
-
-    CheckVkResult(vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr));
-
-    VkImageViewCreateInfo const imageViewInfo = vkinit::imageViewCreateInfo(
-        image.imageFormat,
-        image.image,
-        viewFlags
-    );
-
-    CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
-
-    return image;
-}
-
 void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent3D srcSize, VkExtent3D dstSize)
 {
     VkImageBlit2 const blitRegion{
@@ -132,4 +89,51 @@ void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
+}
+
+AllocatedImage AllocatedImage::allocate(
+    VmaAllocator allocator
+    , VkDevice device
+    , VkExtent3D extent
+    , VkFormat format
+    , VkImageAspectFlags viewFlags
+    , VkImageUsageFlags usageMask
+)
+{
+    AllocatedImage image{
+        .allocation{ VK_NULL_HANDLE },
+        .image{ VK_NULL_HANDLE },
+        .imageView{ VK_NULL_HANDLE },
+
+        .imageExtent = extent,
+        .imageFormat = format
+    };
+
+    VkImageCreateInfo const imageInfo{ 
+        vkinit::imageCreateInfo(
+            image.imageFormat
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , usageMask
+            , image.imageExtent
+        ) 
+    };
+
+    VmaAllocationCreateInfo const imageAllocInfo{
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    };
+
+    CheckVkResult(vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr));
+
+    VkImageViewCreateInfo const imageViewInfo{
+        vkinit::imageViewCreateInfo(
+            image.imageFormat,
+            image.image,
+            viewFlags
+        )
+    };
+
+    CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
+
+    return image;
 }

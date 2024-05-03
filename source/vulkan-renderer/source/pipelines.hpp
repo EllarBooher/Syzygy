@@ -10,6 +10,7 @@
 #include "shaders.hpp"
 #include "assets.hpp"
 #include "buffers.hpp"
+#include "images.hpp"
 
 struct DrawResultsGraphics
 {
