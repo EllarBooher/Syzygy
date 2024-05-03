@@ -105,13 +105,17 @@ struct CameraParameters {
 
     GPUTypes::Camera toDeviceEquivalent(float aspectRatio) const
     {
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection(aspectRatio) * view()) };
+
         return GPUTypes::Camera{
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ rotation() * glm::vec4(geometry::forward,0.0) },
+            .position{ glm::vec4{ cameraPosition, 1.0 } }
         };
     }
 
@@ -164,6 +168,7 @@ struct CameraParameters {
         glm::mat4x4 const projection{
             geometry::projectionOrthoVk(viewMin, viewMax)
         };
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -171,7 +176,9 @@ struct CameraParameters {
             .view{ cameraView },
             .viewInverseTranspose{ glm::inverseTranspose(cameraView) },
             .rotation{ glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))) },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ glm::vec4(forward, 0.0) },
+            .position{ glm::vec4(cameraPosition,1.0) }
         };
     }
 
@@ -181,6 +188,7 @@ struct CameraParameters {
     ) const
     {
         glm::mat4x4 const projection{ projectionOrthographic(aspectRatio, planeDistance) };
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -188,7 +196,9 @@ struct CameraParameters {
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ rotation() * glm::vec4(geometry::forward, 0.0) },
+            .position{ glm::vec4(cameraPosition, 1.0) }
         };
     }
 

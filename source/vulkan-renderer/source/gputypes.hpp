@@ -27,8 +27,11 @@ namespace GPUTypes
 
         glm::mat4x4 rotation;
 
-        glm::vec3 position;
-        uint8_t padding0[4]{};
+        glm::mat4x4 projViewInverse;
+
+        glm::vec4 forwardWorld;
+
+        glm::vec4 position;
     };
 
     struct Atmosphere
