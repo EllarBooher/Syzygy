@@ -1,6 +1,7 @@
 #include "shaders.hpp"
 
 #include "helpers.hpp"
+#include "assets.hpp"
 #include <spirv_reflect.h>
 
 ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spirv_bytecode)
@@ -293,20 +294,20 @@ bool ShaderReflectionData::Matrix::operator==(Matrix const& other) const
 }
 
 std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
-	VkDevice device
-	, std::string name
-	, std::span<uint8_t const> spirvBytecode
-	, VkShaderStageFlagBits stage
-	, VkShaderStageFlags nextStage
-	, std::span<VkDescriptorSetLayout const> layouts
-	, std::span<VkPushConstantRange const> pushConstantRanges
-	, VkSpecializationInfo specializationInfo
+	VkDevice const device
+	, std::string const name
+	, std::span<uint8_t const> const spirvBytecode
+	, VkShaderStageFlagBits const stage
+	, VkShaderStageFlags const nextStage
+	, std::span<VkDescriptorSetLayout const> const layouts
+	, std::span<VkPushConstantRange const> const pushConstantRanges
+	, VkSpecializationInfo const specializationInfo
 )
 {
 	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
 
-	vkutils::ShaderResult<VkShaderEXT> compilationResult{
-		vkutils::CompileShaderObject(
+	vkutil::ShaderResult<VkShaderEXT> compilationResult{
+		vkutil::CompileShaderObject(
 			device
 			, spirvBytecode
 			, stage
@@ -331,13 +332,13 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 }
 
 std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflected(
-	VkDevice device
-	, std::string name
-	, std::span<uint8_t const> spirvBytecode
-	, VkShaderStageFlagBits stage
-	, VkShaderStageFlags nextStage
-	, std::span<VkDescriptorSetLayout const> layouts
-	, VkSpecializationInfo specializationInfo
+	VkDevice const device
+	, std::string const name
+	, std::span<uint8_t const> const spirvBytecode
+	, VkShaderStageFlagBits const stage
+	, VkShaderStageFlags const nextStage
+	, std::span<VkDescriptorSetLayout const> const layouts
+	, VkSpecializationInfo const specializationInfo
 )
 {
 	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
@@ -350,8 +351,8 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 		pushConstantRanges.push_back(pushConstant.totalRange(stage));
 	}
 
-	vkutils::ShaderResult<VkShaderEXT> compilationResult{
-		vkutils::CompileShaderObject(
+	vkutil::ShaderResult<VkShaderEXT> compilationResult{
+		vkutil::CompileShaderObject(
 			device
 			, spirvBytecode
 			, stage
@@ -376,13 +377,13 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 }
 
 std::optional<ShaderModuleReflected> ShaderModuleReflected::FromBytecode(
-	VkDevice device
-	, std::string name
-	, std::span<uint8_t const> spirvBytecode
+	VkDevice const device
+	, std::string const name
+	, std::span<uint8_t const> const spirvBytecode
 )
 {
-	vkutils::ShaderResult<VkShaderModule> compilationResult{
-		vkutils::CompileShaderModule(device, spirvBytecode)
+	vkutil::ShaderResult<VkShaderModule> compilationResult{
+		vkutil::CompileShaderModule(device, spirvBytecode)
 	};
 
 	if (compilationResult.result != VK_SUCCESS)
@@ -407,7 +408,7 @@ struct overloaded : Ts...
 {
 	using Ts::operator()...;
 };
-void ShaderReflectedBase::cleanup(VkDevice device)
+void ShaderReflectedBase::cleanup(VkDevice const device)
 {
 	std::visit(
 		overloaded{
@@ -423,14 +424,14 @@ void ShaderReflectedBase::cleanup(VkDevice device)
 	);
 }
 
-vkutils::ShaderResult<VkShaderEXT> vkutils::CompileShaderObject(
-	VkDevice device
-	, std::span<uint8_t const> spirvBytecode
-	, VkShaderStageFlagBits stage
-	, VkShaderStageFlags nextStage
-	, std::span<VkDescriptorSetLayout const> layouts
-	, std::span<VkPushConstantRange const> pushConstantRanges
-	, VkSpecializationInfo specializationInfo
+vkutil::ShaderResult<VkShaderEXT> vkutil::CompileShaderObject(
+	VkDevice const device
+	, std::span<uint8_t const> const spirvBytecode
+	, VkShaderStageFlagBits const stage
+	, VkShaderStageFlags const nextStage
+	, std::span<VkDescriptorSetLayout const> const layouts
+	, std::span<VkPushConstantRange const> const pushConstantRanges
+	, VkSpecializationInfo const specializationInfo
 )
 {
 	VkShaderCreateInfoEXT const createInfo{
@@ -466,7 +467,43 @@ vkutils::ShaderResult<VkShaderEXT> vkutils::CompileShaderObject(
 	};
 }
 
-vkutils::ShaderResult<VkShaderModule> vkutils::CompileShaderModule(VkDevice device, std::span<uint8_t const> spirvBytecode)
+std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
+	VkDevice const device
+	, std::string const path
+	, VkShaderStageFlagBits const stage
+	, VkShaderStageFlags const nextStage
+	, std::span<VkDescriptorSetLayout const> const layouts
+	, VkSpecializationInfo const specializationInfo
+)
+{
+	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
+
+	return std::visit(
+		overloaded{
+			[&](AssetFile const& file)
+			{
+				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecodeReflected(
+					device
+					, file.fileName
+					, file.fileBytes
+					, stage
+					, nextStage
+					, layouts
+					, specializationInfo
+				)};
+			},
+			[&](AssetLoadingError const& error)
+			{
+				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				return std::optional<ShaderObjectReflected>{};
+			}
+		}, fileLoadingResult
+	);
+}
+
+vkutil::ShaderResult<VkShaderModule> vkutil::CompileShaderModule(
+	VkDevice const device
+	, std::span<uint8_t const> const spirvBytecode)
 {
 	VkShaderModuleCreateInfo const createInfo{
 		.sType{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO },
@@ -485,4 +522,30 @@ vkutils::ShaderResult<VkShaderModule> vkutils::CompileShaderModule(VkDevice devi
 		.shader{ shaderModule },
 		.result{ result },
 	};
+}
+
+std::optional<ShaderModuleReflected> vkutil::loadShaderModule(
+	VkDevice const device
+	, std::string const path
+)
+{
+	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
+
+	return std::visit(
+		overloaded{
+			[&](AssetFile const& file)
+			{
+				return std::optional<ShaderModuleReflected>{ShaderModuleReflected::FromBytecode(
+					device
+					, file.fileName
+					, file.fileBytes
+				)};
+			},
+			[&](AssetLoadingError const& error)
+			{
+				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				return std::optional<ShaderModuleReflected>{};
+			}
+		}, fileLoadingResult
+	);
 }

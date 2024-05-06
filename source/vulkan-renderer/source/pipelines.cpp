@@ -200,69 +200,6 @@ void PipelineBuilder::enableDepthTest(bool depthWriteEnable, VkCompareOp compare
 	};
 }
 
-template<class... Ts>
-struct overloaded : Ts...
-{
-	using Ts::operator()...;
-};
-static std::optional<ShaderModuleReflected> loadShaderModule(
-	VkDevice device
-	, std::string path
-)
-{
-	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
-
-	return std::visit(
-		overloaded{
-			[&](AssetFile const& file)
-			{
-				return std::optional<ShaderModuleReflected>{ShaderModuleReflected::FromBytecode(
-					device
-					, file.fileName
-					, file.fileBytes
-				)};
-			},
-			[&](AssetLoadingError const& error)
-			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
-				return std::optional<ShaderModuleReflected>{};
-			}
-		}, fileLoadingResult
-	);
-}
-static std::optional<ShaderObjectReflected> loadShaderObject(
-	VkDevice device
-	, std::string path
-	, VkShaderStageFlagBits stage
-	, VkShaderStageFlags nextStage
-	, std::span<VkDescriptorSetLayout const> layouts
-	, VkSpecializationInfo specializationInfo
-)
-{
-	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
-
-	return std::visit(
-		overloaded{
-			[&](AssetFile const& file)
-			{
-				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecodeReflected(
-					device
-					, file.fileName
-					, file.fileBytes
-					, stage
-					, nextStage
-					, layouts
-					, specializationInfo
-				)};
-			},
-			[&](AssetLoadingError const& error)
-			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
-				return std::optional<ShaderObjectReflected>{};
-			}
-		}, fileLoadingResult
-	);
-}
 
 InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	VkDevice device
@@ -271,8 +208,8 @@ InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
 	, VkDescriptorSetLayout shadowMapDescriptorLayout
 )
 {
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/blinnphong/phong.frag.spv").value() };
+	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/blinnphong/phong.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ vkutil::loadShaderModule(device, "shaders/blinnphong/phong.frag.spv").value() };
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 	{ 
@@ -505,7 +442,7 @@ AtmosphereComputePipeline::AtmosphereComputePipeline(
 	, VkDescriptorSetLayout shadowMapDescriptorLayout
 )
 {
-	ShaderModuleReflected const skyShader{ loadShaderModule(device, "shaders/sky.comp.spv").value() };
+	ShaderModuleReflected const skyShader{ vkutil::loadShaderModule(device, "shaders/sky.comp.spv").value() };
 
 	ShaderReflectionData::PushConstant const& skyPushConstant{ skyShader.reflectionData().defaultPushConstant() };
 	
@@ -635,7 +572,7 @@ GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 	for (std::string const& shaderPath : shaderPaths)
 	{
 		std::optional<ShaderObjectReflected> loadResult{ 
-			loadShaderObject(
+			vkutil::loadShaderObject(
 				device
 				, shaderPath
 				, VK_SHADER_STAGE_COMPUTE_BIT
@@ -735,8 +672,8 @@ DebugLineComputePipeline::DebugLineComputePipeline(
 	, VkFormat depthAttachmentFormat
 )
 {
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() };
+	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() };
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 	{
@@ -920,7 +857,7 @@ void DebugLineComputePipeline::cleanup(VkDevice device)
 
 OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPipeline(VkDevice device, VkFormat depthAttachmentFormat)
 {
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv").value() };
+	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv").value() };
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 	{
