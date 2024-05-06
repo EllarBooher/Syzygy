@@ -382,7 +382,8 @@ void Engine::initDescriptors()
     { // Set up the image used by compute shaders.
         m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
-            .build(m_device, 0);
+            .build(m_device, 0)
+            .value_or(VK_NULL_HANDLE); //TODO: handle
 
         m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
     }

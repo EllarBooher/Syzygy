@@ -15,6 +15,7 @@ ShadowPass ShadowPass::create(
         DescriptorLayoutBuilder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
             .build(device, 0)
+            .value_or(VK_NULL_HANDLE) // TODO: Handle
     };
 
     VkDescriptorSet const shadowMapDescriptors{ descriptorAllocator.allocate(device, shadowMapDescriptorLayout) };
