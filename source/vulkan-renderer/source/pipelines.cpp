@@ -902,7 +902,7 @@ OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPi
 
 	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
 	pipelineBuilder.setMultisamplingNone();
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -956,9 +956,6 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 	VkRenderingInfo const renderInfo{
 		vkinit::renderingInfo(drawExtent, {}, &depthAttachment)
 	};
-
-	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-	models.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 

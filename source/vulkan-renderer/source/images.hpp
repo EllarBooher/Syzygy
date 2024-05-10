@@ -1,6 +1,7 @@
 #pragma once
 
 #include <volk.h>
+#include <optional>
 #include "enginetypes.hpp"
 
 struct AllocatedImage {
@@ -25,18 +26,18 @@ struct AllocatedImage {
         return width / height;
     }
 
-    static AllocatedImage allocate(
+    static std::optional<AllocatedImage> allocate(
         VmaAllocator allocator,
         VkDevice device,
-        VkExtent3D extent, 
-        VkFormat format, 
+        VkExtent3D extent,
+        VkFormat format,
         VkImageAspectFlags viewFlags,
         VkImageUsageFlags usageMask
     );
 };
 
 namespace vkutil {
-    /** 
+    /**
         Transitions the layout of an image, putting in a full memory barrier for all
     */
     void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);

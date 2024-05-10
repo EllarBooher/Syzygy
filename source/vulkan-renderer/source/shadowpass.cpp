@@ -36,11 +36,16 @@ ShadowPass ShadowPass::create(
             , VK_IMAGE_ASPECT_DEPTH_BIT
             , VK_IMAGE_USAGE_SAMPLED_BIT // read in main render pass
             | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-        ) 
+        ).value() //TODO: handle failed case
     };
 
     VkSamplerCreateInfo const shadowMapSampler{
-        vkinit::samplerCreateInfo(0, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
+        vkinit::samplerCreateInfo(
+            0
+            , VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK
+            , VK_FILTER_NEAREST
+            , VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+        )
     };
 
     VkSampler depthSampler{ VK_NULL_HANDLE };

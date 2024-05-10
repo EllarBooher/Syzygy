@@ -20,7 +20,10 @@ struct ShadowPass
 
         vkDestroySampler(device, depthSampler, nullptr);
 
-        pipeline->cleanup(device);
+        if (pipeline)
+        {
+            pipeline->cleanup(device);
+        }
 
         vkDestroyDescriptorSetLayout(device, shadowMapDescriptorLayout, nullptr);
 

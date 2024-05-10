@@ -48,7 +48,7 @@ void main()
 	gl_Position = camera.projection * camera.view * position;
 
 	vec4 normal = modelInverseTranspose * vec4(vertex.normal, 0.0);
-	outNormal = normal.xyz;
+	outNormal = normalize(normal.xyz);
 
 	outDiffuseColor = vec3(0.8);
 	outSpecularColor = vec3(1.0);

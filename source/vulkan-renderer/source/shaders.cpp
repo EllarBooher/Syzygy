@@ -324,6 +324,7 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 		return {};
 	}
 
+	Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
 	return ShaderObjectReflected(
 		name,
 		reflectionData,
@@ -369,6 +370,7 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 		return {};
 	}
 
+	Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
 	return ShaderObjectReflected(
 		name,
 		reflectionData,
@@ -489,6 +491,43 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 					, stage
 					, nextStage
 					, layouts
+					, specializationInfo
+				)};
+			},
+			[&](AssetLoadingError const& error)
+			{
+				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				return std::optional<ShaderObjectReflected>{};
+			}
+		}, fileLoadingResult
+	);
+}
+
+std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
+	VkDevice const device
+	, std::string const path
+	, VkShaderStageFlagBits const stage
+	, VkShaderStageFlags const nextStage
+	, std::span<VkDescriptorSetLayout const> const layouts
+	, VkPushConstantRange const rangeOverride
+	, VkSpecializationInfo const specializationInfo
+)
+{
+	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
+	
+	std::array<VkPushConstantRange, 1> rangeOverrides{ rangeOverride };
+	return std::visit(
+		overloaded{
+			[&](AssetFile const& file)
+			{
+				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecode(
+					device
+					, file.fileName
+					, file.fileBytes
+					, stage
+					, nextStage
+					, layouts
+					, rangeOverrides
 					, specializationInfo
 				)};
 			},

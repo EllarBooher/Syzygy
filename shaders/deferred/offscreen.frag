@@ -13,7 +13,7 @@ layout(location = 3) out vec4 outWorldPosition;
 void main()
 {
 	outWorldPosition = vec4(inWorldPosition, 1.0);
-	outNormal = vec4(inNormal, 1.0);
+	outNormal = vec4(inNormal, 0.0);
 	outDiffuseColor = vec4(inDiffuseColor, 1.0);
 	outSpecularColor = vec4(inSpecularColor, 1.0);
 }

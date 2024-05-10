@@ -124,20 +124,22 @@ VkImageCreateInfo vkinit::imageCreateInfo(VkFormat format, VkImageLayout initial
 }
 
 VkSamplerCreateInfo vkinit::samplerCreateInfo(
-    VkSamplerCreateFlags flags
-    , VkBorderColor borderColor
+    VkSamplerCreateFlags const flags
+    , VkBorderColor const borderColor
+    , VkFilter const filter
+    , VkSamplerAddressMode const addressMode
 )
 {
     return {
         .sType{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO },
         .pNext{ nullptr },
         .flags{ flags },
-        .magFilter{ VK_FILTER_LINEAR },
-        .minFilter{ VK_FILTER_LINEAR },
+        .magFilter{ filter },
+        .minFilter{ filter },
         .mipmapMode{ VK_SAMPLER_MIPMAP_MODE_LINEAR },
-        .addressModeU{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-        .addressModeV{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-        .addressModeW{ VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+        .addressModeU{ addressMode },
+        .addressModeV{ addressMode },
+        .addressModeW{ addressMode },
         .mipLodBias{ 0.0f },
         .anisotropyEnable{ VK_FALSE },
         .maxAnisotropy{ 1.0f },
@@ -145,7 +147,7 @@ VkSamplerCreateInfo vkinit::samplerCreateInfo(
         .compareOp{ VK_COMPARE_OP_NEVER },
         .minLod{ 0.0f },
         .maxLod{ 1.0f },
-        .borderColor{ VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE },
+        .borderColor{ borderColor },
         .unnormalizedCoordinates{ VK_FALSE },
     };
 }
@@ -167,10 +169,10 @@ VkImageViewCreateInfo vkinit::imageViewCreateInfo(VkFormat format, VkImage image
 }
 
 VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
-    VkImageView view, 
-    VkClearValue clearValue, 
-    bool useClearValue,
-    VkImageLayout layout)
+    VkImageView const view
+    , VkImageLayout const layout
+    , std::optional<VkClearValue> const clearValue
+)
 {
     return {
         .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
@@ -178,9 +180,9 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
 
         .imageView{ view },
         .imageLayout{ layout },
-        .loadOp{ useClearValue ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD },
+        .loadOp{ clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD},
         .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-        .clearValue{ clearValue },
+        .clearValue{ clearValue.value_or(VkClearValue{})},
     };
 }
 

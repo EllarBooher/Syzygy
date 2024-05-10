@@ -266,6 +266,15 @@ namespace vkutil
 		, std::span<VkDescriptorSetLayout const> layouts
 		, VkSpecializationInfo specializationInfo
 	);
+	std::optional<ShaderObjectReflected> loadShaderObject(
+		VkDevice device
+		, std::string path
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, VkPushConstantRange rangeOverride
+		, VkSpecializationInfo specializationInfo
+	);
 
 	std::optional<ShaderModuleReflected> loadShaderModule(
 		VkDevice device

@@ -91,7 +91,7 @@ void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage
     vkCmdBlitImage2(cmd, &blitInfo);
 }
 
-AllocatedImage AllocatedImage::allocate(
+std::optional<AllocatedImage> AllocatedImage::allocate(
     VmaAllocator allocator
     , VkDevice device
     , VkExtent3D extent
@@ -123,7 +123,14 @@ AllocatedImage AllocatedImage::allocate(
         .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     };
 
-    CheckVkResult(vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr));
+    VkResult const createImageResult{
+        vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr)
+    };
+    if (createImageResult != VK_SUCCESS)
+    {
+        LogVkResult(createImageResult, "VMA Allocation failed");
+        return {};
+    }
 
     VkImageViewCreateInfo const imageViewInfo{
         vkinit::imageViewCreateInfo(
@@ -133,7 +140,14 @@ AllocatedImage AllocatedImage::allocate(
         )
     };
 
-    CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
+    VkResult const createViewResult{
+        vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView)
+    };
+    if (createViewResult != VK_SUCCESS)
+    {
+        LogVkResult(createViewResult, "vkCreateImageView failed");
+        return {};
+    }
 
     return image;
 }

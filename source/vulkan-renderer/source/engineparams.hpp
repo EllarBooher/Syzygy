@@ -115,7 +115,7 @@ struct CameraParameters {
             .rotation{ rotation() },
             .projViewInverse{ projViewInverse },
             .forwardWorld{ rotation() * glm::vec4(geometry::forward,0.0) },
-            .position{ glm::vec4{ cameraPosition, 1.0 } }
+            .position{ glm::vec4{ cameraPosition, 1.0 } },
         };
     }
 
@@ -198,7 +198,7 @@ struct CameraParameters {
             .rotation{ rotation() },
             .projViewInverse{ projViewInverse },
             .forwardWorld{ rotation() * glm::vec4(geometry::forward, 0.0) },
-            .position{ glm::vec4(cameraPosition, 1.0) }
+            .position{ glm::vec4(cameraPosition, 1.0) },
         };
     }
 

@@ -7,13 +7,14 @@
 
 /*
 * A post process shader that adds atmospheric scattering.
-* The color from sunlight and attenuation due to scattering is computed for every texel.
+* The color from sunlight and attenuation due to scattering is computed for every pixel.
 * Then, the color in the image is attenuated and the sunlight contribution is added.
 */ 
 
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
+// Depth is used to determine which pixels are sky
 layout(set = 1, binding = 0) uniform sampler2D fragmentDepth;
 
 layout(buffer_reference, std430) readonly buffer CameraBuffer{
@@ -145,7 +146,7 @@ vec3 computeAtmosphereLight(
 		float t0Light, t1Light;
 		raySphereIntersection(samplePosition, directionToSun, atmosphereRadiusMeters, t0Light, t1Light);
 
-		const uint sampleCountLight = 32;
+		const uint sampleCountLight = 16;
 		const float segmentLengthLight = (t1Light - 0.0) / float(sampleCountLight);
 		float opticalDepthLightRayleigh = 0.0;
 		float opticalDepthLightMie = 0.0;
@@ -200,13 +201,15 @@ vec3 computeAtmosphereLight(
 
 void main() 
 {
-	vec2 size = imageSize(image);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-
+	const vec2 size = imageSize(image);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     if(texelCoord.x >= size.x || texelCoord.y >= size.y)
 	{
 		return;
 	}
+
+	const vec2 offset = vec2(0.5,0.5);
+	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
@@ -214,7 +217,7 @@ void main()
 	// We shift the origin since otherwise our world coords would be at the center of the planet
 	const vec3 surfaceOrigin = vec3(0.0, -atmosphere.earthRadiusMeters, 0.0);
 
-	const vec3 origin = camera.position + surfaceOrigin; 
+	const vec3 origin = camera.position.xyz + surfaceOrigin; 
 
 	const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / size) - 0.5) * 2.0;
 	const float nearPlaneDepth = 1.0;
@@ -222,11 +225,12 @@ void main()
 	const vec3 direction = normalize((camera.rotation * directionViewSpace).xyz);
 
 	// Start and stop for atmospheric sampling, in world units
-	const float depth = texture(fragmentDepth, texelCoord).r;
+	const float depth = texture(fragmentDepth, uv).r;
 	
 	const float tSampleStart = 0.0;
 	float tSampleEnd;
 	vec3 unattenuatedColor = vec3(0.0);
+
 	if (depth == 0.0)
 	{
 		// Sample ends where the atmosphere ends
@@ -242,11 +246,11 @@ void main()
 		// Ignore the case that viewingAtmosphere is false, we assume the camera is not in space
 		tSampleEnd = t1;
 	}
-	else if (depth > 0.0)
+	else
 	{
 		const vec4 texelPosition = camera.projViewInverse * vec4(clipSpaceUV, depth, 1.0);
 
-		tSampleEnd = distance(texelPosition.xyz, camera.position);
+		tSampleEnd = distance(texelPosition.xyz, camera.position.xyz);
 
 		unattenuatedColor = imageLoad(image, texelCoord).rgb;
 	}

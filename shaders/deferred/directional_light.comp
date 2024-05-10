@@ -2,6 +2,10 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
+/*
+* Deferred Blinn-phong shading consuming a GBuffer with a single light/shadowmap
+*/
+
 #include "../types/camera.glsl"
 #include "../types/atmosphere.glsl"
 
@@ -32,26 +36,17 @@ layout (push_constant) uniform PushConstant
 	uint cameraDirectionalLightIndex;
 } pushConstant;
 
-/*
-* Shadow mapping methodology adapted from 
-* https://github.com/SaschaWillems/Vulkan/blob/master/shaders/glsl/shadowmapping/scene.frag
-*/
 float sampleShadowMap(vec4 shadowCoord)
 {
-	if ( shadowCoord.z > 0.0 && shadowCoord.z < 1.0 ) 
+	float dist = texture(shadowMap, shadowCoord.st).r;
+	if (dist > shadowCoord.z && dist > 0.0) 
 	{
-		float dist = texture( shadowMap, shadowCoord.st ).r;
-		if ( shadowCoord.w > 0.0 && dist > shadowCoord.z ) 
-		{
-			return 0.0;
-		}
+		return 0.0;
 	}
+
 	return 1.0;
 }
 
-// shift X and Y
-// from clip space/ndc (-1,-1) to (1,1)
-// to texture coordinates (0,0) to (1,1) 
 const mat4 toTexCoordMat = mat4(
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
@@ -59,10 +54,6 @@ const mat4 toTexCoordMat = mat4(
 	0.5, 0.5, 0.0, 1.0
 );
 
-/*
-* Blinn-phong shader, based on:
-* James F. Blinn. 1977. "Models of light reflection for computer synthesized pictures."
-*/
 void main()
 {
 	const vec2 size = imageSize(image);
@@ -71,53 +62,59 @@ void main()
 	{
 		return;
 	}
-	const vec2 uv = vec2(gl_GlobalInvocationID.xy / size);
 
+	// The uv needs to be offset to avoid floating point errors on texel boundaries
+	const vec2 offset = vec2(0.5,0.5);
+	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
 
-	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+	const vec4 diffuse = texture(samplerDiffuse,uv).rgba;
+
+	// No transparent geometry for now, less than 1.0 alpha indicates background texels
+	if (diffuse.a < 1.0)
+	{
+		return;
+	}
 
 	const Camera directionalLight = pushConstant.cameraBuffer.cameras[pushConstant.cameraDirectionalLightIndex];
-	const vec3 lightDirection = -directionalLight.forwardWorld.xyz;
-	const vec3 normal = texture(samplerNormal,uv).xyz;
+	
+	const vec3 lightDirection = normalize(-directionalLight.forwardWorld.xyz);
+	const vec3 normal = normalize(texture(samplerNormal,uv).xyz);
 	const float lambertian = max(dot(lightDirection, normal), 0.0);
 
 	const vec3 position = texture(samplerWorldPosition,uv).xyz;
-	const vec3 viewDirection = normalize(camera.position - position);
-	// Blinn noted that reflected light is less likely to be intercepted by randomly distributed surface facets
-	// when the angle of reflection is as small as possible.
-	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-	// specularCosine is a measure of the probability that these surface imperfection facets are oriented
-	// with the normal, which would maximize the light reflected.
-	const float specularCosine = clamp(dot(halfwayDirection, normal), 0.0,1.0);
-
-	// Higher shininess means speculars peak faster and are smaller
-	const float shininess = 16.0;
-
-	// This arbitrary fade factor smoothes out cases where the view vector is near 90 degrees from the normal.
-	// This avoids a specular highlight snapping in, which seems to be an issue with parallel rays.
-	// TODO: investigate how to better handle directional lighting with this shader
-	const float fade = smoothstep(0.0,0.01,lambertian);
-
-	// Phong facet distribution function. 
-	const float specular = fade * pow(specularCosine, shininess);
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
-
-	const vec3 diffuseColor = texture(samplerDiffuse,uv).rgb;
-	const vec3 specularColor = texture(samplerSpecular,uv).rgb;
-
+	const vec3 diffuseColor = diffuse.rgb;
+	
+	// AMBIENT
 	const vec3 ambientContribution = diffuseColor * atmosphere.ambientColor;
+
+	// DIFFUSE
 	const vec3 diffuseContribution = lambertian * diffuseColor * atmosphere.sunlightColor;
+
+	// SPECULAR 
+	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+
+	const vec3 viewDirection = normalize(camera.position.xyz - position);
+	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+	const float specularCosine = clamp(dot(halfwayDirection, normal), 0.0,1.0);
+
+	const float shininess = 16.0;
+	const float fade = smoothstep(0.0,0.01,lambertian);
+	const float specular = fade * pow(specularCosine, shininess);
+	const vec3 specularColor = texture(samplerSpecular,uv).rgb;
 	const vec3 specularContribution = specular * specularColor * atmosphere.sunlightColor;
 		
-	const vec4 shadowCoord = (toTexCoordMat * directionalLight.projection * directionalLight.view) * vec4(position, 1.0);
-	const float attenuationShadow = sampleShadowMap(shadowCoord);
+	// SHADOW
+	const mat4 shadowMatrix = toTexCoordMat * directionalLight.projection * directionalLight.view;
+	const vec4 shadowCoord = shadowMatrix * vec4(position, 1.0);
+	const float attenuationShadow = sampleShadowMap(shadowCoord); 
 
 	const vec4 finalColor = vec4(
 		ambientContribution 
 		+ attenuationShadow * (diffuseContribution + specularContribution)
 		, 1.0
 	);
-
+	
 	imageStore(image, texelCoord, finalColor);
 }

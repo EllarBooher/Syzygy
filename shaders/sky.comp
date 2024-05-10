@@ -306,7 +306,7 @@ void main()
 		vec4 rayDirection = camera.rotation * camera.inverseProjection * vec4(screenSpaceUV,1.0,1.0);
 		rayDirection /= rayDirection.w;
 
-		vec3 skyColor = computeAtmosphereLight(camera.position, normalize(rayDirection.xyz), atmosphereParameters);
+		vec3 skyColor = computeAtmosphereLight(camera.position.xyz, normalize(rayDirection.xyz), atmosphereParameters);
 
 		imageStore(image, texelCoord, vec4(skyColor, 1.0));
 	}

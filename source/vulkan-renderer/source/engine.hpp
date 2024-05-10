@@ -9,6 +9,7 @@
 #include "engineparams.hpp"
 #include "shadowpass.hpp"
 #include "debuglines.hpp"
+#include "deferred/deferred.hpp"
 
 struct GLFWwindow;
 
@@ -90,6 +91,7 @@ private:
     void initDebug();
     void initInstancedPipeline();
     void initBackgroundPipeline();
+    void initDeferredShadingPipeline();
 
     void initGenericComputePipelines();
 
@@ -164,6 +166,9 @@ private:
         std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 
         std::vector<glm::mat4x4> originals{};
+
+        // An index to where the first dynamic object begins
+        size_t dynamicIndex{};
     };
     MeshInstances m_meshInstances{};
 
@@ -172,6 +177,8 @@ private:
     bool m_useAtmosphereCompute{ true };
     std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};
     std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
+
+    std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
 
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
