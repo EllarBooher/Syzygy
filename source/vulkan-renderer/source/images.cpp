@@ -12,26 +12,13 @@ VkOffset3D ExtentToOffset(VkExtent3D extent)
     return { x, y, z };
 }
 
-VkImageAspectFlags getAspectMaskFromLayout(VkImageLayout layout)
-{
-    switch (layout)
-    {
-    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
-        return VK_IMAGE_ASPECT_DEPTH_BIT;
-    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-    default:
-        // Default to color for now, until we start using other image layouts.
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-}
-
-void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+void vkutil::transitionImage(
+    VkCommandBuffer const cmd
+    , VkImage const image
+    , VkImageLayout const oldLayout
+    , VkImageLayout const newLayout
+    , VkImageAspectFlags const aspects
+)
 {
     VkImageMemoryBarrier2 const imageBarrier{
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -46,7 +33,7 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
         .newLayout = newLayout,
 
         .image = image,
-        .subresourceRange = vkinit::imageSubresourceRange(getAspectMaskFromLayout(newLayout)),
+        .subresourceRange = vkinit::imageSubresourceRange(aspects),
     };
 
     VkDependencyInfo const depInfo{

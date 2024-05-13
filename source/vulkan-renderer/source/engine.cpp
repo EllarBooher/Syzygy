@@ -1104,8 +1104,10 @@ void Engine::draw()
     // ImGui Drawing
 
     vkutil::transitionImage(cmd,
-        m_drawImage.image,
-        VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     recordDrawImgui(cmd, m_drawImage.imageView);
@@ -1134,12 +1136,16 @@ void Engine::draw()
     VkImageView const& swapchainImageView = m_swapchainImageViews[swapchainImageIndex];
 
     vkutil::transitionImage(cmd, 
-        m_drawImage.image, 
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        swapchainImage
+        , VK_IMAGE_LAYOUT_UNDEFINED
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     vkutil::recordCopyImageToImage(cmd,
@@ -1148,8 +1154,10 @@ void Engine::draw()
     );
 
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        swapchainImage
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     CheckVkResult(vkEndCommandBuffer(cmd));

@@ -382,6 +382,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , m_shadowPass.depthImage.image
             , VK_IMAGE_LAYOUT_UNDEFINED
             , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
         );
 
         m_shadowPass.pipeline->recordDrawCommands(
@@ -401,16 +402,23 @@ void DeferredShadingPipeline::recordDrawCommands(
             , m_shadowPass.depthImage.image
             , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
             , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
         );
     }
 
     { // Prepare GBuffer resources
-        vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
         
-        vkutil::transitionImage(cmd, depth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        vkutil::transitionImage(
+            cmd
+            , depth.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+        );
     }
 
     { // Deferred GBuffer pass
@@ -561,13 +569,19 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdEndRendering(cmd);
     }
 
-    vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-    vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-    vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-    vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
+    vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     {
-        vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        vkutil::transitionImage(
+            cmd
+            , color.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
 
         VkClearColorValue const clearColor{
             .float32{ 1.0, 0.0, 0.0, 1.0}
@@ -581,7 +595,13 @@ void DeferredShadingPipeline::recordDrawCommands(
             , 1, &range
         );
 
-        vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+        vkutil::transitionImage(
+            cmd
+            , color.image
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
     }
 
     { // Lighting pass using GBuffer output
@@ -628,8 +648,20 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     { // Sky post-process pass
-        vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
-        vkutil::transitionImage(cmd, depth.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        vkutil::transitionImage(
+            cmd
+            , color.image
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+        vkutil::transitionImage(
+            cmd
+            , depth.image
+            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+        );
 
         VkShaderStageFlagBits const computeStage{ VK_SHADER_STAGE_COMPUTE_BIT };
         VkShaderEXT const shader{ m_skyPassComputeShader.shaderObject() };

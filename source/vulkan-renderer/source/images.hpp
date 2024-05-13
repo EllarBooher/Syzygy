@@ -37,10 +37,14 @@ struct AllocatedImage {
 };
 
 namespace vkutil {
-    /**
-        Transitions the layout of an image, putting in a full memory barrier for all
-    */
-    void transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+    // Transitions the layout of an image, putting in a full memory barrier
+    void transitionImage(
+        VkCommandBuffer cmd
+        , VkImage image
+        , VkImageLayout oldLayout
+        , VkImageLayout newLayout
+        , VkImageAspectFlags aspects
+    );
 
     /** 
         Copies all RGBA of an image to another.  
