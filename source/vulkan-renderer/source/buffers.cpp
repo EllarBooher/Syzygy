@@ -56,6 +56,8 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
 {
     CheckVkResult(vmaFlushAllocation(allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE));
 
+    markDirty(false);
+
     VkBufferCopy const copyInfo{
         .srcOffset{ 0 },
         .dstOffset{ 0 },
@@ -68,25 +70,47 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
 
 VkDeviceAddress StagedBuffer::deviceAddress() const
 {
+    if (isDirty())
+    {
+        Warning("Dirty buffer's device address was accessed, the buffer may have unexpected values at command execution.");
+    }
+
     return m_deviceBuffer.deviceAddress;
 }
 
-void StagedBuffer::stage(std::span<uint8_t const> data)
+void StagedBuffer::stageBytes(std::span<uint8_t const> data)
 {
     clearStaged();
-    push(data);
+    markDirty(true);
+    pushBytes(data);
 }
 
-void StagedBuffer::push(std::span<uint8_t const> data)
+void StagedBuffer::pushBytes(std::span<uint8_t const> data)
 {
     assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
+    markDirty(true);
     uint8_t* const start{ reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData) + m_stagedSizeBytes };
     memcpy(start, data.data(), data.size_bytes());
     m_stagedSizeBytes += data.size_bytes();
 }
 
+void StagedBuffer::popBytes(size_t count)
+{
+    markDirty(true);
+
+    if (count > m_stagedSizeBytes)
+    {
+        m_stagedSizeBytes = 0;
+        return;
+    }
+
+    m_stagedSizeBytes -= count;
+}
+
 void StagedBuffer::clearStaged()
 {
+    markDirty(true);
+
     m_stagedSizeBytes = 0;
 }
 
