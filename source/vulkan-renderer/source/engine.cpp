@@ -36,6 +36,8 @@
 #include "descriptors.hpp"
 #include "pipelines.hpp"
 
+#include "lights.hpp"
+
 #include "ui/engineui.hpp"
 #include "ui/pipelineui.hpp"
 
@@ -133,15 +135,11 @@ void Engine::initVulkan()
     initSyncStructures();
     initDescriptors();
 
-    m_shadowPass = std::move(initShadowpass(m_device, m_globalDescriptorAllocator, m_allocator));
-
     updateDescriptors();
 
     initDefaultMeshData();
     initWorld();
     initDebug();
-    initBackgroundPipeline();
-    initInstancedPipeline();
     initGenericComputePipelines();
     
     initDeferredShadingPipeline();
@@ -191,6 +189,10 @@ void Engine::initInstanceSurfaceDevices()
     VkPhysicalDeviceVulkan12Features const features12
     {
         .descriptorIndexing{ VK_TRUE },
+
+        .descriptorBindingPartiallyBound{ VK_TRUE },
+        .runtimeDescriptorArray{ VK_TRUE },
+
         .bufferDeviceAddress{ VK_TRUE },
     };
     
@@ -397,23 +399,6 @@ void Engine::initDescriptors()
     }
 }
 
-ShadowPass Engine::initShadowpass(
-    VkDevice device
-    , DescriptorAllocator& descriptorAllocator
-    , VmaAllocator allocator
-)
-{
-    // TODO: Query the max image size for the shadow map
-    uint32_t constexpr shadowMapSize{ 16384 };
-
-    return ShadowPass::create(
-        device,
-        descriptorAllocator,
-        allocator,
-        shadowMapSize
-    );
-}
-
 void Engine::updateDescriptors()
 {
     VkDescriptorImageInfo const drawImageInfo{
@@ -538,10 +523,8 @@ void Engine::initWorld()
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
         m_camerasBuffer->push(GPUTypes::Camera{});
-        m_camerasBuffer->push(GPUTypes::Camera{});
 
         m_cameraIndexMain = 0;
-        m_cameraIndexShadowpass = 1;
     }
 
     { // Atmosphere
@@ -582,25 +565,6 @@ void Engine::initDebug()
             1000,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         )
-    );
-}
-
-void Engine::initInstancedPipeline()
-{
-    m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
-        m_device
-        , m_drawImage.imageFormat
-        , m_depthImage.imageFormat
-        , m_shadowPass.shadowMapDescriptorLayout
-    );
-}
-
-void Engine::initBackgroundPipeline()
-{
-    m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
-        m_device
-        , m_drawImageDescriptorLayout
-        , m_shadowPass.shadowMapDescriptorLayout
     );
 }
 
@@ -920,7 +884,7 @@ void Engine::mainLoop()
 
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
 
-            if (ImGui::Begin("Pipeline Controls"))
+            if (ImGui::Begin("Scene Controls"))
             {
                 imguiMeshInstanceControls(
                     m_renderMeshInstances,
@@ -928,24 +892,38 @@ void Engine::mainLoop()
                     m_testMeshUsed
                 );
                 ImGui::Separator();
-                imguiBackgroundRenderingControls(
-                    m_useAtmosphereCompute,
-                    *m_atmospherePipeline,
-                    *m_genericComputePipeline
+                imguiStructureControls(
+                    m_sceneBounds
+                    , SceneBounds{
+                        .center{ glm::vec3(0.0, -4.0, 0.0) },
+                        .extent{ glm::vec3(40.0, 5.0, 40.0) }
+                    }
                 );
+            }
+            ImGui::End();
+
+            if (ImGui::Begin("Pipeline Controls"))
+            {
+                imguiRenderingSelection(m_activeRenderingPipeline);
                 ImGui::Separator();
-                imguiPipelineControls<InstancedMeshGraphicsPipeline const>(*m_instancePipeline);
+                switch (m_activeRenderingPipeline)
+                {
+                case RenderingPipelines::DEFERRED:
+                    imguiPipelineControls(*m_deferredShadingPipeline);
+                    break;
+                case RenderingPipelines::COMPUTE_COLLECTION:
+                    imguiPipelineControls(*m_genericComputePipeline);
+                    break;
+                default:
+                    ImGui::Text("Invalid rendering pipeline selected.");
+                    break;
+                }
             }
             ImGui::End();
 
             if (ImGui::Begin("Engine Controls"))
             {
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
-                ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
-                ImGui::Separator();
-                ImGui::Indent(10.0f);
-                imguiStructureControls(m_shadowPassParameters);
-                ImGui::Unindent(10.0f);
                 ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
@@ -1030,24 +1008,10 @@ void Engine::draw()
 
     { // Copy cameras to gpu
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
-        cameras[m_cameraIndexMain] = { 
+        cameras[m_cameraIndexMain] = {
                 m_useOrthographicProjection
             ? m_cameraParameters.toDeviceEquivalentOrthographic(m_drawImage.aspectRatio(), 5.0)
-            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio()) 
-        };
-
-        if (m_shadowPassParameters.useSunlight)
-        {
-            m_shadowPassParameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
-        }
-
-        cameras[m_cameraIndexShadowpass] = {
-            m_cameraParameters.makeShadowpassCamera(
-                m_shadowPass.depthImage.aspectRatio()
-                , m_shadowPassParameters.directionalLightForward
-                , m_shadowPassParameters.sceneCenter
-                , m_shadowPassParameters.sceneExtent
-            )
+            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio())
         };
 
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
@@ -1073,30 +1037,132 @@ void Engine::draw()
         m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
     }
 
+    switch (m_activeRenderingPipeline)
     {
-        uint32_t const cameraIndex{
-            m_useShadowpassPerspective
-            ? m_cameraIndexShadowpass
-            : m_cameraIndexMain
+    case RenderingPipelines::DEFERRED:
+    {
+        std::vector<GPUTypes::LightDirectional> directionalLights{};
+        std::span<GPUTypes::Atmosphere const> const atmospheres{
+            m_atmospheresBuffer->readValidStaged()
+        };
+        if (m_atmosphereIndex < atmospheres.size())
+        {
+            GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
+
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, atmosphere.directionToSun)
+            };
+            if (time > 0.0)
+            { // Sunlight
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        glm::vec4(atmosphere.sunlightColor, 1.0)
+                        , 0.5
+                        , m_atmosphereParameters.sunEulerAngles
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+
+            float constexpr timeSunset{ 0.06 };
+            if (time < timeSunset)
+            { // Moonlight
+                float constexpr moonrisePeriod{ 0.08 };
+                float const moonlightStrength{
+                    0.1f * (
+                        time < timeSunset - moonrisePeriod
+                        ? 1.0f
+                        : glm::abs(time - timeSunset) / moonrisePeriod
+                    )
+                };
+
+                glm::vec4 const moonlightColor{
+                    glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
+                };
+
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        moonlightColor
+                        , moonlightStrength
+                        , glm::vec3(-1.5708, 0.0, 0.0)
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+        }
+        else
+        {
+            directionalLights.push_back(
+                lights::makeDirectional(
+                    glm::vec4(1.0)
+                    , 1.0
+                    , glm::vec3(-1.5708, 0.0, 0.0)
+                    , m_sceneBounds.center
+                    , m_sceneBounds.extent
+                )
+            );
+        }
+
+        std::vector<GPUTypes::LightSpot> const spotLights{
+            lights::makeSpot(
+                glm::vec4(0.0, 1.0, 0.0, 1.0)
+                , 20.0
+                , 1.0
+                , 1.0
+                , 70
+                , 1.0
+                , glm::vec3(-0.8, 0.0, 1.0)
+                , glm::vec3(-8.0, -10.0, 0.0)
+                , 0.1
+                , 1000.0
+            ),
+            lights::makeSpot(
+                glm::vec4(1.0, 0.0, 0.0, 1.0)
+                , 20.0
+                , 1.0
+                , 1.0
+                , 70
+                , 1.0
+                , glm::vec3(-0.8, 0.0, -1.0)
+                , glm::vec3(8.0, -10.0, 0.0)
+                , 0.1
+                , 1000.0
+            ),
         };
 
         m_deferredShadingPipeline->recordDrawCommands(
             cmd
             , m_drawImage
             , m_depthImage
-            , m_shadowPassParameters.depthBias
-            , m_shadowPassParameters.depthBiasSlope
-            , m_cameraIndexShadowpass
-            , cameraIndex
+            , directionalLights
+            , spotLights
+            , m_cameraIndexMain
             , *m_camerasBuffer
             , m_atmosphereIndex
             , *m_atmospheresBuffer
+            , m_sceneBounds
             , *m_testMeshes[m_testMeshUsed]
-            , *m_meshInstances.models
-            , *m_meshInstances.modelInverseTransposes
+            , m_meshInstances
         );
-
-        //recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
+        break;
+    }
+    case RenderingPipelines::COMPUTE_COLLECTION:
+    {
+        if (m_debugLines.enabled)
+        {
+            vkutil::transitionImage(
+                cmd
+                , m_drawImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_GENERAL
+                , VK_IMAGE_ASPECT_COLOR_BIT
+            );
+            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+        }
+        break;
+    }
     }
 
     // End scene drawing
@@ -1275,8 +1341,6 @@ void Engine::cleanup()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
-    m_instancePipeline->cleanup(m_device);
-    m_atmospherePipeline->cleanup(m_device);
     m_genericComputePipeline->cleanup(m_device);
     m_deferredShadingPipeline->cleanup(m_device, m_allocator);
 
@@ -1290,8 +1354,6 @@ void Engine::cleanup()
     m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
-
-    m_shadowPass.cleanup(m_device, m_allocator);
 
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
 

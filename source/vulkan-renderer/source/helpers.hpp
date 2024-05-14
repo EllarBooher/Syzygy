@@ -7,6 +7,7 @@
 #include <source_location>
 
 #define VKR_ARRAY(x) static_cast<uint32_t>(x.size()), x.data()
+#define VKR_ARRAY_NONE 0, nullptr
 
 class DebugUtils
 {

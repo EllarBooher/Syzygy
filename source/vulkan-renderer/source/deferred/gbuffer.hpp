@@ -24,6 +24,8 @@ struct GBuffer
         , DescriptorAllocator& descriptorAllocator
     );
 
+    void recordTransitionImages(VkCommandBuffer cmd, VkImageLayout srcLayout, VkImageLayout dstLayout);
+
     void cleanup(
         VkDevice device
         , VmaAllocator allocator

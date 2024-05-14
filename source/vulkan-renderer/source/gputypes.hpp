@@ -88,5 +88,6 @@ namespace GPUTypes
         float falloffFactor;
         // The distance that light starts to fall off, i.e. the near plane of the light
         float falloffDistance;
+        uint8_t padding0[4]{};
     };
 }

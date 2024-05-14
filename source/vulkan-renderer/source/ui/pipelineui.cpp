@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 
 #include "../pipelines.hpp"
+#include "../deferred/deferred.hpp"
 
 static void TypeLabel(std::string const& label)
 {
@@ -292,49 +293,6 @@ static void imguiPushStructureControl(
     }
 }
 
-/*
-* Type-safe wrappers that call the methods that use the shader reflection data to render a push constant.
-*/
-template<>
-void imguiPipelineControls(InstancedMeshGraphicsPipeline const& pipeline)
-{
-    ImGui::Separator();
-
-    { // Vertex
-        std::span<uint8_t const> const vertexPushConstantBytes{
-            reinterpret_cast<uint8_t const*>(&pipeline.vertexPushConstant())
-            , sizeof(decltype(pipeline.vertexPushConstant()))
-        };
-
-        ImGui::Text(pipeline.vertexShader().name().c_str());
-        imguiPushStructureControl(pipeline.vertexPushConstantReflected(), true, vertexPushConstantBytes);
-    }
-
-    { // Fragment
-        std::span<uint8_t const> const fragmentPushConstantBytes{
-            reinterpret_cast<uint8_t const*>(&pipeline.fragmentPushConstant())
-            , sizeof(decltype(pipeline.fragmentPushConstant()))
-        };
-
-        ImGui::Text(pipeline.fragmentShader().name().c_str());
-        imguiPushStructureControl(pipeline.fragmentPushConstantReflected(), true, fragmentPushConstantBytes);
-    }
-}
-
-template<>
-void imguiPipelineControls(AtmosphereComputePipeline const& pipeline)
-{
-    std::span<uint8_t const> const pushConstantBytes{
-        reinterpret_cast<uint8_t const*>(&pipeline.pushConstant())
-        , sizeof(pipeline.pushConstant())
-    };
-
-    ImGui::Separator();
-    ImGui::Text(pipeline.shader().name().c_str());
-
-    imguiPushStructureControl(pipeline.pushConstantReflected(), true, pushConstantBytes);
-}
-
 template<>
 void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
 {
@@ -368,4 +326,17 @@ void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
     {
         ImGui::Text("No push constants.");
     }
+}
+
+template<>
+void imguiPipelineControls(DeferredShadingPipeline& pipeline)
+{
+    ImGui::Text("Deferred shading pipeline.");
+    imguiStructureControls(
+        pipeline.m_parameters.shadowPassParameters
+        , ShadowPassParameters{
+            .depthBiasConstant{ 2.0 },
+            .depthBiasSlope{ -5.0 },
+        }
+    );
 }

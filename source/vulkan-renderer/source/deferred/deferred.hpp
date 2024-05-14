@@ -21,16 +21,15 @@ public:
         VkCommandBuffer cmd
         , AllocatedImage const& color
         , AllocatedImage const& depth
-        , float depthBiasConstant
-        , float depthBiasSlope
-        , uint32_t sunCameraIndex
+        , std::span<GPUTypes::LightDirectional const> directionalLights
+        , std::span<GPUTypes::LightSpot const> spotLights
         , uint32_t viewCameraIndex
         , TStagedBuffer<GPUTypes::Camera> const& cameras
         , uint32_t atmosphereIndex
         , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
-        , MeshAsset const& mesh
-        , TStagedBuffer<glm::mat4x4> const& models
-        , TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
+        , SceneBounds const& sceneBounds
+        , MeshAsset const& sceneMesh
+        , MeshInstances const& sceneGeometry
     );
 
     void updateRenderTargetDescriptors(
@@ -45,9 +44,12 @@ public:
     );
 
 private:
-    // This pipeline supports one light: the sun as a directional light 
-    ShadowPass m_shadowPass{};
-    ShadowPassParameters m_shadowPassParameters{}; // TODO: derive shadow pass parameters from this and drive via UI
+    ShadowPassArray m_shadowPassArray{};
+
+    VmaAllocator m_allocator{ VK_NULL_HANDLE };
+
+    std::unique_ptr<TStagedBuffer<GPUTypes::LightDirectional>> m_directionalLights{};
+    std::unique_ptr<TStagedBuffer<GPUTypes::LightSpot>> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{ VK_NULL_HANDLE };
     VkDescriptorSetLayout m_drawImageLayout{ VK_NULL_HANDLE }; // Used by compute shaders to output final image
@@ -81,10 +83,13 @@ private:
         VkDeviceAddress cameraBuffer{};
         VkDeviceAddress atmosphereBuffer{};
 
+        VkDeviceAddress directionalLightsBuffer{};
+        VkDeviceAddress spotLightsBuffer{};
+
+        uint32_t directionalLightCount{};
+        uint32_t spotLightCount{};
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
-        uint32_t cameraDirectionalLightIndex{ 0 };
-        uint8_t padding0[4]{};
     };
 
     LightingPassComputePushConstant mutable m_lightingPassPushConstant{};
@@ -104,4 +109,11 @@ private:
     SkyPassComputePushConstant mutable m_skyPassPushConstant{};
     ShaderObjectReflected m_skyPassComputeShader{ ShaderObjectReflected::MakeInvalid() };
     VkPipelineLayout m_skyPassLayout{ VK_NULL_HANDLE };
+
+public:
+    struct Parameters
+    {
+        ShadowPassParameters shadowPassParameters{};
+    };
+    Parameters m_parameters;
 };

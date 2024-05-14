@@ -23,9 +23,7 @@ struct AtmosphereParameters {
 
     glm::vec3 directionToSun() const
     {
-        return glm::vec3(
-            glm::orientate3(sunEulerAngles) * glm::vec3(0.0, -1.0, 0.0)
-        );
+        return -geometry::forwardFromEulers(sunEulerAngles);
     }
 
     float earthRadiusMeters{ 0.0 };
@@ -222,11 +220,6 @@ struct CameraParameters {
 
 struct ShadowPassParameters
 {
-    float depthBias{ 2.00f };
+    float depthBiasConstant{ 2.00f };
     float depthBiasSlope{ -1.75f };
-
-    bool useSunlight{ true };
-    glm::vec3 directionalLightForward{ 0.0, 1.0, 0.0 };
-    glm::vec3 sceneCenter{ 0.0, -4.0, 0.0 };
-    glm::vec3 sceneExtent{ 40.5, 1.5, 40.5 };
 };

@@ -22,6 +22,32 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
+enum class RenderingPipelines
+{
+    DEFERRED = 0
+    , COMPUTE_COLLECTION = 1
+};
+
+template<typename T>
+struct TStagedBuffer;
+
+struct MeshInstances
+{
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+
+    std::vector<glm::mat4x4> originals{};
+
+    // An index to where the first dynamic object begins
+    size_t dynamicIndex{};
+};
+
+struct SceneBounds
+{
+    glm::vec3 center{};
+    glm::vec3 extent{};
+};
+
 struct Vertex {
     glm::vec3 position;
     float uv_x;

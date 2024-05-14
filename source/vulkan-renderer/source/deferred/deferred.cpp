@@ -133,6 +133,8 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     , VkExtent3D const drawExtent
 )
 {
+    m_allocator = allocator;
+
     { // GBuffer
         VkExtent2D const extent{
             .width{ drawExtent.width },
@@ -154,6 +156,17 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         {
             Warning("Failed to create GBuffer.");
         }
+    }
+
+    { // Lights used during the pass
+        VkDeviceSize constexpr maxLights{ 16 };
+
+        m_directionalLights = std::make_unique<TStagedBuffer<GPUTypes::LightDirectional>>(
+            TStagedBuffer<GPUTypes::LightDirectional>::allocate(device, allocator, maxLights, 0)
+        );
+        m_spotLights = std::make_unique<TStagedBuffer<GPUTypes::LightSpot>>(
+            TStagedBuffer<GPUTypes::LightSpot>::allocate(device, allocator, maxLights, 0)
+        );
     }
 
     { // Descriptor Sets
@@ -186,7 +199,8 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         m_depthImageSet = descriptorAllocator.allocate(device, m_depthImageLayout);
     }
 
-    m_shadowPass = ShadowPass::create(device, descriptorAllocator, allocator, 16384);
+    size_t constexpr maxShadowMaps{ 10 };
+    m_shadowPassArray = ShadowPassArray::create(device, descriptorAllocator, allocator, 8192, maxShadowMaps).value();
 
     { // GBuffer pipelines
         VkPushConstantRange const graphicsPushConstantRange{
@@ -231,7 +245,8 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         std::vector<VkDescriptorSetLayout> const lightingPassDescriptorSets{
             m_drawImageLayout
             , m_gBuffer.descriptorLayout
-            , m_shadowPass.shadowMapDescriptorLayout
+            , m_shadowPassArray.samplerSetLayout()
+            , m_shadowPassArray.texturesSetLayout()
         };
 
         m_lightingPassComputeShader = loadShader(
@@ -358,60 +373,50 @@ void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer cmd
     , AllocatedImage const& color
     , AllocatedImage const& depth
-    , float depthBiasConstant
-    , float depthBiasSlope
-    , uint32_t sunCameraIndex
+    , std::span<GPUTypes::LightDirectional const> directionalLights
+    , std::span<GPUTypes::LightSpot const> spotLights
     , uint32_t viewCameraIndex
     , TStagedBuffer<GPUTypes::Camera> const& cameras
     , uint32_t atmosphereIndex
     , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
-    , MeshAsset const& mesh
-    , TStagedBuffer<glm::mat4x4> const& models
-    , TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
+    , SceneBounds const& sceneBounds
+    , MeshAsset const& sceneMesh
+    , MeshInstances const& sceneGeometry
 )
 {
     VkPipelineStageFlags2 const bufferStages{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT };
     cameras.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
     atmospheres.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-    models.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-    modelInverseTransposes.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+    sceneGeometry.models->recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+    sceneGeometry.modelInverseTransposes->recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
-    { // Shadow map for sun
-        vkutil::transitionImage(
+    { // Update lights
+        m_directionalLights->clearStaged();
+        m_directionalLights->push(directionalLights);
+        m_directionalLights->recordCopyToDevice(cmd, m_allocator);
+        m_directionalLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+
+        m_spotLights->clearStaged();
+        m_spotLights->push(spotLights);
+        m_spotLights->recordCopyToDevice(cmd, m_allocator);
+        m_spotLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+    }
+
+    { // Shadow maps
+        m_shadowPassArray.recordInitialize(
             cmd
-            , m_shadowPass.depthImage.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-            , VK_IMAGE_ASPECT_DEPTH_BIT
+            , m_parameters.shadowPassParameters.depthBiasConstant
+            , m_parameters.shadowPassParameters.depthBiasSlope
+            , m_directionalLights->readValidStaged()
+            , m_spotLights->readValidStaged()
         );
 
-        m_shadowPass.pipeline->recordDrawCommands(
-            cmd
-            , false
-            , depthBiasConstant
-            , depthBiasSlope
-            , m_shadowPass.depthImage
-            , sunCameraIndex
-            , cameras
-            , mesh
-            , models
-        );
-
-        vkutil::transitionImage(
-            cmd
-            , m_shadowPass.depthImage.image
-            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-            , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
-            , VK_IMAGE_ASPECT_DEPTH_BIT
-        );
+        m_shadowPassArray.recordDrawCommands(cmd, sceneMesh, *sceneGeometry.models);
     }
 
     { // Prepare GBuffer resources
-        vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        
+        m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
         vkutil::transitionImage(
             cmd
             , depth.image
@@ -422,7 +427,12 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     { // Deferred GBuffer pass
-        setRasterizationShaderObjectState(cmd, color.imageExtent, m_shadowPassParameters.depthBias, m_shadowPassParameters.depthBiasSlope);
+        setRasterizationShaderObjectState(
+            cmd
+            , color.imageExtent
+            , m_parameters.shadowPassParameters.depthBiasConstant
+            , m_parameters.shadowPassParameters.depthBiasSlope
+        );
 
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
 
@@ -533,13 +543,13 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdBindShadersEXT(cmd, 2, stages.data(), shaders.data());
 
-        GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
+        GPUMeshBuffers& meshBuffers{ *sceneMesh.meshBuffers };
 
         { // Vertex push constant
             GBufferVertexPushConstant const vertexPushConstant{
                 .vertexBuffer{ meshBuffers.vertexAddress() },
-                .modelBuffer{ models.deviceAddress() },
-                .modelInverseTransposeBuffer{ modelInverseTransposes.deviceAddress() },
+                .modelBuffer{ sceneGeometry.models->deviceAddress() },
+                .modelInverseTransposeBuffer{ sceneGeometry.modelInverseTransposes->deviceAddress() },
                 .cameraBuffer{ cameras.deviceAddress() },
                 .cameraIndex{ viewCameraIndex },
             };
@@ -550,11 +560,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             m_gBufferVertexPushConstant = vertexPushConstant;
         }
 
-        GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
+        GeometrySurface const& drawnSurface{ sceneMesh.surfaces[0] };
 
         // Bind the entire index buffer of the mesh, but only draw a single surface.
         vkCmdBindIndexBuffer(cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cmd, drawnSurface.indexCount, models.deviceSize(), drawnSurface.firstIndex, 0, 0);
+        vkCmdDrawIndexed(cmd, drawnSurface.indexCount, sceneGeometry.models->deviceSize(), drawnSurface.firstIndex, 0, 0);
 
         std::array<VkShaderStageFlagBits, 2> unboundStages{
             VK_SHADER_STAGE_VERTEX_BIT
@@ -569,19 +579,11 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdEndRendering(cmd);
     }
 
-    vkutil::transitionImage(cmd, m_gBuffer.diffuseColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, m_gBuffer.specularColor.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, m_gBuffer.normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, m_gBuffer.worldPosition.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
+    m_shadowPassArray.recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
 
-    {
-        vkutil::transitionImage(
-            cmd
-            , color.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_GENERAL
-            , VK_IMAGE_ASPECT_COLOR_BIT
-        );
+    { // Clear color image
+        vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         VkClearColorValue const clearColor{
             .float32{ 1.0, 0.0, 0.0, 1.0}
@@ -609,10 +611,11 @@ void DeferredShadingPipeline::recordDrawCommands(
         VkShaderEXT const shader{ m_lightingPassComputeShader.shaderObject() };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
 
-        std::array<VkDescriptorSet, 3> descriptorSets{
+        std::array<VkDescriptorSet, 4> descriptorSets{
             m_drawImageSet
             , m_gBuffer.descriptors
-            , m_shadowPass.shadowMapDescriptors
+            , m_shadowPassArray.samplerSet()
+            , m_shadowPassArray.textureSet()
         };
 
         vkCmdBindDescriptorSets(
@@ -627,9 +630,13 @@ void DeferredShadingPipeline::recordDrawCommands(
             .cameraBuffer{ cameras.deviceAddress() },
             .atmosphereBuffer{ atmospheres.deviceAddress() },
 
+            .directionalLightsBuffer{ m_directionalLights->deviceAddress() },
+            .spotLightsBuffer{ m_spotLights->deviceAddress() },
+
+            .directionalLightCount{ static_cast<uint32_t>(m_directionalLights->deviceSize()) },
+            .spotLightCount{ static_cast<uint32_t>(m_spotLights->deviceSize()) },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
-            .cameraDirectionalLightIndex{ sunCameraIndex },
         };
         m_lightingPassPushConstant = pushConstant;
 
@@ -760,8 +767,11 @@ void DeferredShadingPipeline::updateRenderTargetDescriptors(
 
 void DeferredShadingPipeline::cleanup(VkDevice device, VmaAllocator allocator)
 {
-    m_shadowPass.cleanup(device, allocator);
+    m_shadowPassArray.cleanup(device, allocator);
     m_gBuffer.cleanup(device, allocator);
+
+    m_directionalLights.reset();
+    m_spotLights.reset();
 
     vkDestroyDescriptorSetLayout(device, m_depthImageLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, m_drawImageLayout, nullptr);

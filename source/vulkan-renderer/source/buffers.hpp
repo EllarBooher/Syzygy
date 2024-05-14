@@ -176,6 +176,7 @@ struct TStagedBuffer : public StagedBuffer
 
     // These values may be out of date, and not the values used by the GPU upon command execution.
     // Use this only as a convenient interface for modifying the staged values.
+    // TODO: get rid of this and have a write-only interface instead
     std::span<T> mapValidStaged()
     {
         return std::span<T>(reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize());

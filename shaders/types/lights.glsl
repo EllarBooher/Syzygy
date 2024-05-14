@@ -24,5 +24,4 @@ struct LightSpot {
 	float strength;
 	float falloffFactor;
 	float falloffDistance;
-	float radiusUV;
 };

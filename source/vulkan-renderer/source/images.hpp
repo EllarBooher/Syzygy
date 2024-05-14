@@ -38,6 +38,7 @@ struct AllocatedImage {
 
 namespace vkutil {
     // Transitions the layout of an image, putting in a full memory barrier
+    //TODO: track image layout on images themselves, and make this automatic
     void transitionImage(
         VkCommandBuffer cmd
         , VkImage image

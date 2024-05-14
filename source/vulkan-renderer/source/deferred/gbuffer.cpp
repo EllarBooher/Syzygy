@@ -191,6 +191,18 @@ std::optional<GBuffer> GBuffer::create(
     return buffer;
 }
 
+void GBuffer::recordTransitionImages(
+    VkCommandBuffer cmd
+    , VkImageLayout srcLayout
+    , VkImageLayout dstLayout
+)
+{
+    vkutil::transitionImage(cmd, diffuseColor.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, specularColor.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, normal.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(cmd, worldPosition.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
 void GBuffer::cleanup(VkDevice device, VmaAllocator allocator)
 {
     diffuseColor.cleanup(device, allocator);

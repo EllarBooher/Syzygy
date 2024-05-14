@@ -63,25 +63,20 @@ void imguiMeshInstanceControls(
     ImGui::Unindent(10.0f);
 }
 
-void imguiBackgroundRenderingControls(bool& useAtmosphereCompute, AtmosphereComputePipeline const& atmospherePipeline, GenericComputeCollectionPipeline& genericComputePipeline)
-{
-    ImGui::Text("Background Rendering:");
-    if (ImGui::RadioButton("Atmosphere Volume Rendering", useAtmosphereCompute))
-    {
-        useAtmosphereCompute = true;
-    }
-    if (ImGui::RadioButton("Generic Single Shader Compute Collection", !useAtmosphereCompute))
-    {
-        useAtmosphereCompute = false;
-    }
+static std::vector<std::tuple<RenderingPipelines, std::string>> renderingPipelineLabels{
+    std::make_tuple(RenderingPipelines::DEFERRED, "Deferred")
+    , std::make_tuple(RenderingPipelines::COMPUTE_COLLECTION, "Compute Collection")
+};
 
-    if (useAtmosphereCompute)
+void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
+{
+    ImGui::Text("Rendering Pipeline:");
+    for (auto const& [pipeline, label] : renderingPipelineLabels)
     {
-        imguiPipelineControls<AtmosphereComputePipeline const>(atmospherePipeline);
-    }
-    else
-    {
-        imguiPipelineControls<GenericComputeCollectionPipeline>(genericComputePipeline);
+        if (ImGui::RadioButton(label.c_str(), currentActivePipeline == pipeline))
+        {
+            currentActivePipeline = pipeline;
+        }
     }
 }
 
@@ -318,19 +313,42 @@ void imguiStructureControls<DebugLines>(
 template<>
 void imguiStructureControls<ShadowPassParameters>(
     ShadowPassParameters& structure
+    , ShadowPassParameters const& defaultValues
 )
 {
     ImGui::BeginGroup();
     ImGui::Text("Shadow Pass Parameters");
+    ResetButton("shadowPassParameters", structure, defaultValues);
 
-    ImGui::DragFloat("Depth Bias", &structure.depthBias);
-    ImGui::DragFloat("Depth Bias Slope", &structure.depthBiasSlope);
-    ImGui::Checkbox("Generate Shadows with Sun", &structure.useSunlight);
-    ImGui::BeginDisabled(structure.useSunlight);
-    ImGui::DragFloat3("Directional Light Forward Direction", reinterpret_cast<float*>(&structure.directionalLightForward));
+    ImGui::DragFloat("Depth Bias Constant", &structure.depthBiasConstant);
+    ResetButton("depthBiasConstant", structure.depthBiasConstant, defaultValues.depthBiasConstant);
+
+    ImGui::Text("Depth Bias Clamp is not supported."); // TODO: support depth bias clamp
+    ImGui::BeginDisabled();
+    ResetButton("depthBiasClamp", structure, defaultValues);
     ImGui::EndDisabled();
-    ImGui::DragFloat3("Scene Center", reinterpret_cast<float*>(&structure.sceneCenter));
-    ImGui::DragFloat3("Scene Extent", reinterpret_cast<float*>(&structure.sceneExtent));
+
+    ImGui::DragFloat("Depth Bias Slope", &structure.depthBiasSlope);
+    ResetButton("depthBiasSlope", structure.depthBiasSlope, defaultValues.depthBiasSlope);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<SceneBounds>(
+    SceneBounds& structure
+    , SceneBounds const& defaultValues
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Scene Bounds");
+    ResetButton("sceneBounds", structure, defaultValues);
+
+    ImGui::DragFloat3("Scene Center", reinterpret_cast<float*>(&structure.center));
+    ResetButton("sceneCenter", structure.center, defaultValues.center);
+
+    ImGui::DragFloat3("Scene Extent", reinterpret_cast<float*>(&structure.extent));
+    ResetButton("sceneExtent", structure.extent, defaultValues.extent);
 
     ImGui::EndGroup();
 }

@@ -82,15 +82,11 @@ private:
     void initSyncStructures();
     void initDescriptors();
 
-    static ShadowPass initShadowpass(VkDevice, DescriptorAllocator&, VmaAllocator);
-
     void updateDescriptors();
 
     void initDefaultMeshData();
     void initWorld();
     void initDebug();
-    void initInstancedPipeline();
-    void initBackgroundPipeline();
     void initDeferredShadingPipeline();
 
     void initGenericComputePipelines();
@@ -132,9 +128,6 @@ private:
     // Depth image used for graphics passes
     AllocatedImage m_depthImage{};
 
-    ShadowPass m_shadowPass{};
-    ShadowPassParameters m_shadowPassParameters{};
-
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
@@ -156,30 +149,11 @@ private:
 
     // Pipelines
 
-    bool m_renderMeshInstances{ true };
-    size_t m_testMeshUsed{ 0 };
-    std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
- 
-    struct MeshInstances
-    {
-        std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
-        std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
-
-        std::vector<glm::mat4x4> originals{};
-
-        // An index to where the first dynamic object begins
-        size_t dynamicIndex{};
-    };
-    MeshInstances m_meshInstances{};
-
     DebugLines m_debugLines{};
 
-    bool m_useAtmosphereCompute{ true };
-    std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};
+    RenderingPipelines m_activeRenderingPipeline{ RenderingPipelines::DEFERRED };
     std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
-
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
-
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
 
@@ -192,10 +166,20 @@ private:
 
     float m_targetFPS{ 160.0 };
     uint32_t m_cameraIndexMain{ 0 };
-    uint32_t m_cameraIndexShadowpass{ 0 };
+    size_t m_testMeshUsed{ 0 };
+
+    bool m_renderMeshInstances{ true };
+
+    MeshInstances m_meshInstances{};
+
+    // These scene bounds help inform shadow map generation
+    // TODO: compute this from the scene
+    SceneBounds m_sceneBounds{
+        .center{ 0.0, -4.0, 0.0 },
+        .extent{ 40.0, 5.0, 40.0 },
+    };
 
     bool m_useOrthographicProjection{ false };
-    bool m_useShadowpassPerspective{ false };
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 
@@ -204,7 +188,6 @@ private:
     AtmosphereParameters m_atmosphereParameters{ m_defaultAtmosphereParameters };
 
     std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
-
     std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
 
     // End Vulkan
