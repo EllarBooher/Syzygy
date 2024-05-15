@@ -976,16 +976,30 @@ void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
         AtmosphereParameters::AnimationParameters const atmosphereAnimation{ m_atmosphereParameters.animation };
         if (atmosphereAnimation.animateSun)
         {
-            bool const isNight{ m_atmosphereParameters.directionToSun().y > 0.2f };
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, m_atmosphereParameters.directionToSun())
+            };
+
+            bool const isNight{ time < -0.11f };
+            float const sunriseAngle{ glm::asin(0.1f) };
 
             if (isNight && atmosphereAnimation.skipNight)
             {
-                m_atmosphereParameters.sunEulerAngles.x = -1.0 * glm::sign(atmosphereAnimation.animationSpeed) * glm::radians(100.0f);
+                if (atmosphereAnimation.animationSpeed > 0.0)
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = glm::pi<float>() - sunriseAngle;
+                }
+                else
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = sunriseAngle;
+                }
             }
             else
             {
                 m_atmosphereParameters.sunEulerAngles.x += deltaTimeSeconds * atmosphereAnimation.animationSpeed;
             }
+
+            m_atmosphereParameters.sunEulerAngles = glm::mod(m_atmosphereParameters.sunEulerAngles, glm::vec3(2.0 * glm::pi<float>()));
         }
     }
 }

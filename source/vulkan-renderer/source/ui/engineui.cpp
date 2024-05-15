@@ -102,20 +102,21 @@ static void ResetButton(std::string const& label, T& value, T const& defaultValu
 
 static void DragScalarFloats(
     std::string const& label
-    , std::span<float> values
-    , float min
-    , float max
-    , ImGuiSliderFlags flags = 0
-    , std::string format = "%f"
+    , std::span<float> const values
+    , float const speed
+    , std::optional<float> const min
+    , std::optional<float> const max
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
 )
 {
     ImGui::DragScalarN(
         label.c_str()
         , ImGuiDataType_Float
         , values.data(), values.size()
-        , 0.0f
-        , &min
-        , &max
+        , speed
+        , min.has_value() ? &min.value() : nullptr
+        , max.has_value() ? &max.value() : nullptr
         , format.c_str()
         , flags
     );
@@ -133,27 +134,61 @@ template<typename T>
 static void DragScalarFloats(
     std::string const& label
     , T& values
-    , float min
-    , float max
-    , ImGuiSliderFlags flags = 0
-    , std::string format = "%f"
+    , float const speed
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
 )
 {
     static_assert(sizeof(T) % 4 == 0);
     static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
     size_t constexpr N = sizeof(T) / 4;
-    DragScalarFloats(label, std::span<float>(reinterpret_cast<float*>(&values), N), min, max, flags, format);
+    DragScalarFloats(
+        label
+        , std::span<float>(reinterpret_cast<float*>(&values), N)
+        , speed
+        , std::nullopt
+        , std::nullopt
+        , flags
+        , format
+    );
+}
+
+template<typename T>
+static void DragScalarFloats(
+    std::string const& label
+    , T& values
+    , std::tuple<float,float> const bounds 
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
+)
+{
+    static_assert(sizeof(T) % 4 == 0);
+    static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
+    size_t constexpr N = sizeof(T) / 4;
+
+    float constexpr speed = 0.0f;
+
+    DragScalarFloats(
+        label
+        , std::span<float>(reinterpret_cast<float*>(&values), N)
+        , speed
+        , std::get<0>(bounds)
+        , std::get<1>(bounds)
+        , flags
+        , format
+    );
 }
 
 // Templating for value types that cannot be implicitely converted to span of floats.
 template<typename T>
 static void FractionalCoefficientSlider(std::string const& label, T& values)
 {
+    auto const range{ std::make_tuple<float,float>(0.0, 1.0) };
+
     DragScalarFloats(
         label
         , values
-        , 0.0
-        , 1.0
+        , range
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
         , "%.8f"
     );
@@ -173,20 +208,20 @@ void imguiStructureControls<AtmosphereParameters>(
         ImGui::Checkbox("Animate Sun", &atmosphere.animation.animateSun);
         ImGui::Indent(10.0f);
 
-        DragScalarFloats("Speed##sun", atmosphere.animation.animationSpeed, 0.0, 100.0);
+        DragScalarFloats("Speed##sun", atmosphere.animation.animationSpeed, { 0.0, 100.0 });
         ResetButton("sunSpeed", atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed);
 
         ImGui::Checkbox("Night Multiplier##sun", &atmosphere.animation.skipNight);
         
         ImGui::BeginDisabled(atmosphere.animation.animateSun);
-        DragScalarFloats("sunEulerAngles", atmosphere.sunEulerAngles, -glm::radians(180.0), glm::radians(180.0));
+        DragScalarFloats("sunEulerAngles", atmosphere.sunEulerAngles, 0.1f);
         ResetButton("sunEulerAngles", atmosphere.sunEulerAngles, defaultValues.sunEulerAngles);
         ImGui::EndDisabled();
 
         ImGui::BeginDisabled(true);
         {
             glm::vec3 direction{ atmosphere.directionToSun() };
-            DragScalarFloats("directionToSun", direction, -1.0, 1.0);
+            DragScalarFloats("directionToSun", direction, { -1.0, 1.0 });
         }
         ImGui::EndDisabled();
         ImGui::Unindent(10.0f);
@@ -200,14 +235,14 @@ void imguiStructureControls<AtmosphereParameters>(
 
     DragScalarFloats(
         "Earth Radius (meters)", atmosphere.earthRadiusMeters
-        , 1.0f, atmosphere.atmosphereRadiusMeters
+        , { 1.0f, atmosphere.atmosphereRadiusMeters }
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
     );
     ResetButton("earthRadiusMeters", atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters);
 
     DragScalarFloats(
         "Atmosphere Radius (meters)", atmosphere.atmosphereRadiusMeters
-        , atmosphere.earthRadiusMeters, 1'000'000'000.0f
+        , { atmosphere.earthRadiusMeters, 1'000'000'000.0f }
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
     );
     ResetButton("atmosphereRadiusMeters", atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters);
@@ -215,13 +250,13 @@ void imguiStructureControls<AtmosphereParameters>(
     FractionalCoefficientSlider("Rayleigh Scattering Coefficient", atmosphere.scatteringCoefficientRayleigh);
     ResetButton("scatteringCoefficientRayleigh", atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh);
 
-    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, 0.0f, 10'000.0f);
+    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, { 0.0f, 10'000.0f });
     ResetButton("altitudeDecayRayleigh", atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh);
 
     FractionalCoefficientSlider("Mie Scattering Coefficient", atmosphere.scatteringCoefficientMie);
     ResetButton("scatteringCoefficientMie", atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie);
 
-    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, 0.0f, 10'000.0f);
+    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, { 0.0f, 10'000.0f });
     ResetButton("altitudeDecayMie", atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie);
 
     ImGui::EndGroup();
@@ -240,17 +275,17 @@ void imguiStructureControls<CameraParameters>(
     ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
     ResetButton("cameraPosition", structure.cameraPosition, defaultValues.cameraPosition);
 
-    DragScalarFloats("eulerAngles", structure.eulerAngles, glm::radians(-180.0f), glm::radians(180.0f));
+    DragScalarFloats("eulerAngles", structure.eulerAngles, { glm::radians(-180.0f), glm::radians(180.0f) });
     ResetButton("eulerAngles", structure.eulerAngles, defaultValues.eulerAngles);
     structure.eulerAngles.x = glm::clamp(structure.eulerAngles.x, -glm::radians(90.0f), glm::radians(90.0f));
 
-    DragScalarFloats("fov", structure.fov, 0.0f, 180.0f, 0, "%.0f");
+    DragScalarFloats("fov", structure.fov, { 0.0f, 180.0f }, 0, "%.0f");
     ResetButton("fov", structure.fov, defaultValues.fov);
 
-    DragScalarFloats("nearPlane", structure.near, 0.01f, structure.far, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    DragScalarFloats("nearPlane", structure.near, { 0.01f, structure.far }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
     ResetButton("nearPlane", structure.near, std::min(structure.far, defaultValues.near));
 
-    DragScalarFloats("farPlane", structure.far, structure.near + 0.01f, 1'000'000.0f, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    DragScalarFloats("farPlane", structure.far, { structure.near + 0.01f, 1'000'000.0f }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
     ResetButton("farPlane", structure.far, std::max(structure.near, defaultValues.far));
 
     ImGui::EndGroup();
@@ -302,7 +337,7 @@ void imguiStructureControls<DebugLines>(
     ResetButton("enabled", structure.enabled, false);
     ImGui::EndDisabled();
 
-    DragScalarFloats("lineWidth", structure.lineWidth, 1.0, 10.0);
+    DragScalarFloats("lineWidth", structure.lineWidth, { 1.0, 10.0 });
     ResetButton("lineWidth", structure.lineWidth, 1.0f);
 
     imguiStructureDisplay(structure.lastFrameDrawResults);

@@ -13,7 +13,7 @@ struct AtmosphereParameters {
     struct AnimationParameters
     {
         bool animateSun{ false };
-        float animationSpeed{ 1.0f };
+        float animationSpeed{ 0.2f };
         bool skipNight{ false };
     };
 
