@@ -1025,11 +1025,13 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
+        double const aspectRatio{ vkutil::aspectRatio(m_drawImage.extent2D()) };
+
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
                 m_useOrthographicProjection
-            ? m_cameraParameters.toDeviceEquivalentOrthographic(m_drawImage.aspectRatio(), 5.0)
-            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio())
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(aspectRatio, 5.0)
+            : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
 
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
