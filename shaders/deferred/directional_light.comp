@@ -50,6 +50,8 @@ layout (push_constant) uniform PushConstant
 	uint spotLightCount;
 	uint atmosphereIndex;
 	uint cameraIndex;
+
+	vec2 gbufferExtent;
 } pushConstant;
 
 float sampleShadowMap(vec4 shadowCoord, uint index)
@@ -155,13 +157,13 @@ void main()
 
 	// The uv needs to be offset to avoid floating point errors on texel boundaries
 	const vec2 offset = vec2(0.5,0.5);
-	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
+	const vec2 gbufferUV = (vec2(gl_GlobalInvocationID.xy) + offset) / pushConstant.gbufferExtent;
 
 	const GBufferTexel gbuffer = GBufferTexel(
-		texture(samplerWorldPosition, uv)
-		, texture(samplerNormal, uv)
-		, texture(samplerDiffuse, uv)
-		, texture(samplerSpecular, uv)
+		texture(samplerWorldPosition, gbufferUV)
+		, texture(samplerNormal, gbufferUV)
+		, texture(samplerDiffuse, gbufferUV)
+		, texture(samplerSpecular, gbufferUV)
 	); 
 
 	// No transparent geometry for now, less than 1.0 alpha indicates background texels

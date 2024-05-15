@@ -651,6 +651,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .spotLightCount{ static_cast<uint32_t>(m_spotLights->deviceSize()) },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
+            .gbufferExtent{ glm::vec2(m_gBuffer.extent().width, m_gBuffer.extent().height)},
         };
         m_lightingPassPushConstant = pushConstant;
 

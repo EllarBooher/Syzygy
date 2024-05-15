@@ -90,6 +90,9 @@ private:
         uint32_t spotLightCount{};
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
+
+        glm::vec2 gbufferExtent{};
+        uint8_t padding0[8]{};
     };
 
     LightingPassComputePushConstant mutable m_lightingPassPushConstant{};

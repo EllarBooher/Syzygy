@@ -24,6 +24,14 @@ struct GBuffer
         , DescriptorAllocator& descriptorAllocator
     );
 
+    VkExtent2D extent() const
+    {
+        return VkExtent2D{
+            diffuseColor.imageExtent.width
+            , diffuseColor.imageExtent.height
+        };
+    }
+
     void recordTransitionImages(VkCommandBuffer cmd, VkImageLayout srcLayout, VkImageLayout dstLayout);
 
     void cleanup(
