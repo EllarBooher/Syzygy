@@ -6,7 +6,7 @@ The purpose of this renderer is to study concepts in rendering, engine architect
 
 This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with `msvc_x64`.\
 Requires CMake 3.28 or higher, and a version of Visual Studio that has CMake support.\
-Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extension `VK_EXT_shader_object`.
+Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extension `VK_EXT_shader_object` (and a few other features/extensions).
 
 ## Dependencies
 
@@ -39,17 +39,30 @@ Open the root folder with Visual Studio, configure the CMake cache (by default `
 
 ## Showcase
 
-![image](assets/screenshots/volume_rendering_sunset.png)
-*Pictured above is an implementation (see [`shaders/sky.comp`](shaders/sky.comp)) of a volume rendering model of light scattering in the sky*
+![image](assets/screenshots/deferred_sunset.png)
+*Pictured above is an implementation (see [`shaders/deferred/sky.comp`](shaders/deferred/sky.comp)) of a volume rendering model of light scattering in the sky, alongside deferred-shaded directional lights and spot lights*
 
-![image](assets/screenshots/compute_shader_monkeys.png)
-*Pipelines used are configurable, such as a graphics pipeline rendering Suzanne over several possible backgrounds rendered by compute shader objects*
+![image](assets/screenshots/deferred_night.png)
+*Here is the above scene, but at night and from a different angle*
 
 ## Features
 
-- Graphics and compute pipelines with shared resources
+- A deferred shading pipeline with multiple passes, including post-process
+- Dynamic sun driving volume rendering model of light scattering and the directional lighting for the scene
 - Runtime reflection of SPIR-V shaders for data verification, easier resource management, and to populate the UI
-- Modern Vulkan features such as Dynamic Rendering, Shader Objects, and Bindless Design via Buffer References
+- Utilizes modern Vulkan features such as Dynamic Rendering, Shader Objects, and Bindless Design via Buffer References and Runtime Descriptor Arrays
+
+## Planned Features
+
+- Better UI and logging
+- Collection of runtime information from scenes/pipelines
+- Physically based rendering
+- Asset management
+- Render graph
+- Rigidbody physics engine
+- Dynamic scenes with controllable transformations
+- Fallbacks for extensions and rendering features (for example, `VK_EXT_shader_object` has low coverage)
+- Runtime compilation and modification of shader code
 
 ## Resources
 
@@ -60,14 +73,6 @@ These are resources and other projects referred to in the development of this pr
 - [Vulkan specification](https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html)
 - [OpenGL wiki](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
 - [SPIR-V specification](https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html)
+- [Sascha Willems's repository of Vulkan examples](https://github.com/SaschaWillems/Vulkan)
 - The [Vulkan Renderer](https://github.com/inexorgame/vulkan-renderer) for [Inexor](https://inexor.org/)
 - The [Hazel](https://github.com/TheCherno/Hazel) engine
-
-## Plans
-
-- Physically based rendering
-- Asset management
-- Rigidbody physics engine
-- Dynamic scenes with controllable transformations
-- Fallbacks for extensions and rendering features (for example, `VK_EXT_shader_object` has low coverage)
-- Runtime compilation and modification of shader code

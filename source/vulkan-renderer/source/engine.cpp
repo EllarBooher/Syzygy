@@ -1120,25 +1120,25 @@ void Engine::draw()
         std::vector<GPUTypes::LightSpot> const spotLights{
             lights::makeSpot(
                 glm::vec4(0.0, 1.0, 0.0, 1.0)
-                , 20.0
+                , 30.0
                 , 1.0
                 , 1.0
-                , 70
+                , 60
                 , 1.0
-                , glm::vec3(-0.8, 0.0, 1.0)
-                , glm::vec3(-8.0, -10.0, 0.0)
+                , glm::vec3(-1.0, 0.0, 1.0)
+                , glm::vec3(-8.0, -10.0, -2.0)
                 , 0.1
                 , 1000.0
             ),
             lights::makeSpot(
                 glm::vec4(1.0, 0.0, 0.0, 1.0)
-                , 20.0
+                , 30.0
                 , 1.0
                 , 1.0
-                , 70
+                , 60
                 , 1.0
-                , glm::vec3(-0.8, 0.0, -1.0)
-                , glm::vec3(8.0, -10.0, 0.0)
+                , glm::vec3(-1.0, 0.0, -1.0)
+                , glm::vec3(8.0, -10.0, 2.0)
                 , 0.1
                 , 1000.0
             ),
