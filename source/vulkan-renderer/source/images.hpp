@@ -17,6 +17,14 @@ struct AllocatedImage {
         vmaDestroyImage(allocator, image, allocation);
     }
 
+    VkExtent2D extent2D() const
+    {
+        return VkExtent2D{
+            .width{ imageExtent.width },
+            .height{ imageExtent.height },
+        };
+    }
+
     // The value will be 0.0/inf/NaN for an image without valid bounds.
     double aspectRatio() const
     {

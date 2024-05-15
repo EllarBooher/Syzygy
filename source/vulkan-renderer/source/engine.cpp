@@ -1167,17 +1167,31 @@ void Engine::draw()
     }
     case RenderingPipelines::COMPUTE_COLLECTION:
     {
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
+
         if (m_debugLines.enabled)
         {
-            vkutil::transitionImage(
-                cmd
-                , m_drawImage.image
-                , VK_IMAGE_LAYOUT_UNDEFINED
-                , VK_IMAGE_LAYOUT_GENERAL
-                , VK_IMAGE_ASPECT_COLOR_BIT
-            );
             recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
         }
+
+        break;
+    }
+    default:
+    {
+        vkutil::transitionImage(cmd,
+            m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
         break;
     }
     }
