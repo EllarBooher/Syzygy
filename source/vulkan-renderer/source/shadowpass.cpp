@@ -205,6 +205,7 @@ void ShadowPassArray::recordInitialize(
     }
 
     { // Clear each shadow map we are going to use
+        m_texturesCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
         for (size_t i{ 0 }; i < m_projViewMatrices->deviceSize(); i++)
