@@ -143,11 +143,6 @@ void Engine::initVulkan()
     initGenericComputePipelines();
     
     initDeferredShadingPipeline();
-    m_deferredShadingPipeline->updateRenderTargetDescriptors(
-        m_device
-        , m_drawImage
-        , m_depthImage
-    );
 
     initImgui();
 
@@ -575,6 +570,12 @@ void Engine::initDeferredShadingPipeline()
         , m_allocator
         , m_globalDescriptorAllocator
         , m_drawImage.imageExtent
+    );
+
+    m_deferredShadingPipeline->updateRenderTargetDescriptors(
+        m_device
+        , m_drawImage
+        , m_depthImage
     );
 }
 
