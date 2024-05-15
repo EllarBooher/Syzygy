@@ -274,6 +274,8 @@ void Engine::initSwapchain()
     m_swapchain = vkbSwapchain.swapchain;
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+    m_currentDrawExtent = m_swapchainExtent;
 }
 
 void Engine::initDrawTargets()
@@ -283,7 +285,7 @@ void Engine::initDrawTargets()
     m_drawImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_swapchainExtent,
+        m_currentDrawExtent,
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
@@ -295,7 +297,7 @@ void Engine::initDrawTargets()
     m_depthImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_drawImage.imageExtent,
+        m_currentDrawExtent,
         VK_FORMAT_D32_SFLOAT,
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
@@ -569,7 +571,7 @@ void Engine::initDeferredShadingPipeline()
         m_device
         , m_allocator
         , m_globalDescriptorAllocator
-        , m_drawImage.imageExtent
+        , m_currentDrawExtent
     );
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(

@@ -120,7 +120,13 @@ private:
 
     // Draw Resources
 
+    // Instead of resizing all resources to be exactly the window size, we just draw into a limited scissor.
+    // This constant defines the max size, to inform the creation of resources that can contain any requested draw extent
+    static VkExtent2D constexpr MAX_DRAW_EXTENTS{ 4096, 4096 };
+
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
+
+    VkExtent3D m_currentDrawExtent{};
 
     // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};
