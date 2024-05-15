@@ -46,7 +46,13 @@ void vkutil::transitionImage(
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent3D srcSize, VkExtent3D dstSize)
+void vkutil::recordCopyImageToImage(
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkExtent3D const srcSize
+    , VkExtent3D const dstSize
+)
 {
     VkImageBlit2 const blitRegion{
         .sType{ VK_STRUCTURE_TYPE_IMAGE_BLIT_2 },
@@ -76,6 +82,36 @@ void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
+}
+
+void vkutil::recordCopyImageToImage(
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkExtent2D const srcSize
+    , VkExtent2D const dstSize
+)
+{
+    VkExtent3D const srcExtent{
+        .width{ srcSize.width },
+        .height{ srcSize.height },
+        .depth{ 1 }
+    };
+    VkExtent3D const dstExtent{
+        .width{ dstSize.width },
+        .height{ dstSize.height },
+        .depth{ 1 }
+    };
+
+    vkutil::recordCopyImageToImage(cmd, source, destination, srcExtent, dstExtent);
+}
+
+double vkutil::aspectRatio(VkExtent2D extent)
+{
+    auto const width{ static_cast<float>(extent.width) };
+    auto const height{ static_cast<float>(extent.height) };
+
+    return width / height;
 }
 
 std::optional<AllocatedImage> AllocatedImage::allocate(

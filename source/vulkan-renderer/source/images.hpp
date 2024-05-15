@@ -4,6 +4,41 @@
 #include <optional>
 #include "enginetypes.hpp"
 
+namespace vkutil {
+    // Transitions the layout of an image, putting in a full memory barrier
+    //TODO: track image layout on images themselves, and make this automatic
+    void transitionImage(
+        VkCommandBuffer cmd
+        , VkImage image
+        , VkImageLayout oldLayout
+        , VkImageLayout newLayout
+        , VkImageAspectFlags aspects
+    );
+
+    /**
+        Copies all RGBA of an image to another.
+        Assumes source is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL and destination is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL.
+    */
+    void recordCopyImageToImage(
+        VkCommandBuffer cmd,
+        VkImage source,
+        VkImage destination,
+        VkExtent3D srcSize,
+        VkExtent3D dstSize
+    );
+
+    // Copies a color image, with an assumed depth of 1.
+    void recordCopyImageToImage(
+        VkCommandBuffer cmd,
+        VkImage source,
+        VkImage destination,
+        VkExtent2D srcSize,
+        VkExtent2D dstSize
+    );
+
+    double aspectRatio(VkExtent2D extent);
+}
+
 struct AllocatedImage {
     VmaAllocation allocation{ VK_NULL_HANDLE };
     VkImage image{ VK_NULL_HANDLE };
@@ -28,10 +63,7 @@ struct AllocatedImage {
     // The value will be 0.0/inf/NaN for an image without valid bounds.
     double aspectRatio() const
     {
-        auto const width{ static_cast<float>(imageExtent.width) };
-        auto const height{ static_cast<float>(imageExtent.height) };
-
-        return width / height;
+        return vkutil::aspectRatio(extent2D());
     }
 
     static std::optional<AllocatedImage> allocate(
@@ -43,27 +75,3 @@ struct AllocatedImage {
         VkImageUsageFlags usageMask
     );
 };
-
-namespace vkutil {
-    // Transitions the layout of an image, putting in a full memory barrier
-    //TODO: track image layout on images themselves, and make this automatic
-    void transitionImage(
-        VkCommandBuffer cmd
-        , VkImage image
-        , VkImageLayout oldLayout
-        , VkImageLayout newLayout
-        , VkImageAspectFlags aspects
-    );
-
-    /** 
-        Copies all RGBA of an image to another.  
-        Assumes source is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL and destination is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL.
-    */
-    void recordCopyImageToImage(
-        VkCommandBuffer cmd,
-        VkImage source,
-        VkImage destination,
-        VkExtent3D srcSize,
-        VkExtent3D dstSize
-    );
-}
