@@ -111,7 +111,7 @@ private:
 
     std::vector<VkImage> m_swapchainImages{};
     std::vector<VkImageView> m_swapchainImageViews{};
-    VkExtent3D m_swapchainExtent{};
+    VkExtent2D m_swapchainExtent{};
 
     float m_dpiScale{ 1.0f };
 
@@ -126,7 +126,7 @@ private:
 
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    VkExtent3D m_currentDrawExtent{};
+    VkExtent2D m_currentDrawExtent{};
 
     // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};

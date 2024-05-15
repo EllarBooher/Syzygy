@@ -14,11 +14,12 @@ public:
         VkDevice device
         , VmaAllocator allocator
         , DescriptorAllocator& descriptorAllocator
-        , VkExtent3D drawExtent
+        , VkExtent2D dimensionCapacity
     );
 
     void recordDrawCommands(
         VkCommandBuffer cmd
+        , VkExtent2D drawExtent
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -106,7 +107,8 @@ private:
 
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
-        uint8_t padding0[8]{};
+
+        glm::vec2 drawExtent{};
     };
 
     SkyPassComputePushConstant mutable m_skyPassPushConstant{};

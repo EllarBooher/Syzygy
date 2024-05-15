@@ -130,20 +130,16 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     VkDevice const device
     , VmaAllocator const allocator
     , DescriptorAllocator& descriptorAllocator
-    , VkExtent3D const drawExtent
+    , VkExtent2D const dimensionCapacity
 )
 {
     m_allocator = allocator;
 
     { // GBuffer
-        VkExtent2D const extent{
-            .width{ drawExtent.width },
-            .height{ drawExtent.height }
-        };
         std::optional<GBuffer> gBufferResult{
             GBuffer::create(
                 device
-                , extent
+                , dimensionCapacity
                 , allocator
                 , descriptorAllocator
             )
@@ -305,7 +301,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
 void setRasterizationShaderObjectState(
     VkCommandBuffer const cmd
-    , VkExtent3D const drawExtent
+    , VkExtent2D const drawExtent
     , float const depthBias
     , float const depthBiasSlope
 )
@@ -326,10 +322,7 @@ void setRasterizationShaderObjectState(
             .x{ 0 },
             .y{ 0 },
         },
-        .extent{
-            .width{ drawExtent.width },
-            .height{ drawExtent.height },
-        },
+        .extent{ drawExtent },
     };
 
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
@@ -371,6 +364,7 @@ void setRasterizationShaderObjectState(
 
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer cmd
+    , VkExtent2D const drawExtent
     , AllocatedImage const& color
     , AllocatedImage const& depth
     , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -443,7 +437,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd
-            , color.imageExtent
+            , drawExtent
             , m_parameters.shadowPassParameters.depthBiasConstant
             , m_parameters.shadowPassParameters.depthBiasSlope
         );
@@ -499,10 +493,6 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
-        VkExtent2D const drawExtent{
-            .width{color.imageExtent.width},
-            .height{color.imageExtent.height},
-        };
         VkRenderingInfo const renderInfo{
             vkinit::renderingInfo(drawExtent, gBufferAttachments, &depthAttachment)
         };
@@ -545,10 +535,8 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         VkClearRect const clearRect{
             .rect{ VkRect2D{
-                .extent{ VkExtent2D{
-                    .width{ m_gBuffer.diffuseColor.imageExtent.width },
-                    .height{ m_gBuffer.diffuseColor.imageExtent.height },
-                }}
+                .offset{ 0, 0 },
+                .extent{ drawExtent },
             }},
             .baseArrayLayer{ 0 },
             .layerCount{ 1 },
@@ -663,7 +651,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_lightingPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(color.imageExtent.width / 16.0), std::ceil(color.imageExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
@@ -707,6 +695,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .cameraBuffer{ cameras.deviceAddress() },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
+            .drawExtent{ glm::vec2{ drawExtent.width, drawExtent.height } },
         };
         m_skyPassPushConstant = pushConstant;
 
@@ -718,7 +707,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_skyPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(color.imageExtent.width / 16.0), std::ceil(color.imageExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);

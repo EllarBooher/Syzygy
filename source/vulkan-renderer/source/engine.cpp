@@ -269,7 +269,6 @@ void Engine::initSwapchain()
     m_swapchainExtent = { 
         .width = vkbSwapchain.extent.width,
         .height = vkbSwapchain.extent.height,
-        .depth = 1,
     };
     m_swapchain = vkbSwapchain.swapchain;
     m_swapchainImages = vkbSwapchain.get_images().value();
@@ -285,7 +284,7 @@ void Engine::initDrawTargets()
     m_drawImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_currentDrawExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
@@ -297,7 +296,7 @@ void Engine::initDrawTargets()
     m_depthImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_currentDrawExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_D32_SFLOAT,
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
@@ -571,7 +570,7 @@ void Engine::initDeferredShadingPipeline()
         m_device
         , m_allocator
         , m_globalDescriptorAllocator
-        , m_currentDrawExtent
+        , MAX_DRAW_EXTENTS
     );
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
@@ -692,7 +691,6 @@ void Engine::initImgui()
 void Engine::resizeSwapchain()
 {
     vkDeviceWaitIdle(m_device);
-    cleanupDrawTargets();
     cleanupSwapchain();
 
     int32_t width{ 0 }, height{ 0 };
@@ -701,14 +699,6 @@ void Engine::resizeSwapchain()
     m_windowExtent.height = static_cast<uint32_t>(height);
 
     initSwapchain();
-    initDrawTargets();
-
-    updateDescriptors();
-    m_deferredShadingPipeline->updateRenderTargetDescriptors(
-        m_device
-        , m_drawImage
-        , m_depthImage
-    );
 
     m_resizeRequested = false;
 }
@@ -1027,7 +1017,7 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        double const aspectRatio{ vkutil::aspectRatio(m_drawImage.extent2D()) };
+        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawExtent) };
 
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
@@ -1156,6 +1146,7 @@ void Engine::draw()
 
         m_deferredShadingPipeline->recordDrawCommands(
             cmd
+            , m_currentDrawExtent
             , m_drawImage
             , m_depthImage
             , directionalLights
@@ -1252,7 +1243,7 @@ void Engine::draw()
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        m_drawImage.imageExtent, m_swapchainExtent
+        m_currentDrawExtent, m_swapchainExtent
     );
 
     vkutil::transitionImage(cmd, 

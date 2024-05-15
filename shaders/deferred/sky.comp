@@ -28,8 +28,11 @@ layout( push_constant ) uniform PushConstant
 {
 	AtmosphereBuffer atmosphereBuffer;
 	CameraBuffer cameraBuffer;
+
 	uint atmosphereIndex;
 	uint cameraIndex;
+
+	vec2 drawExtent;
 } pushConstant;
 
 bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius, out float t0, out float t1)
@@ -209,6 +212,7 @@ void main()
 	}
 
 	const vec2 offset = vec2(0.5,0.5);
+	// This UV is into the entire image, not the subregion we are drawing into
 	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
@@ -219,7 +223,7 @@ void main()
 
 	const vec3 origin = camera.position.xyz + surfaceOrigin; 
 
-	const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / size) - 0.5) * 2.0;
+	const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / pushConstant.drawExtent) - 0.5) * 2.0;
 	const float nearPlaneDepth = 1.0;
 	const vec4 directionViewSpace = camera.inverseProjection * vec4(clipSpaceUV,nearPlaneDepth,1.0);
 	const vec3 direction = normalize((camera.rotation * directionViewSpace).xyz);
