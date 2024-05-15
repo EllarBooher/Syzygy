@@ -899,6 +899,9 @@ void Engine::mainLoop()
                         .extent{ glm::vec3(40.0, 5.0, 40.0) }
                     }
                 );
+                ImGui::Separator();
+                ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
+                ImGui::Separator();
             }
             ImGui::End();
 
@@ -1137,7 +1140,7 @@ void Engine::draw()
             , m_drawImage
             , m_depthImage
             , directionalLights
-            , spotLights
+            , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
             , m_cameraIndexMain
             , *m_camerasBuffer
             , m_atmosphereIndex

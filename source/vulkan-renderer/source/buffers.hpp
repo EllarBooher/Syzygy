@@ -95,6 +95,7 @@ struct StagedBuffer {
     void popBytes(size_t count);
 
     void clearStaged();
+    void clearBoth();
 
     /*
     * This structure cannot know exactly how many bytes are up-to-date on the GPU-side buffer. 

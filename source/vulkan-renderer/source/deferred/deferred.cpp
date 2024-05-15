@@ -391,15 +391,29 @@ void DeferredShadingPipeline::recordDrawCommands(
     sceneGeometry.modelInverseTransposes->recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
     { // Update lights
-        m_directionalLights->clearStaged();
-        m_directionalLights->push(directionalLights);
-        m_directionalLights->recordCopyToDevice(cmd, m_allocator);
-        m_directionalLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+        if (directionalLights.size() > 0)
+        {
+            m_directionalLights->clearStaged();
+            m_directionalLights->push(directionalLights);
+            m_directionalLights->recordCopyToDevice(cmd, m_allocator);
+            m_directionalLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+        }
+        else
+        {
+            m_directionalLights->clearBoth();
+        }
 
-        m_spotLights->clearStaged();
-        m_spotLights->push(spotLights);
-        m_spotLights->recordCopyToDevice(cmd, m_allocator);
-        m_spotLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+        if (spotLights.size() > 0)
+        {
+            m_spotLights->clearStaged();
+            m_spotLights->push(spotLights);
+            m_spotLights->recordCopyToDevice(cmd, m_allocator);
+            m_spotLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+        }
+        else
+        {
+            m_spotLights->clearBoth();
+        }
     }
 
     { // Shadow maps

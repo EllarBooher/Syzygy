@@ -114,6 +114,12 @@ void StagedBuffer::clearStaged()
     m_stagedSizeBytes = 0;
 }
 
+void StagedBuffer::clearBoth()
+{
+    m_stagedSizeBytes = 0;
+    m_deviceSizeBytes = 0;
+}
+
 StagedBuffer StagedBuffer::allocate(
     VkDevice device,
     VmaAllocator allocator, 
