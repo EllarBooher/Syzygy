@@ -36,6 +36,8 @@
 #include "descriptors.hpp"
 #include "pipelines.hpp"
 
+#include "lights.hpp"
+
 #include "ui/engineui.hpp"
 #include "ui/pipelineui.hpp"
 
@@ -133,16 +135,14 @@ void Engine::initVulkan()
     initSyncStructures();
     initDescriptors();
 
-    m_shadowPass = std::move(initShadowpass(m_device, m_globalDescriptorAllocator, m_allocator));
-
     updateDescriptors();
 
     initDefaultMeshData();
     initWorld();
     initDebug();
-    initBackgroundPipeline();
-    initInstancedPipeline();
     initGenericComputePipelines();
+    
+    initDeferredShadingPipeline();
 
     initImgui();
 
@@ -184,6 +184,10 @@ void Engine::initInstanceSurfaceDevices()
     VkPhysicalDeviceVulkan12Features const features12
     {
         .descriptorIndexing{ VK_TRUE },
+
+        .descriptorBindingPartiallyBound{ VK_TRUE },
+        .runtimeDescriptorArray{ VK_TRUE },
+
         .bufferDeviceAddress{ VK_TRUE },
     };
     
@@ -265,37 +269,39 @@ void Engine::initSwapchain()
     m_swapchainExtent = { 
         .width = vkbSwapchain.extent.width,
         .height = vkbSwapchain.extent.height,
-        .depth = 1,
     };
     m_swapchain = vkbSwapchain.swapchain;
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+    m_currentDrawExtent = m_swapchainExtent;
 }
 
 void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
 
-    m_drawImage = vkutil::allocateImage(
+    m_drawImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_swapchainExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
         | VK_IMAGE_USAGE_STORAGE_BIT
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
-    );
+    ).value(); //TODO: handle failed case
 
-    m_depthImage = vkutil::allocateImage(
+    m_depthImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_drawImage.imageExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_D32_SFLOAT,
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-    );
+        | VK_IMAGE_USAGE_SAMPLED_BIT
+    ).value();
 }
 
 void Engine::cleanupSwapchain()
@@ -382,27 +388,11 @@ void Engine::initDescriptors()
     { // Set up the image used by compute shaders.
         m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
-            .build(m_device, 0);
+            .build(m_device, 0)
+            .value_or(VK_NULL_HANDLE); //TODO: handle
 
         m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
     }
-}
-
-ShadowPass Engine::initShadowpass(
-    VkDevice device
-    , DescriptorAllocator& descriptorAllocator
-    , VmaAllocator allocator
-)
-{
-    // TODO: Query the max image size for the shadow map
-    uint32_t constexpr shadowMapSize{ 16384 };
-
-    return ShadowPass::create(
-        device,
-        descriptorAllocator,
-        allocator,
-        shadowMapSize
-    );
 }
 
 void Engine::updateDescriptors()
@@ -466,6 +456,20 @@ void Engine::initWorld()
     }
 
     { // Mesh Instances
+        // Floor
+        for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+        {
+            for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
+            {
+                m_meshInstances.originals.push_back(
+                    glm::translate(glm::vec3(x * 20.0, 1.0, z * 20.0))
+                    * glm::scale(glm::vec3(10.0, 2.0, 10.0))
+                );
+            }
+        }
+
+        m_meshInstances.dynamicIndex = m_meshInstances.originals.size();
+
         for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
         {
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
@@ -515,10 +519,8 @@ void Engine::initWorld()
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
         m_camerasBuffer->push(GPUTypes::Camera{});
-        m_camerasBuffer->push(GPUTypes::Camera{});
 
         m_cameraIndexMain = 0;
-        m_cameraIndexShadowpass = 1;
     }
 
     { // Atmosphere
@@ -562,22 +564,19 @@ void Engine::initDebug()
     );
 }
 
-void Engine::initInstancedPipeline()
+void Engine::initDeferredShadingPipeline()
 {
-    m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
+    m_deferredShadingPipeline = std::make_unique<DeferredShadingPipeline>(
         m_device
-        , m_drawImage.imageFormat
-        , m_depthImage.imageFormat
-        , m_shadowPass.shadowMapDescriptorLayout
+        , m_allocator
+        , m_globalDescriptorAllocator
+        , MAX_DRAW_EXTENTS
     );
-}
 
-void Engine::initBackgroundPipeline()
-{
-    m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
+    m_deferredShadingPipeline->updateRenderTargetDescriptors(
         m_device
-        , m_drawImageDescriptorLayout
-        , m_shadowPass.shadowMapDescriptorLayout
+        , m_drawImage
+        , m_depthImage
     );
 }
 
@@ -630,8 +629,7 @@ void Engine::initImgui()
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    assert(m_swapchainImageFormat != VK_FORMAT_UNDEFINED);
-    std::vector<VkFormat> const colorAttachmentFormats{ m_swapchainImageFormat };
+    std::vector<VkFormat> const colorAttachmentFormats{ m_drawImage.imageFormat };
     VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
         .pNext{ nullptr },
@@ -693,7 +691,6 @@ void Engine::initImgui()
 void Engine::resizeSwapchain()
 {
     vkDeviceWaitIdle(m_device);
-    cleanupDrawTargets();
     cleanupSwapchain();
 
     int32_t width{ 0 }, height{ 0 };
@@ -702,9 +699,6 @@ void Engine::resizeSwapchain()
     m_windowExtent.height = static_cast<uint32_t>(height);
 
     initSwapchain();
-    initDrawTargets();
-
-    updateDescriptors();
 
     m_resizeRequested = false;
 }
@@ -883,7 +877,7 @@ void Engine::mainLoop()
 
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
 
-            if (ImGui::Begin("Pipeline Controls"))
+            if (ImGui::Begin("Scene Controls"))
             {
                 imguiMeshInstanceControls(
                     m_renderMeshInstances,
@@ -891,24 +885,41 @@ void Engine::mainLoop()
                     m_testMeshUsed
                 );
                 ImGui::Separator();
-                imguiBackgroundRenderingControls(
-                    m_useAtmosphereCompute,
-                    *m_atmospherePipeline,
-                    *m_genericComputePipeline
+                imguiStructureControls(
+                    m_sceneBounds
+                    , SceneBounds{
+                        .center{ glm::vec3(0.0, -4.0, 0.0) },
+                        .extent{ glm::vec3(40.0, 5.0, 40.0) }
+                    }
                 );
                 ImGui::Separator();
-                imguiPipelineControls<InstancedMeshGraphicsPipeline const>(*m_instancePipeline);
+                ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
+                ImGui::Separator();
+            }
+            ImGui::End();
+
+            if (ImGui::Begin("Pipeline Controls"))
+            {
+                imguiRenderingSelection(m_activeRenderingPipeline);
+                ImGui::Separator();
+                switch (m_activeRenderingPipeline)
+                {
+                case RenderingPipelines::DEFERRED:
+                    imguiPipelineControls(*m_deferredShadingPipeline);
+                    break;
+                case RenderingPipelines::COMPUTE_COLLECTION:
+                    imguiPipelineControls(*m_genericComputePipeline);
+                    break;
+                default:
+                    ImGui::Text("Invalid rendering pipeline selected.");
+                    break;
+                }
             }
             ImGui::End();
 
             if (ImGui::Begin("Engine Controls"))
             {
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
-                ImGui::Checkbox("Use Shadowpass Camera", &m_useShadowpassPerspective);
-                ImGui::Separator();
-                ImGui::Indent(10.0f);
-                imguiStructureControls(m_shadowPassParameters);
-                ImGui::Unindent(10.0f);
                 ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
@@ -938,16 +949,18 @@ void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
     size_t index{ 0 };
     for (glm::mat4x4 const& modelOriginal : m_meshInstances.originals)
     {
-        glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
+        if (index >= m_meshInstances.dynamicIndex)
+        {
+            glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
 
-        double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
+            double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
 
-        models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
-        // In general, the model inverse transposes only need to be updated once per tick,
-        // before rendering and after the last update of the model matrices.
-        // For now, we only update once per tick, so we just compute it here.
-        modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
-
+            models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
+            // In general, the model inverse transposes only need to be updated once per tick,
+            // before rendering and after the last update of the model matrices.
+            // For now, we only update once per tick, so we just compute it here.
+            modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
+        }
         index += 1;
     }
 
@@ -956,16 +969,30 @@ void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
         AtmosphereParameters::AnimationParameters const atmosphereAnimation{ m_atmosphereParameters.animation };
         if (atmosphereAnimation.animateSun)
         {
-            bool const isNight{ m_atmosphereParameters.directionToSun().y > 0.2f };
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, m_atmosphereParameters.directionToSun())
+            };
+
+            bool const isNight{ time < -0.11f };
+            float const sunriseAngle{ glm::asin(0.1f) };
 
             if (isNight && atmosphereAnimation.skipNight)
             {
-                m_atmosphereParameters.sunEulerAngles.x = -1.0 * glm::sign(atmosphereAnimation.animationSpeed) * glm::radians(100.0f);
+                if (atmosphereAnimation.animationSpeed > 0.0)
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = glm::pi<float>() - sunriseAngle;
+                }
+                else
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = sunriseAngle;
+                }
             }
             else
             {
                 m_atmosphereParameters.sunEulerAngles.x += deltaTimeSeconds * atmosphereAnimation.animationSpeed;
             }
+
+            m_atmosphereParameters.sunEulerAngles = glm::mod(m_atmosphereParameters.sunEulerAngles, glm::vec3(2.0 * glm::pi<float>()));
         }
     }
 }
@@ -990,29 +1017,16 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
+        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawExtent) };
+
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
-        cameras[m_cameraIndexMain] = { 
+        cameras[m_cameraIndexMain] = {
                 m_useOrthographicProjection
-            ? m_cameraParameters.toDeviceEquivalentOrthographic(m_drawImage.aspectRatio(), 5.0)
-            : m_cameraParameters.toDeviceEquivalent(m_drawImage.aspectRatio()) 
-        };
-
-        if (m_shadowPassParameters.useSunlight)
-        {
-            m_shadowPassParameters.directionalLightForward = -m_atmosphereParameters.directionToSun();
-        }
-
-        cameras[m_cameraIndexShadowpass] = {
-            m_cameraParameters.makeShadowpassCamera(
-                m_shadowPass.depthImage.aspectRatio()
-                , m_shadowPassParameters.directionalLightForward
-                , m_shadowPassParameters.sceneCenter
-                , m_shadowPassParameters.sceneExtent
-            )
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(aspectRatio, 5.0)
+            : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
 
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
-
     }
 
     { // Copy atmospheres to gpu
@@ -1030,119 +1044,168 @@ void Engine::draw()
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
+    { // Copy models to gpu
+        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+    }
+
+    switch (m_activeRenderingPipeline)
     {
-        uint32_t const cameraIndex{
-            m_useShadowpassPerspective
-            ? m_cameraIndexShadowpass
-            : m_cameraIndexMain
+    case RenderingPipelines::DEFERRED:
+    {
+        std::vector<GPUTypes::LightDirectional> directionalLights{};
+        std::span<GPUTypes::Atmosphere const> const atmospheres{
+            m_atmospheresBuffer->readValidStaged()
+        };
+        if (m_atmosphereIndex < atmospheres.size())
+        {
+            GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
+
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, atmosphere.directionToSun)
+            };
+            if (time > 0.0)
+            { // Sunlight
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        glm::vec4(atmosphere.sunlightColor, 1.0)
+                        , 0.5
+                        , m_atmosphereParameters.sunEulerAngles
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+
+            float constexpr timeSunset{ 0.06 };
+            if (time < timeSunset)
+            { // Moonlight
+                float constexpr moonrisePeriod{ 0.08 };
+                float const moonlightStrength{
+                    0.1f * (
+                        time < timeSunset - moonrisePeriod
+                        ? 1.0f
+                        : glm::abs(time - timeSunset) / moonrisePeriod
+                    )
+                };
+
+                glm::vec4 const moonlightColor{
+                    glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
+                };
+
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        moonlightColor
+                        , moonlightStrength
+                        , glm::vec3(-1.5708, 0.0, 0.0)
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+        }
+        else
+        {
+            directionalLights.push_back(
+                lights::makeDirectional(
+                    glm::vec4(1.0)
+                    , 1.0
+                    , glm::vec3(-1.5708, 0.0, 0.0)
+                    , m_sceneBounds.center
+                    , m_sceneBounds.extent
+                )
+            );
+        }
+
+        std::vector<GPUTypes::LightSpot> const spotLights{
+            lights::makeSpot(
+                glm::vec4(0.0, 1.0, 0.0, 1.0)
+                , 30.0
+                , 1.0
+                , 1.0
+                , 60
+                , 1.0
+                , glm::vec3(-1.0, 0.0, 1.0)
+                , glm::vec3(-8.0, -10.0, -2.0)
+                , 0.1
+                , 1000.0
+            ),
+            lights::makeSpot(
+                glm::vec4(1.0, 0.0, 0.0, 1.0)
+                , 30.0
+                , 1.0
+                , 1.0
+                , 60
+                , 1.0
+                , glm::vec3(-1.0, 0.0, -1.0)
+                , glm::vec3(8.0, -10.0, 2.0)
+                , 0.1
+                , 1000.0
+            ),
         };
 
-        if (m_renderMeshInstances) // Shadow map pass
+        m_deferredShadingPipeline->recordDrawCommands(
+            cmd
+            , m_currentDrawExtent
+            , m_drawImage
+            , m_depthImage
+            , directionalLights
+            , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
+            , m_cameraIndexMain
+            , *m_camerasBuffer
+            , m_atmosphereIndex
+            , *m_atmospheresBuffer
+            , m_sceneBounds
+            , *m_testMeshes[m_testMeshUsed]
+            , m_meshInstances
+        );
+        break;
+    }
+    case RenderingPipelines::COMPUTE_COLLECTION:
+    {
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
+
+        if (m_debugLines.enabled)
         {
-            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
-            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
-
-
-            m_shadowPass.pipeline->recordDrawCommands(
-                cmd
-                , false
-                , m_shadowPassParameters.depthBias
-                , m_shadowPassParameters.depthBiasSlope
-                , m_shadowPass.depthImage
-                , m_cameraIndexShadowpass
-                , *m_camerasBuffer
-                , *m_testMeshes[m_testMeshUsed]
-                , *m_meshInstances.models
-            );
-
-            vkutil::transitionImage(cmd, m_shadowPass.depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
-        }
-        else
-        {
-            vkutil::transitionImage(
-                cmd
-                , m_shadowPass.depthImage.image
-                , VK_IMAGE_LAYOUT_UNDEFINED
-                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-            );
-            VkClearDepthStencilValue const clearValue{
-                .depth{ 1.0 },
-            };
-            VkImageSubresourceRange const subresourceRange{
-                vkinit::imageSubresourceRange(VkImageAspectFlagBits::VK_IMAGE_ASPECT_DEPTH_BIT)
-            };
-            vkCmdClearDepthStencilImage(
-                cmd
-                , m_shadowPass.depthImage.image
-                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                , &clearValue
-                , 1
-                , &subresourceRange
-            );
-            vkutil::transitionImage(
-                cmd
-                , m_shadowPass.depthImage.image
-                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
-            );
+            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
         }
 
-        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-        if (m_useAtmosphereCompute)
-        {
-            m_atmospherePipeline->recordDrawCommands(
-                cmd
-                , cameraIndex
-                , m_cameraIndexShadowpass
-                , *m_camerasBuffer
-                , m_atmosphereIndex
-                , *m_atmospheresBuffer
-                , m_drawImageDescriptors
-                , m_shadowPass.shadowMapDescriptors
-                , VkExtent2D{
-                    .width{ m_drawImage.imageExtent.width },
-                    .height{ m_drawImage.imageExtent.height },
-                }
-            );
-        }
-        else
-        {
-            m_genericComputePipeline->recordDrawCommands(
-                cmd,
-                m_drawImageDescriptors,
-                VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
-            );
-        }
-
-        if (m_renderMeshInstances)
-        {
-            vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-            vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-            m_instancePipeline->recordDrawCommands(
-                cmd
-                , false
-                , m_drawImage
-                , m_depthImage
-                , m_shadowPass.shadowMapDescriptors
-                , cameraIndex
-                , m_cameraIndexShadowpass
-                , *m_camerasBuffer
-                , m_atmosphereIndex
-                , *m_atmospheresBuffer
-                , *m_testMeshes[m_testMeshUsed]
-                , *m_meshInstances.models
-                , *m_meshInstances.modelInverseTransposes
-            );
-        }
-
-        recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
+        break;
+    }
+    default:
+    {
+        vkutil::transitionImage(cmd,
+            m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+        break;
+    }
     }
 
     // End scene drawing
+
+    // ImGui Drawing
+
+    vkutil::transitionImage(cmd,
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
+
+    recordDrawImgui(cmd, m_drawImage.imageView);
+
+    // End ImGui Drawing
 
     // Copy image to swapchain
 
@@ -1166,29 +1229,28 @@ void Engine::draw()
     VkImageView const& swapchainImageView = m_swapchainImageViews[swapchainImageIndex];
 
     vkutil::transitionImage(cmd, 
-        m_drawImage.image, 
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        swapchainImage
+        , VK_IMAGE_LAYOUT_UNDEFINED
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        m_drawImage.imageExtent, m_swapchainExtent
+        m_currentDrawExtent, m_swapchainExtent
     );
-
-    vkutil::transitionImage(cmd,
-        swapchainImage,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    );
-
-    recordDrawImgui(cmd, swapchainImageView);
 
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        swapchainImage
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     CheckVkResult(vkEndCommandBuffer(cmd));
@@ -1246,7 +1308,7 @@ void Engine::draw()
 void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
-        vkinit::renderingAttachmentInfo(view, {}, false, VK_IMAGE_LAYOUT_GENERAL)
+        vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
     };
 
     std::vector<VkRenderingAttachmentInfo> colorAttachments{ colorAttachmentInfo };
@@ -1306,13 +1368,11 @@ void Engine::cleanup()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
-    m_instancePipeline->cleanup(m_device);
-    m_atmospherePipeline->cleanup(m_device);
     m_genericComputePipeline->cleanup(m_device);
+    m_deferredShadingPipeline->cleanup(m_device, m_allocator);
 
     m_meshInstances.models.reset();
     m_meshInstances.modelInverseTransposes.reset();
-
 
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
@@ -1321,8 +1381,6 @@ void Engine::cleanup()
     m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
-
-    m_shadowPass.cleanup(m_device, m_allocator);
 
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
 

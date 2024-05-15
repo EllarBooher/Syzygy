@@ -12,26 +12,13 @@ VkOffset3D ExtentToOffset(VkExtent3D extent)
     return { x, y, z };
 }
 
-VkImageAspectFlags getAspectMaskFromLayout(VkImageLayout layout)
-{
-    switch (layout)
-    {
-    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
-        return VK_IMAGE_ASPECT_DEPTH_BIT;
-    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-    default:
-        // Default to color for now, until we start using other image layouts.
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-}
-
-void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+void vkutil::transitionImage(
+    VkCommandBuffer const cmd
+    , VkImage const image
+    , VkImageLayout const oldLayout
+    , VkImageLayout const newLayout
+    , VkImageAspectFlags const aspects
+)
 {
     VkImageMemoryBarrier2 const imageBarrier{
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -46,7 +33,7 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
         .newLayout = newLayout,
 
         .image = image,
-        .subresourceRange = vkinit::imageSubresourceRange(getAspectMaskFromLayout(newLayout)),
+        .subresourceRange = vkinit::imageSubresourceRange(aspects),
     };
 
     VkDependencyInfo const depInfo{
@@ -59,50 +46,13 @@ void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout o
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-AllocatedImage vkutil::allocateImage(
-    VmaAllocator allocator,
-    VkDevice device,
-    VkExtent3D extent,
-    VkFormat format,
-    VkImageAspectFlags viewFlags,
-    VkImageUsageFlags usageMask
+void vkutil::recordCopyImageToImage(
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkExtent3D const srcSize
+    , VkExtent3D const dstSize
 )
-{
-    AllocatedImage image{
-        .allocation{ VK_NULL_HANDLE },
-        .image{ VK_NULL_HANDLE },
-        .imageView{ VK_NULL_HANDLE },
-
-        .imageExtent = extent,
-        .imageFormat = format
-    };
-
-    VkImageCreateInfo const imageInfo = vkinit::imageCreateInfo(
-        image.imageFormat, 
-        VK_IMAGE_LAYOUT_UNDEFINED, 
-        usageMask, 
-        image.imageExtent
-    );
-
-    VmaAllocationCreateInfo imageAllocInfo = {
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    };
-
-    CheckVkResult(vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr));
-
-    VkImageViewCreateInfo const imageViewInfo = vkinit::imageViewCreateInfo(
-        image.imageFormat,
-        image.image,
-        viewFlags
-    );
-
-    CheckVkResult(vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView));
-
-    return image;
-}
-
-void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent3D srcSize, VkExtent3D dstSize)
 {
     VkImageBlit2 const blitRegion{
         .sType{ VK_STRUCTURE_TYPE_IMAGE_BLIT_2 },
@@ -132,4 +82,95 @@ void vkutil::recordCopyImageToImage(VkCommandBuffer cmd, VkImage source, VkImage
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
+}
+
+void vkutil::recordCopyImageToImage(
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkExtent2D const srcSize
+    , VkExtent2D const dstSize
+)
+{
+    VkExtent3D const srcExtent{
+        .width{ srcSize.width },
+        .height{ srcSize.height },
+        .depth{ 1 }
+    };
+    VkExtent3D const dstExtent{
+        .width{ dstSize.width },
+        .height{ dstSize.height },
+        .depth{ 1 }
+    };
+
+    vkutil::recordCopyImageToImage(cmd, source, destination, srcExtent, dstExtent);
+}
+
+double vkutil::aspectRatio(VkExtent2D extent)
+{
+    auto const width{ static_cast<float>(extent.width) };
+    auto const height{ static_cast<float>(extent.height) };
+
+    return width / height;
+}
+
+std::optional<AllocatedImage> AllocatedImage::allocate(
+    VmaAllocator allocator
+    , VkDevice device
+    , VkExtent3D extent
+    , VkFormat format
+    , VkImageAspectFlags viewFlags
+    , VkImageUsageFlags usageMask
+)
+{
+    AllocatedImage image{
+        .allocation{ VK_NULL_HANDLE },
+        .image{ VK_NULL_HANDLE },
+        .imageView{ VK_NULL_HANDLE },
+
+        .imageExtent = extent,
+        .imageFormat = format
+    };
+
+    VkImageCreateInfo const imageInfo{ 
+        vkinit::imageCreateInfo(
+            image.imageFormat
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , usageMask
+            , image.imageExtent
+        ) 
+    };
+
+    VmaAllocationCreateInfo const imageAllocInfo{
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    };
+
+    VkResult const createImageResult{
+        vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &image.image, &image.allocation, nullptr)
+    };
+    if (createImageResult != VK_SUCCESS)
+    {
+        LogVkResult(createImageResult, "VMA Allocation failed");
+        return {};
+    }
+
+    VkImageViewCreateInfo const imageViewInfo{
+        vkinit::imageViewCreateInfo(
+            image.imageFormat,
+            image.image,
+            viewFlags
+        )
+    };
+
+    VkResult const createViewResult{
+        vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView)
+    };
+    if (createViewResult != VK_SUCCESS)
+    {
+        LogVkResult(createViewResult, "vkCreateImageView failed");
+        return {};
+    }
+
+    return image;
 }

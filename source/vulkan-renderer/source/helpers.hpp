@@ -6,6 +6,9 @@
 #include <filesystem>
 #include <source_location>
 
+#define VKR_ARRAY(x) static_cast<uint32_t>(x.size()), x.data()
+#define VKR_ARRAY_NONE 0, nullptr
+
 class DebugUtils
 {
 public:
@@ -62,8 +65,12 @@ void CheckVkResult(VkResult result, std::source_location location = std::source_
 /** A method used by Imgui's CheckVkResult callback that does not throw. */
 void CheckVkResult_Imgui(VkResult result);
 
-/** Logs a VkResult without throwing. */
-void LogVkResult(VkResult result, std::string message, std::source_location location = std::source_location::current());
+/** Logs a VkResult without throwing, only if it is not VK_SUCCESS. */
+void LogVkResult(
+    VkResult result
+    , std::string message
+    , std::source_location location = std::source_location::current()
+);
 
 /** Returns the value inside a vkb::Result if it is a success and throws a runtime error if not. */
 template<typename T>

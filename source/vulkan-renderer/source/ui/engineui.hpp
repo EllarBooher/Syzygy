@@ -22,10 +22,8 @@ void imguiMeshInstanceControls(
     size_t& meshIndex
 );
 
-void imguiBackgroundRenderingControls(
-    bool& useAtmosphereCompute,
-    AtmosphereComputePipeline const& atmospherePipeline,
-    GenericComputeCollectionPipeline& genericComputePipeline
+void imguiRenderingSelection(
+    RenderingPipelines& currentActivePipeline
 );
 
 void imguiPerformanceWindow(

@@ -10,6 +10,7 @@
 #include "shaders.hpp"
 #include "assets.hpp"
 #include "buffers.hpp"
+#include "images.hpp"
 
 struct DrawResultsGraphics
 {
@@ -90,8 +91,8 @@ public:
         , float depthBias
         , float depthBiasSlope
         , AllocatedImage const& depth
-        , uint32_t cameraIndex
-        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , uint32_t projViewIndex
+        , TStagedBuffer<glm::mat4x4> const& projViewMatrices
         , MeshAsset const& mesh
         , TStagedBuffer<glm::mat4x4> const& models
     ) const;
@@ -108,8 +109,8 @@ private:
         VkDeviceAddress vertexBufferAddress{};
         VkDeviceAddress modelBufferAddress{};
 
-        VkDeviceAddress cameraBufferAddress{};
-        uint32_t cameraIndex{ 0 };
+        VkDeviceAddress projViewBufferAddress{};
+        uint32_t projViewIndex{ 0 };
         uint8_t padding0[4]{};
     };
 
@@ -119,149 +120,6 @@ public:
     ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
     VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
     ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
-};
-
-/*
-* A graphics pipeline that renders multiple instances of a single mesh.
-*/
-class InstancedMeshGraphicsPipeline
-{
-public:
-    InstancedMeshGraphicsPipeline(
-        VkDevice device
-        , VkFormat colorAttachmentFormat
-        , VkFormat depthAttachmentFormat
-        , VkDescriptorSetLayout shadowMapDescriptorLayout
-    );
-
-    void recordDrawCommands(
-        VkCommandBuffer cmd
-        , bool reuseDepthAttachment
-        , AllocatedImage const& color
-        , AllocatedImage const& depth
-        , VkDescriptorSet shadowMapSet
-        , uint32_t cameraIndex
-        , uint32_t cameraIndexShadowPass
-        , TStagedBuffer<GPUTypes::Camera> const& cameras
-        , uint32_t atmosphereIndex
-        , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
-        , MeshAsset const& mesh
-        , TStagedBuffer<glm::mat4x4> const& models
-        , TStagedBuffer<glm::mat4x4> const& modelInverseTransposes
-    ) const;
-
-    void cleanup(VkDevice device);
-
-private:
-    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
-    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
-    
-    VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
-    VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
-
-    struct VertexPushConstant {
-        VkDeviceAddress vertexBufferAddress{};
-        VkDeviceAddress modelBufferAddress{};
-
-        VkDeviceAddress modelInverseTransposeBufferAddress{};
-        VkDeviceAddress cameraBufferAddress{};
-
-        uint32_t cameraIndex{ 0 };
-        uint32_t shadowpassCameraIndex{ 0 };
-        uint8_t padding0[8]{};
-    };
-
-    struct FragmentPushConstant {
-        glm::vec4 lightDirectionViewSpace{};
-
-        glm::vec4 diffuseColor{};
-
-        glm::vec4 specularColor{};
-
-        VkDeviceAddress atmosphereBuffer{};
-        uint32_t atmosphereIndex{ 0 };
-        float shininess{ 0.0f };
-    };
-
-    VertexPushConstant mutable m_vertexPushConstant{};
-    FragmentPushConstant mutable m_fragmentPushConstant{};
-
-public:
-    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
-    ShaderModuleReflected const& fragmentShader() const { return m_fragmentShader; };
-    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
-    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
-
-    FragmentPushConstant const& fragmentPushConstant() const { return m_fragmentPushConstant; };
-    ShaderReflectionData::PushConstant const& fragmentPushConstantReflected() const { return m_fragmentShader.reflectionData().defaultPushConstant(); };
-};
-
-/*
-* A compute pipeline that renders the scattering of sunlight in the sky.
-* It models all light from the sun as reaching the camera via primary scattering,
-* so it produces inaccurate results in thin atmospheres.
-*/
-class AtmosphereComputePipeline
-{
-public:
-    AtmosphereComputePipeline(
-        VkDevice device
-        , VkDescriptorSetLayout drawImageDescriptorLayout
-        , VkDescriptorSetLayout shadowMapDescriptorLayout
-    );
-
-    void recordDrawCommands(
-        VkCommandBuffer cmd
-        , uint32_t cameraIndex
-        , uint32_t shadowPassCameraIndex
-        , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
-        , uint32_t atmosphereIndex
-        , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer
-        , VkDescriptorSet colorSet
-        , VkDescriptorSet shadowMapSet
-        , VkExtent2D colorExtent
-    ) const;
-
-    void cleanup(VkDevice device);
-
-    std::span<uint8_t const> pushConstantBytes() const
-    {
-        return std::span<uint8_t const>(
-            reinterpret_cast<uint8_t const*>(&m_pushConstant)
-            , sizeof(PushConstantType)
-        );
-    }
-
-    ShaderModuleReflected const& shader() const { return m_skyShader; };
-
-private:
-    ShaderModuleReflected m_skyShader{ ShaderModuleReflected::MakeInvalid() };
-
-    VkPipeline m_computePipeline{ VK_NULL_HANDLE };
-    VkPipelineLayout m_computePipelineLayout{ VK_NULL_HANDLE };
-
-    struct PushConstantType {
-        uint32_t cameraIndex{};
-        uint32_t atmosphereIndex{};
-        VkDeviceAddress cameraBuffer{};
-
-        VkDeviceAddress atmosphereBuffer{};
-        uint32_t shadowPassCameraIndex{};
-        uint8_t padding0[4]{};
-    };
-
-    /*
-    * A cached copy of the push constants that were last sent to the GPU during recording.
-    * This value is not read by the pipeline and is only useful to reflect the intended state on the GPU.
-    */
-    PushConstantType mutable m_pushConstant;
-
-public:
-    PushConstantType const& pushConstant() const { return m_pushConstant; };
-    ShaderReflectionData::PushConstant const& pushConstantReflected() const 
-    { 
-        return m_skyShader.reflectionData().defaultPushConstant(); 
-    };
 };
 
 /*

@@ -2,11 +2,11 @@
 #include "helpers.hpp"
 
 DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
-	uint32_t binding, 
-	VkDescriptorType type, 
-	VkShaderStageFlags stageMask,
-	uint32_t count,
-	VkDescriptorBindingFlags flags
+	uint32_t const binding
+	, VkDescriptorType const type
+	, VkShaderStageFlags const stageMask
+	, uint32_t const count
+	, VkDescriptorBindingFlags const flags
 )
 {
 	VkDescriptorSetLayoutBinding const newBinding{
@@ -17,41 +17,112 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 		.pImmutableSamplers{ nullptr }
 	};
 
-	m_flags.push_back(flags);
-	m_bindings.push_back(newBinding);
+	m_bindings.push_back(Binding{
+		.binding{ newBinding },
+		.flags{ flags }
+	});
 
 	return *this;
 }
 
+DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
+	uint32_t const binding
+	, VkDescriptorType const type
+	, VkShaderStageFlags const stageMask
+	, std::span<VkSampler const> samplers
+	, VkDescriptorBindingFlags const flags
+)
+{
+	// We leave data uninitialized until layout creation time to avoid self referencing.
+	VkDescriptorSetLayoutBinding const newBinding{
+		.binding{ binding },
+		.descriptorType{ type },
+		.descriptorCount{ 0 },
+		.stageFlags{ stageMask },
+		.pImmutableSamplers{ nullptr }
+	};
+
+	m_bindings.push_back(
+		Binding{
+			.immutableSamplers{ samplers.begin(), samplers.end() },
+			.binding{ newBinding },
+			.flags{ flags },
+		}
+	);
+
+	return *this;
+}
+
+DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
+	uint32_t const binding
+	, VkDescriptorType const type
+	, VkShaderStageFlags const stageMask
+	, VkSampler const sampler
+	, VkDescriptorBindingFlags const flags
+)
+{
+	std::array<VkSampler, 1> samplers{ sampler };
+	return addBinding(
+		binding
+		, type
+		, stageMask
+		, samplers
+		, flags
+	);
+}
+
 void DescriptorLayoutBuilder::clear()
 {
-	m_flags.clear();
 	m_bindings.clear();
 }
 
-VkDescriptorSetLayout DescriptorLayoutBuilder::build(
-	VkDevice device, 
-	VkDescriptorSetLayoutCreateFlags flags
+std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
+	VkDevice device
+	, VkDescriptorSetLayoutCreateFlags layoutFlags
 ) const
 {
+	std::vector<VkDescriptorSetLayoutBinding> bindings{};
+	std::vector<VkDescriptorBindingFlags> bindingFlags{};
+
+	for (Binding const& inBinding : m_bindings)
+	{
+		VkDescriptorSetLayoutBinding binding{ inBinding.binding };
+
+		if (inBinding.immutableSamplers.size() > 0)
+		{
+			binding.descriptorCount = inBinding.immutableSamplers.size();
+			binding.pImmutableSamplers = inBinding.immutableSamplers.data();
+		}
+		
+		bindings.push_back(binding);
+		bindingFlags.push_back(inBinding.flags);
+	}
+
 	VkDescriptorSetLayoutBindingFlagsCreateInfo const flagsInfo{
 		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO },
 		.pNext{ nullptr },
 
-		.bindingCount{ static_cast<uint32_t>(m_flags.size()) },
-		.pBindingFlags{ m_flags.data() },
+		.bindingCount{ static_cast<uint32_t>(bindingFlags.size()) },
+		.pBindingFlags{ bindingFlags.data() },
 	};
 
 	VkDescriptorSetLayoutCreateInfo const info{
 		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO },
 		.pNext{ &flagsInfo },
-		.flags{ flags },
-		.bindingCount{ static_cast<uint32_t>(m_bindings.size()) },
-		.pBindings{ m_bindings.data() },
+		.flags{ layoutFlags },
+		.bindingCount{ static_cast<uint32_t>(bindings.size()) },
+		.pBindings{ bindings.data() },
 	};
 
 	VkDescriptorSetLayout set;
-	CheckVkResult(vkCreateDescriptorSetLayout(device, &info, nullptr, &set));
+	VkResult const result{
+		vkCreateDescriptorSetLayout(device, &info, nullptr, &set)
+	};
+	if (result != VK_SUCCESS)
+	{
+		LogVkResult(result, "Creating Descriptor Set Layout");
+		return {};
+	}
 
 	return set;
 }

@@ -87,12 +87,15 @@ struct StagedBuffer {
     VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
 
     /** Copy an entire span of data into the staging buffer, and resets its size. */
-    void stage(std::span<uint8_t const> data);
+    void stageBytes(std::span<uint8_t const> data);
 
     /** Pushes new data into the staging buffer. */
-    void push(std::span<uint8_t const> data);
+    void pushBytes(std::span<uint8_t const> data);
+
+    void popBytes(size_t count);
 
     void clearStaged();
+    void clearBoth();
 
     /*
     * This structure cannot know exactly how many bytes are up-to-date on the GPU-side buffer. 
@@ -111,11 +114,27 @@ struct StagedBuffer {
         , VkAccessFlags2 destinationAccessFlags
     ) const;
 
+    bool isDirty() const { return m_dirty; };
+
 protected:
     StagedBuffer(AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer)
         : m_deviceBuffer(std::move(deviceBuffer))
         , m_stagingBuffer(std::move(stagingBuffer))
     {};
+
+    void markDirty(bool dirty)
+    {
+        m_dirty = dirty;
+    }
+
+    /*
+    * Often we want to read the staged values (on the host) as if they are the values 
+    * that will be on the device during command execution.
+    * 
+    * This flag marks if the staged values have changed and if this invariant no longer holds, 
+    * even if only one value changed.
+    */
+    bool m_dirty{};
 
     AllocatedBuffer m_deviceBuffer{};
     VkDeviceSize m_deviceSizeBytes{ 0 };
@@ -133,7 +152,7 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(data.data()), 
             data.size_bytes()
         );
-        StagedBuffer::stage(bytes);
+        StagedBuffer::stageBytes(bytes);
     }
     void push(std::span<T const> data)
     {
@@ -141,7 +160,7 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(data.data()),
             data.size_bytes()
         );
-        StagedBuffer::push(bytes);
+        StagedBuffer::pushBytes(bytes);
     }
     void push(T const& data)
     {
@@ -149,16 +168,29 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(&data),
             sizeof(T)
         );
-        StagedBuffer::push(bytes);
+        StagedBuffer::pushBytes(bytes);
+    }
+    void pop(size_t count)
+    {
+        StagedBuffer::popBytes(count * sizeof(T));
     }
 
+    // These values may be out of date, and not the values used by the GPU upon command execution.
+    // Use this only as a convenient interface for modifying the staged values.
+    // TODO: get rid of this and have a write-only interface instead
     std::span<T> mapValidStaged()
     {
         return std::span<T>(reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize());
     }
 
+    // This can be used as a proxy for values on the device, as long as the only writes are from the host.
     std::span<T const> readValidStaged() const
     {
+        if (isDirty())
+        {
+            Warning("Dirty buffer was accessed with a read, these are not the values last recorded onto the GPU.");
+        }
+
         return std::span<T const>(reinterpret_cast<T const*>(m_stagingBuffer.info.pMappedData), stagedSize());
     }
 

@@ -27,8 +27,11 @@ namespace GPUTypes
 
         glm::mat4x4 rotation;
 
-        glm::vec3 position;
-        uint8_t padding0[4]{};
+        glm::mat4x4 projViewInverse;
+
+        glm::vec4 forwardWorld;
+
+        glm::vec4 position;
     };
 
     struct Atmosphere
@@ -52,5 +55,39 @@ namespace GPUTypes
 
         glm::vec3 groundColor;
         uint8_t padding1[4]{};
+    };
+
+    struct LightDirectional
+    {
+        glm::vec4 color;
+
+        glm::vec4 forward;
+        
+        glm::mat4x4 projection;
+        
+        glm::mat4x4 view;
+
+        float strength;
+        uint8_t padding0[12]{};
+    };
+
+    struct LightSpot
+    {
+        glm::vec4 color;
+
+        glm::vec4 forward;
+
+        glm::mat4x4 projection;
+
+        glm::mat4x4 view;
+
+        glm::vec4 position;
+
+        float strength;
+        // The factor by which light falls off per unit distance, usually derived from the tangent of half the fov
+        float falloffFactor;
+        // The distance that light starts to fall off, i.e. the near plane of the light
+        float falloffDistance;
+        uint8_t padding0[4]{};
     };
 }

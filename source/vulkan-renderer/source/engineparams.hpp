@@ -13,7 +13,7 @@ struct AtmosphereParameters {
     struct AnimationParameters
     {
         bool animateSun{ false };
-        float animationSpeed{ 1.0f };
+        float animationSpeed{ 0.2f };
         bool skipNight{ false };
     };
 
@@ -23,9 +23,7 @@ struct AtmosphereParameters {
 
     glm::vec3 directionToSun() const
     {
-        return glm::vec3(
-            glm::orientate3(sunEulerAngles) * glm::vec3(0.0, -1.0, 0.0)
-        );
+        return -geometry::forwardFromEulers(sunEulerAngles);
     }
 
     float earthRadiusMeters{ 0.0 };
@@ -105,13 +103,17 @@ struct CameraParameters {
 
     GPUTypes::Camera toDeviceEquivalent(float aspectRatio) const
     {
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection(aspectRatio) * view()) };
+
         return GPUTypes::Camera{
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ rotation() * glm::vec4(geometry::forward,0.0) },
+            .position{ glm::vec4{ cameraPosition, 1.0 } },
         };
     }
 
@@ -126,44 +128,19 @@ struct CameraParameters {
         forward = glm::normalize(forward);
         geometryExtent = glm::abs(geometryExtent);
 
-        bool const cameraForwardIsUp{ glm::abs(glm::dot(forward, geometry::up)) > 0.99 };
         glm::vec3 const cameraPosition{ geometryCenter + (-1.0f * glm::length(geometryExtent) * forward) };
 
         glm::mat4x4 const cameraView{
-            geometry::lookAtVk(
-                geometryCenter - glm::length(geometryExtent) * forward
+            geometry::lookAtVkSafe(
+                cameraPosition
                 , geometryCenter
-                , cameraForwardIsUp ? -geometry::forward : geometry::up
             )
         };
 
-        glm::mat4x4 const cameraViewInverse{ glm::inverse(cameraView) };
-
-        // Project every vertex of the AABB supplied, to determine how large the projection matrix needs to be
-
-        std::array<glm::vec3, 8> const aabbVertices{ geometry::collectAABBVertices(geometryCenter, geometryExtent) };
-
-        glm::vec3 const centerViewSpace{ cameraView * glm::vec4(geometryCenter,1.0) };
-        glm::vec3 const forwardViewSpace{ cameraView * glm::vec4(forward, 0.0) };
-
-        glm::vec3 viewMax{ std::numeric_limits<float>::lowest() };
-        glm::vec3 viewMin{ std::numeric_limits<float>::max() };
-        for (glm::vec3 const vertex : aabbVertices)
-        {
-            glm::vec3 const vertexViewSpace{ cameraView * glm::vec4(vertex,1.0) };
-            glm::vec3 const projected{ geometry::projectPointOnPlane(
-                centerViewSpace
-                , forwardViewSpace
-                , vertexViewSpace) 
-            };
-
-            viewMax = glm::max(projected, viewMax);
-            viewMin = glm::min(projected, viewMin);
-        }
-
         glm::mat4x4 const projection{
-            geometry::projectionOrthoVk(viewMin, viewMax)
+            geometry::projectionOrthoAABBVk(cameraView, geometryCenter, geometryExtent)
         };
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -171,7 +148,9 @@ struct CameraParameters {
             .view{ cameraView },
             .viewInverseTranspose{ glm::inverseTranspose(cameraView) },
             .rotation{ glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))) },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ glm::vec4(forward, 0.0) },
+            .position{ glm::vec4(cameraPosition,1.0) }
         };
     }
 
@@ -181,6 +160,7 @@ struct CameraParameters {
     ) const
     {
         glm::mat4x4 const projection{ projectionOrthographic(aspectRatio, planeDistance) };
+        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -188,19 +168,21 @@ struct CameraParameters {
             .view{ view() },
             .viewInverseTranspose{ glm::inverseTranspose(view()) },
             .rotation{ rotation() },
-            .position{ cameraPosition }
+            .projViewInverse{ projViewInverse },
+            .forwardWorld{ rotation() * glm::vec4(geometry::forward, 0.0) },
+            .position{ glm::vec4(cameraPosition, 1.0) },
         };
     }
 
     /** Returns the matrix that transforms from camera-local space to world space */
     glm::mat4 transform() const
     {
-        return glm::translate(cameraPosition) * glm::orientate4(eulerAngles);
+        return geometry::transformVk(cameraPosition, eulerAngles);
     }
 
     glm::mat4 view() const
     {
-        return glm::inverse(transform());
+        return geometry::viewVk(cameraPosition, eulerAngles);
     }
 
     glm::mat4 rotation() const
@@ -210,14 +192,7 @@ struct CameraParameters {
 
     glm::mat4 projection(float aspectRatio) const
     {
-        // We use LH perspective matrix since we swap the near and far plane for better 
-        // distribution of floating point precision.
-        return glm::perspectiveLH_ZO(
-            glm::radians(fov)
-            , aspectRatio
-            , far
-            , near
-        );
+        return geometry::projectionVk(fov, aspectRatio, near, far);
     }
 
     glm::mat4 projectionOrthographic(float aspectRatio, float distance) const
@@ -245,11 +220,6 @@ struct CameraParameters {
 
 struct ShadowPassParameters
 {
-    float depthBias{ 2.00f };
+    float depthBiasConstant{ 2.00f };
     float depthBiasSlope{ -1.75f };
-
-    bool useSunlight{ true };
-    glm::vec3 directionalLightForward{ 0.0, 1.0, 0.0 };
-    glm::vec3 sceneCenter{ 0.0, -4.0, 0.0 };
-    glm::vec3 sceneExtent{ 40.5, 1.5, 40.5 };
 };

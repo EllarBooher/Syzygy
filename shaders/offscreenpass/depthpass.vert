@@ -2,11 +2,10 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
-#include "../types/camera.glsl"
 #include "../types/vertex.glsl"
 
-layout(buffer_reference, std430) readonly buffer CameraBuffer{
-	Camera cameras[];
+layout(buffer_reference, std430) readonly buffer ProjViewBuffer{
+	mat4 matrices[];
 };
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer{
@@ -21,8 +20,8 @@ layout( push_constant ) uniform PushConstant
 {
 	VertexBuffer vertexBuffer;
 	ModelBuffer modelBuffer;
-	CameraBuffer cameraBuffer;
-	uint cameraIndex;
+	ProjViewBuffer projViewBuffer;
+	uint projViewIndex;
 } pushConstant;
 
 void main()
@@ -30,7 +29,7 @@ void main()
 	mat4 model = pushConstant.modelBuffer.models[gl_InstanceIndex];
 
 	Vertex vertex = pushConstant.vertexBuffer.vertices[gl_VertexIndex];
-	Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+	mat4 projView = pushConstant.projViewBuffer.matrices[pushConstant.projViewIndex];
 
-	gl_Position = camera.projection * camera.view * model * vec4(vertex.position, 1.0f);
+	gl_Position = projView * model * vec4(vertex.position, 1.0f);
 }

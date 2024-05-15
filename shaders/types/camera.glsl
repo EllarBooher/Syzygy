@@ -9,5 +9,9 @@ struct Camera {
 
 	mat4 rotation;
 
-	vec3 position;
+	mat4 projViewInverse;
+
+	vec4 forwardWorld;
+
+	vec4 position;
 };

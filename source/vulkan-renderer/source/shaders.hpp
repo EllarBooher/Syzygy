@@ -234,7 +234,7 @@ public:
 	VkShaderEXT shaderObject() const { return ShaderReflectedBase::shaderObject(); }
 };
 
-namespace vkutils
+namespace vkutil
 {
 	template<typename T>
 	struct ShaderResult
@@ -256,6 +256,29 @@ namespace vkutils
 	ShaderResult<VkShaderModule> CompileShaderModule(
 		VkDevice device
 		, std::span<uint8_t const> spirvBytecode
+	);
+
+	std::optional<ShaderObjectReflected> loadShaderObject(
+		VkDevice device
+		, std::string path
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, VkSpecializationInfo specializationInfo
+	);
+	std::optional<ShaderObjectReflected> loadShaderObject(
+		VkDevice device
+		, std::string path
+		, VkShaderStageFlagBits stage
+		, VkShaderStageFlags nextStage
+		, std::span<VkDescriptorSetLayout const> layouts
+		, VkPushConstantRange rangeOverride
+		, VkSpecializationInfo specializationInfo
+	);
+
+	std::optional<ShaderModuleReflected> loadShaderModule(
+		VkDevice device
+		, std::string path
 	);
 }
 

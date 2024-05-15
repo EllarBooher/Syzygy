@@ -5,6 +5,7 @@
 #include <volk.h>
 #include <string>
 #include <span>
+#include <optional>
 
 /** Shorthand factory method for info structs, with reasonable defaults. */
 namespace vkinit {
@@ -35,6 +36,13 @@ namespace vkinit {
         VkExtent3D extent
     );
 
+    VkSamplerCreateInfo samplerCreateInfo(
+        VkSamplerCreateFlags flags
+        , VkBorderColor borderColor
+        , VkFilter filter
+        , VkSamplerAddressMode addressMode
+    );
+
     VkImageViewCreateInfo imageViewCreateInfo(
         VkFormat format,
         VkImage image,
@@ -42,10 +50,9 @@ namespace vkinit {
     );
 
     VkRenderingAttachmentInfo renderingAttachmentInfo(
-        VkImageView view,
-        VkClearValue clearValue,
-        bool useClearValue,
-        VkImageLayout layout
+        VkImageView view
+        , VkImageLayout layout
+        , std::optional<VkClearValue> clearValue = {}
     );
 
     VkRenderingInfo renderingInfo(

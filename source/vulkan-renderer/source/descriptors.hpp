@@ -1,30 +1,50 @@
 #pragma once
 
 #include "enginetypes.hpp"
+#include <optional>
 
 struct DescriptorLayoutBuilder
 {
-	/**
-	Saves a VkDescriptorSetLayoutBinding that defaults to having one element, with no pipeline stage access.
-	*/
 	DescriptorLayoutBuilder& addBinding(
-		uint32_t binding, 
-		VkDescriptorType type, 
-		VkShaderStageFlags stageMask,
-		uint32_t count,
-		VkDescriptorBindingFlags flags
+		uint32_t binding
+		, VkDescriptorType type
+		, VkShaderStageFlags stageMask
+		, uint32_t count
+		, VkDescriptorBindingFlags flags
 	);
+
+	DescriptorLayoutBuilder& addBinding(
+		uint32_t binding
+		, VkDescriptorType type
+		, VkShaderStageFlags stageMask
+		, std::span<VkSampler const> samplers
+		, VkDescriptorBindingFlags flags
+	);
+
+	DescriptorLayoutBuilder& addBinding(
+		uint32_t binding
+		, VkDescriptorType type
+		, VkShaderStageFlags stageMask
+		, VkSampler sampler
+		, VkDescriptorBindingFlags flags
+	);
+
 	void clear();
-	
-	/**
-	@param shaderStages Additional shader stages to add to every binding.
-	@returns The newly allocated set.
-	*/
-	VkDescriptorSetLayout build(VkDevice device, VkDescriptorSetLayoutCreateFlags flags) const;
+
+	std::optional<VkDescriptorSetLayout> build(
+		VkDevice device
+		, VkDescriptorSetLayoutCreateFlags layoutFlags
+	) const;
 
 private:
-	std::vector<VkDescriptorSetLayoutBinding> m_bindings;
-	std::vector<VkDescriptorBindingFlags> m_flags;
+	struct Binding
+	{
+		std::vector<VkSampler> immutableSamplers{};
+		VkDescriptorSetLayoutBinding binding{};
+		VkDescriptorBindingFlags flags{};
+	};
+
+	std::vector<Binding> m_bindings{};
 };
 
 /**
