@@ -949,18 +949,18 @@ void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
     size_t index{ 0 };
     for (glm::mat4x4 const& modelOriginal : m_meshInstances.originals)
     {
-        if (index < m_meshInstances.dynamicIndex) continue;
+        if (index >= m_meshInstances.dynamicIndex)
+        {
+            glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
 
-        glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
+            double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
 
-        double const y{ std::sin((position.x - (-10) + position.z - (-10)) / 3.1415) };
-
-        models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
-        // In general, the model inverse transposes only need to be updated once per tick,
-        // before rendering and after the last update of the model matrices.
-        // For now, we only update once per tick, so we just compute it here.
-        modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
-
+            models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
+            // In general, the model inverse transposes only need to be updated once per tick,
+            // before rendering and after the last update of the model matrices.
+            // For now, we only update once per tick, so we just compute it here.
+            modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
+        }
         index += 1;
     }
 
