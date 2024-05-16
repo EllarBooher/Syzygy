@@ -47,12 +47,13 @@ private:
 
     void initVulkan();
 
-    void mainLoop();
-
     void tickWorld(double totalTime, double deltaTimeSeconds);
+    void renderUI();
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
+
+    void mainLoop();
 
     void cleanup();
 

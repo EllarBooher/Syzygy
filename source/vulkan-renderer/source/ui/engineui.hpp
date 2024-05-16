@@ -32,3 +32,17 @@ void imguiPerformanceWindow(
     size_t currentFrame,
     float& targetFPS
 );
+
+float draggableVerticalBar(
+    std::string id
+    , float initialPosition
+    , glm::vec2 min
+    , glm::vec2 max
+);
+
+float draggableHorizontalBar(
+    std::string id
+    , float initialPosition
+    , glm::vec2 min
+    , glm::vec2 max
+);

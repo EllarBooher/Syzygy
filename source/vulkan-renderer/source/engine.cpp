@@ -682,6 +682,7 @@ void Engine::initImgui()
     float const fontBaseSize{ 13.0f };
     std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}).string() };
     ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.c_str(), fontBaseSize * m_dpiScale);
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
 
@@ -871,19 +872,85 @@ void Engine::mainLoop()
                 resizeSwapchain();
             }
 
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
+            renderUI();
+            draw();
+        }
+    }
+}
 
-            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+void Engine::renderUI()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
-            if (ImGui::Begin("Scene Controls"))
+    ImVec2 menuBarSize{};
+    if (ImGui::BeginMainMenuBar())
+    {
+        ImGui::Text("Test");
+        menuBarSize = ImGui::GetWindowSize();
+        ImGui::EndMainMenuBar();
+    }
+
+    {
+        ImVec2 const workAreaPos{
+            0.0
+            , menuBarSize.y
+        };
+        ImVec2 const workAreaSize{
+            0.0f + m_windowExtent.width
+            , m_windowExtent.height - menuBarSize.y
+        };
+
+        ImVec2 const workAreaMin{ workAreaPos };
+        ImVec2 const workAreaMax{
+            workAreaPos.x + workAreaSize.x
+            , workAreaPos.y + workAreaSize.y
+        };
+
+        ImGui::SetNextWindowPos(workAreaPos);
+        ImGui::SetNextWindowSize(workAreaSize);
+
+        float const leftSidebarX = draggableVerticalBar(
+            "##leftSideBarDragRect"
+            , 300.0f
+            , glm::vec2{ workAreaMin.x + 50.0f, workAreaMin.y }
+            , glm::vec2{ workAreaMax.x - 50.0f, workAreaMax.y }
+        );
+
+        { // Begin left sidebar
+            ImGui::SetNextWindowPos(workAreaPos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2{ leftSidebarX, workAreaSize.y }, ImGuiCond_Always);
+
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+            std::optional<ImGuiID> leftDockID{};
+            if (ImGui::Begin(
+                "LeftSidebarWindow"
+                , nullptr
+                , ImGuiWindowFlags_None
+                | ImGuiWindowFlags_NoDocking
+                | ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoResize
+            ))
+            {
+                leftDockID = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
+            }
+            ImGui::End();
+
+            if (leftDockID.has_value())
+            {
+                ImGui::SetNextWindowDockID(leftDockID.value(), ImGuiCond_Appearing);
+            }
+
+            if (ImGui::Begin("Engine Controls"))
             {
                 imguiMeshInstanceControls(
                     m_renderMeshInstances,
                     m_testMeshes,
                     m_testMeshUsed
                 );
+
                 ImGui::Separator();
                 imguiStructureControls(
                     m_sceneBounds
@@ -892,15 +959,13 @@ void Engine::mainLoop()
                         .extent{ glm::vec3(40.0, 5.0, 40.0) }
                     }
                 );
+
                 ImGui::Separator();
                 ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
-                ImGui::Separator();
-            }
-            ImGui::End();
 
-            if (ImGui::Begin("Pipeline Controls"))
-            {
+                ImGui::Separator();
                 imguiRenderingSelection(m_activeRenderingPipeline);
+
                 ImGui::Separator();
                 switch (m_activeRenderingPipeline)
                 {
@@ -914,25 +979,61 @@ void Engine::mainLoop()
                     ImGui::Text("Invalid rendering pipeline selected.");
                     break;
                 }
-            }
-            ImGui::End();
 
-            if (ImGui::Begin("Engine Controls"))
-            {
+                ImGui::Separator();
                 ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+
                 ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
+
                 ImGui::Separator();
                 imguiStructureControls(m_debugLines);
+
+            }
+            ImGui::End();
+        } // End left sidebar
+
+        float const bottomSidebarY = draggableHorizontalBar(
+            "##bottomSidebarDragRect"
+            , workAreaSize.y + workAreaPos.y - 300.0f
+            , glm::vec2{ leftSidebarX, workAreaMin.y + 50.0f }
+            , glm::vec2{ workAreaMax.x, workAreaMax.y - 50.0f }
+        );
+
+        { // Begin bottom sidebar
+            ImGui::SetNextWindowPos(ImVec2{ leftSidebarX, bottomSidebarY }, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2{ workAreaPos.x + workAreaSize.x - leftSidebarX, workAreaSize.y + workAreaPos.y - bottomSidebarY }, ImGuiCond_Always);
+
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+            std::optional<ImGuiID> dockID{};
+            if (ImGui::Begin(
+                "BottomSidebarWindow"
+                , nullptr
+                , ImGuiWindowFlags_None
+                | ImGuiWindowFlags_NoDocking
+                | ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoResize
+            ))
+            {
+                dockID = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
             }
             ImGui::End();
 
-            ImGui::Render();
-            draw();
-        }
+            if (dockID.has_value())
+            {
+                ImGui::SetNextWindowDockID(dockID.value(), ImGuiCond_Appearing);
+            }
+
+            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+        } // End bottom sidebar
+
     }
+
+    ImGui::Render();
 }
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
