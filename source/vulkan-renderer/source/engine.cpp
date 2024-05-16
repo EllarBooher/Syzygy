@@ -911,11 +911,12 @@ void Engine::renderUI()
         ImGui::SetNextWindowPos(workAreaPos);
         ImGui::SetNextWindowSize(workAreaSize);
 
-        float const leftSidebarX = draggableVerticalBar(
+        float const leftSidebarX = draggableBar(
             "##leftSideBarDragRect"
             , 300.0f
-            , glm::vec2{ workAreaMin.x + 50.0f, workAreaMin.y }
-            , glm::vec2{ workAreaMax.x - 50.0f, workAreaMax.y }
+            , false
+            , glm::vec2{ workAreaMin.x + 40.0f, workAreaMin.y }
+            , glm::vec2{ workAreaMax.x - 40.0f, workAreaMax.y }
         );
 
         { // Begin left sidebar
@@ -996,11 +997,12 @@ void Engine::renderUI()
             ImGui::End();
         } // End left sidebar
 
-        float const bottomSidebarY = draggableHorizontalBar(
+        float const bottomSidebarY = draggableBar(
             "##bottomSidebarDragRect"
             , workAreaSize.y + workAreaPos.y - 300.0f
-            , glm::vec2{ leftSidebarX, workAreaMin.y + 50.0f }
-            , glm::vec2{ workAreaMax.x, workAreaMax.y - 50.0f }
+            , true
+            , glm::vec2{ leftSidebarX, workAreaMin.y + 40.0f }
+            , glm::vec2{ workAreaMax.x, workAreaMax.y - 40.0f }
         );
 
         { // Begin bottom sidebar

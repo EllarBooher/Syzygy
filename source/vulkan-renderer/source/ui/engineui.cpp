@@ -36,60 +36,17 @@ void imguiPerformanceWindow(
     ImGui::End();
 }
 
-float draggableVerticalBar(
+float draggableBar(
     std::string const id
     , float const initialPosition
+    , bool const horizontal
     , glm::vec2 const min
     , glm::vec2 const max
 )
 {
     ImGuiID const imguiID{ ImGui::GetID(id.c_str()) };
     static std::unordered_map<ImGuiID, float> positions{};
-    if (!positions.contains(imguiID))
-    {
-        positions[imguiID] = initialPosition;
-    }
-    float currentPosition{ positions[imguiID] };
-
-    ImVec2 const mousePosition{ ImGui::GetIO().MousePos };
-    bool const mouseInBounds{
-        mousePosition.x >= currentPosition - 4.0f
-        && mousePosition.x <= currentPosition + 4.0f
-        && mousePosition.y >= min.y
-        && mousePosition.y < max.y
-    };
-    static bool dragging{ false };
-    if (ImGui::GetIO().MouseClicked[0] && mouseInBounds)
-    {
-        dragging = true;
-    }
-    if (dragging || mouseInBounds)
-    {
-        ImGui::GetForegroundDrawList()->AddRectFilled(
-            ImVec2(currentPosition, min.y)
-            , ImVec2(currentPosition + 2.0f, max.y)
-            , ImGui::ColorConvertFloat4ToU32(ImVec4{ 0.0, 0.0, 1.0, 1.0 })
-        );
-    }
-    if (dragging)
-    {
-        currentPosition += ImGui::GetIO().MouseDelta.x;
-        dragging = ImGui::GetIO().MouseDown[0];
-    }
-
-    positions[imguiID] = std::clamp(currentPosition, min.x, max.x);
-    return positions[imguiID];
-}
-
-float draggableHorizontalBar(
-    std::string const id
-    , float const initialPosition
-    , glm::vec2 const min
-    , glm::vec2 const max
-)
-{
-    ImGuiID const imguiID{ ImGui::GetID(id.c_str()) };
-    static std::unordered_map<ImGuiID, float> positions{};
+    static std::optional<ImGuiID> draggedID{};
     if (!positions.contains(imguiID))
     {
         positions[imguiID] = initialPosition;
@@ -99,32 +56,64 @@ float draggableHorizontalBar(
     ImGuiIO const& imguiIO{ ImGui::GetIO() };
 
     ImVec2 const mousePosition{ imguiIO.MousePos };
-    bool const mouseInBounds{
-        mousePosition.y >= currentPosition - 4.0f
-        && mousePosition.y <= currentPosition + 4.0f
-        && mousePosition.x >= min.x
-        && mousePosition.x < max.x
+
+    ImVec2 const boundsMin{
+        horizontal
+        ? ImVec2{ min.x, currentPosition - 4.0f }
+        : ImVec2{ currentPosition - 4.0f, min.y }
     };
-    static bool dragging{ false };
-    if (imguiIO.MouseClicked[0] && mouseInBounds)
+    ImVec2 const boundsMax{
+        horizontal
+        ? ImVec2{ max.x, currentPosition + 4.0f }
+        : ImVec2{ currentPosition + 4.0f, max.y }
+    };
+
+    bool const mouseInBounds{
+        mousePosition.x >= boundsMin.x
+        && mousePosition.x < boundsMax.x
+        && mousePosition.y >= boundsMin.y
+        && mousePosition.y < boundsMax.y
+    };
+
+    // Track and only drag a single bar
+    if (!draggedID.has_value() && imguiIO.MouseClicked[0] && mouseInBounds)
     {
-        dragging = true;
+        draggedID = imguiID;
     }
+
+    bool const dragging{ draggedID.has_value() && draggedID.value() == imguiID };
+
+    // Show indicator on hover or when being dragged
     if (dragging || mouseInBounds)
     {
         ImGui::GetForegroundDrawList()->AddRectFilled(
-            ImVec2(min.x, currentPosition)
-            , ImVec2(max.x, currentPosition + 2.0f)
-            , ImGui::ColorConvertFloat4ToU32(ImVec4{ 1.0, 0.0, 0.0, 1.0 })
+            horizontal
+            ? ImVec2{ min.x, currentPosition - 1.0f }
+            : ImVec2{ currentPosition - 1.0f, min.y }
+            , horizontal
+            ? ImVec2{ max.x, currentPosition + 1.0f }
+            : ImVec2{ currentPosition + 1.0f, max.y }
+            , ImGui::ColorConvertFloat4ToU32(ImVec4{ 0.0, 0.0, 1.0, 1.0 })
         );
     }
+
     if (dragging)
     {
-        currentPosition += imguiIO.MouseDelta.y;
-        dragging = imguiIO.MouseDown[0];
+        if (imguiIO.MouseDown[0])
+        {
+            ImVec2 const mouseDelta{ imguiIO.MouseDelta };
+            currentPosition += horizontal ? mouseDelta.y : mouseDelta.x;
+        }
+        else
+        {
+            draggedID.reset();
+        }
     }
 
-    positions[imguiID] = std::clamp(currentPosition, min.y, max.y);
+    positions[imguiID] = horizontal 
+        ? std::clamp(currentPosition, min.y, max.y)
+        : std::clamp(currentPosition, min.x, max.x);
+
     return positions[imguiID];
 }
 
