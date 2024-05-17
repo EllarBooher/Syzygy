@@ -274,7 +274,9 @@ void Engine::initSwapchain()
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
 
-    m_currentDrawExtent = m_swapchainExtent;
+    m_currentDrawRect = VkRect2D{
+        .extent{ m_swapchainExtent },
+    };
 }
 
 void Engine::initDrawTargets()
@@ -1033,6 +1035,16 @@ void Engine::renderUI()
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
         } // End bottom sidebar
 
+        m_currentDrawRect = VkRect2D{
+            .offset{ VkOffset2D{
+                .x{ static_cast<int32_t>(leftSidebarX) },
+                .y{ static_cast<int32_t>(workAreaPos.y) }
+            }},
+            .extent{ VkExtent2D{
+                .width{ static_cast<uint32_t>(std::max(workAreaSize.x - leftSidebarX, 0.0f)) },
+                .height{ static_cast<uint32_t>(std::max(bottomSidebarY - workAreaPos.y, 0.0f)) },
+            }},
+        };
     }
 
     ImGui::Render();
@@ -1120,7 +1132,7 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawExtent) };
+        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawRect.extent) };
 
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
@@ -1249,7 +1261,7 @@ void Engine::draw()
 
         m_deferredShadingPipeline->recordDrawCommands(
             cmd
-            , m_currentDrawExtent
+            , m_currentDrawRect
             , m_drawImage
             , m_depthImage
             , directionalLights
@@ -1346,7 +1358,7 @@ void Engine::draw()
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        m_currentDrawExtent, m_swapchainExtent
+        VkRect2D{ .extent{ m_swapchainExtent} }, VkRect2D{ .extent{ m_swapchainExtent} }
     );
 
     vkutil::transitionImage(cmd, 
@@ -1416,7 +1428,12 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 
     std::vector<VkRenderingAttachmentInfo> colorAttachments{ colorAttachmentInfo };
     VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(VkExtent2D{ m_swapchainExtent.width, m_swapchainExtent.height }, colorAttachments, nullptr)
+        vkinit::renderingInfo(
+            VkRect2D{
+                .extent{
+                    m_swapchainExtent
+                }
+            }, colorAttachments, nullptr)
     };
 
     vkCmdBeginRendering(cmd, &renderingInfo);

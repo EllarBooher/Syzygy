@@ -32,6 +32,7 @@ layout( push_constant ) uniform PushConstant
 	uint atmosphereIndex;
 	uint cameraIndex;
 
+	vec2 drawOffset;
 	vec2 drawExtent;
 } pushConstant;
 
@@ -205,7 +206,7 @@ vec3 computeAtmosphereLight(
 void main() 
 {
 	const vec2 size = imageSize(image);
-    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy + pushConstant.drawOffset);
     if(texelCoord.x >= size.x || texelCoord.y >= size.y)
 	{
 		return;
@@ -213,7 +214,7 @@ void main()
 
 	const vec2 offset = vec2(0.5,0.5);
 	// This UV is into the entire image, not the subregion we are drawing into
-	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
+	const vec2 uv = (vec2(texelCoord) + offset) / size;
 
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];

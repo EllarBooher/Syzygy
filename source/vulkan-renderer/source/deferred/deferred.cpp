@@ -301,29 +301,23 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
 void setRasterizationShaderObjectState(
     VkCommandBuffer const cmd
-    , VkExtent2D const drawExtent
+    , VkRect2D const drawRect
     , float const depthBias
     , float const depthBiasSlope
 )
 {
     VkViewport const viewport{
-        .x{ 0 },
-        .y{ 0 },
-        .width{ static_cast<float>(drawExtent.width) },
-        .height{ static_cast<float>(drawExtent.height) },
+        .x{ static_cast<float>(drawRect.offset.x) },
+        .y{ static_cast<float>(drawRect.offset.y) },
+        .width{ static_cast<float>(drawRect.extent.width) },
+        .height{ static_cast<float>(drawRect.extent.height) },
         .minDepth{ 0.0f },
         .maxDepth{ 1.0f },
     };
 
     vkCmdSetViewportWithCount(cmd, 1, &viewport);
 
-    VkRect2D const scissor{
-        .offset{
-            .x{ 0 },
-            .y{ 0 },
-        },
-        .extent{ drawExtent },
-    };
+    VkRect2D const scissor{ drawRect };
 
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
@@ -364,7 +358,7 @@ void setRasterizationShaderObjectState(
 
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer cmd
-    , VkExtent2D const drawExtent
+    , VkRect2D const drawRect
     , AllocatedImage const& color
     , AllocatedImage const& depth
     , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -437,7 +431,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd
-            , drawExtent
+            , drawRect
             , m_parameters.shadowPassParameters.depthBiasConstant
             , m_parameters.shadowPassParameters.depthBiasSlope
         );
@@ -494,7 +488,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
         VkRenderingInfo const renderInfo{
-            vkinit::renderingInfo(drawExtent, gBufferAttachments, &depthAttachment)
+            vkinit::renderingInfo(drawRect, gBufferAttachments, &depthAttachment)
         };
 
         std::array<VkShaderStageFlagBits, 2> stages{
@@ -534,10 +528,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             }
         };
         VkClearRect const clearRect{
-            .rect{ VkRect2D{
-                .offset{ 0, 0 },
-                .extent{ drawExtent },
-            }},
+            .rect{ drawRect },
             .baseArrayLayer{ 0 },
             .layerCount{ 1 },
         };
@@ -588,7 +579,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         VkClearColorValue const clearColor{
-            .float32{ 1.0, 0.0, 0.0, 1.0}
+            .float32{ 0.0, 0.0, 0.0, 1.0}
         };
         VkImageSubresourceRange const range{
             vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
@@ -639,6 +630,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .spotLightCount{ static_cast<uint32_t>(m_spotLights->deviceSize()) },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
+            .gbufferOffset{ glm::vec2{ drawRect.offset.x, drawRect.offset.y} },
             .gbufferExtent{ glm::vec2(m_gBuffer.extent().width, m_gBuffer.extent().height)},
         };
         m_lightingPassPushConstant = pushConstant;
@@ -651,7 +643,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_lightingPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
@@ -695,7 +687,8 @@ void DeferredShadingPipeline::recordDrawCommands(
             .cameraBuffer{ cameras.deviceAddress() },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
-            .drawExtent{ glm::vec2{ drawExtent.width, drawExtent.height } },
+            .drawOffset{ glm::vec2{ drawRect.offset.x, drawRect.offset.y} },
+            .drawExtent{ glm::vec2{ drawRect.extent.width, drawRect.extent.height } },
         };
         m_skyPassPushConstant = pushConstant;
 
@@ -707,7 +700,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_skyPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);

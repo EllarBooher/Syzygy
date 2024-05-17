@@ -19,7 +19,7 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd
-        , VkExtent2D drawExtent
+        , VkRect2D drawRect
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -92,8 +92,8 @@ private:
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
 
+        glm::vec2 gbufferOffset{};
         glm::vec2 gbufferExtent{};
-        uint8_t padding0[8]{};
     };
 
     LightingPassComputePushConstant mutable m_lightingPassPushConstant{};
@@ -107,8 +107,11 @@ private:
 
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
-
+        
+        glm::vec2 drawOffset{};
         glm::vec2 drawExtent{};
+
+        uint8_t padding0[8]{};
     };
 
     SkyPassComputePushConstant mutable m_skyPassPushConstant{};

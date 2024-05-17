@@ -127,7 +127,7 @@ private:
 
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    VkExtent2D m_currentDrawExtent{};
+    VkRect2D m_currentDrawRect{};
 
     // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};

@@ -424,7 +424,7 @@ DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
 	};
 	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
 	VkRenderingInfo const renderInfo{
-		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
+		vkinit::renderingInfo(VkRect2D{.extent{ drawExtent }}, colorAttachments, &depthAttachment)
 	};
 
 	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
@@ -594,7 +594,7 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 		.height{depth.imageExtent.height},
 	};
 	VkRenderingInfo const renderInfo{
-		vkinit::renderingInfo(drawExtent, {}, &depthAttachment)
+		vkinit::renderingInfo(VkRect2D{.extent{drawExtent}}, {}, &depthAttachment)
 	};
 
 	vkCmdBeginRendering(cmd, &renderInfo);
