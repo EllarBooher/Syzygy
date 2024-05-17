@@ -577,7 +577,6 @@ void Engine::initDeferredShadingPipeline()
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
         m_device
-        , m_drawImage
         , m_depthImage
     );
 }
@@ -1259,9 +1258,18 @@ void Engine::draw()
             ),
         };
 
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
         m_deferredShadingPipeline->recordDrawCommands(
             cmd
             , m_currentDrawRect
+            , VK_IMAGE_LAYOUT_GENERAL
             , m_drawImage
             , m_depthImage
             , directionalLights

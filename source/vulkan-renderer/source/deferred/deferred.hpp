@@ -20,6 +20,7 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd
         , VkRect2D drawRect
+        , VkImageLayout colorLayout
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -35,7 +36,6 @@ public:
 
     void updateRenderTargetDescriptors(
         VkDevice device
-        , AllocatedImage const& drawImage
         , AllocatedImage const& depthImage
     );
     
@@ -46,6 +46,8 @@ public:
 
 private:
     ShadowPassArray m_shadowPassArray{};
+
+    AllocatedImage m_drawImage{};
 
     VmaAllocator m_allocator{ VK_NULL_HANDLE };
 
