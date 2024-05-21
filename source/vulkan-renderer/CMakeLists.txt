@@ -56,18 +56,38 @@ add_library(imgui
 	${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
 	${IMGUI_BACKENDS_DIR}/imgui_impl_vulkan.cpp
  )
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${IMGUI_BACKENDS_DIR})
+target_include_directories(
+	imgui 
+	PUBLIC 
+	${imgui_SOURCE_DIR} 
+	${IMGUI_BACKENDS_DIR} 
+	"${CMAKE_SOURCE_DIR}/thirdparty/imgui" # Patch in imconfig.h alternative
+)
 target_link_libraries(
 	imgui
 	PRIVATE
 	volk
 	glfw
 )
+target_link_libraries(
+	imgui
+	PUBLIC
+	glm
+)
+
 target_compile_definitions(
 	imgui
 	PUBLIC
 	VK_NO_PROTOTYPES # We use volk so we are dynamically linking the vulkan loader
+	IMGUI_USER_CONFIG="imguiconfig.h"
 )
+
+# Patch in our imconfig file
+#file(
+#	COPY_FILE
+#	${CMAKE_SOURCE_DIR}/thirdparty/imgui/imconfig.h
+#	${imgui_SOURCE_DIR}/imconfig.h
+#)
 
 FetchContent_MakeAvailable(implot)
 

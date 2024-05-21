@@ -38,20 +38,14 @@ void imguiPerformanceWindow(
 
 float draggableBar(
     std::string const id
-    , float const initialPosition
+    , float currentPosition
     , bool const horizontal
     , glm::vec2 const min
     , glm::vec2 const max
 )
 {
     ImGuiID const imguiID{ ImGui::GetID(id.c_str()) };
-    static std::unordered_map<ImGuiID, float> positions{};
     static std::optional<ImGuiID> draggedID{};
-    if (!positions.contains(imguiID))
-    {
-        positions[imguiID] = initialPosition;
-    }
-    float currentPosition{ positions[imguiID] };
 
     ImGuiIO const& imguiIO{ ImGui::GetIO() };
 
@@ -110,11 +104,9 @@ float draggableBar(
         }
     }
 
-    positions[imguiID] = horizontal 
+    return horizontal 
         ? std::clamp(currentPosition, min.y, max.y)
         : std::clamp(currentPosition, min.x, max.x);
-
-    return positions[imguiID];
 }
 
 void imguiMeshInstanceControls(

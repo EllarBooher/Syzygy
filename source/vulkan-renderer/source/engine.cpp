@@ -894,38 +894,128 @@ void Engine::renderUI()
     }
 
     {
-        ImVec2 const workAreaPos{
-            0.0
-            , menuBarSize.y
+        struct Rectangle
+        {
+            glm::vec2 min{};
+            glm::vec2 max{};
+
+            glm::vec2 pos() const { return min; }
+            glm::vec2 size() const { return max - min; }
+
+            Rectangle clampToMin() const
+            {
+                return Rectangle{
+                    .min{ min },
+                    .max{ glm::max(min, max) },
+                };
+            }
+
+            Rectangle shrink(glm::vec2 const margins) const
+            {
+                return Rectangle{
+                    .min{ min + margins },
+                    .max{ max - margins },
+                };
+            }
         };
-        ImVec2 const workAreaSize{
-            0.0f + m_windowExtent.width
-            , m_windowExtent.height - menuBarSize.y
+        Rectangle const belowMenuBarArea{
+            .min{ 0.0f, menuBarSize.y },
+            .max{ m_windowExtent.width, m_windowExtent.height },
+        };
+        // This is a mutable rectangle we eat away from, so it's easier to avoid overlapping UI
+        Rectangle workArea{ belowMenuBarArea };
+
+        struct SidebarPositions
+        {
+            float leftWidth;
+            float rightWidth;
+            float bottomHeight;
+
+            std::optional<ImGuiID> leftDock{};
+            std::optional<ImGuiID> rightDock{};
+            std::optional<ImGuiID> bottomDock{};
+        };
+        static SidebarPositions sidebarPositions{
+            .leftWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
+            .rightWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
+            .bottomHeight{ glm::min(300.0f, workArea.size().y) },
         };
 
-        ImVec2 const workAreaMin{ workAreaPos };
-        ImVec2 const workAreaMax{
-            workAreaPos.x + workAreaSize.x
-            , workAreaPos.y + workAreaSize.y
-        };
+        float constexpr sidebarMinimumSize{ 30.0f };
 
-        ImGui::SetNextWindowPos(workAreaPos);
-        ImGui::SetNextWindowSize(workAreaSize);
+        { // Left sidebar draggable right side
+            Rectangle leftSidebarArea{
+                workArea.shrink(glm::vec2{sidebarMinimumSize, 0.0f}).clampToMin()
+            };
 
-        float const leftSidebarX = draggableBar(
-            "##leftSideBarDragRect"
-            , 300.0f
-            , false
-            , glm::vec2{ workAreaMin.x + 40.0f, workAreaMin.y }
-            , glm::vec2{ workAreaMax.x - 40.0f, workAreaMax.y }
-        );
+            float const position{ workArea.min.x + sidebarPositions.leftWidth };
+
+            float const newPosition{
+                draggableBar(
+                    "##leftSidebarDragRect"
+                    , position
+                    , false
+                    , leftSidebarArea.min
+                    , leftSidebarArea.max
+                )
+            };
+
+            sidebarPositions.leftWidth = glm::max(sidebarMinimumSize, newPosition - workArea.min.x);
+            workArea.min.x = newPosition;
+        }
+
+        { // Right sidebar draggable left side
+            Rectangle rightSidebarArea{
+                workArea.shrink(glm::vec2{sidebarMinimumSize, 0.0f}).clampToMin()
+            };
+
+            float const position{ workArea.max.x - sidebarPositions.rightWidth };
+
+            float const newPosition{
+                draggableBar(
+                    "##rightSidebarDragRect"
+                    , position
+                    , false
+                    , rightSidebarArea.min
+                    , rightSidebarArea.max
+                )
+            };
+
+            sidebarPositions.rightWidth = glm::max(sidebarMinimumSize, workArea.max.x - newPosition);
+            workArea.max.x = newPosition;
+        }
+
+        { // Bottom sidebar draggable top side
+            Rectangle bottomSidebarArea{
+                workArea.shrink(glm::vec2{0.0f, sidebarMinimumSize}).clampToMin()
+            };
+
+            float const position{ workArea.max.y - sidebarPositions.bottomHeight };
+
+            float const newPosition{
+                draggableBar(
+                    "##bottomSidebarDragRect"
+                    , position
+                    , true
+                    , bottomSidebarArea.min
+                    , bottomSidebarArea.max
+                )
+            };
+
+            sidebarPositions.bottomHeight = glm::max(sidebarMinimumSize, workArea.max.y - newPosition);
+            workArea.max.y = newPosition;
+        }
 
         { // Begin left sidebar
-            ImGui::SetNextWindowPos(workAreaPos, ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2{ leftSidebarX, workAreaSize.y }, ImGuiCond_Always);
+            Rectangle const leftSidebar{
+                .min{ belowMenuBarArea.min },
+                .max{ glm::vec2{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y }}
+            };
+
+            ImGui::SetNextWindowPos(leftSidebar.pos(), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(leftSidebar.size(), ImGuiCond_Always);
 
             ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            std::optional<ImGuiID> leftDockID{};
             if (ImGui::Begin(
                 "LeftSidebarWindow"
                 , nullptr
@@ -936,13 +1026,65 @@ void Engine::renderUI()
                 | ImGuiWindowFlags_NoResize
             ))
             {
-                leftDockID = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
+                sidebarPositions.leftDock = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
             }
             ImGui::End();
+        } // End left sidebar
 
-            if (leftDockID.has_value())
+        { // Begin right sidebar
+            Rectangle const rightSidebar{
+                .min{ glm::vec2{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.min.y } },
+                .max{ belowMenuBarArea.max },
+            };
+
+            ImGui::SetNextWindowPos(rightSidebar.pos(), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(rightSidebar.size(), ImGuiCond_Always);
+
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+            if (ImGui::Begin(
+                "RightSidebarWindow"
+                , nullptr
+                , ImGuiWindowFlags_None
+                | ImGuiWindowFlags_NoDocking
+                | ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoResize
+            ))
             {
-                ImGui::SetNextWindowDockID(leftDockID.value(), ImGuiCond_Appearing);
+                sidebarPositions.leftDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
+            }
+            ImGui::End();
+        } // End right sidebar
+
+        { // Begin bottom sidebar
+            Rectangle const bottomSidebar{
+                .min{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y - sidebarPositions.bottomHeight },
+                .max{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.max.y },
+            };
+
+            ImGui::SetNextWindowPos(bottomSidebar.pos(), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(bottomSidebar.size(), ImGuiCond_Always);
+
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+            if (ImGui::Begin(
+                "BottomSidebarWindow"
+                , nullptr
+                , ImGuiWindowFlags_None
+                | ImGuiWindowFlags_NoDocking
+                | ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoResize
+            ))
+            {
+                sidebarPositions.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
+            }
+            ImGui::End();
+        } // End bottom sidebar
+
+        { // Engine Controls
+            if (sidebarPositions.leftDock.has_value())
+            {
+                ImGui::SetNextWindowDockID(sidebarPositions.leftDock.value(), ImGuiCond_Appearing);
             }
 
             if (ImGui::Begin("Engine Controls"))
@@ -996,52 +1138,27 @@ void Engine::renderUI()
 
             }
             ImGui::End();
-        } // End left sidebar
+        }
 
-        float const bottomSidebarY = draggableBar(
-            "##bottomSidebarDragRect"
-            , workAreaSize.y + workAreaPos.y - 300.0f
-            , true
-            , glm::vec2{ leftSidebarX, workAreaMin.y + 40.0f }
-            , glm::vec2{ workAreaMax.x, workAreaMax.y - 40.0f }
-        );
-
-        { // Begin bottom sidebar
-            ImGui::SetNextWindowPos(ImVec2{ leftSidebarX, bottomSidebarY }, ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2{ workAreaPos.x + workAreaSize.x - leftSidebarX, workAreaSize.y + workAreaPos.y - bottomSidebarY }, ImGuiCond_Always);
-
-            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            std::optional<ImGuiID> dockID{};
-            if (ImGui::Begin(
-                "BottomSidebarWindow"
-                , nullptr
-                , ImGuiWindowFlags_None
-                | ImGuiWindowFlags_NoDocking
-                | ImGuiWindowFlags_NoDecoration
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoResize
-            ))
+        { // Performance window
+            if (sidebarPositions.rightDock.has_value())
             {
-                dockID = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
-            }
-            ImGui::End();
-
-            if (dockID.has_value())
-            {
-                ImGui::SetNextWindowDockID(dockID.value(), ImGuiCond_Appearing);
+                ImGui::SetNextWindowDockID(sidebarPositions.rightDock.value(), ImGuiCond_Appearing);
             }
 
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
-        } // End bottom sidebar
+        }
+
+
 
         m_currentDrawRect = VkRect2D{
             .offset{ VkOffset2D{
-                .x{ static_cast<int32_t>(leftSidebarX) },
-                .y{ static_cast<int32_t>(workAreaPos.y) }
+                .x{ static_cast<int32_t>(workArea.pos().x) },
+                .y{ static_cast<int32_t>(workArea.pos().y) }
             }},
             .extent{ VkExtent2D{
-                .width{ static_cast<uint32_t>(std::max(workAreaSize.x - leftSidebarX, 0.0f)) },
-                .height{ static_cast<uint32_t>(std::max(bottomSidebarY - workAreaPos.y, 0.0f)) },
+                .width{ static_cast<uint32_t>(workArea.size().x) },
+                .height{ static_cast<uint32_t>(workArea.size().y) },
             }},
         };
     }
