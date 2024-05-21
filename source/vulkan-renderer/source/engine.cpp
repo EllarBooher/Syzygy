@@ -885,295 +885,88 @@ void Engine::renderUI()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImVec2 menuBarSize{};
-    if (ImGui::BeginMainMenuBar())
-    {
-        ImGui::Text("Test");
-        menuBarSize = ImGui::GetWindowSize();
-        ImGui::EndMainMenuBar();
-    }
+    HUDState const hud{
+        renderHUD(glm::vec2{ m_windowExtent.width, m_windowExtent.height})
+    };
 
-    {
-        struct Rectangle
+    { // Engine Controls
+        if (hud.leftDock.has_value())
         {
-            glm::vec2 min{};
-            glm::vec2 max{};
+            ImGui::SetNextWindowDockID(hud.leftDock.value(), ImGuiCond_Appearing);
+        }
 
-            glm::vec2 pos() const { return min; }
-            glm::vec2 size() const { return max - min; }
-
-            Rectangle clampToMin() const
-            {
-                return Rectangle{
-                    .min{ min },
-                    .max{ glm::max(min, max) },
-                };
-            }
-
-            Rectangle shrink(glm::vec2 const margins) const
-            {
-                return Rectangle{
-                    .min{ min + margins },
-                    .max{ max - margins },
-                };
-            }
-            Rectangle shrinkMin(glm::vec2 const margins) const
-            {
-                return Rectangle{
-                    .min{ min + margins },
-                    .max{ max },
-                };
-            }
-            Rectangle shrinkMax(glm::vec2 const margins) const
-            {
-                return Rectangle{
-                    .min{ min },
-                    .max{ max - margins },
-                };
-            }
-        };
-        Rectangle const belowMenuBarArea{
-            .min{ 0.0f, menuBarSize.y },
-            .max{ m_windowExtent.width, m_windowExtent.height },
-        };
-        // This is a mutable rectangle we eat away from, so it's easier to avoid overlapping UI
-        Rectangle workArea{ belowMenuBarArea };
-
-        struct SidebarPositions
+        if (ImGui::Begin("Engine Controls"))
         {
-            float leftWidth;
-            float rightWidth;
-            float bottomHeight;
+            imguiMeshInstanceControls(
+                m_renderMeshInstances,
+                m_testMeshes,
+                m_testMeshUsed
+            );
 
-            std::optional<ImGuiID> leftDock{};
-            std::optional<ImGuiID> rightDock{};
-            std::optional<ImGuiID> bottomDock{};
-        };
-        static SidebarPositions sidebarPositions{
-            .leftWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
-            .rightWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
-            .bottomHeight{ glm::min(300.0f, workArea.size().y) },
-        };
-
-        float constexpr sidebarMinimumSize{ 30.0f };
-
-        { // Left sidebar draggable right side
-            Rectangle const leftSidebarArea{
-                workArea
-                    .shrinkMax(glm::vec2{sidebarPositions.rightWidth, 0.0f})
-                    .clampToMin()
-            };
-
-            float const position{ workArea.min.x + sidebarPositions.leftWidth };
-
-            float const newPosition{
-                draggableBar(
-                    "##leftSidebarDragRect"
-                    , position
-                    , false
-                    , leftSidebarArea.min
-                    , leftSidebarArea.max
-                )
-            };
-
-            sidebarPositions.leftWidth = glm::max(sidebarMinimumSize, newPosition - workArea.min.x);
-            workArea = workArea.shrinkMin(glm::vec2{ sidebarPositions.leftWidth, 0.0f });
-        }
-
-        { // Right sidebar draggable left side
-            Rectangle const rightSidebarArea{ workArea.clampToMin() };
-
-            float const position{ workArea.max.x - sidebarPositions.rightWidth };
-
-            float const newPosition{
-                draggableBar(
-                    "##rightSidebarDragRect"
-                    , position
-                    , false
-                    , rightSidebarArea.min
-                    , rightSidebarArea.max
-                )
-            };
-
-            sidebarPositions.rightWidth = glm::max(sidebarMinimumSize, workArea.max.x - newPosition);
-            workArea = workArea.shrinkMax(glm::vec2{ sidebarPositions.rightWidth, 0.0f });
-        }
-
-        { // Bottom sidebar draggable top side
-            Rectangle const bottomSidebarArea{ workArea.clampToMin() };
-
-            float const position{ workArea.max.y - sidebarPositions.bottomHeight };
-
-            float const newPosition{
-                draggableBar(
-                    "##bottomSidebarDragRect"
-                    , position
-                    , true
-                    , bottomSidebarArea.min
-                    , bottomSidebarArea.max
-                )
-            };
-
-            sidebarPositions.bottomHeight = glm::max(sidebarMinimumSize, workArea.max.y - newPosition);
-            workArea = workArea.shrinkMax(glm::vec2{ 0.0f, sidebarPositions.bottomHeight });
-        }
-
-        { // Begin bottom sidebar
-            Rectangle const bottomSidebar{
-                .min{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y - sidebarPositions.bottomHeight },
-                .max{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.max.y },
-            };
-
-            ImGui::SetNextWindowPos(bottomSidebar.pos(), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(bottomSidebar.size(), ImGuiCond_Always);
-
-            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            if (ImGui::Begin(
-                "BottomSidebarWindow"
-                , nullptr
-                , ImGuiWindowFlags_None
-                | ImGuiWindowFlags_NoDocking
-                | ImGuiWindowFlags_NoDecoration
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoResize
-            ))
-            {
-                sidebarPositions.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
-            }
-            ImGui::End();
-        } // End bottom sidebar
-
-        { // Begin left sidebar
-            Rectangle const leftSidebar{
-                .min{ belowMenuBarArea.min },
-                .max{ glm::vec2{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y }}
-            };
-
-            ImGui::SetNextWindowPos(leftSidebar.pos(), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(leftSidebar.size(), ImGuiCond_Always);
-
-            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            if (ImGui::Begin(
-                "LeftSidebarWindow"
-                , nullptr
-                , ImGuiWindowFlags_None
-                | ImGuiWindowFlags_NoDocking
-                | ImGuiWindowFlags_NoDecoration
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoResize
-            ))
-            {
-                sidebarPositions.leftDock = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
-            }
-            ImGui::End();
-        } // End left sidebar
-
-        { // Begin right sidebar
-            Rectangle const rightSidebar{
-                .min{ glm::vec2{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.min.y } },
-                .max{ belowMenuBarArea.max },
-            };
-
-            ImGui::SetNextWindowPos(rightSidebar.pos(), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(rightSidebar.size(), ImGuiCond_Always);
-
-            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            if (ImGui::Begin(
-                "RightSidebarWindow"
-                , nullptr
-                , ImGuiWindowFlags_None
-                | ImGuiWindowFlags_NoDocking
-                | ImGuiWindowFlags_NoDecoration
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoResize
-            ))
-            {
-                sidebarPositions.leftDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
-            }
-            ImGui::End();
-        } // End right sidebar
-
-        { // Engine Controls
-            if (sidebarPositions.leftDock.has_value())
-            {
-                ImGui::SetNextWindowDockID(sidebarPositions.leftDock.value(), ImGuiCond_Appearing);
-            }
-
-            if (ImGui::Begin("Engine Controls"))
-            {
-                imguiMeshInstanceControls(
-                    m_renderMeshInstances,
-                    m_testMeshes,
-                    m_testMeshUsed
-                );
-
-                ImGui::Separator();
-                imguiStructureControls(
-                    m_sceneBounds
-                    , SceneBounds{
-                        .center{ glm::vec3(0.0, -4.0, 0.0) },
-                        .extent{ glm::vec3(40.0, 5.0, 40.0) }
-                    }
-                );
-
-                ImGui::Separator();
-                ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
-
-                ImGui::Separator();
-                imguiRenderingSelection(m_activeRenderingPipeline);
-
-                ImGui::Separator();
-                switch (m_activeRenderingPipeline)
-                {
-                case RenderingPipelines::DEFERRED:
-                    imguiPipelineControls(*m_deferredShadingPipeline);
-                    break;
-                case RenderingPipelines::COMPUTE_COLLECTION:
-                    imguiPipelineControls(*m_genericComputePipeline);
-                    break;
-                default:
-                    ImGui::Text("Invalid rendering pipeline selected.");
-                    break;
+            ImGui::Separator();
+            imguiStructureControls(
+                m_sceneBounds
+                , SceneBounds{
+                    .center{ glm::vec3(0.0, -4.0, 0.0) },
+                    .extent{ glm::vec3(40.0, 5.0, 40.0) }
                 }
+            );
 
-                ImGui::Separator();
-                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+            ImGui::Separator();
+            ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
 
-                ImGui::Separator();
-                imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+            ImGui::Separator();
+            imguiRenderingSelection(m_activeRenderingPipeline);
 
-                ImGui::Separator();
-                imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
-
-                ImGui::Separator();
-                imguiStructureControls(m_debugLines);
-
-            }
-            ImGui::End();
-        }
-
-        { // Performance window
-            if (sidebarPositions.rightDock.has_value())
+            ImGui::Separator();
+            switch (m_activeRenderingPipeline)
             {
-                ImGui::SetNextWindowDockID(sidebarPositions.rightDock.value(), ImGuiCond_Appearing);
+            case RenderingPipelines::DEFERRED:
+                imguiPipelineControls(*m_deferredShadingPipeline);
+                break;
+            case RenderingPipelines::COMPUTE_COLLECTION:
+                imguiPipelineControls(*m_genericComputePipeline);
+                break;
+            default:
+                ImGui::Text("Invalid rendering pipeline selected.");
+                break;
             }
 
-            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+            ImGui::Separator();
+            ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+
+            ImGui::Separator();
+            imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+
+            ImGui::Separator();
+            imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
+
+            ImGui::Separator();
+            imguiStructureControls(m_debugLines);
+
+        }
+        ImGui::End();
+    }
+
+    { // Performance window
+        if (hud.rightDock.has_value())
+        {
+            ImGui::SetNextWindowDockID(hud.rightDock.value(), ImGuiCond_Appearing);
         }
 
-
-
-        m_currentDrawRect = VkRect2D{
-            .offset{ VkOffset2D{
-                .x{ static_cast<int32_t>(workArea.pos().x) },
-                .y{ static_cast<int32_t>(workArea.pos().y) }
-            }},
-            .extent{ VkExtent2D{
-                .width{ static_cast<uint32_t>(workArea.size().x) },
-                .height{ static_cast<uint32_t>(workArea.size().y) },
-            }},
-        };
+        imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
     }
+
+    m_currentDrawRect = VkRect2D{
+        .offset{ VkOffset2D{
+            .x{ static_cast<int32_t>(hud.remainingArea.pos().x) },
+            .y{ static_cast<int32_t>(hud.remainingArea.pos().y) }
+        }},
+        .extent{ VkExtent2D{
+            .width{ static_cast<uint32_t>(hud.remainingArea.size().x) },
+            .height{ static_cast<uint32_t>(hud.remainingArea.size().y) },
+        }},
+    };
 
     ImGui::Render();
 }
