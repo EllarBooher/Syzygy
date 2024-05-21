@@ -1225,6 +1225,10 @@ void Engine::draw()
                 , *m_testMeshes[m_testMeshUsed]
                 , m_meshInstances
             );
+
+            m_debugLines.pushBox(m_sceneBounds.center, glm::quat_identity<float, glm::qualifier::defaultp>(), m_sceneBounds.extent);
+            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+
             break;
         }
         case RenderingPipelines::COMPUTE_COLLECTION:
@@ -1238,11 +1242,6 @@ void Engine::draw()
             );
 
             m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
-
-            if (m_debugLines.enabled)
-            {
-                recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
-            }
 
             break;
         }
@@ -1396,20 +1395,25 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 }
 
 void Engine::recordDrawDebugLines(
-    VkCommandBuffer cmd
-    , uint32_t cameraIndex
+    VkCommandBuffer const cmd
+    , uint32_t const cameraIndex
     , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};
 
-    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+    if (
+        m_debugLines.enabled 
+        && m_debugLines.indices->stagedSize() > 0
+    ) 
+    {
         m_debugLines.recordCopy(cmd, m_allocator);
 
         DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
             cmd
             , false
             , m_debugLines.lineWidth
+            , m_currentDrawRect
             , m_drawImage
             , m_depthImage
             , cameraIndex
