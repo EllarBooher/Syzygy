@@ -889,13 +889,13 @@ void Engine::renderUI()
         renderHUD(glm::vec2{ m_windowExtent.width, m_windowExtent.height})
     };
 
-    { // Engine Controls
-        if (hud.leftDock.has_value())
+    { // Scene Controls
+        if (hud.rightDock.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.leftDock.value(), ImGuiCond_Appearing);
+            ImGui::SetNextWindowDockID(hud.rightDock.value(), ImGuiCond_Appearing);
         }
 
-        if (ImGui::Begin("Engine Controls"))
+        if (ImGui::Begin("Scene Controls"))
         {
             imguiMeshInstanceControls(
                 m_renderMeshInstances,
@@ -916,6 +916,25 @@ void Engine::renderUI()
             ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
 
             ImGui::Separator();
+            ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+
+            ImGui::Separator();
+            imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+
+            ImGui::Separator();
+            imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
+        }
+        ImGui::End();
+    }
+
+    { // Engine Controls
+        if (hud.leftDock.has_value())
+        {
+            ImGui::SetNextWindowDockID(hud.leftDock.value(), ImGuiCond_Appearing);
+        }
+
+        if (ImGui::Begin("Engine Controls"))
+        {
             imguiRenderingSelection(m_activeRenderingPipeline);
 
             ImGui::Separator();
@@ -933,15 +952,6 @@ void Engine::renderUI()
             }
 
             ImGui::Separator();
-            ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
-
-            ImGui::Separator();
-            imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
-
-            ImGui::Separator();
-            imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
-
-            ImGui::Separator();
             imguiStructureControls(m_debugLines);
 
         }
@@ -949,9 +959,9 @@ void Engine::renderUI()
     }
 
     { // Performance window
-        if (hud.rightDock.has_value())
+        if (hud.bottomDock.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.rightDock.value(), ImGuiCond_Appearing);
+            ImGui::SetNextWindowDockID(hud.bottomDock.value(), ImGuiCond_Appearing);
         }
 
         imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
