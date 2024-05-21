@@ -281,7 +281,7 @@ HUDState renderHUD(glm::vec2 const extent)
             | ImGuiWindowFlags_NoResize
         ))
         {
-            docks.leftDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
+            docks.rightDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
         }
         ImGui::End();
     } // End right sidebar
