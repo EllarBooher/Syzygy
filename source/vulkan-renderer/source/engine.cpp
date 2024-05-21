@@ -917,6 +917,20 @@ void Engine::renderUI()
                     .max{ max - margins },
                 };
             }
+            Rectangle shrinkMin(glm::vec2 const margins) const
+            {
+                return Rectangle{
+                    .min{ min + margins },
+                    .max{ max },
+                };
+            }
+            Rectangle shrinkMax(glm::vec2 const margins) const
+            {
+                return Rectangle{
+                    .min{ min },
+                    .max{ max - margins },
+                };
+            }
         };
         Rectangle const belowMenuBarArea{
             .min{ 0.0f, menuBarSize.y },
@@ -944,8 +958,10 @@ void Engine::renderUI()
         float constexpr sidebarMinimumSize{ 30.0f };
 
         { // Left sidebar draggable right side
-            Rectangle leftSidebarArea{
-                workArea.shrink(glm::vec2{sidebarMinimumSize, 0.0f}).clampToMin()
+            Rectangle const leftSidebarArea{
+                workArea
+                    .shrinkMax(glm::vec2{sidebarPositions.rightWidth, 0.0f})
+                    .clampToMin()
             };
 
             float const position{ workArea.min.x + sidebarPositions.leftWidth };
@@ -961,13 +977,11 @@ void Engine::renderUI()
             };
 
             sidebarPositions.leftWidth = glm::max(sidebarMinimumSize, newPosition - workArea.min.x);
-            workArea.min.x = newPosition;
+            workArea = workArea.shrinkMin(glm::vec2{ sidebarPositions.leftWidth, 0.0f });
         }
 
         { // Right sidebar draggable left side
-            Rectangle rightSidebarArea{
-                workArea.shrink(glm::vec2{sidebarMinimumSize, 0.0f}).clampToMin()
-            };
+            Rectangle const rightSidebarArea{ workArea.clampToMin() };
 
             float const position{ workArea.max.x - sidebarPositions.rightWidth };
 
@@ -982,13 +996,11 @@ void Engine::renderUI()
             };
 
             sidebarPositions.rightWidth = glm::max(sidebarMinimumSize, workArea.max.x - newPosition);
-            workArea.max.x = newPosition;
+            workArea = workArea.shrinkMax(glm::vec2{ sidebarPositions.rightWidth, 0.0f });
         }
 
         { // Bottom sidebar draggable top side
-            Rectangle bottomSidebarArea{
-                workArea.shrink(glm::vec2{0.0f, sidebarMinimumSize}).clampToMin()
-            };
+            Rectangle const bottomSidebarArea{ workArea.clampToMin() };
 
             float const position{ workArea.max.y - sidebarPositions.bottomHeight };
 
@@ -1003,8 +1015,33 @@ void Engine::renderUI()
             };
 
             sidebarPositions.bottomHeight = glm::max(sidebarMinimumSize, workArea.max.y - newPosition);
-            workArea.max.y = newPosition;
+            workArea = workArea.shrinkMax(glm::vec2{ 0.0f, sidebarPositions.bottomHeight });
         }
+
+        { // Begin bottom sidebar
+            Rectangle const bottomSidebar{
+                .min{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y - sidebarPositions.bottomHeight },
+                .max{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.max.y },
+            };
+
+            ImGui::SetNextWindowPos(bottomSidebar.pos(), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(bottomSidebar.size(), ImGuiCond_Always);
+
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+            if (ImGui::Begin(
+                "BottomSidebarWindow"
+                , nullptr
+                , ImGuiWindowFlags_None
+                | ImGuiWindowFlags_NoDocking
+                | ImGuiWindowFlags_NoDecoration
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoResize
+            ))
+            {
+                sidebarPositions.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
+            }
+            ImGui::End();
+        } // End bottom sidebar
 
         { // Begin left sidebar
             Rectangle const leftSidebar{
@@ -1055,31 +1092,6 @@ void Engine::renderUI()
             }
             ImGui::End();
         } // End right sidebar
-
-        { // Begin bottom sidebar
-            Rectangle const bottomSidebar{
-                .min{ belowMenuBarArea.min.x + sidebarPositions.leftWidth, belowMenuBarArea.max.y - sidebarPositions.bottomHeight },
-                .max{ belowMenuBarArea.max.x - sidebarPositions.rightWidth, belowMenuBarArea.max.y },
-            };
-
-            ImGui::SetNextWindowPos(bottomSidebar.pos(), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(bottomSidebar.size(), ImGuiCond_Always);
-
-            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-            if (ImGui::Begin(
-                "BottomSidebarWindow"
-                , nullptr
-                , ImGuiWindowFlags_None
-                | ImGuiWindowFlags_NoDocking
-                | ImGuiWindowFlags_NoDecoration
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoResize
-            ))
-            {
-                sidebarPositions.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
-            }
-            ImGui::End();
-        } // End bottom sidebar
 
         { // Engine Controls
             if (sidebarPositions.leftDock.has_value())
@@ -1280,147 +1292,7 @@ void Engine::draw()
         m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
     }
 
-    switch (m_activeRenderingPipeline)
-    {
-    case RenderingPipelines::DEFERRED:
-    {
-        std::vector<GPUTypes::LightDirectional> directionalLights{};
-        std::span<GPUTypes::Atmosphere const> const atmospheres{
-            m_atmospheresBuffer->readValidStaged()
-        };
-        if (m_atmosphereIndex < atmospheres.size())
-        {
-            GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
-
-            float const time{ // position of sun as proxy for time
-                glm::dot(geometry::up, atmosphere.directionToSun)
-            };
-            if (time > 0.0)
-            { // Sunlight
-                directionalLights.push_back(
-                    lights::makeDirectional(
-                        glm::vec4(atmosphere.sunlightColor, 1.0)
-                        , 0.5
-                        , m_atmosphereParameters.sunEulerAngles
-                        , m_sceneBounds.center
-                        , m_sceneBounds.extent
-                    )
-                );
-            }
-
-            float constexpr timeSunset{ 0.06 };
-            if (time < timeSunset)
-            { // Moonlight
-                float constexpr moonrisePeriod{ 0.08 };
-                float const moonlightStrength{
-                    0.1f * (
-                        time < timeSunset - moonrisePeriod
-                        ? 1.0f
-                        : glm::abs(time - timeSunset) / moonrisePeriod
-                    )
-                };
-
-                glm::vec4 const moonlightColor{
-                    glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
-                };
-
-                directionalLights.push_back(
-                    lights::makeDirectional(
-                        moonlightColor
-                        , moonlightStrength
-                        , glm::vec3(-1.5708, 0.0, 0.0)
-                        , m_sceneBounds.center
-                        , m_sceneBounds.extent
-                    )
-                );
-            }
-        }
-        else
-        {
-            directionalLights.push_back(
-                lights::makeDirectional(
-                    glm::vec4(1.0)
-                    , 1.0
-                    , glm::vec3(-1.5708, 0.0, 0.0)
-                    , m_sceneBounds.center
-                    , m_sceneBounds.extent
-                )
-            );
-        }
-
-        std::vector<GPUTypes::LightSpot> const spotLights{
-            lights::makeSpot(
-                glm::vec4(0.0, 1.0, 0.0, 1.0)
-                , 30.0
-                , 1.0
-                , 1.0
-                , 60
-                , 1.0
-                , glm::vec3(-1.0, 0.0, 1.0)
-                , glm::vec3(-8.0, -10.0, -2.0)
-                , 0.1
-                , 1000.0
-            ),
-            lights::makeSpot(
-                glm::vec4(1.0, 0.0, 0.0, 1.0)
-                , 30.0
-                , 1.0
-                , 1.0
-                , 60
-                , 1.0
-                , glm::vec3(-1.0, 0.0, -1.0)
-                , glm::vec3(8.0, -10.0, 2.0)
-                , 0.1
-                , 1000.0
-            ),
-        };
-
-        vkutil::transitionImage(
-            cmd
-            , m_drawImage.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_GENERAL
-            , VK_IMAGE_ASPECT_COLOR_BIT
-        );
-
-        m_deferredShadingPipeline->recordDrawCommands(
-            cmd
-            , m_currentDrawRect
-            , VK_IMAGE_LAYOUT_GENERAL
-            , m_drawImage
-            , m_depthImage
-            , directionalLights
-            , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
-            , m_cameraIndexMain
-            , *m_camerasBuffer
-            , m_atmosphereIndex
-            , *m_atmospheresBuffer
-            , m_sceneBounds
-            , *m_testMeshes[m_testMeshUsed]
-            , m_meshInstances
-        );
-        break;
-    }
-    case RenderingPipelines::COMPUTE_COLLECTION:
-    {
-        vkutil::transitionImage(
-            cmd
-            , m_drawImage.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_GENERAL
-            , VK_IMAGE_ASPECT_COLOR_BIT
-        );
-
-        m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
-
-        if (m_debugLines.enabled)
-        {
-            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
-        }
-
-        break;
-    }
-    default:
+    if (m_currentDrawRect.extent.height <= 0.0 || m_currentDrawRect.extent.width <= 0.0)
     {
         vkutil::transitionImage(cmd,
             m_drawImage.image
@@ -1428,8 +1300,160 @@ void Engine::draw()
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_ASPECT_COLOR_BIT
         );
-        break;
     }
+    else
+    {
+        switch (m_activeRenderingPipeline)
+        {
+        case RenderingPipelines::DEFERRED:
+        {
+            std::vector<GPUTypes::LightDirectional> directionalLights{};
+            std::span<GPUTypes::Atmosphere const> const atmospheres{
+                m_atmospheresBuffer->readValidStaged()
+            };
+            if (m_atmosphereIndex < atmospheres.size())
+            {
+                GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
+
+                float const time{ // position of sun as proxy for time
+                    glm::dot(geometry::up, atmosphere.directionToSun)
+                };
+                if (time > 0.0)
+                { // Sunlight
+                    directionalLights.push_back(
+                        lights::makeDirectional(
+                            glm::vec4(atmosphere.sunlightColor, 1.0)
+                            , 0.5
+                            , m_atmosphereParameters.sunEulerAngles
+                            , m_sceneBounds.center
+                            , m_sceneBounds.extent
+                        )
+                    );
+                }
+
+                float constexpr timeSunset{ 0.06 };
+                if (time < timeSunset)
+                { // Moonlight
+                    float constexpr moonrisePeriod{ 0.08 };
+                    float const moonlightStrength{
+                        0.1f * (
+                            time < timeSunset - moonrisePeriod
+                            ? 1.0f
+                            : glm::abs(time - timeSunset) / moonrisePeriod
+                        )
+                    };
+
+                    glm::vec4 const moonlightColor{
+                        glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
+                    };
+
+                    directionalLights.push_back(
+                        lights::makeDirectional(
+                            moonlightColor
+                            , moonlightStrength
+                            , glm::vec3(-1.5708, 0.0, 0.0)
+                            , m_sceneBounds.center
+                            , m_sceneBounds.extent
+                        )
+                    );
+                }
+            }
+            else
+            {
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        glm::vec4(1.0)
+                        , 1.0
+                        , glm::vec3(-1.5708, 0.0, 0.0)
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+
+            std::vector<GPUTypes::LightSpot> const spotLights{
+                lights::makeSpot(
+                    glm::vec4(0.0, 1.0, 0.0, 1.0)
+                    , 30.0
+                    , 1.0
+                    , 1.0
+                    , 60
+                    , 1.0
+                    , glm::vec3(-1.0, 0.0, 1.0)
+                    , glm::vec3(-8.0, -10.0, -2.0)
+                    , 0.1
+                    , 1000.0
+                ),
+                lights::makeSpot(
+                    glm::vec4(1.0, 0.0, 0.0, 1.0)
+                    , 30.0
+                    , 1.0
+                    , 1.0
+                    , 60
+                    , 1.0
+                    , glm::vec3(-1.0, 0.0, -1.0)
+                    , glm::vec3(8.0, -10.0, 2.0)
+                    , 0.1
+                    , 1000.0
+                ),
+            };
+
+            vkutil::transitionImage(
+                cmd
+                , m_drawImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_GENERAL
+                , VK_IMAGE_ASPECT_COLOR_BIT
+            );
+
+            m_deferredShadingPipeline->recordDrawCommands(
+                cmd
+                , m_currentDrawRect
+                , VK_IMAGE_LAYOUT_GENERAL
+                , m_drawImage
+                , m_depthImage
+                , directionalLights
+                , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
+                , m_cameraIndexMain
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , m_sceneBounds
+                , *m_testMeshes[m_testMeshUsed]
+                , m_meshInstances
+            );
+            break;
+        }
+        case RenderingPipelines::COMPUTE_COLLECTION:
+        {
+            vkutil::transitionImage(
+                cmd
+                , m_drawImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_GENERAL
+                , VK_IMAGE_ASPECT_COLOR_BIT
+            );
+
+            m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
+
+            if (m_debugLines.enabled)
+            {
+                recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+            }
+
+            break;
+        }
+        default:
+        {
+            vkutil::transitionImage(cmd,
+                m_drawImage.image
+                , VK_IMAGE_LAYOUT_UNDEFINED
+                , VK_IMAGE_LAYOUT_GENERAL
+                , VK_IMAGE_ASPECT_COLOR_BIT
+            );
+            break;
+        }
+        }
     }
 
     // End scene drawing
