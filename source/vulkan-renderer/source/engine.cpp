@@ -889,10 +889,12 @@ void Engine::renderUI()
         renderHUD(glm::vec2{ m_windowExtent.width, m_windowExtent.height})
     };
 
+    ImGuiCond const defaultStateCondition{ hud.resetRequested ? ImGuiCond_Always : ImGuiCond_Appearing };
+
     { // Scene Controls
         if (hud.rightDock.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.rightDock.value(), ImGuiCond_Appearing);
+            ImGui::SetNextWindowDockID(hud.rightDock.value(), defaultStateCondition);
         }
 
         if (ImGui::Begin("Scene Controls"))
@@ -930,7 +932,7 @@ void Engine::renderUI()
     { // Engine Controls
         if (hud.leftDock.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.leftDock.value(), ImGuiCond_Appearing);
+            ImGui::SetNextWindowDockID(hud.leftDock.value(), defaultStateCondition);
         }
 
         if (ImGui::Begin("Engine Controls"))
@@ -961,7 +963,7 @@ void Engine::renderUI()
     { // Performance window
         if (hud.bottomDock.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.bottomDock.value(), ImGuiCond_Appearing);
+            ImGui::SetNextWindowDockID(hud.bottomDock.value(), defaultStateCondition);
         }
 
         imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);

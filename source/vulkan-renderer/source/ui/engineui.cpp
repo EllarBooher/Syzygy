@@ -110,10 +110,19 @@ float draggableBar(
 
 HUDState renderHUD(glm::vec2 const extent)
 {
+    HUDState hud{};
+
     ImVec2 menuBarSize{};
     if (ImGui::BeginMainMenuBar())
     {
-        ImGui::Text("Test");
+        if (ImGui::BeginMenu("Window"))
+        {
+            if (ImGui::MenuItem("Reset Window Layout"))
+            {
+                hud.resetRequested = true;
+            }
+            ImGui::EndMenu();
+        }
         menuBarSize = ImGui::GetWindowSize();
         ImGui::EndMainMenuBar();
     }
@@ -134,11 +143,17 @@ HUDState renderHUD(glm::vec2 const extent)
         float bottomHeight;
     };
 
-    static SidebarSizes sidebars{
-        .leftWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
-        .rightWidth{ glm::min(300.0f, workArea.size().x / 2.0f) },
-        .bottomHeight{ glm::min(300.0f, workArea.size().y) },
+    SidebarSizes const initialSidebars{
+        .leftWidth{ glm::min(300.0f, workArea.size().x / 3.0f) },
+        .rightWidth{ glm::min(300.0f, workArea.size().x / 3.0f) },
+        .bottomHeight{ glm::min(300.0f, workArea.size().y / 2.0f) },
     };
+
+    static SidebarSizes sidebars{ initialSidebars };
+    if (hud.resetRequested)
+    {
+        sidebars = initialSidebars;
+    }
 
     float constexpr sidebarMinimumSize{ 30.0f };
 
@@ -207,9 +222,7 @@ HUDState renderHUD(glm::vec2 const extent)
 
     // Draw sidebars
 
-    HUDState docks{
-        .remainingArea{ workArea }
-    };
+    hud.remainingArea = workArea;
 
     { // Begin bottom sidebar
         UIRectangle const bottomSidebar{
@@ -231,7 +244,7 @@ HUDState renderHUD(glm::vec2 const extent)
             | ImGuiWindowFlags_NoResize
         ))
         {
-            docks.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
+            hud.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
         }
         ImGui::End();
     } // End bottom sidebar
@@ -256,7 +269,7 @@ HUDState renderHUD(glm::vec2 const extent)
             | ImGuiWindowFlags_NoResize
         ))
         {
-            docks.leftDock = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
+            hud.leftDock = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
         }
         ImGui::End();
     } // End left sidebar
@@ -281,12 +294,12 @@ HUDState renderHUD(glm::vec2 const extent)
             | ImGuiWindowFlags_NoResize
         ))
         {
-            docks.rightDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
+            hud.rightDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
         }
         ImGui::End();
     } // End right sidebar
 
-    return docks;
+    return hud;
 }
 
 void imguiMeshInstanceControls(

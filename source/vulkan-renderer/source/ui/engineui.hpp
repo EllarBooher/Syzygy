@@ -52,6 +52,8 @@ struct HUDState
 {
     UIRectangle remainingArea{};
 
+    bool resetRequested{ false };
+
     std::optional<ImGuiID> leftDock{};
     std::optional<ImGuiID> rightDock{};
     std::optional<ImGuiID> bottomDock{};
