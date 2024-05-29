@@ -274,7 +274,7 @@ void Engine::initSwapchain()
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
 
-    m_currentDrawRect = VkRect2D{
+    m_sceneRect = VkRect2D{
         .extent{ m_swapchainExtent },
     };
 }
@@ -282,6 +282,19 @@ void Engine::initSwapchain()
 void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
+
+    m_sceneColorTexture = AllocatedImage::allocate(
+        m_allocator,
+        m_device,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g. ImGui
+        | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
+        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics passes
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy to from other render passes
+    ).value();
 
     m_drawImage = AllocatedImage::allocate(
         m_allocator,
@@ -295,7 +308,7 @@ void Engine::initDrawTargets()
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
     ).value(); //TODO: handle failed case
 
-    m_depthImage = AllocatedImage::allocate(
+    m_sceneDepthTexture = AllocatedImage::allocate(
         m_allocator,
         m_device,
         VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
@@ -318,8 +331,9 @@ void Engine::cleanupSwapchain()
 
 void Engine::cleanupDrawTargets()
 {
+    m_sceneColorTexture.cleanup(m_device, m_allocator);
     m_drawImage.cleanup(m_device, m_allocator);
-    m_depthImage.cleanup(m_device, m_allocator);
+    m_sceneDepthTexture.cleanup(m_device, m_allocator);
 }
 
 void Engine::initCommands()
@@ -388,40 +402,40 @@ void Engine::initDescriptors()
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
     { // Set up the image used by compute shaders.
-        m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
+        m_sceneTextureDescriptorLayout = DescriptorLayoutBuilder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
             .build(m_device, 0)
             .value_or(VK_NULL_HANDLE); //TODO: handle
 
-        m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+        m_sceneTextureDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_sceneTextureDescriptorLayout);
     }
 }
 
 void Engine::updateDescriptors()
 {
-    VkDescriptorImageInfo const drawImageInfo{
+    VkDescriptorImageInfo const sceneTextureInfo{
         .sampler{ VK_NULL_HANDLE },
-        .imageView{ m_drawImage.imageView },
+        .imageView{ m_sceneColorTexture.imageView },
         .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
     };
 
-    VkWriteDescriptorSet const drawImageWrite{
+    VkWriteDescriptorSet const sceneTextureWrite{
         .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
         .pNext{ nullptr },
 
-        .dstSet{ m_drawImageDescriptors },
+        .dstSet{ m_sceneTextureDescriptors },
         .dstBinding{ 0 },
         .dstArrayElement{ 0 },
         .descriptorCount{ 1 },
         .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
 
-        .pImageInfo{ &drawImageInfo },
+        .pImageInfo{ &sceneTextureInfo },
         .pBufferInfo{ nullptr },
         .pTexelBufferView{ nullptr },
     };
 
     std::vector<VkWriteDescriptorSet> const writes{
-        drawImageWrite
+        sceneTextureWrite
     };
 
     vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -546,7 +560,7 @@ void Engine::initDebug()
     m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
         m_device,
         m_drawImage.imageFormat,
-        m_depthImage.imageFormat
+        m_sceneDepthTexture.imageFormat
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
@@ -577,7 +591,7 @@ void Engine::initDeferredShadingPipeline()
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
         m_device
-        , m_depthImage
+        , m_sceneDepthTexture
     );
 }
 
@@ -592,7 +606,7 @@ void Engine::initGenericComputePipelines()
     };
     m_genericComputePipeline = std::make_unique<GenericComputeCollectionPipeline>(
         m_device,
-        m_drawImageDescriptorLayout,
+        m_sceneTextureDescriptorLayout,
         shaderPaths
     );
 }
@@ -677,6 +691,32 @@ void Engine::initImgui()
     m_imguiDescriptorPool = imguiDescriptorPool;
 
     ImGui_ImplVulkan_Init(&initInfo);
+
+    { // Initialize the descriptor set that imgui uses to read our color output
+        VkSamplerCreateInfo const samplerInfo{
+            vkinit::samplerCreateInfo(
+                0
+                , VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
+                , VK_FILTER_NEAREST
+                , VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+            )
+        };
+
+        assert(m_imguiSceneTextureSampler == VK_NULL_HANDLE);
+        vkCreateSampler(
+            m_device
+            , &samplerInfo
+            , nullptr
+            , &m_imguiSceneTextureSampler
+        );
+
+        m_imguiSceneTextureDescriptor = ImGui_ImplVulkan_AddTexture(
+            m_imguiSceneTextureSampler
+            , m_sceneColorTexture.imageView
+            , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    }
+
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
@@ -1022,20 +1062,34 @@ bool Engine::renderUI(VkDevice const device)
             ImGui::SetNextWindowDockID(dockingLayout.value().centerTop);
         }
 
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         if (ImGui::Begin("SceneViewport"))
         {
-            m_currentDrawRect = VkRect2D{
+            m_sceneRect = VkRect2D{
                 .offset{ VkOffset2D{
-                    .x{ static_cast<int32_t>(ImGui::GetWindowPos().x) },
-                    .y{ static_cast<int32_t>(ImGui::GetWindowPos().y) }
+                    .x{ 0 },
+                    .y{ 0 }
                 }},
                 .extent{ VkExtent2D{
-                    .width{ static_cast<uint32_t>(ImGui::GetWindowSize().x) },
-                    .height{ static_cast<uint32_t>(ImGui::GetWindowSize().y) },
+                    .width{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().x) },
+                    .height{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().y) },
                 }},
             };
+            ImGui::Image(
+                (ImTextureID)m_imguiSceneTextureDescriptor
+                , ImGui::GetContentRegionAvail()
+                , ImVec2{0.0,0.0}
+                , ImVec2{ 
+                    static_cast<float>(m_sceneRect.extent.width) / m_sceneColorTexture.imageExtent.width
+                    , static_cast<float>(m_sceneRect.extent.height) / m_sceneColorTexture.imageExtent.height
+                }
+                , ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
+                , ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+            );
+
         }
         ImGui::End();
+        ImGui::PopStyleVar();
     }
 
     ImGui::Render();
@@ -1124,7 +1178,7 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawRect.extent) };
+        double const aspectRatio{ vkutil::aspectRatio(m_sceneRect.extent) };
 
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
@@ -1156,17 +1210,14 @@ void Engine::draw()
         m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
     }
 
-    if (m_currentDrawRect.extent.height <= 0.0 || m_currentDrawRect.extent.width <= 0.0)
     {
         vkutil::transitionImage(cmd,
-            m_drawImage.image
+            m_sceneColorTexture.image
             , VK_IMAGE_LAYOUT_UNDEFINED
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_ASPECT_COLOR_BIT
         );
-    }
-    else
-    {
+
         switch (m_activeRenderingPipeline)
         {
         case RenderingPipelines::DEFERRED:
@@ -1262,20 +1313,12 @@ void Engine::draw()
                 ),
             };
 
-            vkutil::transitionImage(
-                cmd
-                , m_drawImage.image
-                , VK_IMAGE_LAYOUT_UNDEFINED
-                , VK_IMAGE_LAYOUT_GENERAL
-                , VK_IMAGE_ASPECT_COLOR_BIT
-            );
-
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd
-                , m_currentDrawRect
+                , m_sceneRect
                 , VK_IMAGE_LAYOUT_GENERAL
-                , m_drawImage
-                , m_depthImage
+                , m_sceneColorTexture
+                , m_sceneDepthTexture
                 , directionalLights
                 , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
                 , m_cameraIndexMain
@@ -1294,26 +1337,12 @@ void Engine::draw()
         }
         case RenderingPipelines::COMPUTE_COLLECTION:
         {
-            vkutil::transitionImage(
+            m_genericComputePipeline->recordDrawCommands(
                 cmd
-                , m_drawImage.image
-                , VK_IMAGE_LAYOUT_UNDEFINED
-                , VK_IMAGE_LAYOUT_GENERAL
-                , VK_IMAGE_ASPECT_COLOR_BIT
+                , m_sceneTextureDescriptors
+                , m_sceneRect.extent
             );
 
-            m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
-
-            break;
-        }
-        default:
-        {
-            vkutil::transitionImage(cmd,
-                m_drawImage.image
-                , VK_IMAGE_LAYOUT_UNDEFINED
-                , VK_IMAGE_LAYOUT_GENERAL
-                , VK_IMAGE_ASPECT_COLOR_BIT
-            );
             break;
         }
         }
@@ -1322,15 +1351,29 @@ void Engine::draw()
     // End scene drawing
 
     // ImGui Drawing
+    
+    vkutil::transitionImage(cmd,
+        m_sceneColorTexture.image
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
 
     vkutil::transitionImage(cmd,
         m_drawImage.image
-        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_UNDEFINED
         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     recordDrawImgui(cmd, m_drawImage.imageView);
+
+    vkutil::transitionImage(cmd,
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
 
     // End ImGui Drawing
 
@@ -1357,7 +1400,7 @@ void Engine::draw()
 
     vkutil::transitionImage(cmd, 
         m_drawImage.image
-        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_GENERAL
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
@@ -1370,7 +1413,7 @@ void Engine::draw()
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        VkRect2D{ .extent{ m_swapchainExtent} }, VkRect2D{ .extent{ m_swapchainExtent} }
+        m_drawRect, VkRect2D{ .extent{ m_swapchainExtent} }
     );
 
     vkutil::transitionImage(cmd, 
@@ -1450,7 +1493,24 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    ImDrawData* const drawData{ ImGui::GetDrawData() };
+
+    m_drawRect = VkRect2D{
+        .offset{
+            VkOffset2D{
+                .x{ static_cast<int32_t>(drawData->DisplayPos.x) },
+                .y{ static_cast<int32_t>(drawData->DisplayPos.y) },
+            }
+        },
+        .extent{
+            VkExtent2D{
+                .width{ static_cast<uint32_t>(drawData->DisplaySize.x) },
+                .height{ static_cast<uint32_t>(drawData->DisplaySize.y) },
+            }
+        },
+    };
+
+    ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
 
     vkCmdEndRendering(cmd);
 }
@@ -1474,9 +1534,9 @@ void Engine::recordDrawDebugLines(
             cmd
             , false
             , m_debugLines.lineWidth
-            , m_currentDrawRect
-            , m_drawImage
-            , m_depthImage
+            , m_sceneRect
+            , m_sceneColorTexture
+            , m_sceneDepthTexture
             , cameraIndex
             , camerasBuffer
             , *m_debugLines.vertices
@@ -1504,6 +1564,7 @@ void Engine::cleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
+    vkDestroySampler(m_device, m_imguiSceneTextureSampler, nullptr);
 
     m_genericComputePipeline->cleanup(m_device);
     m_deferredShadingPipeline->cleanup(m_device, m_allocator);
@@ -1519,7 +1580,7 @@ void Engine::cleanup()
 
     m_globalDescriptorAllocator.destroyPool(m_device);
 
-    vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_device, m_sceneTextureDescriptorLayout, nullptr);
 
     for (FrameData const& frameData : m_frames)
     {
