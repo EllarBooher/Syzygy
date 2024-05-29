@@ -178,12 +178,14 @@ void vkutil::recordCopyImageToImage(
     vkutil::recordCopyImageToImage(cmd, source, destination, srcMin, srcMax, dstMin, dstMax);
 }
 
-double vkutil::aspectRatio(VkExtent2D extent)
+double vkutil::aspectRatio(VkExtent2D const extent)
 {
     auto const width{ static_cast<float>(extent.width) };
     auto const height{ static_cast<float>(extent.height) };
 
-    return width / height;
+    float const rawAspectRatio = width / height;
+
+    return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0f;
 }
 
 std::optional<AllocatedImage> AllocatedImage::allocate(
