@@ -13,6 +13,8 @@
 
 #include "imgui_internal.h"
 
+#include "propertytable.hpp"
+
 void imguiPerformanceWindow(
     std::span<double const> fpsValues
     , double averageFPS
@@ -87,6 +89,7 @@ HUDState renderHUD(UIPreferences& preferences)
 
         static bool maximizeSceneViewport{ false };
         static bool showPreferences{ false };
+        static bool showUIDemoWindow{ false };
 
         if (ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS))
         {
@@ -100,6 +103,7 @@ HUDState renderHUD(UIPreferences& preferences)
                 if (ImGui::BeginMenu("Window"))
                 {
                     ImGui::MenuItem("Maximize Scene Viewport", nullptr, &maximizeSceneViewport);
+                    ImGui::MenuItem("UI Demo Window", nullptr, &showUIDemoWindow);
                     ImGui::MenuItem("Reset Window Layout", nullptr, &resetLayoutRequested);
                     ImGui::EndMenu();
                 }
@@ -127,6 +131,7 @@ HUDState renderHUD(UIPreferences& preferences)
         ImGui::PopStyleVar(3);
 
         if (showPreferences) renderPreferences(showPreferences, preferences, hud);
+        if (showUIDemoWindow) PropertyTable::demoWindow();
     }
 
     static bool firstLoop{ true };
