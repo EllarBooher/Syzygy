@@ -6,29 +6,29 @@ layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 // This push constant uses layouts to spread out the data instead of padding like must be done on the host side.
 layout( push_constant ) uniform PushConstants
 {
-	vec2 topRG;
+	vec2 drawOffset;
+	vec2 drawExtent;
+
+	layout(offset = 16) vec2 topRG;
 	// 8 bytes of padding
-	layout(offset = 16) vec2 topBA;
+	layout(offset = 32) vec2 topBA;
 	// 8 bytes of padding
-	layout(offset = 32) vec2 bottomRG;
+	layout(offset = 48) vec2 bottomRG;
 	// 8 bytes of padding
-	layout(offset = 48) vec2 bottomBA;
-	// 8 bytes of padding
+	layout(offset = 64) vec2 bottomBA;
 } pushConstants;
 
 void main()
 {
-	ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-
-	ivec2 size = imageSize(image);
+	vec2 size = imageSize(image);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy + pushConstants.drawOffset);
+	vec2 uv = (vec2(texelCoord) + vec2(0.5,0.5)) / pushConstants.drawExtent;
 
 	vec4 topColor = vec4(pushConstants.topRG, pushConstants.topBA);
 	vec4 bottomColor = vec4(pushConstants.bottomRG, pushConstants.bottomBA);
 
 	if(texelCoord.x < size.x && texelCoord.y < size.y)
 	{
-		float blend = float(texelCoord.y) / (size.y);
-
-		imageStore(image, texelCoord, mix(topColor, bottomColor, blend));
+		imageStore(image, texelCoord, mix(topColor, bottomColor, uv.y));
 	}
 }

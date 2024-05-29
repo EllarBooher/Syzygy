@@ -285,10 +285,28 @@ void GenericComputeCollectionPipeline::recordDrawCommands(
 	ShaderReflectionData const& reflectionData{ shader.reflectionData() };
 	if (reflectionData.defaultEntryPointHasPushConstant())
 	{
-		std::span<uint8_t const> pushConstantBytes{ readPushConstantBytes() };
-		uint32_t const offset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+		std::span<uint8_t const> const pushConstant{ readPushConstantBytes() };
+		std::vector<uint8_t> pushConstantBytes{ pushConstant.begin(), pushConstant.end() };
 
-		vkCmdPushConstants(cmd, layout, stage, offset, pushConstantBytes.size() - offset, pushConstantBytes.data() + offset);
+		if (pushConstant.size() >= 16)
+		{
+			// We assume the first two members of the push constant are the offset and extent for rendering.
+			// Both should be type vec2 in glsl
+			struct DrawRectPushConstant
+			{
+				glm::vec2 drawOffset{};
+				glm::vec2 drawExtent{};
+			};
+
+			*reinterpret_cast<DrawRectPushConstant*>(pushConstantBytes.data()) = DrawRectPushConstant{
+				.drawOffset{ glm::vec2{0.0} },
+				.drawExtent{ glm::vec2{drawExtent.width, drawExtent.height} },
+			};
+		}
+
+		uint32_t const byteOffset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+
+		vkCmdPushConstants(cmd, layout, stage, byteOffset, pushConstantBytes.size() - byteOffset, pushConstantBytes.data() + byteOffset);
 	}
 
 	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
