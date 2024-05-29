@@ -83,6 +83,9 @@ HUDState renderHUD(UIPreferences& preferences)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
+        bool resetLayoutRequested{ false };
+
+        static bool maximizeSceneViewport{ false };
         static bool showPreferences{ false };
 
         if (ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS))
@@ -96,12 +99,22 @@ HUDState renderHUD(UIPreferences& preferences)
                 }
                 if (ImGui::BeginMenu("Window"))
                 {
-                    ImGui::MenuItem("Reset Window Layout", nullptr, &hud.resetLayoutRequested);
+                    ImGui::MenuItem("Maximize Scene Viewport", nullptr, &maximizeSceneViewport);
+                    ImGui::MenuItem("Reset Window Layout", nullptr, &resetLayoutRequested);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
             }
         }
+
+        if (resetLayoutRequested)
+        {
+            hud.resetLayoutRequested = true;
+
+            maximizeSceneViewport = false;
+        }
+
+        hud.maximizeSceneViewport = maximizeSceneViewport;
 
         hud.workArea = UIRectangle::fromPosSize(
             ImGui::GetCursorPos()
@@ -126,7 +139,7 @@ HUDState renderHUD(UIPreferences& preferences)
     return hud;
 }
 
-DockingLayout buildLayout(
+DockingLayout buildDefaultMultiWindowLayout(
     ImVec2 const pos
     , ImVec2 const size
     , ImGuiID const parentNode

@@ -66,6 +66,8 @@ struct HUDState
     UIRectangle sceneViewport{};
     ImGuiID dockspaceID{};
 
+    bool maximizeSceneViewport{ false };
+
     bool resetLayoutRequested{ false };
 
     bool resetPreferencesRequested{ false };
@@ -84,7 +86,7 @@ struct DockingLayout
 
 // Builds a hardcoded hierarchy of docking nodes from the passed parent.
 // This also may break layouts, if windows have been moved or docked, since all new IDs are generated.
-DockingLayout buildLayout(
+DockingLayout buildDefaultMultiWindowLayout(
     ImVec2 pos
     , ImVec2 size
     , ImGuiID parentNode
