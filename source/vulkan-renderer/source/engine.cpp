@@ -678,14 +678,11 @@ void Engine::initImgui()
 
     ImGui_ImplVulkan_Init(&initInfo);
 
-    // Handle DPI
-
-    float const fontBaseSize{ 13.0f };
-    std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}).string() };
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.c_str(), fontBaseSize * m_dpiScale);
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    
+    m_uiReloadRequested = true;
 
-    ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
+    m_imguiStyleDefault = ImGui::GetStyle();
 
     Log("ImGui initialized.");
 }
@@ -873,23 +870,65 @@ void Engine::mainLoop()
                 resizeSwapchain();
             }
 
-            renderUI();
+            renderUI(m_device);
             draw();
         }
     }
 }
 
-void Engine::renderUI()
+void Engine::renderUI(VkDevice const device)
 {
+    if (m_uiReloadRequested)
+    {
+        // It is necessary to defer reloading to before each frame,
+        // since beginning an ImGui frame locks some resources we wish to modify.
+
+        float constexpr FONT_BASE_SIZE{ 13.0f };
+
+        UIPreferences const currentPreferences{ m_uiPreferences };
+
+        std::filesystem::path const fontPath{
+            DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"})
+        };
+        ImGui::GetIO().Fonts->Clear();
+        ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.string().c_str(), FONT_BASE_SIZE * currentPreferences.dpiScale);
+
+        // Wait for idle since we are modifying backend resources
+        vkDeviceWaitIdle(device);
+        // We destroy this to later force a rebuild when the fonts are needed.
+        ImGui_ImplVulkan_DestroyFontsTexture();
+        // TODO: is rebuilding the font with a specific scale good? ImGui recommends building fonts at various sizes then just selecting them
+
+        // Reset style so further scaling works off the base "1.0x" scaling
+        ImGui::GetStyle() = m_imguiStyleDefault;
+        ImGui::GetStyle().ScaleAllSizes(currentPreferences.dpiScale);
+
+        m_uiReloadRequested = false;
+    }
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     HUDState const hud{
-        renderHUD(glm::vec2{ m_windowExtent.width, m_windowExtent.height})
+        renderHUD(
+            glm::vec2{ m_windowExtent.width, m_windowExtent.height}
+            , m_uiPreferences
+        )
     };
 
-    ImGuiCond const defaultStateCondition{ hud.resetRequested ? ImGuiCond_Always : ImGuiCond_Appearing };
+    m_uiReloadRequested = hud.applyPreferencesRequested;
+    if (hud.resetPreferencesRequested)
+    {
+        m_uiPreferences = m_uiPreferencesDefault;
+        m_uiReloadRequested = true;
+    }
+
+    ImGuiCond const defaultStateCondition{ 
+        hud.resetLayoutRequested 
+        ? ImGuiCond_Always 
+        : ImGuiCond_Appearing 
+    };
 
     { // Scene Controls
         if (hud.rightDock.has_value())

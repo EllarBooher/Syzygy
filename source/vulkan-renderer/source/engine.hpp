@@ -10,6 +10,7 @@
 #include "shadowpass.hpp"
 #include "debuglines.hpp"
 #include "deferred/deferred.hpp"
+#include "imgui.h"
 
 struct GLFWwindow;
 
@@ -48,7 +49,7 @@ private:
     void initVulkan();
 
     void tickWorld(double totalTime, double deltaTimeSeconds);
-    void renderUI();
+    void renderUI(VkDevice device);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
@@ -114,7 +115,13 @@ private:
     std::vector<VkImageView> m_swapchainImageViews{};
     VkExtent2D m_swapchainExtent{};
 
-    float m_dpiScale{ 1.0f };
+    ImGuiStyle m_imguiStyleDefault{};
+    static UIPreferences constexpr m_uiPreferencesDefault{
+        .dpiScale{ 1.0f }
+    };
+    UIPreferences m_uiPreferences{ m_uiPreferencesDefault };
+    
+    bool m_uiReloadRequested{ false };
 
     bool m_resizeRequested{ false };
     void resizeSwapchain();

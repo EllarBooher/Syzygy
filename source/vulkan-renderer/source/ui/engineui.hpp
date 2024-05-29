@@ -5,6 +5,7 @@
 
 #include <imgui.h>
 
+#include "../enginetypes.hpp"
 #include "../pipelines.hpp"
 
 struct MeshAsset;
@@ -52,14 +53,20 @@ struct HUDState
 {
     UIRectangle remainingArea{};
 
-    bool resetRequested{ false };
+    bool resetLayoutRequested{ false };
+
+    bool resetPreferencesRequested{ false };
+    bool applyPreferencesRequested{ false };
 
     std::optional<ImGuiID> leftDock{};
     std::optional<ImGuiID> rightDock{};
     std::optional<ImGuiID> bottomDock{};
 };
 
-HUDState renderHUD(glm::vec2 extent);
+HUDState renderHUD(
+    glm::vec2 extent
+    , UIPreferences& preferences
+);
 
 template<typename T>
 void imguiStructureControls(T& structure, T const& defaultValues);

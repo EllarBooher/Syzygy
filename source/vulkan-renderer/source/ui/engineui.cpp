@@ -108,24 +108,55 @@ float draggableBar(
         : std::clamp(currentPosition, min.x, max.x);
 }
 
-HUDState renderHUD(glm::vec2 const extent)
+static void renderPreferences(
+    bool& open
+    , UIPreferences& preferences
+    , HUDState& hud
+)
+{
+    if (ImGui::Begin("Preferences", &open))
+    {
+        ImGui::DragFloat("DPI Scale", &preferences.dpiScale, 0.05f, 0.5f, 4.0f);
+        ImGui::TextWrapped("Some DPI Scale values will produce blurry fonts, so consider using an integer value.");
+
+        if (ImGui::Button("Apply"))
+        {
+            hud.applyPreferencesRequested = true;
+        }
+        if (ImGui::Button("Reset"))
+        {
+            hud.resetPreferencesRequested = true;
+        }
+    }
+    ImGui::End();
+}
+
+HUDState renderHUD(
+    glm::vec2 const extent
+    , UIPreferences& preferences
+)
 {
     HUDState hud{};
 
+    static bool showPreferences{ false };
     ImVec2 menuBarSize{};
     if (ImGui::BeginMainMenuBar())
     {
+        if (ImGui::BeginMenu("Tools"))
+        {
+            ImGui::MenuItem("Preferences", nullptr, &showPreferences);
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Window"))
         {
-            if (ImGui::MenuItem("Reset Window Layout"))
-            {
-                hud.resetRequested = true;
-            }
+            ImGui::MenuItem("Reset Window Layout", nullptr, &hud.resetLayoutRequested);
             ImGui::EndMenu();
         }
         menuBarSize = ImGui::GetWindowSize();
         ImGui::EndMainMenuBar();
     }
+
+    if (showPreferences) renderPreferences(showPreferences, preferences, hud);
 
     UIRectangle const belowMenuBarArea{
         UIRectangle{
@@ -150,7 +181,7 @@ HUDState renderHUD(glm::vec2 const extent)
     };
 
     static SidebarSizes sidebars{ initialSidebars };
-    if (hud.resetRequested)
+    if (hud.resetLayoutRequested)
     {
         sidebars = initialSidebars;
     }
