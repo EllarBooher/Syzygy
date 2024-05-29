@@ -337,66 +337,78 @@ void imguiStructureControls<AtmosphereParameters>(
     , AtmosphereParameters const& defaultValues
 )
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Atmosphere Parameters");
-    ResetButton("atmosphereParameters", atmosphere, defaultValues);
-
-    { // Sun direction controls
-        ImGui::Checkbox("Animate Sun", &atmosphere.animation.animateSun);
-        ImGui::Indent(10.0f);
-
-        DragScalarFloats("Speed##sun", atmosphere.animation.animationSpeed, { 0.0, 100.0 });
-        ResetButton("sunSpeed", atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed);
-
-        ImGui::Checkbox("Night Multiplier##sun", &atmosphere.animation.skipNight);
-        
-        ImGui::BeginDisabled(atmosphere.animation.animateSun);
-        DragScalarFloats("sunEulerAngles", atmosphere.sunEulerAngles, 0.1f);
-        ResetButton("sunEulerAngles", atmosphere.sunEulerAngles, defaultValues.sunEulerAngles);
-        ImGui::EndDisabled();
-
-        ImGui::BeginDisabled(true);
-        {
-            glm::vec3 direction{ atmosphere.directionToSun() };
-            DragScalarFloats("directionToSun", direction, { -1.0, 1.0 });
-        }
-        ImGui::EndDisabled();
-        ImGui::Unindent(10.0f);
+    if (!ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
     }
 
-    DragScalarFloats(
-        "Ground Diffuse Color", atmosphere.groundColor
-        , 0.0f, 1.0f
-    );
-    ResetButton("groundColor", atmosphere.groundColor, defaultValues.groundColor);
-
-    DragScalarFloats(
-        "Earth Radius (meters)", atmosphere.earthRadiusMeters
-        , { 1.0f, atmosphere.atmosphereRadiusMeters }
-        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
-    );
-    ResetButton("earthRadiusMeters", atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters);
-
-    DragScalarFloats(
-        "Atmosphere Radius (meters)", atmosphere.atmosphereRadiusMeters
-        , { atmosphere.earthRadiusMeters, 1'000'000'000.0f }
-        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
-    );
-    ResetButton("atmosphereRadiusMeters", atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters);
-
-    FractionalCoefficientSlider("Rayleigh Scattering Coefficient", atmosphere.scatteringCoefficientRayleigh);
-    ResetButton("scatteringCoefficientRayleigh", atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh);
-
-    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, { 0.0f, 10'000.0f });
-    ResetButton("altitudeDecayRayleigh", atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh);
-
-    FractionalCoefficientSlider("Mie Scattering Coefficient", atmosphere.scatteringCoefficientMie);
-    ResetButton("scatteringCoefficientMie", atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie);
-
-    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, { 0.0f, 10'000.0f });
-    ResetButton("altitudeDecayMie", atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie);
-
-    ImGui::EndGroup();
+    PropertyTable::begin("Atmosphere")
+        .rowBoolean(
+            "Animate Sun"
+            , atmosphere.animation.animateSun, defaultValues.animation.animateSun)
+        .rowFloat(
+            "Sun Animation Speed"
+            , atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed
+            , PropertySliderBehavior{
+                .bounds{ -20.0f, 20.0f },
+            })
+        .rowBoolean(
+            "Skip Night"
+            , atmosphere.animation.skipNight, defaultValues.animation.skipNight)
+        .rowVec3(
+            "Sun Euler Angles"
+            , atmosphere.sunEulerAngles, defaultValues.sunEulerAngles
+            , PropertySliderBehavior{
+                .speed{ 0.1f },
+            })
+        .rowReadOnlyVec3(
+            "Direction to Sun"
+            , atmosphere.directionToSun())
+        .rowVec3(
+            "Ground Diffuse Color"
+            , atmosphere.groundColor, defaultValues.groundColor
+            , PropertySliderBehavior{
+                .bounds{ 0.0f, 1.0f },
+            })
+        .rowFloat(
+            "Earth Radius"
+            , atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters
+            , PropertySliderBehavior{
+                .bounds{ 1.0f, atmosphere.atmosphereRadiusMeters },
+            })
+        .rowFloat(
+            "Atmosphere Radius"
+            , atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters
+            , PropertySliderBehavior{
+                .bounds{ atmosphere.earthRadiusMeters, 1'000'000'000.0f },
+            })
+        .rowVec3(
+            "Rayleigh Scattering Coefficient"
+            , atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh
+            , PropertySliderBehavior{
+                .speed{ 0.001f },
+                .bounds{ 0.0f, 1.0f },
+            })
+        .rowFloat(
+            "Rayleigh Altitude Decay"
+            , atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh
+            , PropertySliderBehavior{
+                .bounds{0.0f, 1'000'000.0f},
+            })
+        .rowVec3(
+            "Mie Scattering Coefficient"
+            , atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie
+            , PropertySliderBehavior{
+                .speed{ 0.001f },
+                .bounds{ 0.0f, 1.0f },
+            })
+        .rowFloat(
+            "Mie Altitude Decay"
+            , atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie
+            , PropertySliderBehavior{
+                .bounds{0.0f, 1'000'000.0f},
+            })
+        .end();
 }
 
 template<>
