@@ -11,6 +11,8 @@
 #include "../engineparams.hpp"
 #include "../shadowpass.hpp"
 
+#include "imgui_internal.h"
+
 void imguiPerformanceWindow(
     std::span<double const> fpsValues
     , double averageFPS
@@ -33,79 +35,6 @@ void imguiPerformanceWindow(
         }
     }
     ImGui::End();
-}
-
-float draggableBar(
-    std::string const id
-    , float currentPosition
-    , bool const horizontal
-    , glm::vec2 const min
-    , glm::vec2 const max
-)
-{
-    ImGuiID const imguiID{ ImGui::GetID(id.c_str()) };
-    static std::optional<ImGuiID> draggedID{};
-
-    ImGuiIO const& imguiIO{ ImGui::GetIO() };
-
-    ImVec2 const mousePosition{ imguiIO.MousePos };
-
-    ImVec2 const boundsMin{
-        horizontal
-        ? ImVec2{ min.x, currentPosition - 4.0f }
-        : ImVec2{ currentPosition - 4.0f, min.y }
-    };
-    ImVec2 const boundsMax{
-        horizontal
-        ? ImVec2{ max.x, currentPosition + 4.0f }
-        : ImVec2{ currentPosition + 4.0f, max.y }
-    };
-
-    bool const mouseInBounds{
-        mousePosition.x >= boundsMin.x
-        && mousePosition.x < boundsMax.x
-        && mousePosition.y >= boundsMin.y
-        && mousePosition.y < boundsMax.y
-    };
-
-    // Track and only drag a single bar
-    if (!draggedID.has_value() && imguiIO.MouseClicked[0] && mouseInBounds)
-    {
-        draggedID = imguiID;
-    }
-
-    bool const dragging{ draggedID.has_value() && draggedID.value() == imguiID };
-
-    // Show indicator on hover or when being dragged
-    if (dragging || mouseInBounds)
-    {
-        ImGui::GetForegroundDrawList()->AddRectFilled(
-            horizontal
-            ? ImVec2{ min.x, currentPosition - 1.0f }
-            : ImVec2{ currentPosition - 1.0f, min.y }
-            , horizontal
-            ? ImVec2{ max.x, currentPosition + 1.0f }
-            : ImVec2{ currentPosition + 1.0f, max.y }
-            , ImGui::ColorConvertFloat4ToU32(ImVec4{ 0.0, 0.0, 1.0, 1.0 })
-        );
-    }
-
-    if (dragging)
-    {
-        if (imguiIO.MouseDown[0])
-        {
-            ImVec2 const mouseDelta{ imguiIO.MouseDelta };
-            currentPosition += horizontal ? mouseDelta.y : mouseDelta.x;
-        }
-        else
-        {
-            draggedID.reset();
-        }
-    }
-
-    return horizontal 
-        ? std::clamp(currentPosition, min.y, max.y)
-        : std::clamp(currentPosition, min.x, max.x);
 }
 
 static void renderPreferences(
@@ -131,206 +60,98 @@ static void renderPreferences(
     ImGui::End();
 }
 
-HUDState renderHUD(
-    glm::vec2 const extent
-    , UIPreferences& preferences
-)
+HUDState renderHUD(UIPreferences& preferences)
 {
     HUDState hud{};
 
-    static bool showPreferences{ false };
-    ImVec2 menuBarSize{};
-    if (ImGui::BeginMainMenuBar())
-    {
-        if (ImGui::BeginMenu("Tools"))
-        {
-            ImGui::MenuItem("Preferences", nullptr, &showPreferences);
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Window"))
-        {
-            ImGui::MenuItem("Reset Window Layout", nullptr, &hud.resetLayoutRequested);
-            ImGui::EndMenu();
-        }
-        menuBarSize = ImGui::GetWindowSize();
-        ImGui::EndMainMenuBar();
-    }
-
-    if (showPreferences) renderPreferences(showPreferences, preferences, hud);
-
-    UIRectangle const belowMenuBarArea{
-        UIRectangle{
-            .min{ 0.0f, menuBarSize.y },
-            .max{ extent },
-        }.clampToMin()
-    };
-    // This is a mutable rectangle we eat away from, so it's easier to avoid overlapping UI
-    UIRectangle workArea{ belowMenuBarArea };
-
-    struct SidebarSizes
-    {
-        float leftWidth;
-        float rightWidth;
-        float bottomHeight;
-    };
-
-    SidebarSizes const initialSidebars{
-        .leftWidth{ glm::min(300.0f, workArea.size().x / 3.0f) },
-        .rightWidth{ glm::min(300.0f, workArea.size().x / 3.0f) },
-        .bottomHeight{ glm::min(300.0f, workArea.size().y / 2.0f) },
-    };
-
-    static SidebarSizes sidebars{ initialSidebars };
-    if (hud.resetLayoutRequested)
-    {
-        sidebars = initialSidebars;
-    }
-
-    float constexpr sidebarMinimumSize{ 30.0f };
-
-    // Determine the sidebars' current state
-
-    { // Left sidebar draggable right side
-        UIRectangle const leftSidebarArea{
-            workArea
-                .shrinkMax(glm::vec2{sidebars.rightWidth, 0.0f})
-                .clampToMin()
-        };
-
-        float const position{ workArea.min.x + sidebars.leftWidth };
-
-        float const newPosition{
-            draggableBar(
-                "##leftSidebarDragRect"
-                , position
-                , false
-                , leftSidebarArea.min
-                , leftSidebarArea.max
-            )
-        };
-
-        sidebars.leftWidth = glm::max(sidebarMinimumSize, newPosition - workArea.min.x);
-        workArea = workArea.shrinkMin(glm::vec2{ sidebars.leftWidth, 0.0f });
-    }
-
-    { // Right sidebar draggable left side
-        UIRectangle const rightSidebarArea{ workArea.clampToMin() };
-
-        float const position{ workArea.max.x - sidebars.rightWidth };
-
-        float const newPosition{
-            draggableBar(
-                "##rightSidebarDragRect"
-                , position
-                , false
-                , rightSidebarArea.min
-                , rightSidebarArea.max
-            )
-        };
-
-        sidebars.rightWidth = glm::max(sidebarMinimumSize, workArea.max.x - newPosition);
-        workArea = workArea.shrinkMax(glm::vec2{ sidebars.rightWidth, 0.0f });
-    }
-
-    { // Bottom sidebar draggable top side
-        UIRectangle const bottomSidebarArea{ workArea.clampToMin() };
-
-        float const position{ workArea.max.y - sidebars.bottomHeight };
-
-        float const newPosition{
-            draggableBar(
-                "##bottomSidebarDragRect"
-                , position
-                , true
-                , bottomSidebarArea.min
-                , bottomSidebarArea.max
-            )
-        };
-
-        sidebars.bottomHeight = glm::max(sidebarMinimumSize, workArea.max.y - newPosition);
-        workArea = workArea.shrinkMax(glm::vec2{ 0.0f, sidebars.bottomHeight });
-    }
-
-    // Draw sidebars
-
-    hud.remainingArea = workArea;
-
-    { // Begin bottom sidebar
-        UIRectangle const bottomSidebar{
-            .min{ belowMenuBarArea.min.x + sidebars.leftWidth, belowMenuBarArea.max.y - sidebars.bottomHeight },
-            .max{ belowMenuBarArea.max.x - sidebars.rightWidth, belowMenuBarArea.max.y },
-        };
-
-        ImGui::SetNextWindowPos(bottomSidebar.pos(), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(bottomSidebar.size(), ImGuiCond_Always);
-
-        ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-        if (ImGui::Begin(
-            "BottomSidebarWindow"
-            , nullptr
-            , ImGuiWindowFlags_None
+    ImGuiViewport& viewport{ *ImGui::GetMainViewport() };
+    { // Create background windw, as a target for docking
+        // These flags ensure the dockspace window is uninteractable and static
+        ImGuiWindowFlags constexpr WINDOW_FLAGS = ImGuiWindowFlags_None
+            | ImGuiWindowFlags_MenuBar
             | ImGuiWindowFlags_NoDocking
-            | ImGuiWindowFlags_NoDecoration
+            | ImGuiWindowFlags_NoDecoration 
             | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoResize
-        ))
+            | ImGuiWindowFlags_NoBringToFrontOnFocus 
+            | ImGuiWindowFlags_NoNavFocus;
+        
+        ImGui::SetNextWindowPos(viewport.WorkPos);
+        ImGui::SetNextWindowSize(viewport.WorkSize);
+        ImGui::SetNextWindowViewport(viewport.ID);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+        static bool showPreferences{ false };
+
+        if (ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS))
         {
-            hud.bottomDock = ImGui::DockSpace(ImGui::GetID("BottomSidebarDock"));
+            if (ImGui::BeginMenuBar())
+            {
+                if (ImGui::BeginMenu("Tools"))
+                {
+                    ImGui::MenuItem("Preferences", nullptr, &showPreferences);
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Window"))
+                {
+                    ImGui::MenuItem("Reset Window Layout", nullptr, &hud.resetLayoutRequested);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
+            }
         }
+
+        hud.dockspaceID = ImGui::DockSpace(ImGui::GetID("BackgroundDockSpace"));
+        hud.workArea = UIRectangle::fromPosSize(
+            ImGui::GetWindowPos()
+            , ImGui::GetWindowSize()
+        );
+
         ImGui::End();
-    } // End bottom sidebar
 
-    { // Begin left sidebar
-        UIRectangle const leftSidebar{
-            .min{ belowMenuBarArea.min },
-            .max{ glm::vec2{ belowMenuBarArea.min.x + sidebars.leftWidth, belowMenuBarArea.max.y }}
-        };
+        ImGui::PopStyleVar(2);
 
-        ImGui::SetNextWindowPos(leftSidebar.pos(), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(leftSidebar.size(), ImGuiCond_Always);
+        if (showPreferences) renderPreferences(showPreferences, preferences, hud);
+    }
 
-        ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-        if (ImGui::Begin(
-            "LeftSidebarWindow"
-            , nullptr
-            , ImGuiWindowFlags_None
-            | ImGuiWindowFlags_NoDocking
-            | ImGuiWindowFlags_NoDecoration
-            | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoResize
-        ))
-        {
-            hud.leftDock = ImGui::DockSpace(ImGui::GetID("LeftSidebarDock"));
-        }
-        ImGui::End();
-    } // End left sidebar
-
-    { // Begin right sidebar
-        UIRectangle const rightSidebar{
-            .min{ glm::vec2{ belowMenuBarArea.max.x - sidebars.rightWidth, belowMenuBarArea.min.y } },
-            .max{ belowMenuBarArea.max },
-        };
-
-        ImGui::SetNextWindowPos(rightSidebar.pos(), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(rightSidebar.size(), ImGuiCond_Always);
-
-        ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-        if (ImGui::Begin(
-            "RightSidebarWindow"
-            , nullptr
-            , ImGuiWindowFlags_None
-            | ImGuiWindowFlags_NoDocking
-            | ImGuiWindowFlags_NoDecoration
-            | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoResize
-        ))
-        {
-            hud.rightDock = ImGui::DockSpace(ImGui::GetID("RightSidebarDock"));
-        }
-        ImGui::End();
-    } // End right sidebar
+    static bool firstLoop{ true };
+    if (firstLoop)
+    {
+        hud.resetLayoutRequested = true;
+        firstLoop = false;
+    }
 
     return hud;
+}
+
+DockingLayout buildLayout(
+    ImVec2 const pos
+    , ImVec2 const size
+    , ImGuiID const parentNode
+)
+{
+    ImGui::DockBuilderAddNode(parentNode);
+
+    // Set the size and position:
+    ImGui::DockBuilderSetNodeSize(parentNode, size);
+    ImGui::DockBuilderSetNodePos(parentNode, pos);
+
+    ImGuiID parentID{ parentNode };
+
+    ImGuiID const leftID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 0.5f, nullptr, &parentID) };
+    ImGuiID const rightID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 0.5f, nullptr, &parentID) };
+    ImGuiID const centerBottomID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 0.5f, nullptr, &parentID) };
+    ImGuiID const centerTopID{ parentID };
+
+    ImGui::DockBuilderFinish(parentNode);
+
+    return DockingLayout{
+        .left{ leftID },
+        .right{ rightID },
+        .centerBottom{ centerBottomID },
+        .centerTop{ centerTopID },
+    };
 }
 
 void imguiMeshInstanceControls(

@@ -910,12 +910,7 @@ void Engine::renderUI(VkDevice const device)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    HUDState const hud{
-        renderHUD(
-            glm::vec2{ m_windowExtent.width, m_windowExtent.height}
-            , m_uiPreferences
-        )
-    };
+    HUDState const hud{ renderHUD(m_uiPreferences) };
 
     m_uiReloadRequested = hud.applyPreferencesRequested;
     if (hud.resetPreferencesRequested)
@@ -930,10 +925,20 @@ void Engine::renderUI(VkDevice const device)
         : ImGuiCond_Appearing 
     };
 
+    std::optional<DockingLayout> dockingLayout{};
+    if (hud.resetLayoutRequested && hud.dockspaceID != 0)
+    {
+        dockingLayout = buildLayout(
+            hud.workArea.pos()
+            , hud.workArea.size()
+            , hud.dockspaceID
+        );
+    }
+
     { // Scene Controls
-        if (hud.rightDock.has_value())
+        if (dockingLayout.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.rightDock.value(), defaultStateCondition);
+            ImGui::SetNextWindowDockID(dockingLayout.value().left);
         }
 
         if (ImGui::Begin("Scene Controls"))
@@ -969,9 +974,9 @@ void Engine::renderUI(VkDevice const device)
     }
 
     { // Engine Controls
-        if (hud.leftDock.has_value())
+        if (dockingLayout.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.leftDock.value(), defaultStateCondition);
+            ImGui::SetNextWindowDockID(dockingLayout.value().right);
         }
 
         if (ImGui::Begin("Engine Controls"))
@@ -1000,24 +1005,35 @@ void Engine::renderUI(VkDevice const device)
     }
 
     { // Performance window
-        if (hud.bottomDock.has_value())
+        if (dockingLayout.has_value())
         {
-            ImGui::SetNextWindowDockID(hud.bottomDock.value(), defaultStateCondition);
+            ImGui::SetNextWindowDockID(dockingLayout.value().centerBottom);
         }
 
         imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
     }
 
-    m_currentDrawRect = VkRect2D{
-        .offset{ VkOffset2D{
-            .x{ static_cast<int32_t>(hud.remainingArea.pos().x) },
-            .y{ static_cast<int32_t>(hud.remainingArea.pos().y) }
-        }},
-        .extent{ VkExtent2D{
-            .width{ static_cast<uint32_t>(hud.remainingArea.size().x) },
-            .height{ static_cast<uint32_t>(hud.remainingArea.size().y) },
-        }},
-    };
+    { // Scene viewport
+        if (dockingLayout.has_value())
+        {
+            ImGui::SetNextWindowDockID(dockingLayout.value().centerTop);
+        }
+
+        if (ImGui::Begin("SceneViewport"))
+        {
+            m_currentDrawRect = VkRect2D{
+                .offset{ VkOffset2D{
+                    .x{ static_cast<int32_t>(ImGui::GetWindowPos().x) },
+                    .y{ static_cast<int32_t>(ImGui::GetWindowPos().y) }
+                }},
+                .extent{ VkExtent2D{
+                    .width{ static_cast<uint32_t>(ImGui::GetWindowSize().x) },
+                    .height{ static_cast<uint32_t>(ImGui::GetWindowSize().y) },
+                }},
+            };
+        }
+        ImGui::End();
+    }
 
     ImGui::Render();
 }

@@ -18,6 +18,17 @@ struct UIRectangle
     glm::vec2 pos() const { return min; }
     glm::vec2 size() const { return max - min; }
 
+    static UIRectangle fromPosSize(
+        glm::vec2 const pos
+        , glm::vec2 const size
+    )
+    {
+        return UIRectangle{
+            .min{ pos },
+            .max{ pos + size },
+        };
+    }
+
     UIRectangle clampToMin() const
     {
         return UIRectangle{
@@ -51,21 +62,32 @@ struct UIRectangle
 
 struct HUDState
 {
-    UIRectangle remainingArea{};
+    UIRectangle workArea{};
+    UIRectangle sceneViewport{};
+    ImGuiID dockspaceID{};
 
     bool resetLayoutRequested{ false };
 
     bool resetPreferencesRequested{ false };
     bool applyPreferencesRequested{ false };
-
-    std::optional<ImGuiID> leftDock{};
-    std::optional<ImGuiID> rightDock{};
-    std::optional<ImGuiID> bottomDock{};
 };
 
-HUDState renderHUD(
-    glm::vec2 extent
-    , UIPreferences& preferences
+HUDState renderHUD(UIPreferences& preferences);
+
+struct DockingLayout
+{
+    ImGuiID left{};
+    ImGuiID right{};
+    ImGuiID centerBottom{};
+    ImGuiID centerTop{};
+};
+
+// Builds a hardcoded hierarchy of docking nodes from the passed parent.
+// This also may break layouts, if windows have been moved or docked, since all new IDs are generated.
+DockingLayout buildLayout(
+    ImVec2 pos
+    , ImVec2 size
+    , ImGuiID parentNode
 );
 
 template<typename T>
@@ -92,12 +114,4 @@ void imguiPerformanceWindow(
     double averageFPS, 
     size_t currentFrame,
     float& targetFPS
-);
-
-float draggableBar(
-    std::string id
-    , float initialPosition
-    , bool horizontal // false = vertical
-    , glm::vec2 min
-    , glm::vec2 max
 );
