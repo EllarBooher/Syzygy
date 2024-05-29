@@ -870,13 +870,20 @@ void Engine::mainLoop()
                 resizeSwapchain();
             }
 
-            renderUI(m_device);
+            if (renderUI(m_device))
+            {
+                // For some reason, ImGui gives visual artifacts for two frames when resetting certain docking states.
+                // We force updating to flush these through.
+                // TODO: fix this
+                renderUI(m_device);
+                renderUI(m_device);
+            }
             draw();
         }
     }
 }
 
-void Engine::renderUI(VkDevice const device)
+bool Engine::renderUI(VkDevice const device)
 {
     if (m_uiReloadRequested)
     {
@@ -919,12 +926,7 @@ void Engine::renderUI(VkDevice const device)
         m_uiReloadRequested = true;
     }
 
-    ImGuiCond const defaultStateCondition{ 
-        hud.resetLayoutRequested 
-        ? ImGuiCond_Always 
-        : ImGuiCond_Appearing 
-    };
-
+    bool skipFrame{ false };
     std::optional<DockingLayout> dockingLayout{};
     if (hud.resetLayoutRequested && hud.dockspaceID != 0)
     {
@@ -933,6 +935,7 @@ void Engine::renderUI(VkDevice const device)
             , hud.workArea.size()
             , hud.dockspaceID
         );
+        skipFrame = true;
     }
 
     { // Scene Controls
@@ -1036,6 +1039,7 @@ void Engine::renderUI(VkDevice const device)
     }
 
     ImGui::Render();
+    return skipFrame;
 }
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)

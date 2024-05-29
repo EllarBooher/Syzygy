@@ -49,7 +49,7 @@ private:
     void initVulkan();
 
     void tickWorld(double totalTime, double deltaTimeSeconds);
-    void renderUI(VkDevice device);
+    bool renderUI(VkDevice device);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);

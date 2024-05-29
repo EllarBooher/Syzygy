@@ -81,6 +81,7 @@ HUDState renderHUD(UIPreferences& preferences)
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
         static bool showPreferences{ false };
 
@@ -102,15 +103,15 @@ HUDState renderHUD(UIPreferences& preferences)
             }
         }
 
-        hud.dockspaceID = ImGui::DockSpace(ImGui::GetID("BackgroundDockSpace"));
         hud.workArea = UIRectangle::fromPosSize(
-            ImGui::GetWindowPos()
-            , ImGui::GetWindowSize()
+            ImGui::GetCursorPos()
+            , ImGui::GetContentRegionAvail()
         );
+        hud.dockspaceID = ImGui::DockSpace(ImGui::GetID("BackgroundDockSpace"));
 
         ImGui::End();
 
-        ImGui::PopStyleVar(2);
+        ImGui::PopStyleVar(3);
 
         if (showPreferences) renderPreferences(showPreferences, preferences, hud);
     }
