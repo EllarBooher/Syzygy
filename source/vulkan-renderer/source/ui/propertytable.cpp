@@ -28,18 +28,20 @@ bool PropertyTable::resetColumn(std::string const name, bool visible)
 
 PropertyTable PropertyTable::begin(std::string const name)
 {
+    // Using a default name synchronizes the tables across the window.
     ImGui::BeginTable(
         name.c_str()
         , 3
         , ImGuiTableFlags_None
         | ImGuiTableFlags_BordersInner
+        | ImGuiTableFlags_Resizable
     );
 
-    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize);
     ImGui::TableSetupColumn(
         "Reset"
-        , ImGuiTableColumnFlags_WidthFixed
+        , ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize
         , ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::CalcTextSize("<-").x
     );
 
@@ -52,6 +54,67 @@ void PropertyTable::end()
 {
     ImGui::PopStyleVar(m_styleVariablesCount);
     ImGui::EndTable();
+}
+
+PropertyTable& PropertyTable::rowChildProperty(std::string const& name, bool& collapsed)
+{
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGuiDir const direction{
+        collapsed
+        ? ImGuiDir_Right
+        : ImGuiDir_Down
+    };
+    if (ImGui::ArrowButton(fmt::format("{}##arrowButton", name).c_str(), direction))
+    {
+        collapsed = !collapsed;
+    }
+
+    return *this;
+}
+
+PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::string const& value)
+{
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
+    ImGui::TextWrapped(value.c_str());
+
+    return *this;
+}
+
+PropertyTable& PropertyTable::rowReadOnlyInteger(
+    std::string const& name
+    , int32_t const& value
+)
+{
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::BeginDisabled();
+
+    int32_t valueCopy{ value };
+    ImGui::DragInt(
+        fmt::format("##{}", name).c_str()
+        , &valueCopy
+        , 0
+        , 0
+        , 0
+        , "%u"
+        , ImGuiSliderFlags_None
+    );
+
+    ImGui::EndDisabled();
+
+    return *this;
 }
 
 PropertyTable& PropertyTable::rowVec3(std::string const& name, glm::vec3& value, glm::vec3 const& resetValue, PropertySliderBehavior const behavior)

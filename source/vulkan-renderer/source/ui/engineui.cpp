@@ -217,120 +217,6 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     }
 }
 
-static bool RightJustifiedButton(std::string const& label, std::string const& suffix)
-{
-    std::string const fullLabel = fmt::format("{}##{}", label, suffix);
-    ImVec2 const textSize{ ImGui::CalcTextSize(fullLabel.c_str(), nullptr, true) };
-
-    float const buttonWidth{ textSize.x + 20.0f };
-
-    ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
-    return ImGui::SmallButton(fullLabel.c_str());
-}
-
-template<typename T>
-static void ResetButton(std::string const& label, T& value, T const& defaultValue)
-{
-    if (RightJustifiedButton("Reset", label))
-    {
-        value = defaultValue;
-    }
-}
-
-static void DragScalarFloats(
-    std::string const& label
-    , std::span<float> const values
-    , float const speed
-    , std::optional<float> const min
-    , std::optional<float> const max
-    , ImGuiSliderFlags const flags = 0
-    , std::string const format = "%f"
-)
-{
-    ImGui::DragScalarN(
-        label.c_str()
-        , ImGuiDataType_Float
-        , values.data(), values.size()
-        , speed
-        , min.has_value() ? &min.value() : nullptr
-        , max.has_value() ? &max.value() : nullptr
-        , format.c_str()
-        , flags
-    );
-}
-
-template<typename T>
-struct is_glm_vec : std::false_type
-{};
-
-template<size_t N, typename T>
-struct is_glm_vec<glm::vec<N, T>> : std::is_same<T, float>
-{};
-
-template<typename T>
-static void DragScalarFloats(
-    std::string const& label
-    , T& values
-    , float const speed
-    , ImGuiSliderFlags const flags = 0
-    , std::string const format = "%f"
-)
-{
-    static_assert(sizeof(T) % 4 == 0);
-    static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
-    size_t constexpr N = sizeof(T) / 4;
-    DragScalarFloats(
-        label
-        , std::span<float>(reinterpret_cast<float*>(&values), N)
-        , speed
-        , std::nullopt
-        , std::nullopt
-        , flags
-        , format
-    );
-}
-
-template<typename T>
-static void DragScalarFloats(
-    std::string const& label
-    , T& values
-    , std::tuple<float,float> const bounds 
-    , ImGuiSliderFlags const flags = 0
-    , std::string const format = "%f"
-)
-{
-    static_assert(sizeof(T) % 4 == 0);
-    static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
-    size_t constexpr N = sizeof(T) / 4;
-
-    float constexpr speed = 0.0f;
-
-    DragScalarFloats(
-        label
-        , std::span<float>(reinterpret_cast<float*>(&values), N)
-        , speed
-        , std::get<0>(bounds)
-        , std::get<1>(bounds)
-        , flags
-        , format
-    );
-}
-
-// Templating for value types that cannot be implicitely converted to span of floats.
-template<typename T>
-static void FractionalCoefficientSlider(std::string const& label, T& values)
-{
-    auto const range{ std::make_tuple<float,float>(0.0, 1.0) };
-
-    DragScalarFloats(
-        label
-        , values
-        , range
-        , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
-        , "%.8f"
-    );
-}
-
 template<>
 void imguiStructureControls<AtmosphereParameters>(
     AtmosphereParameters& atmosphere
@@ -342,7 +228,7 @@ void imguiStructureControls<AtmosphereParameters>(
         return;
     }
 
-    PropertyTable::begin("Atmosphere")
+    PropertyTable::begin()
         .rowBoolean(
             "Animate Sun"
             , atmosphere.animation.animateSun, defaultValues.animation.animateSun)
@@ -417,27 +303,43 @@ void imguiStructureControls<CameraParameters>(
     , CameraParameters const& defaultValues
 )
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Camera Parameters");
-    ResetButton("cameraParameters", structure, defaultValues);
+    if (!ImGui::CollapsingHeader("Camera Parameters", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
 
-    ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
-    ResetButton("cameraPosition", structure.cameraPosition, defaultValues.cameraPosition);
-
-    DragScalarFloats("eulerAngles", structure.eulerAngles, { glm::radians(-180.0f), glm::radians(180.0f) });
-    ResetButton("eulerAngles", structure.eulerAngles, defaultValues.eulerAngles);
-    structure.eulerAngles.x = glm::clamp(structure.eulerAngles.x, -glm::radians(90.0f), glm::radians(90.0f));
-
-    DragScalarFloats("fov", structure.fov, { 0.0f, 180.0f }, 0, "%.0f");
-    ResetButton("fov", structure.fov, defaultValues.fov);
-
-    DragScalarFloats("nearPlane", structure.near, { 0.01f, structure.far }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
-    ResetButton("nearPlane", structure.near, std::min(structure.far, defaultValues.near));
-
-    DragScalarFloats("farPlane", structure.far, { structure.near + 0.01f, 1'000'000.0f }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
-    ResetButton("farPlane", structure.far, std::max(structure.near, defaultValues.far));
-
-    ImGui::EndGroup();
+    PropertyTable::begin()
+        .rowVec3(
+            "Camera Position"
+            , structure.cameraPosition, defaultValues.cameraPosition
+            , PropertySliderBehavior{
+                .speed{ 1.0f }
+            })
+        .rowVec3(
+            "Euler Angles"
+            , structure.eulerAngles, defaultValues.eulerAngles
+            , PropertySliderBehavior{
+                .bounds{ -glm::pi<float>(), glm::pi<float>() }
+            })
+        .rowFloat(
+            "Field of View"
+            , structure.fov, defaultValues.fov
+            , PropertySliderBehavior{
+                .bounds{ 0.01f, 179.99f }
+            })
+        .rowFloat(
+            "Near Plane"
+            , structure.near, std::min(structure.far, defaultValues.near)
+            , PropertySliderBehavior{
+                .bounds{ 0.01f, structure.far }
+            })
+        .rowFloat(
+            "Far Plane"
+            , structure.far, std::max(structure.near, defaultValues.far)
+            , PropertySliderBehavior{
+                .bounds{ structure.near + 0.01f, 1'000'000.0f }
+            })
+        .end();
 }
 
 template<>
@@ -478,20 +380,46 @@ void imguiStructureControls<DebugLines>(
     DebugLines& structure
 )
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Debug Lines");
+    if (!ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
 
-    ImGui::BeginDisabled(!structure.pipeline || !structure.indices || !structure.vertices);
-    ImGui::Checkbox("enabled", &structure.enabled);
-    ResetButton("enabled", structure.enabled, false);
-    ImGui::EndDisabled();
+    auto table{ PropertyTable::begin() };
+        
+    table.rowReadOnlyText("Pipeline", fmt::format("0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get())))
+        .rowReadOnlyInteger("Indices on GPU", structure.indices.get() ? structure.indices->deviceSize() : 0)
+        .rowReadOnlyInteger("Vertices on GPU", structure.vertices.get() ? structure.vertices->deviceSize() : 0);
 
-    DragScalarFloats("lineWidth", structure.lineWidth, { 1.0, 10.0 });
-    ResetButton("lineWidth", structure.lineWidth, 1.0f);
+    if (!structure.pipeline || !structure.indices || !structure.vertices)
+    {
+        table.rowReadOnlyBoolean("Enabled", structure.enabled);
+    }
+    else
+    {
+        table.rowBoolean("Enabled", structure.enabled, false);
+    }
 
-    imguiStructureDisplay(structure.lastFrameDrawResults);
+    table.rowFloat("Line Width", structure.lineWidth, 1.0f, PropertySliderBehavior{
+        .bounds{ 0.0f, 100.0f }
+    });
 
-    ImGui::EndGroup();
+    static bool collapseDrawResults{ true };
+
+    table.rowChildProperty("Draw Results", collapseDrawResults);
+    
+    if (!collapseDrawResults)
+    {
+        DrawResultsGraphics const drawResults{ structure.lastFrameDrawResults };
+
+        ImGui::Indent(10.0f);
+        table.rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
+            .rowReadOnlyInteger("Vertices Drawn", drawResults.verticesDrawn)
+            .rowReadOnlyInteger("Indices Drawn", drawResults.indicesDrawn);
+        ImGui::Unindent(10.0f);
+    }
+
+    table.end();
 }
 
 template<>
@@ -500,22 +428,28 @@ void imguiStructureControls<ShadowPassParameters>(
     , ShadowPassParameters const& defaultValues
 )
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Shadow Pass Parameters");
-    ResetButton("shadowPassParameters", structure, defaultValues);
+    if (!ImGui::CollapsingHeader("Shadow Pass Parameters", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
 
-    ImGui::DragFloat("Depth Bias Constant", &structure.depthBiasConstant);
-    ResetButton("depthBiasConstant", structure.depthBiasConstant, defaultValues.depthBiasConstant);
-
-    ImGui::Text("Depth Bias Clamp is not supported."); // TODO: support depth bias clamp
-    ImGui::BeginDisabled();
-    ResetButton("depthBiasClamp", structure, defaultValues);
-    ImGui::EndDisabled();
-
-    ImGui::DragFloat("Depth Bias Slope", &structure.depthBiasSlope);
-    ResetButton("depthBiasSlope", structure.depthBiasSlope, defaultValues.depthBiasSlope);
-
-    ImGui::EndGroup();
+    PropertyTable::begin()
+        .rowFloat(
+            "Depth Bias Constant"
+            , structure.depthBiasConstant, defaultValues.depthBiasConstant
+            , PropertySliderBehavior{
+                .speed{0.01f}
+            })
+        .rowReadOnlyBoolean(
+            "Depth Bias Clamp"
+            , false)
+        .rowFloat(
+            "Depth Bias Slope"
+            , structure.depthBiasSlope, defaultValues.depthBiasSlope
+            , PropertySliderBehavior{
+                .speed{0.01f}
+            })
+        .end();
 }
 
 template<>
@@ -524,15 +458,23 @@ void imguiStructureControls<SceneBounds>(
     , SceneBounds const& defaultValues
 )
 {
-    ImGui::BeginGroup();
-    ImGui::Text("Scene Bounds");
-    ResetButton("sceneBounds", structure, defaultValues);
+    if (!ImGui::CollapsingHeader("Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
 
-    ImGui::DragFloat3("Scene Center", reinterpret_cast<float*>(&structure.center));
-    ResetButton("sceneCenter", structure.center, defaultValues.center);
-
-    ImGui::DragFloat3("Scene Extent", reinterpret_cast<float*>(&structure.extent));
-    ResetButton("sceneExtent", structure.extent, defaultValues.extent);
-
-    ImGui::EndGroup();
+    PropertyTable::begin()
+        .rowVec3(
+            "Scene Center"
+            , structure.center, defaultValues.center
+            , PropertySliderBehavior{
+                .speed{1.0f}
+            })
+        .rowVec3(
+            "Scene Extent"
+            , structure.extent, defaultValues.extent
+            , PropertySliderBehavior{
+                .speed{1.0f}
+            })
+        .end();
 }

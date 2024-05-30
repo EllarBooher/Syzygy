@@ -44,9 +44,24 @@ private:
     );
 
 public:
-    static PropertyTable begin(std::string name);
+    static PropertyTable begin(std::string name = "PropertyTable");
 
     void end();
+
+    PropertyTable& rowChildProperty(
+        std::string const& name
+        , bool& collapsed
+    );
+
+    PropertyTable& rowReadOnlyText(
+        std::string const& name
+        , std::string const& value
+    );
+
+    PropertyTable& rowReadOnlyInteger(
+        std::string const& name
+        , int32_t const& value
+    );
 
     PropertyTable& rowVec3(
         std::string const& name
