@@ -1,8 +1,10 @@
 #include "propertytable.hpp"
 
-#include "imgui_internal.h"
+#include <imgui_internal.h>
+#include <misc/cpp/imgui_stdlib.h>
 
 #include <unordered_map>
+#include <array>
 
 void PropertyTable::nameColumn(std::string const name)
 {
@@ -103,6 +105,7 @@ PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
         }
     }
     
+    ImGui::PushID(m_childPropertyDepth);
     m_childPropertyDepth += 1;
     ImGui::Indent(ImGui::GetStyle().IndentSpacing);
 
@@ -117,8 +120,9 @@ PropertyTable& PropertyTable::rowChildPropertyEnd()
         && "rowChildPropertyEnd() called on PropertyTable with no matching rowChildPropertyBegin()"
     );
 
-    m_childPropertyDepth -= 1;
     ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
+    m_childPropertyDepth -= 1;
+    ImGui::PopID();
 
     if (m_childPropertyFirstCollapse.has_value()
         && m_childPropertyFirstCollapse.value() >= m_childPropertyDepth)
@@ -189,6 +193,31 @@ PropertyTable& PropertyTable::rowDropdown(
     return *this;
 }
 
+PropertyTable& PropertyTable::rowText(std::string const& name, std::string& value, std::string const& resetValue)
+{
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    
+    ImGui::InputText(
+        fmt::format("##{}", name).c_str()
+        , &value
+    );
+
+    if (Self::resetColumn(name, value != resetValue))
+    {
+        value = resetValue;
+    }
+
+    return *this;
+}
+
 PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::string const& value)
 {
     checkInvariant();
@@ -202,6 +231,36 @@ PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::stri
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
     ImGui::TextWrapped(value.c_str());
+
+    return *this;
+}
+
+PropertyTable& PropertyTable::rowInteger(
+    std::string const& name
+    , int32_t& value
+    , int32_t const& resetValue
+    , PropertySliderBehavior const behavior
+)
+{
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+    ImGui::DragInt(
+        fmt::format("##{}", name).c_str()
+        , &value
+        , behavior.speed
+        , std::ceil(behavior.bounds.min)
+        , std::floor(behavior.bounds.max)
+        , "%i"
+        , behavior.flags
+    );
 
     return *this;
 }
@@ -229,7 +288,7 @@ PropertyTable& PropertyTable::rowReadOnlyInteger(
         , 0
         , 0
         , 0
-        , "%u"
+        , "%i"
         , ImGuiSliderFlags_None
     );
 
@@ -423,64 +482,125 @@ void PropertyTable::demoWindow()
     }
 
     static bool valueBoolean{ false };
+
+    static int32_t valueBoundedInteger{ 0 };
     static float valueBoundedFloat{ 0.0f };
-    static float valueUnboundedFloat{ 0.0f };
-    static float valueUnboundedFloat2{ 0.0f };
     static glm::vec3 valueBoundedVec3{ 0.0f };
+
     static glm::vec3 valueUnboundedVec3{ 0.0f };
+    static int32_t valueUnboundedInteger{ 0 };
+    static float valueUnboundedFloat{ 0.0f };
+
+    static float valueUnboundedFloat2{ 0.0f };
 
     static float minimumBound{ -1.0f };
     static float maximumBound{ 1.0f };
 
+    static std::string valueText{"Default Text Value"};
+
+    static size_t dropdownIndex{ 0 };
+    auto const dropdownLabels{
+        std::to_array<std::string>(
+        {
+            "First!"
+            , "Second!"
+            , "Third!"
+            , "Fourth!"
+        })
+    };
+
     PropertyTable::begin("Demo Table")
-        .rowBoolean(
-            "Boolean"
-            , valueBoolean, false)
-        .rowReadOnlyBoolean(
-            "Read-Only Boolean"
-            , true)
-        .rowFloat(
-            "Bounds Minimum"
-            , minimumBound, -1.0f
-            , PropertySliderBehavior{ 
-                .speed{1.0f} 
-            })
-        .rowFloat(
-            "Bounds Maximum"
-            , maximumBound, 1.0f
-            , PropertySliderBehavior{
-                .speed{1.0f}
-            })
-        .rowFloat(
-            "Bounded Float"
-            , valueBoundedFloat, 0.0f
-            , PropertySliderBehavior{
-                .bounds{ minimumBound, maximumBound },
-            })
-        .rowVec3(
-            "Bounded Vec3"
-            , valueBoundedVec3, glm::vec3{ 0.0f }
-            , PropertySliderBehavior{
-                .bounds{ minimumBound, maximumBound },
-            })
-        .rowFloat(
-            "Unbounded Float"
-            , valueUnboundedFloat, 0.0f
-            , PropertySliderBehavior{
-                .speed{ 1.0f },
-            })
-        .rowVec3(
-            "Unbounded Vec3"
-            , valueUnboundedVec3, glm::vec3{ 0.0f }
-            , PropertySliderBehavior{
-                .speed{ 0.1f },
-            })
-        .rowReadOnlyFloat(
-            "Read Only Float"
-            , 1.0f)
-        .rowReadOnlyVec3(
-            "Read-Only Vec3"
-            , glm::vec3{ 1.0f })
+        .rowChildPropertyBegin("Available Fields")
+            .rowDropdown(
+                "Dropdown"
+                , dropdownIndex
+                , 0
+                , dropdownLabels
+            )
+            .rowText(
+                "Text"
+                , valueText
+                , "Default Text Value"
+            )
+            .rowReadOnlyInteger(
+                "Text Size"
+                , valueText.size()
+            )
+            .rowReadOnlyInteger(
+                "Text Capacity"
+                , valueText.capacity()
+            )
+            .rowReadOnlyText(
+                "Read-Only Text"
+                , "Hello!"
+            )
+            .rowBoolean(
+                "Boolean"
+                , valueBoolean, false)
+            .rowReadOnlyBoolean(
+                "Read-Only Boolean"
+                , true)
+            .rowFloat(
+                "Bounds Minimum"
+                , minimumBound, -1.0f
+                , PropertySliderBehavior{ 
+                    .speed{1.0f} 
+                })
+            .rowFloat(
+                "Bounds Maximum"
+                , maximumBound, 1.0f
+                , PropertySliderBehavior{
+                    .speed{1.0f}
+                })
+            .rowInteger(
+                "Bounded Integer"
+                , valueBoundedInteger
+                , 0
+                , PropertySliderBehavior{
+                    .bounds{ minimumBound, maximumBound },
+                })
+            .rowFloat(
+                "Bounded Float"
+                , valueBoundedFloat, 0.0f
+                , PropertySliderBehavior{
+                    .bounds{ minimumBound, maximumBound },
+                })
+            .rowVec3(
+                "Bounded Vec3"
+                , valueBoundedVec3, glm::vec3{ 0.0f }
+                , PropertySliderBehavior{
+                    .bounds{ minimumBound, maximumBound },
+                })
+            .rowInteger(
+                "Unbounded Integer"
+                , valueUnboundedInteger
+                , 0
+                , PropertySliderBehavior{
+                    .speed{ 1.0f },
+                })
+            .rowFloat(
+                "Unbounded Float"
+                , valueUnboundedFloat, 0.0f
+                , PropertySliderBehavior{
+                    .speed{ 1.0f },
+                })
+            .rowVec3(
+                "Unbounded Vec3"
+                , valueUnboundedVec3, glm::vec3{ 0.0f }
+                , PropertySliderBehavior{
+                    .speed{ 0.1f },
+                })
+            .rowReadOnlyFloat(
+                "Read Only Float"
+                , 1.0f)
+            .rowReadOnlyVec3(
+                "Read-Only Vec3"
+                , glm::vec3{ 1.0f })
+            .rowReadOnlyInteger(
+                "Read-Only Integer"
+                , 592181
+            )
+        .rowChildPropertyEnd() // Available Fields
         .rowChildPropertyBegin("Children")
             .rowFloat("Unbounded Float"
                 , valueUnboundedFloat2
@@ -488,7 +608,6 @@ void PropertyTable::demoWindow()
                 , PropertySliderBehavior{
                     .speed{ 1.0f },
                 })
-            .rowReadOnlyText("", "The above float demonstrates that despite having the same name as another field in the parent, their values do not interact.")
             .rowChildPropertyBegin("Properties")
                 .rowChildPropertyBegin("Remember")
                     .rowReadOnlyText("Hello", "")

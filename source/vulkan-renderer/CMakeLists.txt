@@ -52,7 +52,7 @@ add_library(imgui
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-
+	${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 # Backends
 	${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
 	${IMGUI_BACKENDS_DIR}/imgui_impl_vulkan.cpp

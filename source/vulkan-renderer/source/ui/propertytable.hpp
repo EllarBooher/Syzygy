@@ -100,10 +100,25 @@ public:
         , std::span<std::string const> displayValues
     );
 
+    // Adds a row that contains an interactable text entry, alongside a reset button.
+    PropertyTable& rowText(
+        std::string const& name
+        , std::string& value
+        , std::string const& resetValue
+    );
+
     // Adds a row that contains some read only text.
     PropertyTable& rowReadOnlyText(
         std::string const& name
         , std::string const& value
+    );
+
+    // Adds a row that contains an interactable 32-bit signed integer entry, alongside a reset button.
+    PropertyTable& rowInteger(
+        std::string const& name
+        , int32_t& value
+        , int32_t const& resetValue
+        , PropertySliderBehavior const behavior
     );
 
     // Adds a row that contains a read only integer.
@@ -112,7 +127,7 @@ public:
         , int32_t const& value
     );
 
-    // Adds a row that contains an interactable vec3 entry, alongside a reset button.
+    // Adds a row that contains an interactable three-float vector entry, alongside a reset button.
     PropertyTable& rowVec3(
         std::string const& name
         , glm::vec3& value
@@ -120,7 +135,7 @@ public:
         , PropertySliderBehavior const behavior
     );
 
-    // Adds a row that contains a non-interactable vec3 entry.
+    // Adds a row that contains a non-interactable three-float vector entry.
     PropertyTable& rowReadOnlyVec3(
         std::string const& name
         , glm::vec3 const& value
