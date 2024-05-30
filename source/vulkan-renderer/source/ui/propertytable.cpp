@@ -425,6 +425,7 @@ void PropertyTable::demoWindow()
     static bool valueBoolean{ false };
     static float valueBoundedFloat{ 0.0f };
     static float valueUnboundedFloat{ 0.0f };
+    static float valueUnboundedFloat2{ 0.0f };
     static glm::vec3 valueBoundedVec3{ 0.0f };
     static glm::vec3 valueUnboundedVec3{ 0.0f };
 
@@ -480,6 +481,23 @@ void PropertyTable::demoWindow()
         .rowReadOnlyVec3(
             "Read-Only Vec3"
             , glm::vec3{ 1.0f })
+        .rowChildPropertyBegin("Children")
+            .rowFloat("Unbounded Float"
+                , valueUnboundedFloat2
+                , 0.0f
+                , PropertySliderBehavior{
+                    .speed{ 1.0f },
+                })
+            .rowReadOnlyText("", "The above float demonstrates that despite having the same name as another field in the parent, their values do not interact.")
+            .rowChildPropertyBegin("Properties")
+                .rowChildPropertyBegin("Remember")
+                    .rowReadOnlyText("Hello", "")
+                .rowChildPropertyEnd() // Remember
+                .rowChildPropertyBegin("Collapse Status")
+                    .rowReadOnlyText("Hello", "")
+                .rowChildPropertyEnd() // Collapse Status
+            .rowChildPropertyEnd() // Properties
+        .rowChildPropertyEnd() // Children
         .end();
 
     ImGui::End(); // End window

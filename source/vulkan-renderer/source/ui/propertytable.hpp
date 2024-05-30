@@ -75,19 +75,24 @@ private:
     }
 
 public:
-    // Using a default name synchronizes the tables across the window.
+    // Creates a separate window, that demonstrates PropertyTable usage.
+    static void demoWindow();
+
+    // Using the default name synchronizes the table's column widths (and possibly other properties) across the window.
     static PropertyTable begin(std::string name = "PropertyTable");
 
     void end();
 
     // Adds an arrow button. 
     // Further calls to row drawing methods will be skipped until rowChildPropertyEnd is called,
-    // depending on if the resulting button is collapsed or not.
+    // depending on if this rows button is collapsed or not. This is tracked internally.
+    // This also adds proper styling and indenting.
     PropertyTable& rowChildPropertyBegin(std::string const& name);
 
-    // There must have been a corresponding call to rowChildPropertyBegin before calling this method.
+    // A corresponding PropertyTable::rowChildPropertyBegin must have been called.
     PropertyTable& rowChildPropertyEnd();
 
+    // Adds a row that contains a dropdown, containing a list of values, with a reset button.
     PropertyTable& rowDropdown(
         std::string const& name
         , size_t& selectedIndex
@@ -95,16 +100,19 @@ public:
         , std::span<std::string const> displayValues
     );
 
+    // Adds a row that contains some read only text.
     PropertyTable& rowReadOnlyText(
         std::string const& name
         , std::string const& value
     );
 
+    // Adds a row that contains a read only integer.
     PropertyTable& rowReadOnlyInteger(
         std::string const& name
         , int32_t const& value
     );
 
+    // Adds a row that contains an interactable vec3 entry, alongside a reset button.
     PropertyTable& rowVec3(
         std::string const& name
         , glm::vec3& value
@@ -112,11 +120,13 @@ public:
         , PropertySliderBehavior const behavior
     );
 
+    // Adds a row that contains a non-interactable vec3 entry.
     PropertyTable& rowReadOnlyVec3(
         std::string const& name
         , glm::vec3 const& value
     );
 
+    // Adds a row that contains an interactable float entry, alongside a reset button.
     PropertyTable& rowFloat(
         std::string const& name
         , float& value
@@ -124,23 +134,24 @@ public:
         , PropertySliderBehavior const behavior
     );
 
+    // Adds a row that contains a non-interactable float entry.
     PropertyTable& rowReadOnlyFloat(
         std::string const& name
         , float const& value
     );
 
+    // Adds a row that contains an interactable boolean entry, alongside a reset button.
     PropertyTable& rowBoolean(
         std::string const& name
         , bool& value
         , bool const& resetValue
     );
 
+    // Adds a row that contains a non-interactable float entry.
     PropertyTable& rowReadOnlyBoolean(
         std::string const& name
         , bool const& value
     );
-
-    static void demoWindow();
 };
 
 
