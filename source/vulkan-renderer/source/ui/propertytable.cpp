@@ -69,11 +69,11 @@ PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
 
     checkInvariant();
 
-    ImGui::TableNextRow();
-
     bool const hideRow{ hideNextRow() };
     if (!hideRow)
     {
+        ImGui::TableNextRow();
+
         Self::nameColumn(name);
 
         ImGui::TableSetColumnIndex(VALUE_INDEX);
