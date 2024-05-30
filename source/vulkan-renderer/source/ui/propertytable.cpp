@@ -76,6 +76,62 @@ PropertyTable& PropertyTable::rowChildProperty(std::string const& name, bool& co
     return *this;
 }
 
+PropertyTable& PropertyTable::rowDropdown(
+    std::string const& name
+    , size_t& selectedIndex
+    , size_t const& defaultIndex
+    , std::span<std::string const> displayValues
+)
+{
+    ImGui::TableNextRow();
+
+    Self::nameColumn(name);
+
+    if (selectedIndex >= displayValues.size())
+    {
+        selectedIndex = 0;
+    }
+
+    std::string const& previewValue{ 
+        displayValues.empty() 
+        ? "No Possible Values." 
+        : displayValues[selectedIndex] 
+    };
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+    ImGui::BeginDisabled(displayValues.empty());
+    if (ImGui::BeginCombo(fmt::format("##{}combo", name).c_str(), previewValue.c_str()))
+    {
+        size_t index{ 0 };
+        for (std::string const& displayValue : displayValues)
+        {
+            bool isSelected{ index == selectedIndex };
+            if (ImGui::Selectable(displayValue.c_str(), isSelected))
+            {
+                selectedIndex = index;
+            }
+
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+
+            index += 1;
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::EndDisabled();
+
+    if (Self::resetColumn(name, selectedIndex != defaultIndex))
+    {
+        selectedIndex = defaultIndex;
+    }
+
+    return *this;
+}
+
 PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::string const& value)
 {
     ImGui::TableNextRow();

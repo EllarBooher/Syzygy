@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <fmt/format.h>
 #include <glm/vec3.hpp>
+#include <span>
 
 struct FloatBounds
 {
@@ -51,6 +52,13 @@ public:
     PropertyTable& rowChildProperty(
         std::string const& name
         , bool& collapsed
+    );
+
+    PropertyTable& rowDropdown(
+        std::string const& name
+        , size_t& selectedIndex
+        , size_t const& defaultIndex
+        , std::span<std::string const> displayValues
     );
 
     PropertyTable& rowReadOnlyText(

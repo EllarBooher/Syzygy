@@ -179,25 +179,18 @@ void imguiMeshInstanceControls(
     , size_t& meshIndexSelected
 )
 {
-    ImGui::Checkbox("Render Mesh Instances", &shouldRender);
-    ImGui::Indent(10.0f);
-    ImGui::BeginDisabled(!shouldRender);
+    std::vector<std::string> meshNames{};
+    for (std::shared_ptr<MeshAsset> asset : meshes)
     {
-        ImGui::Text("Select loaded mesh to use:");
-        size_t meshIndex{ 0 };
-        for (std::shared_ptr<MeshAsset> asset : meshes)
-        {
-            MeshAsset const& mesh{ *asset };
+        MeshAsset const& mesh{ *asset };
 
-            if (ImGui::RadioButton(mesh.name.c_str(), meshIndexSelected == meshIndex))
-            {
-                meshIndexSelected = meshIndex;
-            }
-            meshIndex += 1;
-        }
+        meshNames.push_back(mesh.name);
     }
-    ImGui::EndDisabled();
-    ImGui::Unindent(10.0f);
+
+    PropertyTable::begin()
+        .rowBoolean("Render Mesh Instances", shouldRender, true)
+        .rowDropdown("Mesh", meshIndexSelected, 0, meshNames)
+        .end();
 }
 
 static std::vector<std::tuple<RenderingPipelines, std::string>> renderingPipelineLabels{
