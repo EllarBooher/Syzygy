@@ -4,6 +4,7 @@
 #include <fmt/format.h>
 #include <glm/vec3.hpp>
 #include <span>
+#include <optional>
 
 struct FloatBounds
 {
@@ -33,6 +34,13 @@ private:
 
     bool m_open{ false };
 
+    size_t m_childPropertyDepth{ 0 };
+
+    // The depth at which we first collapsed. If no value is set, we are not collapsed.
+    // We track this so when nesting child properties within a collapsed child, we can see when to stop being
+    // collapsed.
+    std::optional<size_t> m_childPropertyFirstCollapse{ std::nullopt };
+
     PropertyTable() = delete;
     explicit PropertyTable(uint16_t styleVariables)
         : m_styleVariablesCount(styleVariables)
@@ -48,16 +56,37 @@ private:
         , bool visible
     );
 
+    void checkInvariant() const
+    {
+        // If we are collapsed, it must have occured at the current or an earlier depth.
+        // Violation of this invariant likely means m_childPropertyDepth was decremented without updating collapse
+        // status.
+        assert(
+            !m_childPropertyFirstCollapse.has_value()
+            || m_childPropertyFirstCollapse.value() <= m_childPropertyDepth
+            && "PropertyTable collapse depth invariant violated."
+        );
+    }
+
+    bool hideNextRow() const 
+    { 
+        return m_childPropertyFirstCollapse.has_value() 
+            && m_childPropertyDepth > m_childPropertyFirstCollapse.value(); 
+    }
+
 public:
     // Using a default name synchronizes the tables across the window.
     static PropertyTable begin(std::string name = "PropertyTable");
 
     void end();
 
-    PropertyTable& rowChildProperty(
-        std::string const& name
-        , bool& collapsed
-    );
+    // Adds an arrow button. 
+    // Further calls to row drawing methods will be skipped until rowChildPropertyEnd is called,
+    // depending on if the resulting button is collapsed or not.
+    PropertyTable& rowChildPropertyBegin(std::string const& name);
+
+    // There must have been a corresponding call to rowChildPropertyBegin before calling this method.
+    PropertyTable& rowChildPropertyEnd();
 
     PropertyTable& rowDropdown(
         std::string const& name

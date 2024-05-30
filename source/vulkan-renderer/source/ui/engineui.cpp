@@ -396,20 +396,14 @@ void imguiStructureControls<DebugLines>(
     table.rowFloat("Line Width", structure.lineWidth, 1.0f, PropertySliderBehavior{
         .bounds{ 0.0f, 100.0f }
     });
-
-    static bool collapseDrawResults{ true };
-
-    table.rowChildProperty("Draw Results", collapseDrawResults);
-    
-    if (!collapseDrawResults)
     {
         DrawResultsGraphics const drawResults{ structure.lastFrameDrawResults };
 
-        ImGui::Indent(10.0f);
-        table.rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
+        table.rowChildPropertyBegin("Draw Results")
+            .rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
             .rowReadOnlyInteger("Vertices Drawn", drawResults.verticesDrawn)
-            .rowReadOnlyInteger("Indices Drawn", drawResults.indicesDrawn);
-        ImGui::Unindent(10.0f);
+            .rowReadOnlyInteger("Indices Drawn", drawResults.indicesDrawn)
+            .rowChildPropertyEnd();
     }
 
     table.end();

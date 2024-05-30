@@ -2,6 +2,8 @@
 
 #include "imgui_internal.h"
 
+#include <unordered_map>
+
 void PropertyTable::nameColumn(std::string const name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
@@ -61,21 +63,67 @@ void PropertyTable::end()
     ImGui::EndTable();
 }
 
-PropertyTable& PropertyTable::rowChildProperty(std::string const& name, bool& collapsed)
+PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
 {
+    static std::unordered_map<ImGuiID, bool> collapseStatus{};
+
+    checkInvariant();
+
     ImGui::TableNextRow();
 
-    Self::nameColumn(name);
-
-    ImGui::TableSetColumnIndex(VALUE_INDEX);
-    ImGuiDir const direction{
-        collapsed
-        ? ImGuiDir_Right
-        : ImGuiDir_Down
-    };
-    if (ImGui::ArrowButton(fmt::format("{}##arrowButton", name).c_str(), direction))
+    bool const hideRow{ hideNextRow() };
+    if (!hideRow)
     {
-        collapsed = !collapsed;
+        Self::nameColumn(name);
+
+        ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+        std::string const arrowButtonName{
+            fmt::format("{}##arrowButton", name)
+        };
+        ImGuiID const arrowButtonID{
+            ImGui::GetID(arrowButtonName.c_str())
+        };
+
+        bool& collapsed{ collapseStatus[arrowButtonID] };
+        ImGuiDir const direction{
+            collapsed
+            ? ImGuiDir_Right
+            : ImGuiDir_Down
+        };
+
+        if (ImGui::ArrowButton(arrowButtonName.c_str(), direction))
+        {
+            collapsed = !collapsed;
+        }
+
+        if (!m_childPropertyFirstCollapse.has_value() && collapsed)
+        {
+            m_childPropertyFirstCollapse = m_childPropertyDepth;
+        }
+    }
+    
+    m_childPropertyDepth += 1;
+    ImGui::Indent(ImGui::GetStyle().IndentSpacing);
+
+    return *this;
+}
+
+PropertyTable& PropertyTable::rowChildPropertyEnd()
+{
+    checkInvariant();
+    assert(
+        m_childPropertyDepth > 0
+        && "rowChildPropertyEnd() called on PropertyTable with no matching rowChildPropertyBegin()"
+    );
+
+    m_childPropertyDepth -= 1;
+    ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
+
+    if (m_childPropertyFirstCollapse.has_value()
+        && m_childPropertyFirstCollapse.value() >= m_childPropertyDepth)
+    {
+        m_childPropertyFirstCollapse = std::nullopt;
     }
 
     return *this;
@@ -88,6 +136,10 @@ PropertyTable& PropertyTable::rowDropdown(
     , std::span<std::string const> displayValues
 )
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -139,6 +191,10 @@ PropertyTable& PropertyTable::rowDropdown(
 
 PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::string const& value)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -155,6 +211,10 @@ PropertyTable& PropertyTable::rowReadOnlyInteger(
     , int32_t const& value
 )
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -180,6 +240,10 @@ PropertyTable& PropertyTable::rowReadOnlyInteger(
 
 PropertyTable& PropertyTable::rowVec3(std::string const& name, glm::vec3& value, glm::vec3 const& resetValue, PropertySliderBehavior const behavior)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -213,6 +277,10 @@ PropertyTable& PropertyTable::rowVec3(std::string const& name, glm::vec3& value,
 
 PropertyTable& PropertyTable::rowReadOnlyVec3(std::string const& name, glm::vec3 const& value)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -246,6 +314,10 @@ PropertyTable& PropertyTable::rowReadOnlyVec3(std::string const& name, glm::vec3
 
 PropertyTable& PropertyTable::rowFloat(std::string const& name, float& value, float const& resetValue, PropertySliderBehavior const behavior)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -271,6 +343,10 @@ PropertyTable& PropertyTable::rowFloat(std::string const& name, float& value, fl
 
 PropertyTable& PropertyTable::rowReadOnlyFloat(std::string const& name, float const& value)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -297,6 +373,10 @@ PropertyTable& PropertyTable::rowReadOnlyFloat(std::string const& name, float co
 
 PropertyTable& PropertyTable::rowBoolean(std::string const& name, bool& value, bool const& resetValue)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
@@ -314,6 +394,10 @@ PropertyTable& PropertyTable::rowBoolean(std::string const& name, bool& value, b
 
 PropertyTable& PropertyTable::rowReadOnlyBoolean(std::string const& name, bool const& value)
 {
+    checkInvariant();
+
+    if (hideNextRow()) return *this;
+
     ImGui::TableNextRow();
 
     Self::nameColumn(name);
