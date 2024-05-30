@@ -316,6 +316,7 @@ void Engine::initDrawTargets()
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
         | VK_IMAGE_USAGE_SAMPLED_BIT
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
     ).value();
 }
 
@@ -1370,6 +1371,7 @@ void Engine::draw()
                 , m_atmosphereIndex
                 , *m_atmospheresBuffer
                 , m_sceneBounds
+                , m_renderMeshInstances
                 , *m_testMeshes[m_testMeshUsed]
                 , m_meshInstances
             );

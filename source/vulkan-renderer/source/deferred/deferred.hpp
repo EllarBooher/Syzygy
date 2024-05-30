@@ -30,6 +30,7 @@ public:
         , uint32_t atmosphereIndex
         , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
         , SceneBounds const& sceneBounds
+        , bool renderMesh
         , MeshAsset const& sceneMesh
         , MeshInstances const& sceneGeometry
     );
