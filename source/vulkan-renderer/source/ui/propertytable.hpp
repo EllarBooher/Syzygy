@@ -24,15 +24,19 @@ struct PropertyTable
 private:
     typedef PropertyTable Self;
 
+    // Use 16 bit uints, since DearImGui uses 32 bit ints but we only use positive values.
     static uint16_t constexpr PROPERTY_INDEX{ 0 };
     static uint16_t constexpr VALUE_INDEX{ 1 };
     static uint16_t constexpr RESET_INDEX{ 2 };
 
     uint16_t const m_styleVariablesCount{ 0 };
 
+    bool m_open{ false };
+
     PropertyTable() = delete;
     explicit PropertyTable(uint16_t styleVariables)
         : m_styleVariablesCount(styleVariables)
+        , m_open(true)
     {}
 
     void nameColumn(
@@ -45,6 +49,7 @@ private:
     );
 
 public:
+    // Using a default name synchronizes the tables across the window.
     static PropertyTable begin(std::string name = "PropertyTable");
 
     void end();

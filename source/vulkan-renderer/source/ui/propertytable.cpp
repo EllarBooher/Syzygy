@@ -28,7 +28,6 @@ bool PropertyTable::resetColumn(std::string const name, bool visible)
 
 PropertyTable PropertyTable::begin(std::string const name)
 {
-    // Using a default name synchronizes the tables across the window.
     ImGui::BeginTable(
         name.c_str()
         , 3
@@ -47,11 +46,17 @@ PropertyTable PropertyTable::begin(std::string const name)
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{ 0.0f, 6.0f });
 
-    return PropertyTable(1);
+    uint16_t const styleVariableCount{ 1 };
+
+    return PropertyTable(styleVariableCount);
 }
 
 void PropertyTable::end()
 {
+    assert(m_open && "end() called on PropertyTable that was not open.");
+
+    m_open = false;
+
     ImGui::PopStyleVar(m_styleVariablesCount);
     ImGui::EndTable();
 }
