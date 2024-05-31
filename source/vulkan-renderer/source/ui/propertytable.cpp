@@ -546,6 +546,7 @@ void PropertyTable::demoWindow()
     static float valueUnboundedFloat{ 0.0f };
 
     static float valueUnboundedFloat2{ 0.0f };
+    static float valueUnboundedFloat3{ 0.0f };
 
     static float minimumBound{ -1.0f };
     static float maximumBound{ 1.0f };
@@ -576,14 +577,16 @@ void PropertyTable::demoWindow()
                 , valueText
                 , "Default Text Value"
             )
-            .rowReadOnlyInteger(
-                "Text Size"
-                , valueText.size()
-            )
-            .rowReadOnlyInteger(
-                "Text Capacity"
-                , valueText.capacity()
-            )
+            .childPropertyBegin()
+                .rowReadOnlyInteger(
+                    "Text Size"
+                    , valueText.size()
+                )
+                .rowReadOnlyInteger(
+                    "Text Capacity"
+                    , valueText.capacity()
+                )
+            .childPropertyEnd()
             .rowReadOnlyText(
                 "Read-Only Text"
                 , "Hello!"
@@ -655,22 +658,26 @@ void PropertyTable::demoWindow()
                 , 592181
             )
         .childPropertyEnd() // Available Fields
-        .rowChildPropertyBegin("Children")
-            .rowFloat("Unbounded Float"
-                , valueUnboundedFloat2
-                , 0.0f
-                , PropertySliderBehavior{
-                    .speed{ 1.0f },
-                })
-            .rowChildPropertyBegin("Properties")
-                .rowChildPropertyBegin("Remember")
+        .rowReadOnlyText("Child Properties", "Child Properties remember their collapse status.")
+        .childPropertyBegin()
+            .rowChildPropertyBegin("Child")
+                .rowChildPropertyBegin("Child")
                     .rowReadOnlyText("Hello", "")
-                .childPropertyEnd() // Remember
-                .rowChildPropertyBegin("Collapse Status")
+                .childPropertyEnd()
+                .rowChildPropertyBegin("Child")
                     .rowReadOnlyText("Hello", "")
-                .childPropertyEnd() // Collapse Status
-            .childPropertyEnd() // Properties
-        .childPropertyEnd() // Children
+                .childPropertyEnd()
+            .childPropertyEnd()
+        .childPropertyEnd()
+        .rowFloat("Unbounded Float with Children"
+            , valueUnboundedFloat3
+            , 0.0f
+            , PropertySliderBehavior{
+                .speed{ 1.0f },
+            })
+        .childPropertyBegin()
+            .rowReadOnlyText("Some Child Property", "")
+        .childPropertyEnd()
         .end();
 
     ImGui::End(); // End window
