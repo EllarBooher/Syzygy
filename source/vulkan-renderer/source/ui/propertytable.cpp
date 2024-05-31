@@ -136,14 +136,10 @@ PropertyTable& PropertyTable::childPropertyBegin()
 
 PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
 {
-    checkInvariant();
-    m_propertyCount += 1;
-
-    if (hideNextRow()) return childPropertyBegin();
-
-    ImGui::TableNextRow();
-
-    Self::nameColumn(name);
+    if (Self::rowBegin(name))
+    {
+        Self::rowEnd();
+    }
 
     return childPropertyBegin();
 }
