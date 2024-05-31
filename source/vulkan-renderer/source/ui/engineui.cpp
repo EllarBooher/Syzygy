@@ -2,6 +2,7 @@
 
 #include <implot.h>
 #include <fmt/format.h>
+#include <array>
 
 #include "pipelineui.hpp"
 
@@ -206,13 +207,47 @@ static std::vector<std::tuple<RenderingPipelines, std::string>> renderingPipelin
 
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 {
-    ImGui::Text("Rendering Pipeline:");
-    for (auto const& [pipeline, label] : renderingPipelineLabels)
+    auto const pipelineOrdering{
+        std::to_array<RenderingPipelines>({
+            RenderingPipelines::DEFERRED
+            , RenderingPipelines::COMPUTE_COLLECTION
+        })
+    };
+    auto const labels{
+        std::to_array<std::string>({
+            "Deferred"
+            , "Compute Collection"
+        })
+    };
+
+    auto const selectedIt{ 
+        std::find(pipelineOrdering.begin(), pipelineOrdering.end(), currentActivePipeline) 
+    };
+    if (pipelineOrdering.end() == selectedIt)
     {
-        if (ImGui::RadioButton(label.c_str(), currentActivePipeline == pipeline))
-        {
-            currentActivePipeline = pipeline;
-        }
+        // If we can't find what index this pipeline should be, don't mess with it, since the engine may have set it.
+        PropertyTable::begin()
+            .rowReadOnlyText("", "Unknown pipeline selected")
+            .end();
+    }
+    else
+    {
+        size_t const defaultIndex{ 0 };
+        
+        size_t selectedIndex{ 
+            static_cast<size_t>(std::distance(pipelineOrdering.begin(), selectedIt)) 
+        };
+        
+        PropertyTable::begin()
+            .rowDropdown(
+                "Rendering Pipeline"
+                , selectedIndex
+                , defaultIndex
+                , labels
+                )
+            .end();
+
+        currentActivePipeline = pipelineOrdering[selectedIndex];
     }
 }
 
