@@ -51,6 +51,7 @@ layout (push_constant) uniform PushConstant
 	uint atmosphereIndex;
 	uint cameraIndex;
 
+	vec2 gbufferOffset;
 	vec2 gbufferExtent;
 } pushConstant;
 
@@ -149,7 +150,7 @@ vec3 computeSpotLight(const LightSpot light, const GBufferTexel gbuffer, const v
 void main()
 {
 	const vec2 size = imageSize(image);
-    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy + pushConstant.gbufferOffset);
     if(texelCoord.x >= size.x || texelCoord.y >= size.y)
 	{
 		return;
@@ -157,7 +158,7 @@ void main()
 
 	// The uv needs to be offset to avoid floating point errors on texel boundaries
 	const vec2 offset = vec2(0.5,0.5);
-	const vec2 gbufferUV = (vec2(gl_GlobalInvocationID.xy) + offset) / pushConstant.gbufferExtent;
+	const vec2 gbufferUV = (vec2(texelCoord) + offset) / pushConstant.gbufferExtent;
 
 	const GBufferTexel gbuffer = GBufferTexel(
 		texture(samplerWorldPosition, gbufferUV)

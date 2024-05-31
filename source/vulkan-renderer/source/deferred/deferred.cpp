@@ -173,6 +173,47 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         m_drawImageSet = descriptorAllocator.allocate(device, m_drawImageLayout);
 
+        {
+            m_drawImage = AllocatedImage::allocate(
+                allocator
+                , device
+                , VkExtent3D{ .width{ dimensionCapacity.width}, .height{ dimensionCapacity.height}, .depth{ 1 } }
+                , VK_FORMAT_R16G16B16A16_SFLOAT
+                , VK_IMAGE_ASPECT_COLOR_BIT
+                , VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_STORAGE_BIT
+                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+            ).value();
+
+            VkDescriptorImageInfo const drawImageInfo{
+                .sampler{ VK_NULL_HANDLE },
+                .imageView{ m_drawImage.imageView },
+                .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
+            };
+
+            VkWriteDescriptorSet const drawImageWrite{
+                .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
+                .pNext{ nullptr },
+
+                .dstSet{ m_drawImageSet },
+                .dstBinding{ 0 },
+                .dstArrayElement{ 0 },
+                .descriptorCount{ 1 },
+                .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
+
+                .pImageInfo{ &drawImageInfo },
+                .pBufferInfo{ nullptr },
+                .pTexelBufferView{ nullptr },
+            };
+
+            std::vector<VkWriteDescriptorSet> const writes{
+                drawImageWrite
+            };
+
+            vkUpdateDescriptorSets(device, VKR_ARRAY(writes), 0, nullptr);
+        }
+
         VkSamplerCreateInfo const depthImageImmutableSamplerInfo{
             vkinit::samplerCreateInfo(
                 0
@@ -301,29 +342,23 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
 void setRasterizationShaderObjectState(
     VkCommandBuffer const cmd
-    , VkExtent2D const drawExtent
+    , VkRect2D const drawRect
     , float const depthBias
     , float const depthBiasSlope
 )
 {
     VkViewport const viewport{
-        .x{ 0 },
-        .y{ 0 },
-        .width{ static_cast<float>(drawExtent.width) },
-        .height{ static_cast<float>(drawExtent.height) },
+        .x{ static_cast<float>(drawRect.offset.x) },
+        .y{ static_cast<float>(drawRect.offset.y) },
+        .width{ static_cast<float>(drawRect.extent.width) },
+        .height{ static_cast<float>(drawRect.extent.height) },
         .minDepth{ 0.0f },
         .maxDepth{ 1.0f },
     };
 
     vkCmdSetViewportWithCount(cmd, 1, &viewport);
 
-    VkRect2D const scissor{
-        .offset{
-            .x{ 0 },
-            .y{ 0 },
-        },
-        .extent{ drawExtent },
-    };
+    VkRect2D const scissor{ drawRect };
 
     vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
@@ -363,17 +398,19 @@ void setRasterizationShaderObjectState(
 }
 
 void DeferredShadingPipeline::recordDrawCommands(
-    VkCommandBuffer cmd
-    , VkExtent2D const drawExtent
+    VkCommandBuffer const cmd
+    , VkRect2D const drawRect
+    , VkImageLayout const colorLayout
     , AllocatedImage const& color
     , AllocatedImage const& depth
-    , std::span<GPUTypes::LightDirectional const> directionalLights
-    , std::span<GPUTypes::LightSpot const> spotLights
-    , uint32_t viewCameraIndex
+    , std::span<GPUTypes::LightDirectional const> const directionalLights
+    , std::span<GPUTypes::LightSpot const> const spotLights
+    , uint32_t const viewCameraIndex
     , TStagedBuffer<GPUTypes::Camera> const& cameras
-    , uint32_t atmosphereIndex
+    , uint32_t const atmosphereIndex
     , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
     , SceneBounds const& sceneBounds
+    , bool renderMesh
     , MeshAsset const& sceneMesh
     , MeshInstances const& sceneGeometry
 )
@@ -410,7 +447,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         }
     }
 
-    { // Shadow maps
+    if (renderMesh) { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd
             , m_parameters.shadowPassParameters.depthBiasConstant
@@ -422,7 +459,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         m_shadowPassArray.recordDrawCommands(cmd, sceneMesh, *sceneGeometry.models);
     }
 
-    { // Prepare GBuffer resources
+    if (renderMesh) { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         vkutil::transitionImage(
@@ -434,10 +471,10 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
     }
 
-    { // Deferred GBuffer pass
+    if (renderMesh) { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd
-            , drawExtent
+            , VkRect2D{ .extent{ drawRect.extent } }
             , m_parameters.shadowPassParameters.depthBiasConstant
             , m_parameters.shadowPassParameters.depthBiasSlope
         );
@@ -494,7 +531,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
         VkRenderingInfo const renderInfo{
-            vkinit::renderingInfo(drawExtent, gBufferAttachments, &depthAttachment)
+            vkinit::renderingInfo(VkRect2D{.extent{ drawRect.extent }}, gBufferAttachments,&depthAttachment)
         };
 
         std::array<VkShaderStageFlagBits, 2> stages{
@@ -534,10 +571,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             }
         };
         VkClearRect const clearRect{
-            .rect{ VkRect2D{
-                .offset{ 0, 0 },
-                .extent{ drawExtent },
-            }},
+            .rect{ VkRect2D{.extent{ drawRect.extent }} },
             .baseArrayLayer{ 0 },
             .layerCount{ 1 },
         };
@@ -580,35 +614,60 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdEndRendering(cmd);
     }
+    else
+    {
+        vkutil::transitionImage(cmd, depth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-    m_shadowPassArray.recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        VkClearDepthStencilValue const clearValue{
+            .depth{ 0.0 }
+        };
+        VkImageSubresourceRange const range{
+            vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+        };
+        vkCmdClearDepthStencilImage(cmd
+            , depth.image
+            , VK_IMAGE_LAYOUT_GENERAL
+            , &clearValue
+            , 1, &range
+        );
+
+        vkutil::transitionImage(
+            cmd
+            , depth.image
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+        );
+    }
 
     { // Clear color image
-        vkutil::transitionImage(cmd, color.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         VkClearColorValue const clearColor{
-            .float32{ 1.0, 0.0, 0.0, 1.0}
+            .float32{ 0.0, 0.0, 0.0, 1.0}
         };
         VkImageSubresourceRange const range{
             vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
         };
         vkCmdClearColorImage(cmd
-            , color.image, VK_IMAGE_LAYOUT_GENERAL
+            , m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL
             , &clearColor
             , 1, &range
         );
 
         vkutil::transitionImage(
             cmd
-            , color.image
+            , m_drawImage.image
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_ASPECT_COLOR_BIT
         );
     }
 
-    { // Lighting pass using GBuffer output
+    if (renderMesh) { // Lighting pass using GBuffer output
+        m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
+        m_shadowPassArray.recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+
         VkShaderStageFlagBits const computeStage{ VK_SHADER_STAGE_COMPUTE_BIT };
         VkShaderEXT const shader{ m_lightingPassComputeShader.shaderObject() };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
@@ -639,6 +698,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .spotLightCount{ static_cast<uint32_t>(m_spotLights->deviceSize()) },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
+            .gbufferOffset{ glm::vec2{ 0.0, 0.0 } },
             .gbufferExtent{ glm::vec2(m_gBuffer.extent().width, m_gBuffer.extent().height)},
         };
         m_lightingPassPushConstant = pushConstant;
@@ -651,7 +711,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_lightingPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
@@ -660,7 +720,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     { // Sky post-process pass
         vkutil::transitionImage(
             cmd
-            , color.image
+            , m_drawImage.image
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_ASPECT_COLOR_BIT
@@ -668,7 +728,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkutil::transitionImage(
             cmd
             , depth.image
-            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            , renderMesh ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
             , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
             , VK_IMAGE_ASPECT_DEPTH_BIT
         );
@@ -695,7 +755,8 @@ void DeferredShadingPipeline::recordDrawCommands(
             .cameraBuffer{ cameras.deviceAddress() },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
-            .drawExtent{ glm::vec2{ drawExtent.width, drawExtent.height } },
+            .drawOffset{ glm::vec2{ 0.0, 0.0 } },
+            .drawExtent{ glm::vec2{ drawRect.extent.width, drawRect.extent.height } },
         };
         m_skyPassPushConstant = pushConstant;
 
@@ -707,39 +768,51 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_skyPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
+    }
+
+    {
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+        vkutil::transitionImage(
+            cmd
+            , color.image
+            , colorLayout
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        vkutil::recordCopyImageToImage(
+            cmd
+            , m_drawImage.image
+            , color.image
+            , VkRect2D{ .extent{ drawRect.extent } }
+            , drawRect
+        );
+
+        vkutil::transitionImage(
+            cmd
+            , color.image
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            , colorLayout
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
     }
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
     VkDevice const device
-    , AllocatedImage const& drawImage
-    , AllocatedImage const& depthImage)
+    , AllocatedImage const& depthImage
+)
 {
-    VkDescriptorImageInfo const drawImageInfo{
-        .sampler{ VK_NULL_HANDLE },
-        .imageView{ drawImage.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
-    };
-
-    VkWriteDescriptorSet const drawImageWrite{
-        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-        .pNext{ nullptr },
-
-        .dstSet{ m_drawImageSet },
-        .dstBinding{ 0 },
-        .dstArrayElement{ 0 },
-        .descriptorCount{ 1 },
-        .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
-
-        .pImageInfo{ &drawImageInfo },
-        .pBufferInfo{ nullptr },
-        .pTexelBufferView{ nullptr },
-    };
-
     VkDescriptorImageInfo const depthImageInfo{
         .sampler{ VK_NULL_HANDLE },
         .imageView{ depthImage.imageView },
@@ -762,8 +835,7 @@ void DeferredShadingPipeline::updateRenderTargetDescriptors(
     };
 
     std::vector<VkWriteDescriptorSet> const writes{
-        drawImageWrite
-        , depthImageWrite
+        depthImageWrite
     };
 
     vkUpdateDescriptorSets(device, VKR_ARRAY(writes), 0, nullptr);
@@ -776,6 +848,8 @@ void DeferredShadingPipeline::cleanup(VkDevice device, VmaAllocator allocator)
 
     m_directionalLights.reset();
     m_spotLights.reset();
+
+    m_drawImage.cleanup(device, allocator);
 
     vkDestroyDescriptorSetLayout(device, m_depthImageLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, m_drawImageLayout, nullptr);

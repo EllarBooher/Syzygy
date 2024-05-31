@@ -7,6 +7,8 @@
 #include "../pipelines.hpp"
 #include "../deferred/deferred.hpp"
 
+#include "propertytable.hpp"
+
 static void TypeLabel(std::string const& label)
 {
     ImVec2 const textSize{ ImGui::CalcTextSize(label.c_str(), nullptr, true) };
@@ -30,6 +32,11 @@ static void imguiPushStructureControl(
     std::span<T> backingData
 )
 {
+    if (!ImGui::CollapsingHeader(pushConstant.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
+    }
+
     // TODO: This whole method is bad and should be refactored in a way to not need this templating
     static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value);
 
@@ -296,42 +303,49 @@ static void imguiPushStructureControl(
 template<>
 void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
 {
-    { // Shader selection
-        ImGui::Indent(10.0f);
-        size_t const currentShaderIndex{ pipeline.shaderIndex() };
-
-        size_t index{ 0 };
-        for (ShaderObjectReflected const& shader : pipeline.shaders())
-        {
-            if (ImGui::RadioButton(fmt::format("{}##shader{}", shader.name(), index).c_str(), index == currentShaderIndex))
-            {
-                pipeline.selectShader(index);
-            }
-            index += 1;
-        }
-        ImGui::Unindent(10.0f);
+    if (!ImGui::CollapsingHeader("Compute Collection Pipeline", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        return;
     }
-    ImGui::Separator();
+
+    std::vector<std::string> shaderNames{};
+    for (ShaderObjectReflected const& shader : pipeline.shaders())
+    {
+        shaderNames.push_back(shader.name());
+    }
+
+    size_t currentShaderIndex{ pipeline.shaderIndex() };
+
+    PropertyTable table{
+        PropertyTable::begin()
+        .rowDropdown(
+            "Active Shader"
+            , currentShaderIndex
+            , 0
+            , shaderNames
+        )
+    };
+
+    pipeline.selectShader(currentShaderIndex);
 
     ShaderObjectReflected const& currentShader{ pipeline.currentShader() };
     ShaderReflectionData const& reflectionData{ currentShader.reflectionData() };
 
-    ImGui::Text(currentShader.name().c_str());
-
     if (reflectionData.defaultEntryPointHasPushConstant())
     {
+        table.end();
         imguiPushStructureControl(reflectionData.defaultPushConstant(), false, pipeline.mapPushConstantBytes());
     }
     else
     {
-        ImGui::Text("No push constants.");
+        table.rowReadOnlyText("", "No push constants.");
+        table.end();
     }
 }
 
 template<>
 void imguiPipelineControls(DeferredShadingPipeline& pipeline)
 {
-    ImGui::Text("Deferred shading pipeline.");
     imguiStructureControls(
         pipeline.m_parameters.shadowPassParameters
         , ShadowPassParameters{

@@ -85,6 +85,46 @@ void vkutil::recordCopyImageToImage(
 }
 
 void vkutil::recordCopyImageToImage(
+    VkCommandBuffer cmd
+    , VkImage source
+    , VkImage destination
+    , VkOffset3D srcMin
+    , VkOffset3D srcMax
+    , VkOffset3D dstMin
+    , VkOffset3D dstMax
+)
+{
+    VkImageBlit2 const blitRegion{
+        .sType{ VK_STRUCTURE_TYPE_IMAGE_BLIT_2 },
+        .pNext{ nullptr },
+        .srcSubresource{ vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) },
+        .srcOffsets{
+            srcMin,
+            srcMax,
+        },
+        .dstSubresource{ vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) },
+        .dstOffsets{
+            dstMin,
+            dstMax,
+        },
+    };
+
+    VkBlitImageInfo2 const blitInfo{
+        .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+        .pNext{ nullptr },
+        .srcImage{ source },
+        .srcImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL },
+        .dstImage{ destination },
+        .dstImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL },
+        .regionCount{ 1 },
+        .pRegions{ &blitRegion },
+        .filter{ VK_FILTER_LINEAR }
+    };
+
+    vkCmdBlitImage2(cmd, &blitInfo);
+}
+
+void vkutil::recordCopyImageToImage(
     VkCommandBuffer const cmd
     , VkImage const source
     , VkImage const destination
@@ -106,12 +146,46 @@ void vkutil::recordCopyImageToImage(
     vkutil::recordCopyImageToImage(cmd, source, destination, srcExtent, dstExtent);
 }
 
-double vkutil::aspectRatio(VkExtent2D extent)
+void vkutil::recordCopyImageToImage(
+    VkCommandBuffer cmd
+    , VkImage source
+    , VkImage destination
+    , VkRect2D srcSize
+    , VkRect2D dstSize
+)
+{
+    VkOffset3D const srcMin{
+        .x{ static_cast<int32_t>(srcSize.offset.x) },
+        .y{ static_cast<int32_t>(srcSize.offset.y) },
+        .z{ 0 },
+    };
+    VkOffset3D const srcMax{
+        .x{ static_cast<int32_t>(srcMin.x + srcSize.extent.width) },
+        .y{ static_cast<int32_t>(srcMin.y + srcSize.extent.height) },
+        .z{ 1 },
+    };
+    VkOffset3D const dstMin{
+        .x{ static_cast<int32_t>(dstSize.offset.x) },
+        .y{ static_cast<int32_t>(dstSize.offset.y) },
+        .z{ 0 },
+    };
+    VkOffset3D const dstMax{
+        .x{ static_cast<int32_t>(dstMin.x + dstSize.extent.width) },
+        .y{ static_cast<int32_t>(dstMin.y + dstSize.extent.height) },
+        .z{ 1 },
+    };
+
+    vkutil::recordCopyImageToImage(cmd, source, destination, srcMin, srcMax, dstMin, dstMax);
+}
+
+double vkutil::aspectRatio(VkExtent2D const extent)
 {
     auto const width{ static_cast<float>(extent.width) };
     auto const height{ static_cast<float>(extent.height) };
 
-    return width / height;
+    float const rawAspectRatio = width / height;
+
+    return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0f;
 }
 
 std::optional<AllocatedImage> AllocatedImage::allocate(

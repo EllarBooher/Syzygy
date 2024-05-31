@@ -56,7 +56,7 @@ namespace vkinit {
     );
 
     VkRenderingInfo renderingInfo(
-        VkExtent2D extent,
+        VkRect2D drawRect,
         std::span<VkRenderingAttachmentInfo const> colorAttachments,
         VkRenderingAttachmentInfo const* pDepthAttachment
     );

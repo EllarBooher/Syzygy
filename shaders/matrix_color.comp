@@ -6,6 +6,9 @@ layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
 layout( push_constant ) uniform PushConstants
 {
+	vec2 drawOffset;
+	vec2 drawExtent;
+
 	mat4 red;
 	mat4 green;
 	mat4 blue;
@@ -14,8 +17,8 @@ layout( push_constant ) uniform PushConstants
 void main() 
 {
 	vec2 size = imageSize(image);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-	vec2 uv = vec2(gl_GlobalInvocationID.xy / size);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy + pushConstants.drawOffset);
+	vec2 uv = (vec2(texelCoord) + vec2(0.5,0.5)) / pushConstants.drawExtent;
 
 	ivec2 pushConstantCoord = ivec2(uv * 4);
 

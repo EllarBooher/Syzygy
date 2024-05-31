@@ -205,6 +205,7 @@ public:
         VkCommandBuffer cmd
         , bool reuseDepthAttachment
         , float lineWidth
+        , VkRect2D drawRect 
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , uint32_t cameraIndex

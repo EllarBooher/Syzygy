@@ -19,7 +19,8 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd
-        , VkExtent2D drawExtent
+        , VkRect2D drawRect
+        , VkImageLayout colorLayout
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , std::span<GPUTypes::LightDirectional const> directionalLights
@@ -29,13 +30,13 @@ public:
         , uint32_t atmosphereIndex
         , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
         , SceneBounds const& sceneBounds
+        , bool renderMesh
         , MeshAsset const& sceneMesh
         , MeshInstances const& sceneGeometry
     );
 
     void updateRenderTargetDescriptors(
         VkDevice device
-        , AllocatedImage const& drawImage
         , AllocatedImage const& depthImage
     );
     
@@ -46,6 +47,8 @@ public:
 
 private:
     ShadowPassArray m_shadowPassArray{};
+
+    AllocatedImage m_drawImage{};
 
     VmaAllocator m_allocator{ VK_NULL_HANDLE };
 
@@ -92,8 +95,8 @@ private:
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
 
+        glm::vec2 gbufferOffset{};
         glm::vec2 gbufferExtent{};
-        uint8_t padding0[8]{};
     };
 
     LightingPassComputePushConstant mutable m_lightingPassPushConstant{};
@@ -107,8 +110,11 @@ private:
 
         uint32_t atmosphereIndex{ 0 };
         uint32_t cameraIndex{ 0 };
-
+        
+        glm::vec2 drawOffset{};
         glm::vec2 drawExtent{};
+
+        uint8_t padding0[8]{};
     };
 
     SkyPassComputePushConstant mutable m_skyPassPushConstant{};

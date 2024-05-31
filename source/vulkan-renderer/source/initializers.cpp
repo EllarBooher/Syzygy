@@ -187,7 +187,7 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
 }
 
 VkRenderingInfo vkinit::renderingInfo(
-    VkExtent2D extent,
+    VkRect2D drawRect,
     std::span<VkRenderingAttachmentInfo const> colorAttachments,
     VkRenderingAttachmentInfo const* pDepthAttachment
 )
@@ -197,10 +197,7 @@ VkRenderingInfo vkinit::renderingInfo(
         .pNext{ nullptr },
 
         .flags{ 0 },
-        .renderArea{
-            .offset{ 0, 0 },
-            .extent{ extent }
-            },
+        .renderArea{ drawRect },
         .layerCount{ 1 },
         .viewMask{ 0 },
 

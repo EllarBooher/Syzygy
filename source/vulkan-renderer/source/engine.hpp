@@ -10,6 +10,7 @@
 #include "shadowpass.hpp"
 #include "debuglines.hpp"
 #include "deferred/deferred.hpp"
+#include "imgui.h"
 
 struct GLFWwindow;
 
@@ -47,12 +48,13 @@ private:
 
     void initVulkan();
 
-    void mainLoop();
-
     void tickWorld(double totalTime, double deltaTimeSeconds);
+    bool renderUI(VkDevice device);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
+
+    void mainLoop();
 
     void cleanup();
 
@@ -113,7 +115,13 @@ private:
     std::vector<VkImageView> m_swapchainImageViews{};
     VkExtent2D m_swapchainExtent{};
 
-    float m_dpiScale{ 1.0f };
+    ImGuiStyle m_imguiStyleDefault{};
+    static UIPreferences constexpr m_uiPreferencesDefault{
+        .dpiScale{ 1.0f }
+    };
+    UIPreferences m_uiPreferences{ m_uiPreferencesDefault };
+    
+    bool m_uiReloadRequested{ false };
 
     bool m_resizeRequested{ false };
     void resizeSwapchain();
@@ -124,15 +132,22 @@ private:
     // This constant defines the max size, to inform the creation of resources that can contain any requested draw extent
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{ 4096, 4096 };
 
+    VkSampler m_imguiSceneTextureSampler{ VK_NULL_HANDLE };
+    VkDescriptorSet m_imguiSceneTextureDescriptor{ VK_NULL_HANDLE };
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    VkExtent2D m_currentDrawExtent{};
+    VkRect2D m_sceneRect{};
 
-    // Color image used for compute and graphics passes, eventually copied to swapchain
-    AllocatedImage m_drawImage{};
-
+    // Rendered into by most render passes. Used as an image by UI rendering, to render properly as a window.
+    AllocatedImage m_sceneColorTexture{};
     // Depth image used for graphics passes
-    AllocatedImage m_depthImage{};
+    AllocatedImage m_sceneDepthTexture{};
+
+    // The rectangle drawn into, usually the window/swapchain/UI viewport extents are all the same
+    VkRect2D m_drawRect{};
+
+    // The final image output, blitted to the swapchain
+    AllocatedImage m_drawImage{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
@@ -150,8 +165,8 @@ private:
 
     DescriptorAllocator m_globalDescriptorAllocator{};
 
-    VkDescriptorSetLayout m_drawImageDescriptorLayout{ VK_NULL_HANDLE };
-    VkDescriptorSet m_drawImageDescriptors{ VK_NULL_HANDLE };
+    VkDescriptorSetLayout m_sceneTextureDescriptorLayout{ VK_NULL_HANDLE };
+    VkDescriptorSet m_sceneTextureDescriptors{ VK_NULL_HANDLE };
 
     // Pipelines
 
