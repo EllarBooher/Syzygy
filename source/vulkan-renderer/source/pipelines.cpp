@@ -285,10 +285,28 @@ void GenericComputeCollectionPipeline::recordDrawCommands(
 	ShaderReflectionData const& reflectionData{ shader.reflectionData() };
 	if (reflectionData.defaultEntryPointHasPushConstant())
 	{
-		std::span<uint8_t const> pushConstantBytes{ readPushConstantBytes() };
-		uint32_t const offset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+		std::span<uint8_t const> const pushConstant{ readPushConstantBytes() };
+		std::vector<uint8_t> pushConstantBytes{ pushConstant.begin(), pushConstant.end() };
 
-		vkCmdPushConstants(cmd, layout, stage, offset, pushConstantBytes.size() - offset, pushConstantBytes.data() + offset);
+		if (pushConstant.size() >= 16)
+		{
+			// We assume the first two members of the push constant are the offset and extent for rendering.
+			// Both should be type vec2 in glsl
+			struct DrawRectPushConstant
+			{
+				glm::vec2 drawOffset{};
+				glm::vec2 drawExtent{};
+			};
+
+			*reinterpret_cast<DrawRectPushConstant*>(pushConstantBytes.data()) = DrawRectPushConstant{
+				.drawOffset{ glm::vec2{0.0} },
+				.drawExtent{ glm::vec2{drawExtent.width, drawExtent.height} },
+			};
+		}
+
+		uint32_t const byteOffset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+
+		vkCmdPushConstants(cmd, layout, stage, byteOffset, pushConstantBytes.size() - byteOffset, pushConstantBytes.data() + byteOffset);
 	}
 
 	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
@@ -373,6 +391,7 @@ DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
 	VkCommandBuffer cmd
 	, bool reuseDepthAttachment
 	, float lineWidth
+	, VkRect2D drawRect
 	, AllocatedImage const& color
 	, AllocatedImage const& depth
 	, uint32_t cameraIndex
@@ -418,13 +437,9 @@ DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
 		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
 	};
 
-	VkExtent2D const drawExtent{
-		.width{color.imageExtent.width},
-		.height{color.imageExtent.height},
-	};
 	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
 	VkRenderingInfo const renderInfo{
-		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
+		vkinit::renderingInfo(drawRect, colorAttachments, &depthAttachment)
 	};
 
 	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
@@ -437,26 +452,17 @@ DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
 	vkCmdSetLineWidth(cmd, lineWidth);
 
 	VkViewport const viewport{
-		.x{ 0 },
-		.y{ 0 },
-		.width{ static_cast<float>(drawExtent.width) },
-		.height{ static_cast<float>(drawExtent.height) },
+		.x{ static_cast<float>(drawRect.offset.x) },
+		.y{ static_cast<float>(drawRect.offset.y) },
+		.width{ static_cast<float>(drawRect.extent.width) },
+		.height{ static_cast<float>(drawRect.extent.height) },
 		.minDepth{ 0.0f },
 		.maxDepth{ 1.0f },
 	};
 
 	vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-	VkRect2D const scissor{
-		.offset{
-			.x{ 0 },
-			.y{ 0 },
-		},
-		.extent{
-			.width{ drawExtent.width },
-			.height{ drawExtent.height },
-		},
-	};
+	VkRect2D const scissor{ drawRect };
 
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
@@ -594,7 +600,7 @@ void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
 		.height{depth.imageExtent.height},
 	};
 	VkRenderingInfo const renderInfo{
-		vkinit::renderingInfo(drawExtent, {}, &depthAttachment)
+		vkinit::renderingInfo(VkRect2D{.extent{drawExtent}}, {}, &depthAttachment)
 	};
 
 	vkCmdBeginRendering(cmd, &renderInfo);

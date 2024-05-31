@@ -11,6 +11,7 @@ add_library(vulkan-renderer STATIC
 	"source/buffers.cpp"
 	"source/ui/engineui.cpp"
 	"source/ui/pipelineui.cpp"
+	"source/ui/propertytable.cpp"
 	"source/geometryhelpers.cpp"
 	"source/shadowpass.cpp"
 	"source/deferred/deferred.cpp"
@@ -51,22 +52,35 @@ add_library(imgui
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-
+	${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 # Backends
 	${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
 	${IMGUI_BACKENDS_DIR}/imgui_impl_vulkan.cpp
  )
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${IMGUI_BACKENDS_DIR})
+target_include_directories(
+	imgui 
+	PUBLIC 
+	${imgui_SOURCE_DIR} 
+	${IMGUI_BACKENDS_DIR} 
+	"${CMAKE_SOURCE_DIR}/thirdparty/imgui" # Patch in imconfig.h alternative
+)
 target_link_libraries(
 	imgui
 	PRIVATE
 	volk
 	glfw
 )
+target_link_libraries(
+	imgui
+	PUBLIC
+	glm
+)
+
 target_compile_definitions(
 	imgui
 	PUBLIC
 	VK_NO_PROTOTYPES # We use volk so we are dynamically linking the vulkan loader
+	IMGUI_USER_CONFIG="imguiconfig.h"
 )
 
 FetchContent_MakeAvailable(implot)

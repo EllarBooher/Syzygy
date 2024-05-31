@@ -22,6 +22,11 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
+struct UIPreferences
+{
+    float dpiScale{ 1.0f };
+};
+
 enum class RenderingPipelines
 {
     DEFERRED = 0

@@ -27,6 +27,16 @@ namespace vkutil {
         VkExtent3D dstSize
     );
 
+    void recordCopyImageToImage(
+        VkCommandBuffer cmd,
+        VkImage source,
+        VkImage destination,
+        VkOffset3D srcMin,
+        VkOffset3D srcMax,
+        VkOffset3D dstMin,
+        VkOffset3D dstMax
+    );
+
     // Copies a color image, with an assumed depth of 1.
     void recordCopyImageToImage(
         VkCommandBuffer cmd,
@@ -34,6 +44,13 @@ namespace vkutil {
         VkImage destination,
         VkExtent2D srcSize,
         VkExtent2D dstSize
+    );
+    void recordCopyImageToImage(
+        VkCommandBuffer cmd,
+        VkImage source,
+        VkImage destination,
+        VkRect2D src,
+        VkRect2D dst
     );
 
     double aspectRatio(VkExtent2D extent);

@@ -103,14 +103,33 @@ void Engine::initWindow()
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
     char const* const WINDOW_TITLE = "Renderer";
     m_window = glfwCreateWindow(
-        m_windowExtent.width, 
-        m_windowExtent.height, 
-        WINDOW_TITLE, 
-        nullptr, 
-        nullptr
+        m_windowExtent.width
+        , m_windowExtent.height
+        , WINDOW_TITLE
+        , nullptr
+        , nullptr
+    );
+
+    int width{};
+    int height{};
+    glfwGetWindowSize(
+        m_window
+        , &width
+        , &height
+    );
+
+    m_windowExtent.width = static_cast<uint32_t>(width);
+    m_windowExtent.height = static_cast<uint32_t>(height);
+
+    m_uiPreferences.dpiScale = glm::round(
+        glm::min(
+            m_windowExtent.height / 1080.0
+            , m_windowExtent.width / 1920.0
+        )
     );
 
     Log("Window Initialized.");
@@ -274,12 +293,27 @@ void Engine::initSwapchain()
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
 
-    m_currentDrawExtent = m_swapchainExtent;
+    m_sceneRect = VkRect2D{
+        .extent{ m_swapchainExtent },
+    };
 }
 
 void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
+
+    m_sceneColorTexture = AllocatedImage::allocate(
+        m_allocator,
+        m_device,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g. ImGui
+        | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
+        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics passes
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy to from other render passes
+    ).value();
 
     m_drawImage = AllocatedImage::allocate(
         m_allocator,
@@ -293,7 +327,7 @@ void Engine::initDrawTargets()
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
     ).value(); //TODO: handle failed case
 
-    m_depthImage = AllocatedImage::allocate(
+    m_sceneDepthTexture = AllocatedImage::allocate(
         m_allocator,
         m_device,
         VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
@@ -301,6 +335,7 @@ void Engine::initDrawTargets()
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
         | VK_IMAGE_USAGE_SAMPLED_BIT
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
     ).value();
 }
 
@@ -316,8 +351,9 @@ void Engine::cleanupSwapchain()
 
 void Engine::cleanupDrawTargets()
 {
+    m_sceneColorTexture.cleanup(m_device, m_allocator);
     m_drawImage.cleanup(m_device, m_allocator);
-    m_depthImage.cleanup(m_device, m_allocator);
+    m_sceneDepthTexture.cleanup(m_device, m_allocator);
 }
 
 void Engine::initCommands()
@@ -386,40 +422,40 @@ void Engine::initDescriptors()
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
     { // Set up the image used by compute shaders.
-        m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
+        m_sceneTextureDescriptorLayout = DescriptorLayoutBuilder{}
             .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
             .build(m_device, 0)
             .value_or(VK_NULL_HANDLE); //TODO: handle
 
-        m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+        m_sceneTextureDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_sceneTextureDescriptorLayout);
     }
 }
 
 void Engine::updateDescriptors()
 {
-    VkDescriptorImageInfo const drawImageInfo{
+    VkDescriptorImageInfo const sceneTextureInfo{
         .sampler{ VK_NULL_HANDLE },
-        .imageView{ m_drawImage.imageView },
+        .imageView{ m_sceneColorTexture.imageView },
         .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
     };
 
-    VkWriteDescriptorSet const drawImageWrite{
+    VkWriteDescriptorSet const sceneTextureWrite{
         .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
         .pNext{ nullptr },
 
-        .dstSet{ m_drawImageDescriptors },
+        .dstSet{ m_sceneTextureDescriptors },
         .dstBinding{ 0 },
         .dstArrayElement{ 0 },
         .descriptorCount{ 1 },
         .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
 
-        .pImageInfo{ &drawImageInfo },
+        .pImageInfo{ &sceneTextureInfo },
         .pBufferInfo{ nullptr },
         .pTexelBufferView{ nullptr },
     };
 
     std::vector<VkWriteDescriptorSet> const writes{
-        drawImageWrite
+        sceneTextureWrite
     };
 
     vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
@@ -544,7 +580,7 @@ void Engine::initDebug()
     m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
         m_device,
         m_drawImage.imageFormat,
-        m_depthImage.imageFormat
+        m_sceneDepthTexture.imageFormat
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
@@ -575,8 +611,7 @@ void Engine::initDeferredShadingPipeline()
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
         m_device
-        , m_drawImage
-        , m_depthImage
+        , m_sceneDepthTexture
     );
 }
 
@@ -591,7 +626,7 @@ void Engine::initGenericComputePipelines()
     };
     m_genericComputePipeline = std::make_unique<GenericComputeCollectionPipeline>(
         m_device,
-        m_drawImageDescriptorLayout,
+        m_sceneTextureDescriptorLayout,
         shaderPaths
     );
 }
@@ -677,13 +712,37 @@ void Engine::initImgui()
 
     ImGui_ImplVulkan_Init(&initInfo);
 
-    // Handle DPI
+    { // Initialize the descriptor set that imgui uses to read our color output
+        VkSamplerCreateInfo const samplerInfo{
+            vkinit::samplerCreateInfo(
+                0
+                , VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
+                , VK_FILTER_NEAREST
+                , VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+            )
+        };
 
-    float const fontBaseSize{ 13.0f };
-    std::string const fontPath{ DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}).string() };
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.c_str(), fontBaseSize * m_dpiScale);
+        assert(m_imguiSceneTextureSampler == VK_NULL_HANDLE);
+        vkCreateSampler(
+            m_device
+            , &samplerInfo
+            , nullptr
+            , &m_imguiSceneTextureSampler
+        );
 
-    ImGui::GetStyle().ScaleAllSizes(m_dpiScale);
+        m_imguiSceneTextureDescriptor = ImGui_ImplVulkan_AddTexture(
+            m_imguiSceneTextureSampler
+            , m_sceneColorTexture.imageView
+            , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    }
+
+
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    
+    m_uiReloadRequested = true;
+
+    m_imguiStyleDefault = ImGui::GetStyle();
 
     Log("ImGui initialized.");
 }
@@ -871,11 +930,123 @@ void Engine::mainLoop()
                 resizeSwapchain();
             }
 
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
+            if (renderUI(m_device))
+            {
+                // For some reason, ImGui gives visual artifacts for two frames when resetting certain docking states.
+                // We force updating to flush these through.
+                // TODO: fix this
+                renderUI(m_device);
+                renderUI(m_device);
+            }
+            draw();
+        }
+    }
+}
 
-            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+bool Engine::renderUI(VkDevice const device)
+{
+    if (m_uiReloadRequested)
+    {
+        // It is necessary to defer reloading to before each frame,
+        // since beginning an ImGui frame locks some resources we wish to modify.
+
+        float constexpr FONT_BASE_SIZE{ 13.0f };
+
+        UIPreferences const currentPreferences{ m_uiPreferences };
+
+        std::filesystem::path const fontPath{
+            DebugUtils::getLoadedDebugUtils().makeAbsolutePath(std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"})
+        };
+        ImGui::GetIO().Fonts->Clear();
+        ImGui::GetIO().Fonts->AddFontFromFileTTF(fontPath.string().c_str(), FONT_BASE_SIZE * currentPreferences.dpiScale);
+
+        // Wait for idle since we are modifying backend resources
+        vkDeviceWaitIdle(device);
+        // We destroy this to later force a rebuild when the fonts are needed.
+        ImGui_ImplVulkan_DestroyFontsTexture();
+        // TODO: is rebuilding the font with a specific scale good? ImGui recommends building fonts at various sizes then just selecting them
+
+        // Reset style so further scaling works off the base "1.0x" scaling
+        ImGui::GetStyle() = m_imguiStyleDefault;
+        ImGui::GetStyle().ScaleAllSizes(currentPreferences.dpiScale);
+
+        m_uiReloadRequested = false;
+    }
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    HUDState const hud{ renderHUD(m_uiPreferences) };
+
+    m_uiReloadRequested = hud.applyPreferencesRequested;
+    if (hud.resetPreferencesRequested)
+    {
+        m_uiPreferences = m_uiPreferencesDefault;
+        m_uiReloadRequested = true;
+    }
+
+    bool skipFrame{ false };
+    std::optional<DockingLayout> dockingLayout{};
+
+
+    if (hud.maximizeSceneViewport)
+    {
+        ImGui::SetNextWindowPos(hud.workArea.pos());
+        ImGui::SetNextWindowSize(hud.workArea.size());
+
+        ImGuiWindowFlags constexpr FULLSCREEN_WINDOW_FLAGS{ 
+            ImGuiWindowFlags_None
+            | ImGuiWindowFlags_NoDecoration
+            | ImGuiWindowFlags_NoBringToFrontOnFocus
+        };
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        if (ImGui::Begin("SceneViewportMaximized", nullptr, FULLSCREEN_WINDOW_FLAGS))
+        {
+            m_sceneRect = VkRect2D{
+                .offset{ VkOffset2D{
+                    .x{ 0 },
+                    .y{ 0 }
+                }},
+                .extent{ VkExtent2D{
+                    .width{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().x) },
+                    .height{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().y) },
+                }},
+            };
+            ImGui::Image(
+                (ImTextureID)m_imguiSceneTextureDescriptor
+                , ImGui::GetContentRegionAvail()
+                , ImVec2{ 0.0,0.0 }
+                , ImVec2{
+                    static_cast<float>(m_sceneRect.extent.width) / m_sceneColorTexture.imageExtent.width
+                    , static_cast<float>(m_sceneRect.extent.height) / m_sceneColorTexture.imageExtent.height
+                }
+                , ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
+                , ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+            );
+
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+    else
+    {
+        if (hud.resetLayoutRequested && hud.dockspaceID != 0)
+        {
+            dockingLayout = buildDefaultMultiWindowLayout(
+                hud.workArea.pos()
+                , hud.workArea.size()
+                , hud.dockspaceID
+            );
+            skipFrame = true;
+        }
+
+        { // Scene Controls
+            if (dockingLayout.has_value())
+            {
+                ImGui::SetNextWindowDockID(dockingLayout.value().left);
+            }
 
             if (ImGui::Begin("Scene Controls"))
             {
@@ -884,6 +1055,7 @@ void Engine::mainLoop()
                     m_testMeshes,
                     m_testMeshUsed
                 );
+
                 ImGui::Separator();
                 imguiStructureControls(
                     m_sceneBounds
@@ -892,15 +1064,32 @@ void Engine::mainLoop()
                         .extent{ glm::vec3(40.0, 5.0, 40.0) }
                     }
                 );
+
                 ImGui::Separator();
                 ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
+
                 ImGui::Separator();
+                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+
+                ImGui::Separator();
+                imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+
+                ImGui::Separator();
+                imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
             }
             ImGui::End();
+        }
 
-            if (ImGui::Begin("Pipeline Controls"))
+        { // Engine Controls
+            if (dockingLayout.has_value())
+            {
+                ImGui::SetNextWindowDockID(dockingLayout.value().right);
+            }
+
+            if (ImGui::Begin("Engine Controls"))
             {
                 imguiRenderingSelection(m_activeRenderingPipeline);
+
                 ImGui::Separator();
                 switch (m_activeRenderingPipeline)
                 {
@@ -914,25 +1103,62 @@ void Engine::mainLoop()
                     ImGui::Text("Invalid rendering pipeline selected.");
                     break;
                 }
-            }
-            ImGui::End();
 
-            if (ImGui::Begin("Engine Controls"))
-            {
-                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
-                ImGui::Separator();
-                imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
-                ImGui::Separator();
-                imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_debugLines);
+
             }
             ImGui::End();
+        }
 
-            ImGui::Render();
-            draw();
+        { // Performance window
+            if (dockingLayout.has_value())
+            {
+                ImGui::SetNextWindowDockID(dockingLayout.value().centerBottom);
+            }
+
+            imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
+        }
+
+        { // Scene viewport
+            if (dockingLayout.has_value())
+            {
+                ImGui::SetNextWindowDockID(dockingLayout.value().centerTop);
+            }
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+            if (ImGui::Begin("SceneViewport"))
+            {
+                m_sceneRect = VkRect2D{
+                    .offset{ VkOffset2D{
+                        .x{ 0 },
+                        .y{ 0 }
+                    }},
+                    .extent{ VkExtent2D{
+                        .width{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().x) },
+                        .height{ static_cast<uint32_t>(ImGui::GetContentRegionAvail().y) },
+                    }},
+                };
+                ImGui::Image(
+                    (ImTextureID)m_imguiSceneTextureDescriptor
+                    , ImGui::GetContentRegionAvail()
+                    , ImVec2{ 0.0,0.0 }
+                    , ImVec2{
+                        static_cast<float>(m_sceneRect.extent.width) / m_sceneColorTexture.imageExtent.width
+                        , static_cast<float>(m_sceneRect.extent.height) / m_sceneColorTexture.imageExtent.height
+                    }
+                    , ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
+                    , ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+                );
+
+            }
+            ImGui::End();
+            ImGui::PopStyleVar();
         }
     }
+
+    ImGui::Render();
+    return skipFrame;
 }
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
@@ -1017,7 +1243,7 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawExtent) };
+        double const aspectRatio{ vkutil::aspectRatio(m_sceneRect.extent) };
 
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
@@ -1049,161 +1275,171 @@ void Engine::draw()
         m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
     }
 
-    switch (m_activeRenderingPipeline)
     {
-    case RenderingPipelines::DEFERRED:
-    {
-        std::vector<GPUTypes::LightDirectional> directionalLights{};
-        std::span<GPUTypes::Atmosphere const> const atmospheres{
-            m_atmospheresBuffer->readValidStaged()
-        };
-        if (m_atmosphereIndex < atmospheres.size())
+        vkutil::transitionImage(cmd,
+            m_sceneColorTexture.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        switch (m_activeRenderingPipeline)
         {
-            GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
-
-            float const time{ // position of sun as proxy for time
-                glm::dot(geometry::up, atmosphere.directionToSun)
+        case RenderingPipelines::DEFERRED:
+        {
+            std::vector<GPUTypes::LightDirectional> directionalLights{};
+            std::span<GPUTypes::Atmosphere const> const atmospheres{
+                m_atmospheresBuffer->readValidStaged()
             };
-            if (time > 0.0)
-            { // Sunlight
-                directionalLights.push_back(
-                    lights::makeDirectional(
-                        glm::vec4(atmosphere.sunlightColor, 1.0)
-                        , 0.5
-                        , m_atmosphereParameters.sunEulerAngles
-                        , m_sceneBounds.center
-                        , m_sceneBounds.extent
-                    )
-                );
+            if (m_atmosphereIndex < atmospheres.size())
+            {
+                GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
+
+                float const time{ // position of sun as proxy for time
+                    glm::dot(geometry::up, atmosphere.directionToSun)
+                };
+                if (time > 0.0)
+                { // Sunlight
+                    directionalLights.push_back(
+                        lights::makeDirectional(
+                            glm::vec4(atmosphere.sunlightColor, 1.0)
+                            , 0.5
+                            , m_atmosphereParameters.sunEulerAngles
+                            , m_sceneBounds.center
+                            , m_sceneBounds.extent
+                        )
+                    );
+                }
+
+                float constexpr timeSunset{ 0.06 };
+                if (time < timeSunset)
+                { // Moonlight
+                    float constexpr moonrisePeriod{ 0.08 };
+                    float const moonlightStrength{
+                        0.1f * (
+                            time < timeSunset - moonrisePeriod
+                            ? 1.0f
+                            : glm::abs(time - timeSunset) / moonrisePeriod
+                        )
+                    };
+
+                    glm::vec4 const moonlightColor{
+                        glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
+                    };
+
+                    directionalLights.push_back(
+                        lights::makeDirectional(
+                            moonlightColor
+                            , moonlightStrength
+                            , glm::vec3(-1.5708, 0.0, 0.0)
+                            , m_sceneBounds.center
+                            , m_sceneBounds.extent
+                        )
+                    );
+                }
             }
-
-            float constexpr timeSunset{ 0.06 };
-            if (time < timeSunset)
-            { // Moonlight
-                float constexpr moonrisePeriod{ 0.08 };
-                float const moonlightStrength{
-                    0.1f * (
-                        time < timeSunset - moonrisePeriod
-                        ? 1.0f
-                        : glm::abs(time - timeSunset) / moonrisePeriod
-                    )
-                };
-
-                glm::vec4 const moonlightColor{
-                    glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
-                };
-
+            else
+            {
                 directionalLights.push_back(
                     lights::makeDirectional(
-                        moonlightColor
-                        , moonlightStrength
+                        glm::vec4(1.0)
+                        , 1.0
                         , glm::vec3(-1.5708, 0.0, 0.0)
                         , m_sceneBounds.center
                         , m_sceneBounds.extent
                     )
                 );
             }
-        }
-        else
-        {
-            directionalLights.push_back(
-                lights::makeDirectional(
-                    glm::vec4(1.0)
+
+            std::vector<GPUTypes::LightSpot> const spotLights{
+                lights::makeSpot(
+                    glm::vec4(0.0, 1.0, 0.0, 1.0)
+                    , 30.0
                     , 1.0
-                    , glm::vec3(-1.5708, 0.0, 0.0)
-                    , m_sceneBounds.center
-                    , m_sceneBounds.extent
-                )
+                    , 1.0
+                    , 60
+                    , 1.0
+                    , glm::vec3(-1.0, 0.0, 1.0)
+                    , glm::vec3(-8.0, -10.0, -2.0)
+                    , 0.1
+                    , 1000.0
+                ),
+                lights::makeSpot(
+                    glm::vec4(1.0, 0.0, 0.0, 1.0)
+                    , 30.0
+                    , 1.0
+                    , 1.0
+                    , 60
+                    , 1.0
+                    , glm::vec3(-1.0, 0.0, -1.0)
+                    , glm::vec3(8.0, -10.0, 2.0)
+                    , 0.1
+                    , 1000.0
+                ),
+            };
+
+            m_deferredShadingPipeline->recordDrawCommands(
+                cmd
+                , m_sceneRect
+                , VK_IMAGE_LAYOUT_GENERAL
+                , m_sceneColorTexture
+                , m_sceneDepthTexture
+                , directionalLights
+                , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
+                , m_cameraIndexMain
+                , *m_camerasBuffer
+                , m_atmosphereIndex
+                , *m_atmospheresBuffer
+                , m_sceneBounds
+                , m_renderMeshInstances
+                , *m_testMeshes[m_testMeshUsed]
+                , m_meshInstances
             );
-        }
 
-        std::vector<GPUTypes::LightSpot> const spotLights{
-            lights::makeSpot(
-                glm::vec4(0.0, 1.0, 0.0, 1.0)
-                , 30.0
-                , 1.0
-                , 1.0
-                , 60
-                , 1.0
-                , glm::vec3(-1.0, 0.0, 1.0)
-                , glm::vec3(-8.0, -10.0, -2.0)
-                , 0.1
-                , 1000.0
-            ),
-            lights::makeSpot(
-                glm::vec4(1.0, 0.0, 0.0, 1.0)
-                , 30.0
-                , 1.0
-                , 1.0
-                , 60
-                , 1.0
-                , glm::vec3(-1.0, 0.0, -1.0)
-                , glm::vec3(8.0, -10.0, 2.0)
-                , 0.1
-                , 1000.0
-            ),
-        };
-
-        m_deferredShadingPipeline->recordDrawCommands(
-            cmd
-            , m_currentDrawExtent
-            , m_drawImage
-            , m_depthImage
-            , directionalLights
-            , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
-            , m_cameraIndexMain
-            , *m_camerasBuffer
-            , m_atmosphereIndex
-            , *m_atmospheresBuffer
-            , m_sceneBounds
-            , *m_testMeshes[m_testMeshUsed]
-            , m_meshInstances
-        );
-        break;
-    }
-    case RenderingPipelines::COMPUTE_COLLECTION:
-    {
-        vkutil::transitionImage(
-            cmd
-            , m_drawImage.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_GENERAL
-            , VK_IMAGE_ASPECT_COLOR_BIT
-        );
-
-        m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
-
-        if (m_debugLines.enabled)
-        {
+            m_debugLines.pushBox(m_sceneBounds.center, glm::quat_identity<float, glm::qualifier::defaultp>(), m_sceneBounds.extent);
             recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
-        }
 
-        break;
-    }
-    default:
-    {
-        vkutil::transitionImage(cmd,
-            m_drawImage.image
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , VK_IMAGE_LAYOUT_GENERAL
-            , VK_IMAGE_ASPECT_COLOR_BIT
-        );
-        break;
-    }
+            break;
+        }
+        case RenderingPipelines::COMPUTE_COLLECTION:
+        {
+            m_genericComputePipeline->recordDrawCommands(
+                cmd
+                , m_sceneTextureDescriptors
+                , m_sceneRect.extent
+            );
+
+            break;
+        }
+        }
     }
 
     // End scene drawing
 
     // ImGui Drawing
+    
+    vkutil::transitionImage(cmd,
+        m_sceneColorTexture.image
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
 
     vkutil::transitionImage(cmd,
         m_drawImage.image
-        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_UNDEFINED
         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     recordDrawImgui(cmd, m_drawImage.imageView);
+
+    vkutil::transitionImage(cmd,
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
 
     // End ImGui Drawing
 
@@ -1230,7 +1466,7 @@ void Engine::draw()
 
     vkutil::transitionImage(cmd, 
         m_drawImage.image
-        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_GENERAL
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
@@ -1243,7 +1479,7 @@ void Engine::draw()
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        m_currentDrawExtent, m_swapchainExtent
+        m_drawRect, VkRect2D{ .extent{ m_swapchainExtent} }
     );
 
     vkutil::transitionImage(cmd, 
@@ -1313,33 +1549,60 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 
     std::vector<VkRenderingAttachmentInfo> colorAttachments{ colorAttachmentInfo };
     VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(VkExtent2D{ m_swapchainExtent.width, m_swapchainExtent.height }, colorAttachments, nullptr)
+        vkinit::renderingInfo(
+            VkRect2D{
+                .extent{
+                    m_swapchainExtent
+                }
+            }, colorAttachments, nullptr)
     };
 
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    ImDrawData* const drawData{ ImGui::GetDrawData() };
+
+    m_drawRect = VkRect2D{
+        .offset{
+            VkOffset2D{
+                .x{ static_cast<int32_t>(drawData->DisplayPos.x) },
+                .y{ static_cast<int32_t>(drawData->DisplayPos.y) },
+            }
+        },
+        .extent{
+            VkExtent2D{
+                .width{ static_cast<uint32_t>(drawData->DisplaySize.x) },
+                .height{ static_cast<uint32_t>(drawData->DisplaySize.y) },
+            }
+        },
+    };
+
+    ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
 
     vkCmdEndRendering(cmd);
 }
 
 void Engine::recordDrawDebugLines(
-    VkCommandBuffer cmd
-    , uint32_t cameraIndex
+    VkCommandBuffer const cmd
+    , uint32_t const cameraIndex
     , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};
 
-    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+    if (
+        m_debugLines.enabled 
+        && m_debugLines.indices->stagedSize() > 0
+    ) 
+    {
         m_debugLines.recordCopy(cmd, m_allocator);
 
         DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
             cmd
             , false
             , m_debugLines.lineWidth
-            , m_drawImage
-            , m_depthImage
+            , m_sceneRect
+            , m_sceneColorTexture
+            , m_sceneDepthTexture
             , cameraIndex
             , camerasBuffer
             , *m_debugLines.vertices
@@ -1367,6 +1630,7 @@ void Engine::cleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
+    vkDestroySampler(m_device, m_imguiSceneTextureSampler, nullptr);
 
     m_genericComputePipeline->cleanup(m_device);
     m_deferredShadingPipeline->cleanup(m_device, m_allocator);
@@ -1382,7 +1646,7 @@ void Engine::cleanup()
 
     m_globalDescriptorAllocator.destroyPool(m_device);
 
-    vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_device, m_sceneTextureDescriptorLayout, nullptr);
 
     for (FrameData const& frameData : m_frames)
     {
