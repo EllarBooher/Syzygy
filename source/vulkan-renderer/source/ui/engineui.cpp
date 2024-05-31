@@ -6,9 +6,11 @@
 
 #include "pipelineui.hpp"
 
+#include "../debuglines.hpp"
 #include "../assets.hpp"
 #include "../shaders.hpp"
 #include "../engineparams.hpp"
+#include "../shadowpass.hpp"
 
 void imguiPerformanceWindow(
     std::span<double const> fpsValues
@@ -61,25 +63,20 @@ void imguiMeshInstanceControls(
     ImGui::Unindent(10.0f);
 }
 
-void imguiBackgroundRenderingControls(bool& useAtmosphereCompute, AtmosphereComputePipeline const& atmospherePipeline, GenericComputeCollectionPipeline& genericComputePipeline)
-{
-    ImGui::Text("Background Rendering:");
-    if (ImGui::RadioButton("Atmosphere Volume Rendering", useAtmosphereCompute))
-    {
-        useAtmosphereCompute = true;
-    }
-    if (ImGui::RadioButton("Generic Single Shader Compute Collection", !useAtmosphereCompute))
-    {
-        useAtmosphereCompute = false;
-    }
+static std::vector<std::tuple<RenderingPipelines, std::string>> renderingPipelineLabels{
+    std::make_tuple(RenderingPipelines::DEFERRED, "Deferred")
+    , std::make_tuple(RenderingPipelines::COMPUTE_COLLECTION, "Compute Collection")
+};
 
-    if (useAtmosphereCompute)
+void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
+{
+    ImGui::Text("Rendering Pipeline:");
+    for (auto const& [pipeline, label] : renderingPipelineLabels)
     {
-        imguiPipelineControls<AtmosphereComputePipeline const>(atmospherePipeline);
-    }
-    else
-    {
-        imguiPipelineControls<GenericComputeCollectionPipeline>(genericComputePipeline);
+        if (ImGui::RadioButton(label.c_str(), currentActivePipeline == pipeline))
+        {
+            currentActivePipeline = pipeline;
+        }
     }
 }
 
@@ -105,20 +102,21 @@ static void ResetButton(std::string const& label, T& value, T const& defaultValu
 
 static void DragScalarFloats(
     std::string const& label
-    , std::span<float> values
-    , float min
-    , float max
-    , ImGuiSliderFlags flags = 0
-    , std::string format = "%f"
+    , std::span<float> const values
+    , float const speed
+    , std::optional<float> const min
+    , std::optional<float> const max
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
 )
 {
     ImGui::DragScalarN(
         label.c_str()
         , ImGuiDataType_Float
         , values.data(), values.size()
-        , 0.0f
-        , &min
-        , &max
+        , speed
+        , min.has_value() ? &min.value() : nullptr
+        , max.has_value() ? &max.value() : nullptr
         , format.c_str()
         , flags
     );
@@ -129,60 +127,122 @@ struct is_glm_vec : std::false_type
 {};
 
 template<size_t N, typename T>
-struct is_glm_vec<glm::vec<N, T>> : std::true_type
+struct is_glm_vec<glm::vec<N, T>> : std::is_same<T, float>
 {};
 
 template<typename T>
 static void DragScalarFloats(
     std::string const& label
     , T& values
-    , float min
-    , float max
-    , ImGuiSliderFlags flags = 0
-    , std::string format = "%f"
+    , float const speed
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
 )
 {
     static_assert(sizeof(T) % 4 == 0);
     static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
     size_t constexpr N = sizeof(T) / 4;
-    DragScalarFloats(label, std::span<float>(reinterpret_cast<float*>(&values), N), min, max, flags, format);
+    DragScalarFloats(
+        label
+        , std::span<float>(reinterpret_cast<float*>(&values), N)
+        , speed
+        , std::nullopt
+        , std::nullopt
+        , flags
+        , format
+    );
+}
+
+template<typename T>
+static void DragScalarFloats(
+    std::string const& label
+    , T& values
+    , std::tuple<float,float> const bounds 
+    , ImGuiSliderFlags const flags = 0
+    , std::string const format = "%f"
+)
+{
+    static_assert(sizeof(T) % 4 == 0);
+    static_assert(is_glm_vec<T>::value || std::is_same<T, float>::value);
+    size_t constexpr N = sizeof(T) / 4;
+
+    float constexpr speed = 0.0f;
+
+    DragScalarFloats(
+        label
+        , std::span<float>(reinterpret_cast<float*>(&values), N)
+        , speed
+        , std::get<0>(bounds)
+        , std::get<1>(bounds)
+        , flags
+        , format
+    );
 }
 
 // Templating for value types that cannot be implicitely converted to span of floats.
 template<typename T>
 static void FractionalCoefficientSlider(std::string const& label, T& values)
 {
+    auto const range{ std::make_tuple<float,float>(0.0, 1.0) };
+
     DragScalarFloats(
         label
         , values
-        , 0.0
-        , 1.0
+        , range
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
         , "%.8f"
     );
 }
 
 template<>
-void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphere, AtmosphereParameters const& defaultValues)
+void imguiStructureControls<AtmosphereParameters>(
+    AtmosphereParameters& atmosphere
+    , AtmosphereParameters const& defaultValues
+)
 {
     ImGui::BeginGroup();
     ImGui::Text("Atmosphere Parameters");
     ResetButton("atmosphereParameters", atmosphere, defaultValues);
 
-    atmosphere.directionToSun = glm::normalize(atmosphere.directionToSun);
-    DragScalarFloats("Direction to Sun", atmosphere.directionToSun, -1.0f, 1.0f);
-    ResetButton("directionToSun", atmosphere.directionToSun, defaultValues.directionToSun);
+    { // Sun direction controls
+        ImGui::Checkbox("Animate Sun", &atmosphere.animation.animateSun);
+        ImGui::Indent(10.0f);
+
+        DragScalarFloats("Speed##sun", atmosphere.animation.animationSpeed, { 0.0, 100.0 });
+        ResetButton("sunSpeed", atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed);
+
+        ImGui::Checkbox("Night Multiplier##sun", &atmosphere.animation.skipNight);
+        
+        ImGui::BeginDisabled(atmosphere.animation.animateSun);
+        DragScalarFloats("sunEulerAngles", atmosphere.sunEulerAngles, 0.1f);
+        ResetButton("sunEulerAngles", atmosphere.sunEulerAngles, defaultValues.sunEulerAngles);
+        ImGui::EndDisabled();
+
+        ImGui::BeginDisabled(true);
+        {
+            glm::vec3 direction{ atmosphere.directionToSun() };
+            DragScalarFloats("directionToSun", direction, { -1.0, 1.0 });
+        }
+        ImGui::EndDisabled();
+        ImGui::Unindent(10.0f);
+    }
+
+    DragScalarFloats(
+        "Ground Diffuse Color", atmosphere.groundColor
+        , 0.0f, 1.0f
+    );
+    ResetButton("groundColor", atmosphere.groundColor, defaultValues.groundColor);
 
     DragScalarFloats(
         "Earth Radius (meters)", atmosphere.earthRadiusMeters
-        , 1.0f, atmosphere.atmosphereRadiusMeters
+        , { 1.0f, atmosphere.atmosphereRadiusMeters }
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
     );
     ResetButton("earthRadiusMeters", atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters);
 
     DragScalarFloats(
         "Atmosphere Radius (meters)", atmosphere.atmosphereRadiusMeters
-        , atmosphere.earthRadiusMeters, 1'000'000'000.0f
+        , { atmosphere.earthRadiusMeters, 1'000'000'000.0f }
         , ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic
     );
     ResetButton("atmosphereRadiusMeters", atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters);
@@ -190,20 +250,23 @@ void imguiStructureControls<AtmosphereParameters>(AtmosphereParameters& atmosphe
     FractionalCoefficientSlider("Rayleigh Scattering Coefficient", atmosphere.scatteringCoefficientRayleigh);
     ResetButton("scatteringCoefficientRayleigh", atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh);
 
-    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, 0.0f, 10'000.0f);
+    DragScalarFloats("Rayleigh Altitude Decay", atmosphere.altitudeDecayRayleigh, { 0.0f, 10'000.0f });
     ResetButton("altitudeDecayRayleigh", atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh);
 
     FractionalCoefficientSlider("Mie Scattering Coefficient", atmosphere.scatteringCoefficientMie);
     ResetButton("scatteringCoefficientMie", atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie);
 
-    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, 0.0f, 10'000.0f);
+    DragScalarFloats("Mie Altitude Decay", atmosphere.altitudeDecayMie, { 0.0f, 10'000.0f });
     ResetButton("altitudeDecayMie", atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie);
 
     ImGui::EndGroup();
 }
 
 template<>
-void imguiStructureControls<CameraParameters>(CameraParameters& structure, CameraParameters const& defaultValues)
+void imguiStructureControls<CameraParameters>(
+    CameraParameters& structure
+    , CameraParameters const& defaultValues
+)
 {
     ImGui::BeginGroup();
     ImGui::Text("Camera Parameters");
@@ -212,17 +275,115 @@ void imguiStructureControls<CameraParameters>(CameraParameters& structure, Camer
     ImGui::DragScalarN("cameraPosition", ImGuiDataType_Float, &structure.cameraPosition, 3, 0.2f);
     ResetButton("cameraPosition", structure.cameraPosition, defaultValues.cameraPosition);
 
-    DragScalarFloats("eulerAngles", structure.eulerAngles, glm::radians(-90.0f), glm::radians(90.0f));
+    DragScalarFloats("eulerAngles", structure.eulerAngles, { glm::radians(-180.0f), glm::radians(180.0f) });
     ResetButton("eulerAngles", structure.eulerAngles, defaultValues.eulerAngles);
+    structure.eulerAngles.x = glm::clamp(structure.eulerAngles.x, -glm::radians(90.0f), glm::radians(90.0f));
 
-    DragScalarFloats("fov", structure.fov, 0.0f, 180.0f, 0, "%.0f");
+    DragScalarFloats("fov", structure.fov, { 0.0f, 180.0f }, 0, "%.0f");
     ResetButton("fov", structure.fov, defaultValues.fov);
 
-    DragScalarFloats("nearPlane", structure.near, 0.01f, structure.far, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    DragScalarFloats("nearPlane", structure.near, { 0.01f, structure.far }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
     ResetButton("nearPlane", structure.near, std::min(structure.far, defaultValues.near));
 
-    DragScalarFloats("farPlane", structure.far, structure.near + 0.01f, 1'000'000.0f, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
+    DragScalarFloats("farPlane", structure.far, { structure.near + 0.01f, 1'000'000.0f }, ImGuiSliderFlags_::ImGuiSliderFlags_Logarithmic, "%.2f");
     ResetButton("farPlane", structure.far, std::max(structure.near, defaultValues.far));
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureDisplay<DrawResultsGraphics>(
+    DrawResultsGraphics const& structure
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Graphics Draw Results");
+    ImGui::Indent(10.0);
+
+    ImGui::BeginTable("drawResultsGraphics", 2);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Draw Calls");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.drawCalls);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Vertices Drawn");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.verticesDrawn);
+
+    ImGui::TableNextColumn();
+    ImGui::Text("Indices Drawn");
+    ImGui::TableNextColumn();
+    ImGui::Text("%u", structure.indicesDrawn);
+
+    ImGui::EndTable();
+
+    ImGui::Unindent(10.0);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<DebugLines>(
+    DebugLines& structure
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Debug Lines");
+
+    ImGui::BeginDisabled(!structure.pipeline || !structure.indices || !structure.vertices);
+    ImGui::Checkbox("enabled", &structure.enabled);
+    ResetButton("enabled", structure.enabled, false);
+    ImGui::EndDisabled();
+
+    DragScalarFloats("lineWidth", structure.lineWidth, { 1.0, 10.0 });
+    ResetButton("lineWidth", structure.lineWidth, 1.0f);
+
+    imguiStructureDisplay(structure.lastFrameDrawResults);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<ShadowPassParameters>(
+    ShadowPassParameters& structure
+    , ShadowPassParameters const& defaultValues
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Shadow Pass Parameters");
+    ResetButton("shadowPassParameters", structure, defaultValues);
+
+    ImGui::DragFloat("Depth Bias Constant", &structure.depthBiasConstant);
+    ResetButton("depthBiasConstant", structure.depthBiasConstant, defaultValues.depthBiasConstant);
+
+    ImGui::Text("Depth Bias Clamp is not supported."); // TODO: support depth bias clamp
+    ImGui::BeginDisabled();
+    ResetButton("depthBiasClamp", structure, defaultValues);
+    ImGui::EndDisabled();
+
+    ImGui::DragFloat("Depth Bias Slope", &structure.depthBiasSlope);
+    ResetButton("depthBiasSlope", structure.depthBiasSlope, defaultValues.depthBiasSlope);
+
+    ImGui::EndGroup();
+}
+
+template<>
+void imguiStructureControls<SceneBounds>(
+    SceneBounds& structure
+    , SceneBounds const& defaultValues
+)
+{
+    ImGui::BeginGroup();
+    ImGui::Text("Scene Bounds");
+    ResetButton("sceneBounds", structure, defaultValues);
+
+    ImGui::DragFloat3("Scene Center", reinterpret_cast<float*>(&structure.center));
+    ResetButton("sceneCenter", structure.center, defaultValues.center);
+
+    ImGui::DragFloat3("Scene Extent", reinterpret_cast<float*>(&structure.extent));
+    ResetButton("sceneExtent", structure.extent, defaultValues.extent);
 
     ImGui::EndGroup();
 }

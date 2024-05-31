@@ -7,6 +7,9 @@
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "engineparams.hpp"
+#include "shadowpass.hpp"
+#include "debuglines.hpp"
+#include "deferred/deferred.hpp"
 
 struct GLFWwindow;
 
@@ -39,7 +42,7 @@ public:
 
 private:
     void init();
-    
+
     void initWindow();
 
     void initVulkan();
@@ -49,6 +52,7 @@ private:
     void tickWorld(double totalTime, double deltaTimeSeconds);
     void draw();
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
+    void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
 
     void cleanup();
 
@@ -82,8 +86,9 @@ private:
 
     void initDefaultMeshData();
     void initWorld();
-    void initInstancedPipeline();
-    void initBackgroundPipeline();
+    void initDebug();
+    void initDeferredShadingPipeline();
+
     void initGenericComputePipelines();
 
     void initImgui();
@@ -106,7 +111,7 @@ private:
 
     std::vector<VkImage> m_swapchainImages{};
     std::vector<VkImageView> m_swapchainImageViews{};
-    VkExtent3D m_swapchainExtent{};
+    VkExtent2D m_swapchainExtent{};
 
     float m_dpiScale{ 1.0f };
 
@@ -115,20 +120,21 @@ private:
 
     // Draw Resources
 
+    // Instead of resizing all resources to be exactly the window size, we just draw into a limited scissor.
+    // This constant defines the max size, to inform the creation of resources that can contain any requested draw extent
+    static VkExtent2D constexpr MAX_DRAW_EXTENTS{ 4096, 4096 };
+
     VkDescriptorPool m_imguiDescriptorPool{ VK_NULL_HANDLE };
 
-    /** This image is used as the render target, then copied onto the swapchain. */
+    VkExtent2D m_currentDrawExtent{};
+
+    // Color image used for compute and graphics passes, eventually copied to swapchain
     AllocatedImage m_drawImage{};
-    float getAspectRatio() const {
-        auto const width{ static_cast<float>(m_drawImage.imageExtent.width) };
-        auto const height{ static_cast<float>(m_drawImage.imageExtent.height) };
 
-        return width / height;
-    }
-
+    // Depth image used for graphics passes
     AllocatedImage m_depthImage{};
 
-    std::array<FrameData, FRAME_OVERLAP> m_frames {};
+    std::array<FrameData, FRAME_OVERLAP> m_frames{};
     FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
 
     // Immediate submit structures
@@ -149,18 +155,11 @@ private:
 
     // Pipelines
 
-    bool m_renderMeshInstances{ true };
-    size_t m_testMeshUsed{ 0 };
-    std::unique_ptr<InstancedMeshGraphicsPipeline> m_instancePipeline{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_meshInstances{};
-    std::vector<glm::mat4x4> m_transformOriginals{};
+    DebugLines m_debugLines{};
 
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_worldStaticTransforms{};
-
-    bool m_useAtmosphereCompute{ true };
-    std::unique_ptr<AtmosphereComputePipeline> m_atmospherePipeline{};
+    RenderingPipelines m_activeRenderingPipeline{ RenderingPipelines::DEFERRED };
     std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
-
+    std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
 
@@ -172,7 +171,22 @@ private:
     // Scene
 
     float m_targetFPS{ 160.0 };
-    uint32_t m_cameraIndex{ 0 };
+    uint32_t m_cameraIndexMain{ 0 };
+    size_t m_testMeshUsed{ 0 };
+
+    bool m_showSpotlights{ true };
+    bool m_renderMeshInstances{ true };
+
+    MeshInstances m_meshInstances{};
+
+    // These scene bounds help inform shadow map generation
+    // TODO: compute this from the scene
+    SceneBounds m_sceneBounds{
+        .center{ 0.0, -4.0, 0.0 },
+        .extent{ 40.0, 5.0, 40.0 },
+    };
+
+    bool m_useOrthographicProjection{ false };
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{ m_defaultCameraParameters };
 

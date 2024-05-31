@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 
 #include "../pipelines.hpp"
+#include "../deferred/deferred.hpp"
 
 static void TypeLabel(std::string const& label)
 {
@@ -117,7 +118,16 @@ static void imguiPushStructureControl(
 
                     std::string const memberLabel{ fmt::format("##{}", member.name) };
 
-                    T* const pDataPointer{ &backingData[member.offsetBytes] };
+                    size_t byteOffset{ member.offsetBytes };
+
+                    if (structure.paddedSizeBytes > backingData.size())
+                    {
+                        // Hacky fix for when backingdata is offset
+                        // TODO: Make runtime push constant data consistant with offsets
+                        byteOffset -= pushConstant.layoutOffsetBytes;
+                    }
+
+                    T* const pDataPointer{ &backingData[byteOffset] };
 
                     ImGui::TableSetColumnIndex(columnIndexValue);
 
@@ -238,7 +248,19 @@ static void imguiPushStructureControl(
                     // We render each "column" of the spirv data type as a "row" of imgui inputs to avoid flipping.
                     for (uint32_t column{ 0 }; column < columns; column++)
                     {
-                        size_t const byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                        size_t byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                        if (structure.paddedSizeBytes > backingData.size())
+                        {
+                            // Hacky fix for when backingdata is offset
+                            // TODO: Make runtime push constant data consistant with offsets
+                            byteOffset -= pushConstant.layoutOffsetBytes;
+                        }
+
+                        if (byteOffset > backingData.size())
+                        {
+                            Warning("Offset ");
+                        }
+
                         T* const pDataPointer{ &backingData[byteOffset] };
 
                         // Check that ImGui won't modify out of bounds data
@@ -254,7 +276,10 @@ static void imguiPushStructureControl(
                                 rowLabel.c_str(),
                                 imguiDataType,
                                 reinterpret_cast<void*>(const_cast<uint8_t*>(pDataPointer)),
-                                rows
+                                rows,
+                                nullptr,
+                                nullptr,
+                                imguiDataType == ImGuiDataType_Float ? "%.6f" : nullptr
                             );
                             ImGui::PopItemWidth();
                         }
@@ -266,32 +291,6 @@ static void imguiPushStructureControl(
 
         ImGui::EndTable();
     }
-}
-
-/*
-* Type-safe wrappers that call the methods that use the shader reflection data to render a push constant.
-*/
-template<>
-void imguiPipelineControls(InstancedMeshGraphicsPipeline const& pipeline)
-{
-    std::span<uint8_t const> const pushConstantBytes{ 
-        reinterpret_cast<uint8_t const*>(&pipeline.pushConstant())
-        , sizeof(pipeline.pushConstant())
-    };
-}
-
-template<>
-void imguiPipelineControls(AtmosphereComputePipeline const& pipeline)
-{
-    std::span<uint8_t const> const pushConstantBytes{
-        reinterpret_cast<uint8_t const*>(&pipeline.pushConstant())
-        , sizeof(pipeline.pushConstant())
-    };
-
-    ImGui::Separator();
-    ImGui::Text(pipeline.shader().name().c_str());
-
-    imguiPushStructureControl(pipeline.pushConstantReflected(), true, pushConstantBytes);
 }
 
 template<>
@@ -327,4 +326,17 @@ void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
     {
         ImGui::Text("No push constants.");
     }
+}
+
+template<>
+void imguiPipelineControls(DeferredShadingPipeline& pipeline)
+{
+    ImGui::Text("Deferred shading pipeline.");
+    imguiStructureControls(
+        pipeline.m_parameters.shadowPassParameters
+        , ShadowPassParameters{
+            .depthBiasConstant{ 2.0 },
+            .depthBiasSlope{ -5.0 },
+        }
+    );
 }

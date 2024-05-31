@@ -49,17 +49,18 @@ void CheckVkResult_Imgui(VkResult result)
     }
 }
 
-void LogVkResult(VkResult result, std::string message, std::source_location location)
+void LogVkResult(
+    VkResult result
+    , std::string message
+    , std::source_location location
+)
 {
-    switch (result)
+    if (result == VK_SUCCESS)
     {
-    case VK_SUCCESS:
-        Log(fmt::format("{} result: {}", message, string_VkResult(result)), location);
-        break;
-    default:
-        Error(fmt::format("{} error: {}", message, string_VkResult(result)), location);
-        break;
+        return;
     }
+
+    Error(fmt::format("{} error: {}", message, string_VkResult(result)), location);
 }
 
 void LogBase(std::string message, std::source_location location, fmt::color color)

@@ -29,7 +29,7 @@ AllocatedBuffer AllocatedBuffer::allocate(
             &newBuffer.buffer, &newBuffer.allocation, &newBuffer.info)
     );
 
-    newBuffer.address = 0;
+    newBuffer.deviceAddress = 0;
     if (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
     {
         VkBufferDeviceAddressInfo const addressInfo{
@@ -38,7 +38,7 @@ AllocatedBuffer AllocatedBuffer::allocate(
 
             .buffer{ newBuffer.buffer },
         };
-        newBuffer.address = vkGetBufferDeviceAddress(device, &addressInfo);
+        newBuffer.deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
     }
 
     newBuffer.allocator = allocator;
@@ -56,6 +56,8 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
 {
     CheckVkResult(vmaFlushAllocation(allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE));
 
+    markDirty(false);
+
     VkBufferCopy const copyInfo{
         .srcOffset{ 0 },
         .dstOffset{ 0 },
@@ -66,16 +68,56 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocato
     m_deviceSizeBytes = m_stagedSizeBytes;
 }
 
-VkDeviceAddress StagedBuffer::address() const
+VkDeviceAddress StagedBuffer::deviceAddress() const
 {
-    return m_deviceBuffer.address;
+    if (isDirty())
+    {
+        Warning("Dirty buffer's device address was accessed, the buffer may have unexpected values at command execution.");
+    }
+
+    return m_deviceBuffer.deviceAddress;
 }
 
-void StagedBuffer::stage(std::span<uint8_t const> data)
+void StagedBuffer::stageBytes(std::span<uint8_t const> data)
 {
-    assert(data.size_bytes() <= m_stagingBuffer.info.size);
-    m_stagedSizeBytes = data.size_bytes();
-    memcpy(m_stagingBuffer.info.pMappedData, data.data(), data.size_bytes());
+    clearStaged();
+    markDirty(true);
+    pushBytes(data);
+}
+
+void StagedBuffer::pushBytes(std::span<uint8_t const> data)
+{
+    assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
+    markDirty(true);
+    uint8_t* const start{ reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData) + m_stagedSizeBytes };
+    memcpy(start, data.data(), data.size_bytes());
+    m_stagedSizeBytes += data.size_bytes();
+}
+
+void StagedBuffer::popBytes(size_t count)
+{
+    markDirty(true);
+
+    if (count > m_stagedSizeBytes)
+    {
+        m_stagedSizeBytes = 0;
+        return;
+    }
+
+    m_stagedSizeBytes -= count;
+}
+
+void StagedBuffer::clearStaged()
+{
+    markDirty(true);
+
+    m_stagedSizeBytes = 0;
+}
+
+void StagedBuffer::clearBoth()
+{
+    m_stagedSizeBytes = 0;
+    m_deviceSizeBytes = 0;
 }
 
 StagedBuffer StagedBuffer::allocate(
@@ -115,14 +157,10 @@ StagedBuffer StagedBuffer::allocate(
     );
 }
 
-VkDeviceSize StagedBuffer::stagingCapacityBytes() const
-{
-    return m_stagingBuffer.info.size;
-}
-
 void StagedBuffer::recordTotalCopyBarrier(
     VkCommandBuffer cmd
     , VkPipelineStageFlags2 destinationStage
+    , VkAccessFlags2 destinationAccessFlags
 ) const
 {
     VkBufferMemoryBarrier2 const bufferMemoryBarrier{
@@ -133,14 +171,14 @@ void StagedBuffer::recordTotalCopyBarrier(
         .srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
 
         .dstStageMask{ destinationStage },
-        .dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
+        .dstAccessMask{ destinationAccessFlags },
 
         .srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
         .dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
 
         .buffer{ deviceBuffer() },
         .offset{ 0 },
-        .size{ deviceSizeBytes() },
+        .size{ deviceSizeQueuedBytes() },
     };
 
     VkDependencyInfo const transformsDependency{

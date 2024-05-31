@@ -13,16 +13,17 @@ void imguiStructureControls(T& structure, T const& defaultValues);
 template<typename T>
 void imguiStructureControls(T& structure);
 
+template<typename T>
+void imguiStructureDisplay(T const& structure);
+
 void imguiMeshInstanceControls(
     bool& shouldRender,
     std::span<std::shared_ptr<MeshAsset> const> meshes,
     size_t& meshIndex
 );
 
-void imguiBackgroundRenderingControls(
-    bool& useAtmosphereCompute,
-    AtmosphereComputePipeline const& atmospherePipeline,
-    GenericComputeCollectionPipeline& genericComputePipeline
+void imguiRenderingSelection(
+    RenderingPipelines& currentActivePipeline
 );
 
 void imguiPerformanceWindow(

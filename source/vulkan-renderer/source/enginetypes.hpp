@@ -22,18 +22,30 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
-struct AllocatedImage {
-    VmaAllocation allocation{ VK_NULL_HANDLE };
-    VkImage image{ VK_NULL_HANDLE };
-    VkImageView imageView{ VK_NULL_HANDLE };
-    VkExtent3D imageExtent{};
-    VkFormat imageFormat{ VK_FORMAT_UNDEFINED };
+enum class RenderingPipelines
+{
+    DEFERRED = 0
+    , COMPUTE_COLLECTION = 1
+};
 
-    void cleanup(VkDevice device, VmaAllocator allocator)
-    {
-        vkDestroyImageView(device, imageView, nullptr);
-        vmaDestroyImage(allocator, image, allocation);
-    }
+template<typename T>
+struct TStagedBuffer;
+
+struct MeshInstances
+{
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+
+    std::vector<glm::mat4x4> originals{};
+
+    // An index to where the first dynamic object begins
+    size_t dynamicIndex{};
+};
+
+struct SceneBounds
+{
+    glm::vec3 center{};
+    glm::vec3 extent{};
 };
 
 struct Vertex {

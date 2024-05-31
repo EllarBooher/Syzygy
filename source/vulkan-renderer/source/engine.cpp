@@ -22,11 +22,13 @@
 
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/random.hpp>
 
 #include <glm/gtx/string_cast.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include "initializers.hpp"
 #include "helpers.hpp"
@@ -34,11 +36,15 @@
 #include "descriptors.hpp"
 #include "pipelines.hpp"
 
+#include "lights.hpp"
+
 #include "ui/engineui.hpp"
 #include "ui/pipelineui.hpp"
 
+#define VKRENDERER_COMPILE_WITH_TESTING 0
+
 CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
-    .cameraPosition{ glm::vec3(0.0f,-4.0f,-8.0f) },
+    .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
     .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
     .fov{ 70.0f },
     .near{ 0.1f },
@@ -46,10 +52,12 @@ CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
 };
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
-    .directionToSun{ glm::vec3(0.0, -1.0, 0.0) },
+    .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
 
     .earthRadiusMeters{ 6378000 },
     .atmosphereRadiusMeters{ 6420000 },
+
+    .groundColor{ 0.9, 0.8, 0.6 },
 
     .scatteringCoefficientRayleigh{ glm::vec3(0.0000038, 0.0000135, 0.0000331) },
     .altitudeDecayRayleigh{ 7994.0 },
@@ -131,9 +139,10 @@ void Engine::initVulkan()
 
     initDefaultMeshData();
     initWorld();
-    initBackgroundPipeline();
-    initInstancedPipeline();
+    initDebug();
     initGenericComputePipelines();
+    
+    initDeferredShadingPipeline();
 
     initImgui();
 
@@ -166,13 +175,26 @@ void Engine::initInstanceSurfaceDevices()
 
     // create VkPhysicalDevice and VkDevice
 
-    VkPhysicalDeviceVulkan13Features features13{};
-    features13.dynamicRendering = true;
-    features13.synchronization2 = true;
+    VkPhysicalDeviceVulkan13Features const features13
+    {
+        .synchronization2{ VK_TRUE },
+        .dynamicRendering{ VK_TRUE },
+    };
 
-    VkPhysicalDeviceVulkan12Features features12{};
-    features12.bufferDeviceAddress = true;
-    features12.descriptorIndexing = true;
+    VkPhysicalDeviceVulkan12Features const features12
+    {
+        .descriptorIndexing{ VK_TRUE },
+
+        .descriptorBindingPartiallyBound{ VK_TRUE },
+        .runtimeDescriptorArray{ VK_TRUE },
+
+        .bufferDeviceAddress{ VK_TRUE },
+    };
+    
+    VkPhysicalDeviceFeatures const features
+    {
+        .wideLines{ VK_TRUE },
+    };
 
     VkPhysicalDeviceShaderObjectFeaturesEXT const shaderObjectFeature
     {
@@ -182,11 +204,11 @@ void Engine::initInstanceSurfaceDevices()
         .shaderObject{ VK_TRUE },
     };
 
-    vkb::PhysicalDeviceSelector selector{ vkbInstance };
-    vkb::Result<vkb::PhysicalDevice> physicalDeviceBuildResult = selector
+    vkb::Result<vkb::PhysicalDevice> const physicalDeviceBuildResult = vkb::PhysicalDeviceSelector{ vkbInstance }
         .set_minimum_version(1, 3)
         .set_required_features_13(features13)
         .set_required_features_12(features12)
+        .set_required_features(features)
         .add_required_extension_features(shaderObjectFeature)
         .add_required_extension(VK_EXT_SHADER_OBJECT_EXTENSION_NAME)
         .set_surface(m_surface)
@@ -247,37 +269,39 @@ void Engine::initSwapchain()
     m_swapchainExtent = { 
         .width = vkbSwapchain.extent.width,
         .height = vkbSwapchain.extent.height,
-        .depth = 1,
     };
     m_swapchain = vkbSwapchain.swapchain;
     m_swapchainImages = vkbSwapchain.get_images().value();
     m_swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+    m_currentDrawExtent = m_swapchainExtent;
 }
 
 void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
 
-    m_drawImage = vkutil::allocateImage(
+    m_drawImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_swapchainExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
         | VK_IMAGE_USAGE_STORAGE_BIT
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
-    );
+    ).value(); //TODO: handle failed case
 
-    m_depthImage = vkutil::allocateImage(
+    m_depthImage = AllocatedImage::allocate(
         m_allocator,
         m_device,
-        m_drawImage.imageExtent,
+        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
         VK_FORMAT_D32_SFLOAT,
         VK_IMAGE_ASPECT_DEPTH_BIT,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-    );
+        | VK_IMAGE_USAGE_SAMPLED_BIT
+    ).value();
 }
 
 void Engine::cleanupSwapchain()
@@ -354,21 +378,21 @@ void Engine::initSyncStructures()
 
 void Engine::initDescriptors()
 {
-    // Set up the image used by the compute shader.
-
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5f },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f }
     };
 
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
 
-    { // compute draw binding, see gradient.comp
-        DescriptorLayoutBuilder builder{};
-        builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0);
-        m_drawImageDescriptorLayout = builder.build(m_device, 0);
-    }
+    { // Set up the image used by compute shaders.
+        m_drawImageDescriptorLayout = DescriptorLayoutBuilder{}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
+            .build(m_device, 0)
+            .value_or(VK_NULL_HANDLE); //TODO: handle
 
-    m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+        m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+    }
 }
 
 void Engine::updateDescriptors()
@@ -394,7 +418,11 @@ void Engine::updateDescriptors()
         .pTexelBufferView{ nullptr },
     };
 
-    vkUpdateDescriptorSets(m_device, 1, &drawImageWrite, 0, nullptr);
+    std::vector<VkWriteDescriptorSet> const writes{
+        drawImageWrite
+    };
+
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
 void Engine::initDefaultMeshData()
@@ -421,64 +449,78 @@ void Engine::initWorld()
     int32_t const coordinateMin{ -40 };
     int32_t const coordinateMax{ 40 };
 
-    for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+    if (m_meshInstances.models != nullptr || m_meshInstances.modelInverseTransposes != nullptr)
     {
-        for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
-        {
-            m_transformOriginals.push_back(
-                glm::translate(glm::vec3(x, 0, z)) 
-                * glm::toMat4(randomQuat()) 
-                * glm::scale(glm::vec3(0.2f))
-            );
-        }
+        Warning("initWorld called when World already initialized");
+        return;
     }
 
-    VkDeviceSize const maxInstanceCount{ m_transformOriginals.size() };
-    m_meshInstances = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-        m_device,
-        m_allocator,
-        maxInstanceCount,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    ));
+    { // Mesh Instances
+        // Floor
+        for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+        {
+            for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
+            {
+                m_meshInstances.originals.push_back(
+                    glm::translate(glm::vec3(x * 20.0, 1.0, z * 20.0))
+                    * glm::scale(glm::vec3(10.0, 2.0, 10.0))
+                );
+            }
+        }
 
+        m_meshInstances.dynamicIndex = m_meshInstances.originals.size();
 
-    m_meshInstances->stage(m_transformOriginals);
+        for (int32_t x{ coordinateMin }; x <= coordinateMax; x++)
+        {
+            for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
+            {
+                m_meshInstances.originals.push_back(
+                    glm::translate(glm::vec3(x, -4.0, z))
+                    * glm::toMat4(randomQuat())
+                    * glm::scale(glm::vec3(0.2f))
+                );
+            }
+        }
 
-    immediateSubmit([&](VkCommandBuffer cmd) {
-        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
-    });
+        VkDeviceSize const maxInstanceCount{ m_meshInstances.originals.size() };
+        m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+            m_device,
+            m_allocator,
+            maxInstanceCount,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
+        m_meshInstances.modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
+            m_device,
+            m_allocator,
+            maxInstanceCount,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        ));
 
-    glm::mat4x4 floorTransform{
-        glm::scale(glm::vec3{ 5.0,0.1,10000.0 })
-    };
-    std::vector<glm::mat4x4> const floorTransforms{ floorTransform };
+        std::vector<glm::mat4x4> modelInverseTransposes{};
+        for (glm::mat4x4 const& model : m_meshInstances.originals)
+        {
+            modelInverseTransposes.push_back(glm::inverseTranspose(model));
+        }
 
-    m_worldStaticTransforms = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-        m_device,
-        m_allocator,
-        1,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    ));
+        m_meshInstances.models->stage(m_meshInstances.originals);
+        m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
 
-    m_worldStaticTransforms->stage(floorTransforms);
-
-    immediateSubmit([&](VkCommandBuffer cmd) {
-        m_worldStaticTransforms->recordCopyToDevice(cmd, m_allocator);
-    });
+        immediateSubmit([&](VkCommandBuffer cmd) {
+            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+        });
+    }
 
     { // Camera
         m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
             m_device,
             m_allocator,
-            1,
+            20,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
-        std::vector<GPUTypes::Camera> const cameras{ m_cameraParameters.toDeviceEquivalent(getAspectRatio()) };
-        m_camerasBuffer->stage(cameras);
+        m_camerasBuffer->push(GPUTypes::Camera{});
 
-        immediateSubmit([&](VkCommandBuffer cmd) {
-            m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
-        });
+        m_cameraIndexMain = 0;
     }
 
     { // Atmosphere
@@ -497,20 +539,44 @@ void Engine::initWorld()
     }
 }
 
-void Engine::initInstancedPipeline()
+void Engine::initDebug()
 {
-    m_instancePipeline = std::make_unique<InstancedMeshGraphicsPipeline>(
+    m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
         m_device,
         m_drawImage.imageFormat,
         m_depthImage.imageFormat
     );
+    m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
+        TStagedBuffer<uint32_t>::allocate(
+            m_device,
+            m_allocator,
+            1000,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        )
+    );
+    m_debugLines.vertices = std::make_unique<TStagedBuffer<Vertex>>(
+        TStagedBuffer<Vertex>::allocate(
+            m_device,
+            m_allocator,
+            1000,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
 }
 
-void Engine::initBackgroundPipeline()
+void Engine::initDeferredShadingPipeline()
 {
-    m_atmospherePipeline = std::make_unique<AtmosphereComputePipeline>(
-        m_device,
-        m_drawImageDescriptorLayout
+    m_deferredShadingPipeline = std::make_unique<DeferredShadingPipeline>(
+        m_device
+        , m_allocator
+        , m_globalDescriptorAllocator
+        , MAX_DRAW_EXTENTS
+    );
+
+    m_deferredShadingPipeline->updateRenderTargetDescriptors(
+        m_device
+        , m_drawImage
+        , m_depthImage
     );
 }
 
@@ -563,8 +629,7 @@ void Engine::initImgui()
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    assert(m_swapchainImageFormat != VK_FORMAT_UNDEFINED);
-    std::vector<VkFormat> const colorAttachmentFormats{ m_swapchainImageFormat };
+    std::vector<VkFormat> const colorAttachmentFormats{ m_drawImage.imageFormat };
     VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
         .pNext{ nullptr },
@@ -626,7 +691,6 @@ void Engine::initImgui()
 void Engine::resizeSwapchain()
 {
     vkDeviceWaitIdle(m_device);
-    cleanupDrawTargets();
     cleanupSwapchain();
 
     int32_t width{ 0 }, height{ 0 };
@@ -635,9 +699,6 @@ void Engine::resizeSwapchain()
     m_windowExtent.height = static_cast<uint32_t>(height);
 
     initSwapchain();
-    initDrawTargets();
-
-    updateDescriptors();
 
     m_resizeRequested = false;
 }
@@ -743,6 +804,28 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const
     return std::make_unique<GPUMeshBuffers>(std::move(indexBuffer), std::move(vertexBuffer));
 }
 
+// TODO: Once scenes are made, extract this to a testing scene
+#if VKRENDERER_COMPILE_WITH_TESTING
+void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
+{
+    glm::quat const boxOrientation{
+        glm::toQuat(glm::orientate3(glm::vec3(currentTimeSeconds, currentTimeSeconds * glm::euler<float>(),0.0)))
+    };
+
+    debugLines.pushBox(
+        glm::vec3(3.0 * glm::cos(2.0 * currentTimeSeconds), -2.0, 3.0 * glm::sin(2.0 * currentTimeSeconds))
+        , boxOrientation
+        , glm::vec3{ 1.0, 1.0, 1.0 }
+    );
+
+    debugLines.pushRectangle(
+        glm::vec3{ 2.0, -2.0, 0.0 }
+        , glm::quatLookAt(glm::vec3(-1.0, -1.0, 1.0), glm::vec3(-1.0, -1.0, -1.0))
+        , glm::vec2{ 3.0, 1.0 }
+    );
+}
+#endif
+
 void Engine::mainLoop()
 {
     while (!glfwWindowShouldClose(m_window)) {
@@ -763,7 +846,13 @@ void Engine::mainLoop()
         {
             double const currentTimeSeconds{ glfwGetTime() };
             double const deltaTimeSeconds{ currentTimeSeconds - previousTimeSeconds };
+
+            m_debugLines.clear();
+
             tickWorld(currentTimeSeconds, deltaTimeSeconds);
+#if VKRENDERER_COMPILE_WITH_TESTING
+            testDebugLines(currentTimeSeconds, m_debugLines);
+#endif
             previousTimeSeconds = glfwGetTime();
 
             double const instantFPS{ 1.0f / deltaTimeSeconds };
@@ -788,7 +877,7 @@ void Engine::mainLoop()
 
             imguiPerformanceWindow(m_fpsValues.values(), m_fpsValues.average(), m_fpsValues.current(), m_targetFPS);
 
-            if (ImGui::Begin("Pipeline Controls"))
+            if (ImGui::Begin("Scene Controls"))
             {
                 imguiMeshInstanceControls(
                     m_renderMeshInstances,
@@ -796,19 +885,47 @@ void Engine::mainLoop()
                     m_testMeshUsed
                 );
                 ImGui::Separator();
-                imguiBackgroundRenderingControls(
-                    m_useAtmosphereCompute,
-                    *m_atmospherePipeline,
-                    *m_genericComputePipeline
+                imguiStructureControls(
+                    m_sceneBounds
+                    , SceneBounds{
+                        .center{ glm::vec3(0.0, -4.0, 0.0) },
+                        .extent{ glm::vec3(40.0, 5.0, 40.0) }
+                    }
                 );
+                ImGui::Separator();
+                ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
+                ImGui::Separator();
+            }
+            ImGui::End();
+
+            if (ImGui::Begin("Pipeline Controls"))
+            {
+                imguiRenderingSelection(m_activeRenderingPipeline);
+                ImGui::Separator();
+                switch (m_activeRenderingPipeline)
+                {
+                case RenderingPipelines::DEFERRED:
+                    imguiPipelineControls(*m_deferredShadingPipeline);
+                    break;
+                case RenderingPipelines::COMPUTE_COLLECTION:
+                    imguiPipelineControls(*m_genericComputePipeline);
+                    break;
+                default:
+                    ImGui::Text("Invalid rendering pipeline selected.");
+                    break;
+                }
             }
             ImGui::End();
 
             if (ImGui::Begin("Engine Controls"))
             {
+                ImGui::Checkbox("Use Orthographic Camera", &m_useOrthographicProjection);
+                ImGui::Separator();
                 imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
                 ImGui::Separator();
                 imguiStructureControls(m_atmosphereParameters, m_defaultAtmosphereParameters);
+                ImGui::Separator();
+                imguiStructureControls(m_debugLines);
             }
             ImGui::End();
 
@@ -820,19 +937,63 @@ void Engine::mainLoop()
 
 void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
 {
-    std::span<glm::mat4x4> const transforms{ m_meshInstances->mapValidStaged() };
-    size_t index{ 0 };
-    for (glm::mat4x4 const& transformOriginal : m_transformOriginals)
+    std::span<glm::mat4x4> const models{ m_meshInstances.models->mapValidStaged() };
+    std::span<glm::mat4x4> const modelInverseTransposes{ m_meshInstances.modelInverseTransposes->mapValidStaged() };
+
+    if (models.size() != modelInverseTransposes.size())
     {
-        glm::mat4x4& transform{ transforms[index] };
-        
-        glm::vec4 const position = transformOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
+        Warning("models and modelInverseTransposes out of sync");
+        return;
+    }
 
-        double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
+    size_t index{ 0 };
+    for (glm::mat4x4 const& modelOriginal : m_meshInstances.originals)
+    {
+        if (index >= m_meshInstances.dynamicIndex)
+        {
+            glm::vec4 const position = modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0);
 
-        transform = glm::translate(glm::vec3(0.0, y, 0.0)) * transformOriginal;
+            double const y{ std::sin(totalTime + (position.x - (-10) + position.z - (-10)) / 3.1415) };
 
+            models[index] = glm::translate(glm::vec3(0.0, y, 0.0)) * modelOriginal;
+            // In general, the model inverse transposes only need to be updated once per tick,
+            // before rendering and after the last update of the model matrices.
+            // For now, we only update once per tick, so we just compute it here.
+            modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
+        }
         index += 1;
+    }
+
+    // Atmosphere
+    {
+        AtmosphereParameters::AnimationParameters const atmosphereAnimation{ m_atmosphereParameters.animation };
+        if (atmosphereAnimation.animateSun)
+        {
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, m_atmosphereParameters.directionToSun())
+            };
+
+            bool const isNight{ time < -0.11f };
+            float const sunriseAngle{ glm::asin(0.1f) };
+
+            if (isNight && atmosphereAnimation.skipNight)
+            {
+                if (atmosphereAnimation.animationSpeed > 0.0)
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = glm::pi<float>() - sunriseAngle;
+                }
+                else
+                {
+                    m_atmosphereParameters.sunEulerAngles.x = sunriseAngle;
+                }
+            }
+            else
+            {
+                m_atmosphereParameters.sunEulerAngles.x += deltaTimeSeconds * atmosphereAnimation.animationSpeed;
+            }
+
+            m_atmosphereParameters.sunEulerAngles = glm::mod(m_atmosphereParameters.sunEulerAngles, glm::vec3(2.0 * glm::pi<float>()));
+        }
     }
 }
 
@@ -853,21 +1014,18 @@ void Engine::draw()
     VkCommandBufferBeginInfo const cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     CheckVkResult(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        std::span<GPUTypes::Camera> const stagedCameras{ m_camerasBuffer->mapValidStaged() };
-        if (stagedCameras.size() <= m_cameraIndex)
-        {
-            Warning("CameraIndex does not point to valid camera, resetting to 0.");
-            m_cameraIndex = 0;
-        }
-        if (stagedCameras.size() > 0 && m_cameraIndex < stagedCameras.size())
-        {
-            stagedCameras[m_cameraIndex] = m_cameraParameters.toDeviceEquivalent(getAspectRatio());
-        }
+        double const aspectRatio{ vkutil::aspectRatio(m_currentDrawExtent) };
+
+        std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
+        cameras[m_cameraIndexMain] = {
+                m_useOrthographicProjection
+            ? m_cameraParameters.toDeviceEquivalentOrthographic(aspectRatio, 5.0)
+            : m_cameraParameters.toDeviceEquivalent(aspectRatio)
+        };
+
         m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
@@ -882,60 +1040,172 @@ void Engine::draw()
         {
             stagedAtmospheres[m_atmosphereIndex] = m_atmosphereParameters.toDeviceEquivalent();
         }
+
         m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
     }
 
-    if (m_useAtmosphereCompute)
+    { // Copy models to gpu
+        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+    }
+
+    switch (m_activeRenderingPipeline)
     {
-        m_atmospherePipeline->recordDrawCommands(
-            cmd,
-            m_cameraIndex,
-            *m_camerasBuffer,
-            m_atmosphereIndex,
-            *m_atmospheresBuffer,
-            m_drawImageDescriptors,
-            VkExtent2D{
-                .width{ m_drawImage.imageExtent.width },
-                .height{ m_drawImage.imageExtent.height },
+    case RenderingPipelines::DEFERRED:
+    {
+        std::vector<GPUTypes::LightDirectional> directionalLights{};
+        std::span<GPUTypes::Atmosphere const> const atmospheres{
+            m_atmospheresBuffer->readValidStaged()
+        };
+        if (m_atmosphereIndex < atmospheres.size())
+        {
+            GPUTypes::Atmosphere const atmosphere{ atmospheres[m_atmosphereIndex] };
+
+            float const time{ // position of sun as proxy for time
+                glm::dot(geometry::up, atmosphere.directionToSun)
+            };
+            if (time > 0.0)
+            { // Sunlight
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        glm::vec4(atmosphere.sunlightColor, 1.0)
+                        , 0.5
+                        , m_atmosphereParameters.sunEulerAngles
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
             }
+
+            float constexpr timeSunset{ 0.06 };
+            if (time < timeSunset)
+            { // Moonlight
+                float constexpr moonrisePeriod{ 0.08 };
+                float const moonlightStrength{
+                    0.1f * (
+                        time < timeSunset - moonrisePeriod
+                        ? 1.0f
+                        : glm::abs(time - timeSunset) / moonrisePeriod
+                    )
+                };
+
+                glm::vec4 const moonlightColor{
+                    glm::vec4(glm::normalize(glm::vec3(0.3, 0.4, 0.6)), 1.0)
+                };
+
+                directionalLights.push_back(
+                    lights::makeDirectional(
+                        moonlightColor
+                        , moonlightStrength
+                        , glm::vec3(-1.5708, 0.0, 0.0)
+                        , m_sceneBounds.center
+                        , m_sceneBounds.extent
+                    )
+                );
+            }
+        }
+        else
+        {
+            directionalLights.push_back(
+                lights::makeDirectional(
+                    glm::vec4(1.0)
+                    , 1.0
+                    , glm::vec3(-1.5708, 0.0, 0.0)
+                    , m_sceneBounds.center
+                    , m_sceneBounds.extent
+                )
+            );
+        }
+
+        std::vector<GPUTypes::LightSpot> const spotLights{
+            lights::makeSpot(
+                glm::vec4(0.0, 1.0, 0.0, 1.0)
+                , 30.0
+                , 1.0
+                , 1.0
+                , 60
+                , 1.0
+                , glm::vec3(-1.0, 0.0, 1.0)
+                , glm::vec3(-8.0, -10.0, -2.0)
+                , 0.1
+                , 1000.0
+            ),
+            lights::makeSpot(
+                glm::vec4(1.0, 0.0, 0.0, 1.0)
+                , 30.0
+                , 1.0
+                , 1.0
+                , 60
+                , 1.0
+                , glm::vec3(-1.0, 0.0, -1.0)
+                , glm::vec3(8.0, -10.0, 2.0)
+                , 0.1
+                , 1000.0
+            ),
+        };
+
+        m_deferredShadingPipeline->recordDrawCommands(
+            cmd
+            , m_currentDrawExtent
+            , m_drawImage
+            , m_depthImage
+            , directionalLights
+            , m_showSpotlights ? spotLights : std::vector<GPUTypes::LightSpot>{}
+            , m_cameraIndexMain
+            , *m_camerasBuffer
+            , m_atmosphereIndex
+            , *m_atmospheresBuffer
+            , m_sceneBounds
+            , *m_testMeshes[m_testMeshUsed]
+            , m_meshInstances
         );
+        break;
     }
-    else 
+    case RenderingPipelines::COMPUTE_COLLECTION:
     {
-        m_genericComputePipeline->recordDrawCommands(
-            cmd,
-            m_drawImageDescriptors,
-            VkExtent2D{ m_drawImage.imageExtent.width, m_drawImage.imageExtent.height }
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
         );
+
+        m_genericComputePipeline->recordDrawCommands(cmd, m_drawImageDescriptors, m_drawImage.extent2D());
+
+        if (m_debugLines.enabled)
+        {
+            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+        }
+
+        break;
     }
-
-    vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    vkutil::transitionImage(cmd, m_depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-    if (m_renderMeshInstances)
+    default:
     {
-        m_meshInstances->recordCopyToDevice(cmd, m_allocator);
-
-        m_instancePipeline->recordDrawCommands(
-            cmd,
-            m_cameraParameters.toProjView(getAspectRatio()),
-            false,
-            m_drawImage,
-            m_depthImage,
-            *m_testMeshes[m_testMeshUsed],
-            *m_meshInstances
+        vkutil::transitionImage(cmd,
+            m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
         );
-        m_instancePipeline->recordDrawCommands(
-            cmd,
-            m_cameraParameters.toProjView(getAspectRatio()),
-            true,
-            m_drawImage,
-            m_depthImage,
-            *m_testMeshes[m_testMeshUsed],
-            *m_worldStaticTransforms
-        );
+        break;
     }
+    }
+
     // End scene drawing
+
+    // ImGui Drawing
+
+    vkutil::transitionImage(cmd,
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_GENERAL
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
+
+    recordDrawImgui(cmd, m_drawImage.imageView);
+
+    // End ImGui Drawing
 
     // Copy image to swapchain
 
@@ -959,29 +1229,28 @@ void Engine::draw()
     VkImageView const& swapchainImageView = m_swapchainImageViews[swapchainImageIndex];
 
     vkutil::transitionImage(cmd, 
-        m_drawImage.image, 
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        m_drawImage.image
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        swapchainImage
+        , VK_IMAGE_LAYOUT_UNDEFINED
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     vkutil::recordCopyImageToImage(cmd,
         m_drawImage.image, swapchainImage,
-        m_drawImage.imageExtent, m_swapchainExtent
+        m_currentDrawExtent, m_swapchainExtent
     );
-
-    vkutil::transitionImage(cmd,
-        swapchainImage,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    );
-
-    recordDrawImgui(cmd, swapchainImageView);
 
     vkutil::transitionImage(cmd, 
-        swapchainImage, 
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        swapchainImage
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     CheckVkResult(vkEndCommandBuffer(cmd));
@@ -1039,7 +1308,7 @@ void Engine::draw()
 void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
-        vkinit::renderingAttachmentInfo(view, {}, false, VK_IMAGE_LAYOUT_GENERAL)
+        vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
     };
 
     std::vector<VkRenderingAttachmentInfo> colorAttachments{ colorAttachmentInfo };
@@ -1052,6 +1321,33 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     vkCmdEndRendering(cmd);
+}
+
+void Engine::recordDrawDebugLines(
+    VkCommandBuffer cmd
+    , uint32_t cameraIndex
+    , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+)
+{
+    m_debugLines.lastFrameDrawResults = {};
+
+    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0) {
+        m_debugLines.recordCopy(cmd, m_allocator);
+
+        DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
+            cmd
+            , false
+            , m_debugLines.lineWidth
+            , m_drawImage
+            , m_depthImage
+            , cameraIndex
+            , camerasBuffer
+            , *m_debugLines.vertices
+            , *m_debugLines.indices
+        ) };
+
+        m_debugLines.lastFrameDrawResults = drawResults;
+    }
 }
 
 void Engine::cleanup()
@@ -1072,18 +1368,20 @@ void Engine::cleanup()
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
 
-    m_instancePipeline->cleanup(m_device);
-    m_atmospherePipeline->cleanup(m_device);
     m_genericComputePipeline->cleanup(m_device);
+    m_deferredShadingPipeline->cleanup(m_device, m_allocator);
 
-    m_meshInstances.reset(); 
-    m_worldStaticTransforms.reset();
+    m_meshInstances.models.reset();
+    m_meshInstances.modelInverseTransposes.reset();
+
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
 
     m_testMeshes.clear();
+    m_debugLines.cleanup(m_device, m_allocator);
 
     m_globalDescriptorAllocator.destroyPool(m_device);
+
     vkDestroyDescriptorSetLayout(m_device, m_drawImageDescriptorLayout, nullptr);
 
     for (FrameData const& frameData : m_frames)

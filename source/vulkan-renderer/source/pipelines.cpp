@@ -5,6 +5,8 @@
 #include "initializers.hpp"
 #include "shaders.hpp"
 
+#include <glm/gtx/intersect.hpp>
+
 VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layout) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
@@ -17,6 +19,16 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 		// We use dynamic rendering, so no other members are needed
 	};
 
+	std::vector<VkFormat> colorFormats{};
+	std::vector<VkPipelineColorBlendAttachmentState> attachmentStates{};
+	if (m_colorAttachment.has_value())
+	{
+		ColorAttachmentSpecification const specification{ m_colorAttachment.value() };
+
+		colorFormats.push_back(specification.format);
+		attachmentStates.push_back(specification.blending);
+	}
+
 	VkPipelineColorBlendStateCreateInfo const colorBlending{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO },
 		.pNext{ nullptr },
@@ -24,8 +36,18 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 		.logicOpEnable{ VK_FALSE },
 		.logicOp{ VK_LOGIC_OP_COPY },
 
-		.attachmentCount{ 1 },
-		.pAttachments{ &m_colorBlendAttachment },
+		.attachmentCount{ static_cast<uint32_t>(attachmentStates.size()) },
+		.pAttachments{ attachmentStates.data() },
+	};
+
+	VkPipelineRenderingCreateInfo const renderInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.colorAttachmentCount{ static_cast<uint32_t>(colorFormats.size()) },
+		.pColorAttachmentFormats{ colorFormats.data() },
+
+		.depthAttachmentFormat{ m_depthAttachmentFormat },
 	};
 
 	// Dummy vertex input 
@@ -34,7 +56,12 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO }
 	};
 
-	std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	std::vector<VkDynamicState> dynamicStates{m_dynamicStates.begin(), m_dynamicStates.end()};
+
+	// We insert these by default since we have no methods for setting the static state for now
+	dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+	dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
 	VkPipelineDynamicStateCreateInfo const dynamicInfo{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO },
 
@@ -42,15 +69,6 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 		.pDynamicStates{ dynamicStates.data() }
 	};
 
-	VkPipelineRenderingCreateInfo renderInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.colorAttachmentCount{ 1 },
-		.pColorAttachmentFormats{ &m_colorAttachmentFormat },
-
-		.depthAttachmentFormat{ m_depthAttachmentFormat },
-	};
 
 	VkGraphicsPipelineCreateInfo const pipelineInfo{
 		.sType{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO },
@@ -80,23 +98,19 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 	};
 
 	VkPipeline pipeline{ VK_NULL_HANDLE };
-	CheckVkResult(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));
+	LogVkResult(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline), "Building graphics pipeline");
 	return pipeline;
 }
 
-void PipelineBuilder::setShaders(ShaderModuleReflected const& vertexShader, ShaderModuleReflected const& fragmentShader)
+void PipelineBuilder::pushShader(ShaderModuleReflected const& shader, VkShaderStageFlagBits stage)
 {
-	m_shaderStages.clear();
-	m_shaderStages.push_back(vkinit::pipelineShaderStageCreateInfo(
-		VK_SHADER_STAGE_VERTEX_BIT,
-		vertexShader.shaderModule(),
-		vertexShader.reflectionData().defaultEntryPoint
-	));
-	m_shaderStages.push_back(vkinit::pipelineShaderStageCreateInfo(
-		VK_SHADER_STAGE_FRAGMENT_BIT,
-		fragmentShader.shaderModule(),
-		fragmentShader.reflectionData().defaultEntryPoint
-	));
+	m_shaderStages.push_back(
+		vkinit::pipelineShaderStageCreateInfo(
+			stage
+			, shader.shaderModule()
+			, shader.reflectionData().defaultEntryPoint
+		)
+	);
 }
 
 void PipelineBuilder::setInputTopology(VkPrimitiveTopology topology)
@@ -108,7 +122,11 @@ void PipelineBuilder::setInputTopology(VkPrimitiveTopology topology)
 void PipelineBuilder::setPolygonMode(VkPolygonMode mode)
 {
 	m_rasterizer.polygonMode = mode;
-	m_rasterizer.lineWidth = 1.0f;
+}
+
+void PipelineBuilder::pushDynamicState(VkDynamicState dynamicState)
+{
+	m_dynamicStates.insert(dynamicState);
 }
 
 void PipelineBuilder::setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace)
@@ -127,25 +145,21 @@ void PipelineBuilder::setMultisamplingNone()
 	m_multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-void PipelineBuilder::disableBlending()
+void PipelineBuilder::setColorAttachment(VkFormat format)
 {
-	m_colorBlendAttachment.colorWriteMask =
-		VK_COLOR_COMPONENT_R_BIT
-		| VK_COLOR_COMPONENT_G_BIT
-		| VK_COLOR_COMPONENT_B_BIT
-		| VK_COLOR_COMPONENT_A_BIT;
-
-	m_colorBlendAttachment.blendEnable = VK_FALSE;
-}
-
-void PipelineBuilder::setColorAttachmentFormat(VkFormat format)
-{
-	m_colorAttachmentFormat = format;
+	m_colorAttachment = ColorAttachmentSpecification{
+		.format{ format },
+	};
 }
 
 void PipelineBuilder::setDepthFormat(VkFormat format)
 {
 	m_depthAttachmentFormat = format;
+}
+
+void PipelineBuilder::enableDepthBias()
+{
+	m_rasterizer.depthBiasEnable = VK_TRUE;
 }
 
 void PipelineBuilder::disableDepthTest()
@@ -186,394 +200,6 @@ void PipelineBuilder::enableDepthTest(bool depthWriteEnable, VkCompareOp compare
 	};
 }
 
-template<class... Ts>
-struct overloaded : Ts...
-{
-	using Ts::operator()...;
-};
-static std::optional<ShaderModuleReflected> loadShaderModule(
-	VkDevice device
-	, std::string path
-)
-{
-	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
-
-	return std::visit(
-		overloaded{
-			[&](AssetFile const& file)
-			{
-				return std::optional<ShaderModuleReflected>{ShaderModuleReflected::FromBytecode(
-					device
-					, file.fileName
-					, file.fileBytes
-				)};
-			},
-			[&](AssetLoadingError const& error)
-			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
-				return std::optional<ShaderModuleReflected>{};
-			}
-		}, fileLoadingResult
-	);
-}
-static std::optional<ShaderObjectReflected> loadShaderObject(
-	VkDevice device
-	, std::string path
-	, VkShaderStageFlagBits stage
-	, VkShaderStageFlags nextStage
-	, std::span<VkDescriptorSetLayout const> layouts
-	, VkSpecializationInfo specializationInfo
-)
-{
-	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
-
-	return std::visit(
-		overloaded{
-			[&](AssetFile const& file)
-			{
-				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecodeReflected(
-					device
-					, file.fileName
-					, file.fileBytes
-					, stage
-					, nextStage
-					, layouts
-					, specializationInfo
-				)};
-			},
-			[&](AssetLoadingError const& error)
-			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
-				return std::optional<ShaderObjectReflected>{};
-			}
-		}, fileLoadingResult
-	);
-}
-
-InstancedMeshGraphicsPipeline::InstancedMeshGraphicsPipeline(
-	VkDevice device,
-	VkFormat colorAttachmentFormat,
-	VkFormat depthAttachmentFormat
-)
-{
-	ShaderModuleReflected const vertexShader{ loadShaderModule(device, "shaders/instanced_mesh.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ loadShaderModule(device, "shaders/instanced_mesh.frag.spv").value() };
-
-	ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
-
-	assert(vertexPushConstant.type.paddedSizeBytes == sizeof(PushConstantType));
-
-	VkPushConstantRange const pushConstantRange{
-		.stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
-		.offset{ 0 },
-		.size{ sizeof(PushConstantType) },
-	};
-
-	VkPipelineLayoutCreateInfo const layoutInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.flags{ 0 },
-
-		.setLayoutCount{ 0 },
-		.pSetLayouts{ nullptr },
-
-		.pushConstantRangeCount{ 1 },
-		.pPushConstantRanges{ &pushConstantRange },
-	};
-
-	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
-
-	PipelineBuilder pipelineBuilder{};
-	pipelineBuilder.setShaders(vertexShader, fragmentShader);
-	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	pipelineBuilder.setMultisamplingNone();
-	pipelineBuilder.disableBlending();
-	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-
-	pipelineBuilder.setColorAttachmentFormat(colorAttachmentFormat);
-	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
-
-
-	m_vertexShader = vertexShader;
-	m_fragmentShader = fragmentShader;
-
-	m_graphicsPipelineLayout = pipelineLayout;
-	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
-}
-
-void InstancedMeshGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer cmd,
-	glm::mat4x4 camera,
-	bool reuseDepthAttachment,
-	AllocatedImage const& color,
-	AllocatedImage const& depth,
-	MeshAsset const& mesh,
-	TStagedBuffer<glm::mat4x4> const& transforms
-) const
-{
-	VkRenderingAttachmentInfo const colorAttachment{
-		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-		.pNext{ nullptr },
-
-		.imageView{ color.imageView },
-		.imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
-
-		.resolveMode{ VK_RESOLVE_MODE_NONE },
-		.resolveImageView{ VK_NULL_HANDLE },
-		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
-
-		.loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
-		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-
-		.clearValue{},
-	};
-	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment 
-		? VK_ATTACHMENT_LOAD_OP_LOAD 
-		: VK_ATTACHMENT_LOAD_OP_CLEAR
-	};
-	VkRenderingAttachmentInfo const depthAttachment{
-		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-		.pNext{ nullptr },
-
-		.imageView{ depth.imageView },
-		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
-
-		.resolveMode{ VK_RESOLVE_MODE_NONE },
-		.resolveImageView{ VK_NULL_HANDLE },
-		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
-
-		.loadOp{ depthLoadOp },
-		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-
-		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
-	};
-
-	VkExtent2D const drawExtent{
-		.width{color.imageExtent.width},
-		.height{color.imageExtent.height},
-	};
-	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
-	VkRenderingInfo const renderInfo{
-		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
-	};
-
-	if (transforms.deviceSize() > 0)
-	{
-		VkBufferMemoryBarrier2 const bufferMemoryBarrier{
-			.sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
-			.pNext{ nullptr },
-
-			.srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
-			.srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
-
-			.dstStageMask{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT },
-			.dstAccessMask{ VK_ACCESS_2_SHADER_STORAGE_READ_BIT },
-
-			.srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-			.dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-
-			.buffer{ transforms.deviceBuffer() },
-			.offset{ 0 },
-			.size{ transforms.deviceSizeBytes() },
-		};
-
-		VkDependencyInfo const transformsDependency{
-			.sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
-			.pNext{ nullptr },
-
-			.dependencyFlags{ 0 },
-
-			.memoryBarrierCount{ 0 },
-			.pMemoryBarriers{ nullptr },
-
-			.bufferMemoryBarrierCount{ 1 },
-			.pBufferMemoryBarriers{ &bufferMemoryBarrier },
-
-			.imageMemoryBarrierCount{ 0 },
-			.pImageMemoryBarriers{ nullptr },
-		};
-
-		vkCmdPipelineBarrier2(cmd, &transformsDependency);
-	}
-
-	vkCmdBeginRendering(cmd, &renderInfo);
-
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-
-	VkViewport const viewport{
-		.x{ 0 },
-		.y{ 0 },
-		.width{ static_cast<float>(drawExtent.width) },
-		.height{ static_cast<float>(drawExtent.height) },
-		.minDepth{ 0.0f },
-		.maxDepth{ 1.0f },
-	};
-
-	vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-	VkRect2D const scissor{
-		.offset{
-			.x{ 0 },
-			.y{ 0 },
-		},
-		.extent{
-			.width{ drawExtent.width },
-			.height{ drawExtent.height },
-		},
-	};
-
-	vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
-
-	VkBuffer const indexBuffer{ meshBuffers.indexBuffer() };
-	VkDeviceAddress const transformsAddress{ transforms.address() };
-	VkDeviceAddress const verticesAddress{ meshBuffers.vertexAddress() };
-
-	assert(transformsAddress != 0);
-	assert(verticesAddress != 0);
-	PushConstantType const pushConstant{
-		.cameraTransform{ camera },
-		.vertexBufferAddress{ verticesAddress },
-		.transformBufferAddress{ transformsAddress }
-	};
-
-	vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
-		VK_SHADER_STAGE_VERTEX_BIT,
-		0, sizeof(PushConstantType), &pushConstant
-	);
-
-	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
-
-	// Bind the entire index buffer of the mesh, but only draw a single surface.
-	vkCmdBindIndexBuffer(cmd, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, transforms.deviceSize(), drawnSurface.firstIndex, 0, 0);
-
-	vkCmdEndRendering(cmd);
-}
-
-void InstancedMeshGraphicsPipeline::cleanup(VkDevice device)
-{
-	m_vertexShader.cleanup(device);
-	m_fragmentShader.cleanup(device);
-
-	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
-}
-
-AtmosphereComputePipeline::AtmosphereComputePipeline(
-	VkDevice device, 
-	VkDescriptorSetLayout drawImageDescriptorLayout
-)
-{
-	ShaderModuleReflected const skyShader{ loadShaderModule(device, "shaders/sky.comp.spv").value() };
-
-	ShaderReflectionData::PushConstant const& skyPushConstant{ skyShader.reflectionData().defaultPushConstant() };
-	
-	{
-		size_t const skyShaderPushConstantSize{ skyPushConstant.type.paddedSizeBytes };
-		size_t const pushConstantSize{ sizeof(PushConstantType) };
-
-		if (skyShaderPushConstantSize != pushConstantSize)
-		{
-			Warning(fmt::format("Loaded shader had a push constant of size {}, while implementation expects {}."
-				, skyShaderPushConstantSize
-				, pushConstantSize
-			));
-		}
-	}
-
-	VkPushConstantRange const pushConstantRange{
-		.stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-		.offset{ 0 },
-		.size{ sizeof(PushConstantType) },
-	};
-
-	VkPipelineLayoutCreateInfo const layoutInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.flags{ 0 },
-
-		.setLayoutCount{ 1 },
-		.pSetLayouts{ &drawImageDescriptorLayout },
-
-		.pushConstantRangeCount{ 1 },
-		.pPushConstantRanges{ &pushConstantRange },
-	};
-
-	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
-	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
-
-	VkPipelineShaderStageCreateInfo const stageInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.stage{ VK_SHADER_STAGE_COMPUTE_BIT },
-		.module{ skyShader.shaderModule() },
-		.pName{ skyShader.reflectionData().defaultEntryPoint.c_str()},
-	};
-
-	VkComputePipelineCreateInfo const computePipelineCreateInfo{
-		.sType{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO },
-		.pNext{ nullptr },
-
-		.stage{ stageInfo },
-		.layout{ pipelineLayout },
-	};
-
-	VkPipeline pipeline{ VK_NULL_HANDLE };
-	CheckVkResult(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &pipeline));
-
-	m_skyShader = skyShader;
-
-	m_computePipelineLayout = pipelineLayout;
-	m_computePipeline = pipeline;
-}
-
-void AtmosphereComputePipeline::recordDrawCommands(
-	VkCommandBuffer cmd
-	, uint32_t cameraIndex
-	, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
-	, uint32_t atmosphereIndex
-	, TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer
-	, VkDescriptorSet colorSet
-	, VkExtent2D colorExtent
-) const
-{
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline);
-
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipelineLayout, 0, 1, &colorSet, 0, nullptr);
-
-	camerasBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-	atmospheresBuffer.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-
-	m_pushConstant = PushConstantType{
-		.cameraIndex{ cameraIndex },
-		.atmosphereIndex{ atmosphereIndex },
-		.cameraBuffer{ camerasBuffer.address() },
-		.atmosphereBuffer{ atmospheresBuffer.address() },
-	};
-
-	vkCmdPushConstants(cmd, m_computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0
-		, sizeof(PushConstantType), &m_pushConstant
-	);
-
-	vkCmdDispatch(cmd, std::ceil(colorExtent.width / 16.0), std::ceil(colorExtent.height / 16.0), 1);
-}
-
-void AtmosphereComputePipeline::cleanup(VkDevice device)
-{
-	m_skyShader.cleanup(device);
-
-	vkDestroyPipeline(device, m_computePipeline, nullptr);
-	vkDestroyPipelineLayout(device, m_computePipelineLayout, nullptr);
-}
-
 GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 	VkDevice device
 	, VkDescriptorSetLayout drawImageDescriptorLayout
@@ -586,7 +212,7 @@ GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 	for (std::string const& shaderPath : shaderPaths)
 	{
 		std::optional<ShaderObjectReflected> loadResult{ 
-			loadShaderObject(
+			vkutil::loadShaderObject(
 				device
 				, shaderPath
 				, VK_SHADER_STAGE_COMPUTE_BIT
@@ -678,4 +304,358 @@ void GenericComputeCollectionPipeline::cleanup(VkDevice device)
 	{
 		vkDestroyPipelineLayout(device, layout, nullptr);
 	}
+}
+
+DebugLineComputePipeline::DebugLineComputePipeline(
+	VkDevice device
+	, VkFormat colorAttachmentFormat
+	, VkFormat depthAttachmentFormat
+)
+{
+	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() };
+	ShaderModuleReflected const fragmentShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() };
+
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+	{
+		// Vertex push constant
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
+		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
+
+		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
+				, vertexPushConstantSize
+				, vertexPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+	}
+
+	VkPipelineLayoutCreateInfo const layoutInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.setLayoutCount{ 0 },
+		.pSetLayouts{ nullptr },
+
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
+	};
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
+
+	PipelineBuilder pipelineBuilder{};
+	pipelineBuilder.pushShader(vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
+	pipelineBuilder.pushShader(fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT);
+	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.pushDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	pipelineBuilder.setMultisamplingNone();
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_ALWAYS);
+
+	pipelineBuilder.setColorAttachment(colorAttachmentFormat);
+	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
+
+	m_vertexShader = vertexShader;
+	m_fragmentShader = fragmentShader;
+
+	m_graphicsPipelineLayout = pipelineLayout;
+	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
+}
+
+DrawResultsGraphics DebugLineComputePipeline::recordDrawCommands(
+	VkCommandBuffer cmd
+	, bool reuseDepthAttachment
+	, float lineWidth
+	, AllocatedImage const& color
+	, AllocatedImage const& depth
+	, uint32_t cameraIndex
+	, TStagedBuffer<GPUTypes::Camera> const& cameras
+	, TStagedBuffer<Vertex> const& endpoints
+	, TStagedBuffer<uint32_t> const& indices
+) const
+{
+	VkRenderingAttachmentInfo const colorAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ color.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{},
+	};
+	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment
+		? VK_ATTACHMENT_LOAD_OP_LOAD
+		: VK_ATTACHMENT_LOAD_OP_CLEAR
+	};
+	VkRenderingAttachmentInfo const depthAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ depth.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ depthLoadOp },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+	};
+
+	VkExtent2D const drawExtent{
+		.width{color.imageExtent.width},
+		.height{color.imageExtent.height},
+	};
+	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ colorAttachment };
+	VkRenderingInfo const renderInfo{
+		vkinit::renderingInfo(drawExtent, colorAttachments, &depthAttachment)
+	};
+
+	cameras.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	endpoints.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+	indices.recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT, VK_ACCESS_2_INDEX_READ_BIT);
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+	vkCmdSetLineWidth(cmd, lineWidth);
+
+	VkViewport const viewport{
+		.x{ 0 },
+		.y{ 0 },
+		.width{ static_cast<float>(drawExtent.width) },
+		.height{ static_cast<float>(drawExtent.height) },
+		.minDepth{ 0.0f },
+		.maxDepth{ 1.0f },
+	};
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D const scissor{
+		.offset{
+			.x{ 0 },
+			.y{ 0 },
+		},
+		.extent{
+			.width{ drawExtent.width },
+			.height{ drawExtent.height },
+		},
+	};
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	{ // Vertex push constant
+		VertexPushConstant const vertexPushConstant{
+			.vertexBuffer{ endpoints.deviceAddress() },
+			.cameraBuffer{ cameras.deviceAddress() },
+			.cameraIndex{ cameraIndex },
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0, sizeof(VertexPushConstant), &vertexPushConstant
+		);
+		m_vertexPushConstant = vertexPushConstant;
+	}
+
+	// Bind the entire index buffer of the mesh, but only draw a single surface.
+	vkCmdBindIndexBuffer(cmd, indices.deviceBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDraw(cmd, indices.deviceSize(), 1, 0, 0);
+
+	vkCmdEndRendering(cmd);
+
+	return DrawResultsGraphics{
+		.drawCalls{ 1 },
+		.verticesDrawn{ endpoints.deviceSize() },
+		.indicesDrawn{ indices.deviceSize() }
+	};
+}
+
+void DebugLineComputePipeline::cleanup(VkDevice device)
+{
+	m_fragmentShader.cleanup(device);
+	m_vertexShader.cleanup(device);
+
+	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
+}
+
+OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPipeline(VkDevice device, VkFormat depthAttachmentFormat)
+{
+	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv").value() };
+
+	std::vector<VkPushConstantRange> pushConstantRanges{};
+	{
+		// Vertex push constant
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+
+		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
+		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
+
+		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
+			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
+				, vertexPushConstantSize
+				, vertexPushConstantSizeExpected
+			));
+		}
+
+		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+	}
+
+	VkPipelineLayoutCreateInfo const layoutInfo{
+		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
+		.pNext{ nullptr },
+
+		.flags{ 0 },
+
+		.setLayoutCount{ 0 },
+		.pSetLayouts{ nullptr },
+
+		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pPushConstantRanges{ pushConstantRanges.data() },
+	};
+
+	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
+	CheckVkResult(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout));
+
+	PipelineBuilder pipelineBuilder{};
+	pipelineBuilder.pushShader(vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
+	// NO fragment shader
+
+	pipelineBuilder.pushDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
+	pipelineBuilder.enableDepthBias();
+
+	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.setMultisamplingNone();
+	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	// NO color attachment, just depth
+	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
+
+	m_vertexShader = vertexShader;
+
+	m_graphicsPipelineLayout = pipelineLayout;
+	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
+
+}
+
+void OffscreenPassInstancedMeshGraphicsPipeline::recordDrawCommands(
+	VkCommandBuffer cmd
+	, bool reuseDepthAttachment
+	, float depthBias
+	, float depthBiasSlope
+	, AllocatedImage const& depth
+	, uint32_t projViewIndex
+	, TStagedBuffer<glm::mat4x4> const& projViewMatrices
+	, MeshAsset const& mesh
+	, TStagedBuffer<glm::mat4x4> const& models
+) const
+{
+	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment
+		? VK_ATTACHMENT_LOAD_OP_LOAD
+		: VK_ATTACHMENT_LOAD_OP_CLEAR
+	};
+	VkRenderingAttachmentInfo const depthAttachment{
+		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
+		.pNext{ nullptr },
+
+		.imageView{ depth.imageView },
+		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+
+		.resolveMode{ VK_RESOLVE_MODE_NONE },
+		.resolveImageView{ VK_NULL_HANDLE },
+		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+
+		.loadOp{ depthLoadOp },
+		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+
+		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+	};
+
+	VkExtent2D const drawExtent{
+		.width{depth.imageExtent.width},
+		.height{depth.imageExtent.height},
+	};
+	VkRenderingInfo const renderInfo{
+		vkinit::renderingInfo(drawExtent, {}, &depthAttachment)
+	};
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
+
+	VkViewport const viewport{
+		.x{ 0 },
+		.y{ 0 },
+		.width{ static_cast<float>(drawExtent.width) },
+		.height{ static_cast<float>(drawExtent.height) },
+		.minDepth{ 0.0f },
+		.maxDepth{ 1.0f },
+	};
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D const scissor{
+		.offset{
+			.x{ 0 },
+			.y{ 0 },
+		},
+		.extent{
+			.width{ drawExtent.width },
+			.height{ drawExtent.height },
+		},
+	};
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+
+	GPUMeshBuffers& meshBuffers{ *mesh.meshBuffers };
+
+	{ // Vertex push constant
+		VertexPushConstant const vertexPushConstant{
+			.vertexBufferAddress{ meshBuffers.vertexAddress() },
+			.modelBufferAddress{ models.deviceAddress() },
+			.projViewBufferAddress{ projViewMatrices.deviceAddress() },
+			.projViewIndex{ projViewIndex }
+		};
+		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0, sizeof(VertexPushConstant), &vertexPushConstant
+		);
+		m_vertexPushConstant = vertexPushConstant;
+	}
+
+	GeometrySurface const& drawnSurface{ mesh.surfaces[0] };
+
+	// Bind the entire index buffer of the mesh, but only draw a single surface.
+	vkCmdBindIndexBuffer(cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+	vkCmdDrawIndexed(cmd, drawnSurface.indexCount, models.deviceSize(), drawnSurface.firstIndex, 0, 0);
+
+	vkCmdEndRendering(cmd);
+}
+
+void OffscreenPassInstancedMeshGraphicsPipeline::cleanup(VkDevice device)
+{
+	m_vertexShader.cleanup(device);
+
+	vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }

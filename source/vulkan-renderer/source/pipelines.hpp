@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <set>
 
 #include "enginetypes.hpp"
 
@@ -9,34 +10,61 @@
 #include "shaders.hpp"
 #include "assets.hpp"
 #include "buffers.hpp"
+#include "images.hpp"
+
+struct DrawResultsGraphics
+{
+    size_t drawCalls{ 0 };
+    size_t verticesDrawn{ 0 };
+    size_t indicesDrawn{ 0 };
+};
 
 class PipelineBuilder {
 public:
     PipelineBuilder() {};
 
     VkPipeline buildPipeline(VkDevice device, VkPipelineLayout layout) const;
-    void setShaders(ShaderModuleReflected const& vertexShader, ShaderModuleReflected const& fragmentShader);
+    void pushShader(ShaderModuleReflected const& shader, VkShaderStageFlagBits stage);
     void setInputTopology(VkPrimitiveTopology topology);
     void setPolygonMode(VkPolygonMode mode);
+    void pushDynamicState(VkDynamicState dynamicState);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void setMultisamplingNone();
-    void disableBlending();
-    void setColorAttachmentFormat(VkFormat format);
+    void setColorAttachment(VkFormat format);
     void setDepthFormat(VkFormat format);
 
+    void enableDepthBias();
     void disableDepthTest();
     void enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp);
 
 private:
 	std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages{};
+    std::set<VkDynamicState> m_dynamicStates{};
 
 	VkPipelineInputAssemblyStateCreateInfo m_inputAssembly{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO },
     };
 	VkPipelineRasterizationStateCreateInfo m_rasterizer{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO }
+        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO },
+        .lineWidth{ 1.0 },
     };
-    VkPipelineColorBlendAttachmentState m_colorBlendAttachment{};
+
+    struct ColorAttachmentSpecification
+    {
+        VkFormat format{ VK_FORMAT_UNDEFINED };
+
+        // TODO: expose blending in pipeline builder
+        VkPipelineColorBlendAttachmentState blending{
+            .blendEnable{ VK_FALSE },
+            .colorWriteMask{
+                VK_COLOR_COMPONENT_R_BIT
+                | VK_COLOR_COMPONENT_G_BIT
+                | VK_COLOR_COMPONENT_B_BIT
+                | VK_COLOR_COMPONENT_A_BIT
+            }
+        };
+    };
+
     VkPipelineMultisampleStateCreateInfo m_multisampling{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO }
     };
@@ -44,116 +72,54 @@ private:
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO }
     };
 
-    VkFormat m_colorAttachmentFormat{ VK_FORMAT_UNDEFINED };
+    std::optional<ColorAttachmentSpecification> m_colorAttachment{};
     VkFormat m_depthAttachmentFormat{ VK_FORMAT_UNDEFINED };
 };
 
-/*
-* A graphics pipeline that renders multiple instances of a single mesh.
-*/
-class InstancedMeshGraphicsPipeline
+// This pipeline does an offscreen pass of some geometry to write depth information
+class OffscreenPassInstancedMeshGraphicsPipeline
 {
 public:
-    InstancedMeshGraphicsPipeline(
+    OffscreenPassInstancedMeshGraphicsPipeline(
         VkDevice device,
-        VkFormat colorAttachmentFormat,
         VkFormat depthAttachmentFormat
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd, 
-        glm::mat4x4 camera,
-        bool reuseDepthAttachment,
-        AllocatedImage const& color,
-        AllocatedImage const& depth,
-        MeshAsset const& mesh,
-        TStagedBuffer<glm::mat4x4> const& transforms
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , float depthBias
+        , float depthBiasSlope
+        , AllocatedImage const& depth
+        , uint32_t projViewIndex
+        , TStagedBuffer<glm::mat4x4> const& projViewMatrices
+        , MeshAsset const& mesh
+        , TStagedBuffer<glm::mat4x4> const& models
     ) const;
 
     void cleanup(VkDevice device);
 
 private:
     ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
-    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
-    
+
     VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
 
-    struct PushConstantType {
-        glm::mat4x4 cameraTransform{};
-
+    struct VertexPushConstant {
         VkDeviceAddress vertexBufferAddress{};
-        VkDeviceAddress transformBufferAddress{};
+        VkDeviceAddress modelBufferAddress{};
+
+        VkDeviceAddress projViewBufferAddress{};
+        uint32_t projViewIndex{ 0 };
+        uint8_t padding0[4]{};
     };
 
-    PushConstantType m_pushConstant;
+    VertexPushConstant mutable m_vertexPushConstant{};
 
 public:
-    PushConstantType const& pushConstant() const { return m_pushConstant; };
-};
-
-/*
-* A compute pipeline that renders the scattering of sunlight in the sky.
-* It models all light from the sun as reaching the camera via primary scattering,
-* so it produces inaccurate results in thin atmospheres.
-*/
-class AtmosphereComputePipeline
-{
-public:
-    AtmosphereComputePipeline(
-        VkDevice device, 
-        VkDescriptorSetLayout drawImageDescriptorLayout
-    );
-
-    void recordDrawCommands(
-        VkCommandBuffer cmd,
-        uint32_t cameraIndex,
-        TStagedBuffer<GPUTypes::Camera> const& camerasBuffer,
-        uint32_t atmosphereIndex,
-        TStagedBuffer<GPUTypes::Atmosphere> const& atmospheresBuffer,
-        VkDescriptorSet colorSet,
-        VkExtent2D colorExtent
-    ) const;
-
-    void cleanup(VkDevice device);
-
-    std::span<uint8_t const> pushConstantBytes() const
-    {
-        return std::span<uint8_t const>(
-            reinterpret_cast<uint8_t const*>(&m_pushConstant)
-            , sizeof(PushConstantType)
-        );
-    }
-
-    ShaderModuleReflected const& shader() const { return m_skyShader; };
-
-private:
-    ShaderModuleReflected m_skyShader{ ShaderModuleReflected::MakeInvalid() };
-
-    VkPipeline m_computePipeline{ VK_NULL_HANDLE };
-    VkPipelineLayout m_computePipelineLayout{ VK_NULL_HANDLE };
-
-    struct PushConstantType {
-        uint32_t cameraIndex{};
-        uint32_t atmosphereIndex{};
-        VkDeviceAddress cameraBuffer{};
-
-        VkDeviceAddress atmosphereBuffer{};
-        uint8_t padding0[8]{};
-    };
-
-    /*
-    * A cached copy of the push constants that were last sent to the GPU during recording.
-    * This value is not read by the pipeline and is only useful to reflect the intended state on the GPU.
-    */
-    PushConstantType mutable m_pushConstant;
-
-public:
-    PushConstantType const& pushConstant() const { return m_pushConstant; };
-    ShaderReflectionData::PushConstant const& pushConstantReflected() const 
-    { 
-        return m_skyShader.reflectionData().defaultPushConstant(); 
-    };
+    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
+    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
 };
 
 /*
@@ -220,4 +186,56 @@ private:
     std::vector<ShaderObjectReflected> m_shaders{};
     std::vector<std::vector<uint8_t>> m_shaderPushConstants{};
     std::vector<VkPipelineLayout> m_layouts{}; 
+};
+
+/*
+* A pipeline that draws debug geometry such as lines and points in a compute pass
+* TODO: combine this with the other compute pipeline
+*/
+class DebugLineComputePipeline
+{
+public:
+    DebugLineComputePipeline(
+        VkDevice device,
+        VkFormat colorAttachmentFormat,
+        VkFormat depthAttachmentFormat
+    );
+
+    DrawResultsGraphics recordDrawCommands(
+        VkCommandBuffer cmd
+        , bool reuseDepthAttachment
+        , float lineWidth
+        , AllocatedImage const& color
+        , AllocatedImage const& depth
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , TStagedBuffer<Vertex> const& endpoints
+        , TStagedBuffer<uint32_t> const& indices
+    ) const;
+
+    void cleanup(VkDevice device);
+
+private:
+    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
+    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
+
+    struct VertexPushConstant
+    {
+        VkDeviceAddress vertexBuffer{};
+        VkDeviceAddress cameraBuffer{};
+
+        uint32_t cameraIndex{ 0 };
+        uint8_t padding0[12]{};
+    };
+
+    VertexPushConstant mutable m_vertexPushConstant{};
+
+    VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
+    VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
+
+public:
+    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
+    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+
+    ShaderModuleReflected const& fragmentShader() const { return m_fragmentShader; };
 };

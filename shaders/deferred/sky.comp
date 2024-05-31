@@ -1,52 +1,38 @@
 #version 460
 #extension GL_EXT_buffer_reference2 : require
+#extension GL_ARB_shading_language_include : require
 
-//size of a workgroup for compute
+#include "../types/camera.glsl"
+#include "../types/atmosphere.glsl"
+
+/*
+* A post process shader that adds atmospheric scattering.
+* The color from sunlight and attenuation due to scattering is computed for every pixel.
+* Then, the color in the image is attenuated and the sunlight contribution is added.
+*/ 
+
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
-struct Camera {
-	mat4 projection;
-
-	mat4 inverseProjection;
-
-	mat4 view;
-
-	mat4 rotation;
-
-	vec3 position;
-};
+// Depth is used to determine which pixels are sky
+layout(set = 1, binding = 0) uniform sampler2D fragmentDepth;
 
 layout(buffer_reference, std430) readonly buffer CameraBuffer{
 	Camera cameras[];
 };
-
-struct Atmosphere {
-	vec3 directionToSun;
-	float earthRadiusMeters;
-
-	vec3 scatteringCoefficientRayleigh;
-	float altitudeDecayRayleigh;
-	
-	vec3 scatteringCoefficientMie;
-	float altitudeDecayMie;
-
-	vec3 padding0;
-	float atmosphereRadiusMeters;
-};
-
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer{
 	Atmosphere atmospheres[];
 };
 
 layout( push_constant ) uniform PushConstant
 {
-	uint cameraIndex;
+	AtmosphereBuffer atmosphereBuffer;
+	CameraBuffer cameraBuffer;
 
 	uint atmosphereIndex;
+	uint cameraIndex;
 
-	CameraBuffer cameraBuffer;
-	AtmosphereBuffer atmosphereBuffer;
+	vec2 drawExtent;
 } pushConstant;
 
 bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius, out float t0, out float t1)
@@ -102,49 +88,34 @@ float computePhase(float reflectionCosine, float anisotropy)
 		/ ((2.0 + reflectionCosine * reflectionCosine) * pow(float(1.0 + anisotropy * anisotropy - 2.0 * reflectionCosine * anisotropy), 1.5));
 }
 
-vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmosphereParameters)
+/*
+* Constants and implementation derived from:
+* https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
+* Which is based on the original paper "Display of the Earth Taking into Account Atmospheric Scattering"
+* by Tomoyuki Nishita, Takao Sirai, Katsumi Tadamura, Eihachiro Nakamae
+*/ 
+
+vec3 computeAtmosphereLight(
+	const vec3 origin
+	, const vec3 direction
+	, const float tSampleStart
+	, const float tSampleEnd
+	, const vec3 endpointColor
+	, const Atmosphere atmosphereParameters
+)
 {
-	/*
-	* Constants and implementation derived from:
-	* https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
-	* Which is based on the original paper "Display of the Earth Taking into Account Atmospheric Scattering"
-	* by Tomoyuki Nishita, Takao Sirai, Katsumi Tadamura, Eihachiro Nakamae
-	*/ 
-
-	const float pi = 3.141592653589793;
-
 	const float earthRadiusMeters = atmosphereParameters.earthRadiusMeters;
 	const float atmosphereRadiusMeters = atmosphereParameters.atmosphereRadiusMeters;
-
-	origin -= vec3(0.0, earthRadiusMeters, 0.0);
-
 	const vec3 directionToSun = atmosphereParameters.directionToSun;
+
 	const float altitudeDecayRayleigh = atmosphereParameters.altitudeDecayRayleigh;
 	const float altitudeDecayMie = atmosphereParameters.altitudeDecayMie;
+
 	const vec3 scatteringCoefficientRayleigh = atmosphereParameters.scatteringCoefficientRayleigh;
 	const vec3 scatteringCoefficientMie = atmosphereParameters.scatteringCoefficientMie;
 
-	// Assume slight blue tint to fake secondary bounces from sky
-	const vec3 groundColor = vec3(0.80, 0.80, 0.90);
-
-	float t0, t1;
-	const bool viewingAtmosphere = raySphereIntersection(origin, direction, atmosphereRadiusMeters, t0, t1);
-
-	if (!viewingAtmosphere || t1 < 0.0)
-	{
-		return vec3(0.0);
-	}
-
-	float t0Earth, t1Earth;
-	const bool hittingEarth = raySphereIntersection(origin, direction, earthRadiusMeters, t0Earth, t1Earth);
-
-	if (hittingEarth && t1Earth >= 0.0)
-	{
-		t1 = t0Earth;
-	}
-
-	const float tSampleStart = max(t0, 0.0); // Only sample forward from the origin
-	const float tSampleEnd = t1;
+	const vec3 exctinctionCoefficientRayleigh = scatteringCoefficientRayleigh;
+	const vec3 exctinctionCoefficientMie = 1.1 * scatteringCoefficientMie;
 
 	vec3 contributionRayleigh = vec3(0.0);
 	vec3 contributionMie = vec3(0.0);
@@ -178,7 +149,7 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 		float t0Light, t1Light;
 		raySphereIntersection(samplePosition, directionToSun, atmosphereRadiusMeters, t0Light, t1Light);
 
-		const uint sampleCountLight = 32;
+		const uint sampleCountLight = 16;
 		const float segmentLengthLight = (t1Light - 0.0) / float(sampleCountLight);
 		float opticalDepthLightRayleigh = 0.0;
 		float opticalDepthLightMie = 0.0;
@@ -198,8 +169,8 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 			// We ignore secondary contributions
 			if (j == sampleCountLight - 1)
 			{
-				const vec3 tau = scatteringCoefficientRayleigh * (opticalDepthRayleigh + opticalDepthLightRayleigh)
-							   + scatteringCoefficientMie * 1.1f * (opticalDepthMie + opticalDepthLightMie);
+				const vec3 tau = exctinctionCoefficientRayleigh * (opticalDepthRayleigh + opticalDepthLightRayleigh)
+							   + exctinctionCoefficientMie * (opticalDepthMie + opticalDepthLightMie);
 
 				const vec3 attenuation = vec3(exp(float(-tau.x)),exp(float(-tau.y)),exp(float(-tau.z)));
 
@@ -209,17 +180,23 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 		}
 	}
 
-	vec3 color =(contributionRayleigh * scatteringCoefficientRayleigh * phaseRayleigh + contributionMie * scatteringCoefficientMie * phaseMie) * 20.0;
+	const float sunIntensity = 20.0;
 
-	// Compute transmittance to include ground color
-	if (hittingEarth && t1Earth >= 0.0)
-	{
-		const vec3 tau = scatteringCoefficientRayleigh * opticalDepthRayleigh
-					+ scatteringCoefficientMie * 1.1f * opticalDepthMie;
+	// The contribution coming from air/particles scattering sunlight
+	vec3 color = sunIntensity * (
+		contributionRayleigh * scatteringCoefficientRayleigh * phaseRayleigh 
+		+ contributionMie * scatteringCoefficientMie * phaseMie
+	);
 
+	if (dot(endpointColor, endpointColor) > 0.00001) {
+		const vec3 tau = 
+			exctinctionCoefficientRayleigh * opticalDepthRayleigh
+			+ exctinctionCoefficientMie * opticalDepthMie;
+
+		// How much the light is attenuated through the atmosphere as it travels from endpoint to startpoint.
 		const vec3 attenuation = vec3(exp(float(-tau.x)),exp(float(-tau.y)),exp(float(-tau.z)));
 
-		color += attenuation * groundColor;
+		color += attenuation * endpointColor;
 	}
 
 	return color;
@@ -227,21 +204,69 @@ vec3 computeAtmosphereLight(vec3 origin, vec3 direction, Atmosphere atmospherePa
 
 void main() 
 {
-	vec2 size = imageSize(image);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-
-    if(texelCoord.x < size.x && texelCoord.y < size.y)
-    {
-		vec2 screenSpaceUV = vec2((gl_GlobalInvocationID.xy / size) - 0.5) * 2.0;
-
-		const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
-		const Atmosphere atmosphereParameters = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
-
-		vec4 rayDirection = camera.rotation * camera.inverseProjection *  vec4(screenSpaceUV,1.0,1.0);
-		rayDirection /= rayDirection.w;
-
-		vec3 skyColor = computeAtmosphereLight(camera.position, normalize(rayDirection.xyz), atmosphereParameters);
-
-		imageStore(image, texelCoord, vec4(skyColor, 1.0));
+	const vec2 size = imageSize(image);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if(texelCoord.x >= size.x || texelCoord.y >= size.y)
+	{
+		return;
 	}
+
+	const vec2 offset = vec2(0.5,0.5);
+	// This UV is into the entire image, not the subregion we are drawing into
+	const vec2 uv = (vec2(gl_GlobalInvocationID.xy) + offset) / size;
+
+	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
+	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+
+	// We shift the origin since otherwise our world coords would be at the center of the planet
+	const vec3 surfaceOrigin = vec3(0.0, -atmosphere.earthRadiusMeters, 0.0);
+
+	const vec3 origin = camera.position.xyz + surfaceOrigin; 
+
+	const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / pushConstant.drawExtent) - 0.5) * 2.0;
+	const float nearPlaneDepth = 1.0;
+	const vec4 directionViewSpace = camera.inverseProjection * vec4(clipSpaceUV,nearPlaneDepth,1.0);
+	const vec3 direction = normalize((camera.rotation * directionViewSpace).xyz);
+
+	// Start and stop for atmospheric sampling, in world units
+	const float depth = texture(fragmentDepth, uv).r;
+	
+	const float tSampleStart = 0.0;
+	float tSampleEnd;
+	vec3 unattenuatedColor = vec3(0.0);
+
+	if (depth == 0.0)
+	{
+		// Sample ends where the atmosphere ends
+		float t0, t1;
+		const bool viewingAtmosphere = raySphereIntersection(
+			origin
+			, direction
+			, atmosphere.atmosphereRadiusMeters
+			, t0
+			, t1
+		);
+
+		// Ignore the case that viewingAtmosphere is false, we assume the camera is not in space
+		tSampleEnd = t1;
+	}
+	else
+	{
+		const vec4 texelPosition = camera.projViewInverse * vec4(clipSpaceUV, depth, 1.0);
+
+		tSampleEnd = distance(texelPosition.xyz, camera.position.xyz);
+
+		unattenuatedColor = imageLoad(image, texelCoord).rgb;
+	}
+
+	const vec3 finalColor = computeAtmosphereLight(
+		origin
+		, direction
+		, tSampleStart
+		, tSampleEnd
+		, unattenuatedColor
+		, atmosphere
+	);
+
+	imageStore(image, texelCoord, vec4(finalColor, 1.0));
 }

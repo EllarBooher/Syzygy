@@ -1,0 +1,210 @@
+#version 460
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_ARB_shading_language_include : require
+#extension GL_EXT_nonuniform_qualifier : require
+
+/*
+* Deferred Blinn-phong shading consuming a GBuffer with a single light/shadowmap
+*/
+
+#include "../types/camera.glsl"
+#include "../types/atmosphere.glsl"
+#include "../types/lights.glsl"
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+
+layout(set = 1, binding = 0) uniform sampler2D samplerDiffuse;
+layout(set = 1, binding = 1) uniform sampler2D samplerSpecular;
+layout(set = 1, binding = 2) uniform sampler2D samplerNormal;
+layout(set = 1, binding = 3) uniform sampler2D samplerWorldPosition;
+
+layout(set = 2, binding = 0) uniform sampler shadowMapSampler;
+layout(set = 3, binding = 0) uniform texture2D shadowMaps[];
+
+layout(buffer_reference, std430) readonly buffer CameraBuffer{
+	Camera cameras[];
+};
+
+layout(buffer_reference, std430) readonly buffer AtmosphereBuffer{
+	Atmosphere atmospheres[];
+};
+
+layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer{
+	LightDirectional lights[];
+};
+
+layout(buffer_reference, std430) readonly buffer LightSpotBuffer{
+	LightSpot lights[];
+};
+
+layout (push_constant) uniform PushConstant
+{
+	CameraBuffer cameraBuffer;
+	AtmosphereBuffer atmosphereBuffer;
+
+	LightDirectionalBuffer directionalLights;
+	LightSpotBuffer spotLights;
+
+	uint directionalLightCount;
+	uint spotLightCount;
+	uint atmosphereIndex;
+	uint cameraIndex;
+
+	vec2 gbufferExtent;
+} pushConstant;
+
+float sampleShadowMap(vec4 shadowCoord, uint index)
+{
+	float dist = texture(nonuniformEXT(sampler2D(shadowMaps[index], shadowMapSampler)), shadowCoord.st).r;
+	if (dist > shadowCoord.z && dist > 0.0) 
+	{
+		return 0.0;
+	}
+
+	return 1.0;
+}
+
+const mat4 toTexCoordMat = mat4(
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0
+);
+
+struct GBufferTexel
+{
+	vec4 position;
+	vec4 normal;
+	vec4 diffuseColor;
+	vec4 specularColor;
+};
+
+vec3 computeDirectionalLight(const LightDirectional light, const GBufferTexel gbuffer, const vec3 viewDirection, const uint shadowMapIndex)
+{
+	// SHADOW
+	const mat4 shadowMatrix = toTexCoordMat * light.projection * light.view;
+	vec4 shadowCoord = shadowMatrix * gbuffer.position;
+	shadowCoord /= shadowCoord.w;
+	
+	const float attenuationShadow = sampleShadowMap(shadowCoord, shadowMapIndex); 
+	const vec3 lightColor = light.color.rgb;
+
+	const vec3 lightDirection = normalize(-light.forward.xyz);
+	const float lambertian = max(dot(lightDirection, gbuffer.normal.xyz), 0.0);
+
+	// DIFFUSE
+	const vec3 diffuseContribution = lambertian * gbuffer.diffuseColor.rgb * lightColor;
+
+	// SPECULAR 
+	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+	const float specularCosine = clamp(dot(halfwayDirection, gbuffer.normal.xyz), 0.0,1.0);
+
+	const float shininess = 16.0;
+	const float fade = smoothstep(0.0,0.01,lambertian);
+	const float specular = fade * pow(specularCosine, shininess);
+	const vec3 specularContribution = specular * gbuffer.specularColor.rgb * lightColor;
+
+	return attenuationShadow * (diffuseContribution + specularContribution) * light.strength;
+}
+
+vec3 computeSpotLight(const LightSpot light, const GBufferTexel gbuffer, const vec3 viewDirection, const uint shadowMapIndex)
+{
+	// SHADOW
+	const mat4 shadowMatrix = toTexCoordMat * light.projection * light.view;
+	vec4 shadowCoord = shadowMatrix * gbuffer.position;
+	shadowCoord /= shadowCoord.w;
+
+	const float distanceUV = distance(shadowCoord.st, vec2(0.5,0.5));
+	if (distanceUV > 0.5)
+	{
+		return vec3(0.0);
+	}
+
+	const float attenuationShadow = sampleShadowMap(shadowCoord, shadowMapIndex); 
+
+	const vec3 lightColor = light.color.rgb;
+
+	const vec3 lightDirection = normalize(-light.forward.xyz);
+	const float lambertian = max(dot(lightDirection, gbuffer.normal.xyz), 0.0);
+
+	// DIFFUSE
+	const vec3 diffuseContribution = lambertian * gbuffer.diffuseColor.rgb * lightColor;
+
+	// SPECULAR 
+	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+	const float specularCosine = clamp(dot(halfwayDirection, gbuffer.normal.xyz), 0.0,1.0);
+
+	const float shininess = 16.0;
+	const float fade = smoothstep(0.0,0.01,lambertian);
+	const float specular = fade * pow(specularCosine, shininess);
+	const vec3 specularContribution = specular * gbuffer.specularColor.rgb * lightColor;
+
+	const float falloff = light.falloffFactor * distance(light.position, gbuffer.position) / light.falloffDistance;
+	const float attenuationEdge = (0.5 - distanceUV) * (0.5 - distanceUV) * 4.0;
+
+	return attenuationEdge * attenuationShadow * (diffuseContribution + specularContribution) * light.strength / falloff;
+}
+
+void main()
+{
+	const vec2 size = imageSize(image);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if(texelCoord.x >= size.x || texelCoord.y >= size.y)
+	{
+		return;
+	}
+
+	// The uv needs to be offset to avoid floating point errors on texel boundaries
+	const vec2 offset = vec2(0.5,0.5);
+	const vec2 gbufferUV = (vec2(gl_GlobalInvocationID.xy) + offset) / pushConstant.gbufferExtent;
+
+	const GBufferTexel gbuffer = GBufferTexel(
+		texture(samplerWorldPosition, gbufferUV)
+		, texture(samplerNormal, gbufferUV)
+		, texture(samplerDiffuse, gbufferUV)
+		, texture(samplerSpecular, gbufferUV)
+	); 
+
+	// No transparent geometry for now, less than 1.0 alpha indicates background texels
+	if (gbuffer.diffuseColor.a < 1.0)
+	{
+		return;
+	}
+
+	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
+
+	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+	const vec3 viewDirection = normalize(camera.position.xyz - gbuffer.position.xyz);
+
+	// AMBIENT
+	const vec3 ambientContribution = gbuffer.diffuseColor.rgb * atmosphere.ambientColor;
+
+	vec3 lightContribution = vec3(0.0);
+
+	// We assume shadow maps are laid out in the following order
+	uint shadowMapIndex = 0;
+
+	for (int i = 0; i < pushConstant.directionalLightCount; i++)
+	{
+		const LightDirectional light = pushConstant.directionalLights.lights[i];
+		lightContribution += computeDirectionalLight(light, gbuffer, viewDirection, shadowMapIndex);
+
+		shadowMapIndex += 1;
+	}
+
+	for (int i = 0; i < pushConstant.spotLightCount; i++)
+	{
+		const LightSpot light = pushConstant.spotLights.lights[i];
+		lightContribution += computeSpotLight(light, gbuffer, viewDirection, shadowMapIndex);
+
+		shadowMapIndex += 1;
+	}
+
+	const vec4 finalColor = vec4(
+		ambientContribution + lightContribution
+		, 1.0
+	);
+	
+	imageStore(image, texelCoord, finalColor);
+}

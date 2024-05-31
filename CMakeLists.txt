@@ -26,8 +26,7 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
     "${PROJECT_SOURCE_DIR}/shaders/*.comp"
 )
 foreach(GLSL ${GLSL_SOURCE_FILES})
-  cmake_path(GET GLSL FILENAME FILE_NAME)
-  set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
+  set(SPIRV "${GLSL}.spv")
   message(STATUS "Detected shader ${GLSL}")
   add_custom_command(
     OUTPUT ${SPIRV}
