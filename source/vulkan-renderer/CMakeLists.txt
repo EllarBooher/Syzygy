@@ -83,13 +83,6 @@ target_compile_definitions(
 	IMGUI_USER_CONFIG="imguiconfig.h"
 )
 
-# Patch in our imconfig file
-#file(
-#	COPY_FILE
-#	${CMAKE_SOURCE_DIR}/thirdparty/imgui/imconfig.h
-#	${imgui_SOURCE_DIR}/imconfig.h
-#)
-
 FetchContent_MakeAvailable(implot)
 
 add_library(implot
