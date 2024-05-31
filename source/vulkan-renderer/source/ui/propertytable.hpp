@@ -32,7 +32,11 @@ private:
 
     uint16_t const m_styleVariablesCount{ 0 };
 
+    // Used to avoid name collision, by incrementing and salting names passed to ImGui.
+    size_t m_propertyCount{ 0 };
+
     bool m_open{ false };
+    bool m_rowOpen{ false };
 
     size_t m_childPropertyDepth{ 0 };
 
@@ -56,6 +60,11 @@ private:
         , bool visible
     );
 
+    static float collapseButtonWidth()
+    {
+        return ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
+    }
+
     void checkInvariant() const
     {
         // If we are collapsed, it must have occured at the current or an earlier depth.
@@ -74,6 +83,10 @@ private:
             && m_childPropertyDepth > m_childPropertyFirstCollapse.value(); 
     }
 
+    // If this returns false, the row should not be modified further. Do NOT call rowEnd if this returns false.
+    bool rowBegin(std::string const& name);
+    void rowEnd();
+
 public:
     // Creates a separate window, that demonstrates PropertyTable usage.
     static void demoWindow();
@@ -83,14 +96,16 @@ public:
 
     void end();
 
-    // Adds an arrow button. 
-    // Further calls to row drawing methods will be skipped until rowChildPropertyEnd is called,
+    // Adds an arrow button to the previous row, and enters a collapsible section.
+    // Further calls to row drawing methods will be skipped until childPropertyEnd is called,
     // depending on if this rows button is collapsed or not. This is tracked internally.
     // This also adds proper styling and indenting.
+    PropertyTable& childPropertyBegin();
+    // This adds a new row for the collapsing button. See PropertyTable::childPropertyBegin.
     PropertyTable& rowChildPropertyBegin(std::string const& name);
 
-    // A corresponding PropertyTable::rowChildPropertyBegin must have been called.
-    PropertyTable& rowChildPropertyEnd();
+    // A corresponding PropertyTable::rowChildPropertyBegin or PropertyTable::childPropertyBegin must have been called.
+    PropertyTable& childPropertyEnd();
 
     // Adds a row that contains a dropdown, containing a list of values, with a reset button.
     PropertyTable& rowDropdown(

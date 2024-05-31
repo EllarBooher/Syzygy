@@ -403,7 +403,7 @@ void imguiStructureControls<DebugLines>(
             .rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
             .rowReadOnlyInteger("Vertices Drawn", drawResults.verticesDrawn)
             .rowReadOnlyInteger("Indices Drawn", drawResults.indicesDrawn)
-            .rowChildPropertyEnd();
+            .childPropertyEnd();
     }
 
     table.end();
