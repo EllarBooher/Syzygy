@@ -89,7 +89,7 @@ private:
 
 public:
     // Creates a separate window, that demonstrates PropertyTable usage.
-    static void demoWindow();
+    static void demoWindow(bool& open);
 
     // Using the default name synchronizes the table's column widths (and possibly other properties) across the window.
     static PropertyTable begin(std::string name = "PropertyTable");

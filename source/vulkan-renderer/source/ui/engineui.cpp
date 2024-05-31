@@ -74,16 +74,14 @@ HUDState renderHUD(UIPreferences& preferences)
             | ImGuiWindowFlags_NoDocking
             | ImGuiWindowFlags_NoDecoration 
             | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoBackground
             | ImGuiWindowFlags_NoBringToFrontOnFocus 
+            | ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoNavFocus;
         
         ImGui::SetNextWindowPos(viewport.WorkPos);
         ImGui::SetNextWindowSize(viewport.WorkSize);
         ImGui::SetNextWindowViewport(viewport.ID);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
         bool resetLayoutRequested{ false };
 
@@ -91,24 +89,34 @@ HUDState renderHUD(UIPreferences& preferences)
         static bool showPreferences{ false };
         static bool showUIDemoWindow{ false };
 
-        if (ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS))
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+        bool const backgroundWindow{
+            ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS)
+        };
+
+        // Can this ever happen?
+        assert(backgroundWindow && "Background Window was closed.");
+
+        ImGui::PopStyleVar(3);
+
+        if (ImGui::BeginMenuBar())
         {
-            if (ImGui::BeginMenuBar())
+            if (ImGui::BeginMenu("Tools"))
             {
-                if (ImGui::BeginMenu("Tools"))
-                {
-                    ImGui::MenuItem("Preferences", nullptr, &showPreferences);
-                    ImGui::EndMenu();
-                }
-                if (ImGui::BeginMenu("Window"))
-                {
-                    ImGui::MenuItem("Maximize Scene Viewport", nullptr, &maximizeSceneViewport);
-                    ImGui::MenuItem("UI Demo Window", nullptr, &showUIDemoWindow);
-                    ImGui::MenuItem("Reset Window Layout", nullptr, &resetLayoutRequested);
-                    ImGui::EndMenu();
-                }
-                ImGui::EndMenuBar();
+                ImGui::MenuItem("Preferences", nullptr, &showPreferences);
+                ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("Window"))
+            {
+                ImGui::MenuItem("Maximize Scene Viewport", nullptr, &maximizeSceneViewport);
+                ImGui::MenuItem("UI Demo Window", nullptr, &showUIDemoWindow);
+                ImGui::MenuItem("Reset Window Layout", nullptr, &resetLayoutRequested);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
         }
 
         if (resetLayoutRequested)
@@ -128,10 +136,8 @@ HUDState renderHUD(UIPreferences& preferences)
 
         ImGui::End();
 
-        ImGui::PopStyleVar(3);
-
         if (showPreferences) renderPreferences(showPreferences, preferences, hud);
-        if (showUIDemoWindow) PropertyTable::demoWindow();
+        if (showUIDemoWindow) PropertyTable::demoWindow(showUIDemoWindow);
     }
 
     static bool firstLoop{ true };
@@ -158,9 +164,9 @@ DockingLayout buildDefaultMultiWindowLayout(
 
     ImGuiID parentID{ parentNode };
 
-    ImGuiID const leftID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 0.5f, nullptr, &parentID) };
-    ImGuiID const rightID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 0.5f, nullptr, &parentID) };
-    ImGuiID const centerBottomID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 0.5f, nullptr, &parentID) };
+    ImGuiID const leftID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 3.0 / 10.0, nullptr, &parentID) };
+    ImGuiID const rightID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 3.0 / 7.0, nullptr, &parentID) };
+    ImGuiID const centerBottomID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 3.0 / 10.0, nullptr, &parentID) };
     ImGuiID const centerTopID{ parentID };
 
     ImGui::DockBuilderFinish(parentNode);

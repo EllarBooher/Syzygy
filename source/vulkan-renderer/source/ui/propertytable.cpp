@@ -42,7 +42,7 @@ PropertyTable PropertyTable::begin(std::string const name)
         | ImGuiTableFlags_Resizable
     );
 
-    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
     ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize);
     ImGui::TableSetupColumn(
         "Reset"
@@ -529,9 +529,9 @@ PropertyTable& PropertyTable::rowReadOnlyBoolean(std::string const& name, bool c
     return *this;
 }
 
-void PropertyTable::demoWindow()
+void PropertyTable::demoWindow(bool& open)
 {
-    if (!ImGui::Begin("Property Table Demo Window"))
+    if (!ImGui::Begin("Property Table Demo Window", &open))
     {
         ImGui::End();
         return;

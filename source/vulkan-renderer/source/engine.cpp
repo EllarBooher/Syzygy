@@ -103,14 +103,33 @@ void Engine::initWindow()
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
     char const* const WINDOW_TITLE = "Renderer";
     m_window = glfwCreateWindow(
-        m_windowExtent.width, 
-        m_windowExtent.height, 
-        WINDOW_TITLE, 
-        nullptr, 
-        nullptr
+        m_windowExtent.width
+        , m_windowExtent.height
+        , WINDOW_TITLE
+        , nullptr
+        , nullptr
+    );
+
+    int width{};
+    int height{};
+    glfwGetWindowSize(
+        m_window
+        , &width
+        , &height
+    );
+
+    m_windowExtent.width = static_cast<uint32_t>(width);
+    m_windowExtent.height = static_cast<uint32_t>(height);
+
+    m_uiPreferences.dpiScale = glm::round(
+        glm::min(
+            m_windowExtent.height / 1080.0
+            , m_windowExtent.width / 1920.0
+        )
     );
 
     Log("Window Initialized.");
@@ -979,6 +998,7 @@ bool Engine::renderUI(VkDevice const device)
         ImGuiWindowFlags constexpr FULLSCREEN_WINDOW_FLAGS{ 
             ImGuiWindowFlags_None
             | ImGuiWindowFlags_NoDecoration
+            | ImGuiWindowFlags_NoBringToFrontOnFocus
         };
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
