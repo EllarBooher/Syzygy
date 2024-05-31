@@ -74,6 +74,7 @@ void PropertyTable::end()
 PropertyTable& PropertyTable::childPropertyBegin()
 {
     static std::unordered_map<ImGuiID, bool> collapseStatus{};
+    bool constexpr collapsedDefault{ true };
 
     checkInvariant();
 
@@ -89,7 +90,12 @@ PropertyTable& PropertyTable::childPropertyBegin()
             ImGui::GetID(arrowButtonName.c_str())
         };
 
-        bool& collapsed{ collapseStatus[arrowButtonID] };
+        if (!collapseStatus.contains(arrowButtonID))
+        {
+            collapseStatus.insert({ arrowButtonID, collapsedDefault });
+        }
+
+        bool& collapsed{ collapseStatus.at(arrowButtonID) };
         ImGuiDir const direction{
             collapsed
             ? ImGuiDir_Right
