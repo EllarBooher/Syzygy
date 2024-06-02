@@ -27,13 +27,43 @@ void imguiPerformanceWindow(
         ImGui::Text(fmt::format("FPS: {:.1f}", averageFPS).c_str());
         float const minFPS{ 10.0 };
         float const maxFPS{ 1000.0 };
-        ImGui::DragScalar("Target FPS", ImGuiDataType_Float, &targetFPS, 1.0, &minFPS, &maxFPS, nullptr, ImGuiSliderFlags_AlwaysClamp);
+        ImGui::DragScalar(
+            "Target FPS"
+            , ImGuiDataType_Float
+            , &targetFPS
+            , 1.0
+            , &minFPS
+            , &maxFPS
+            , nullptr
+            , ImGuiSliderFlags_AlwaysClamp
+        );
         if (ImPlot::BeginPlot("FPS", ImVec2(-1,200)))
         {
-            ImPlot::SetupAxes("", "FPS", ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock, ImPlotAxisFlags_LockMin);
-            ImPlot::SetupAxesLimits(0, fpsValues.size(), 0.0f, 320.0f);
-            ImPlot::PlotLine("##fpsValues", fpsValues.data(), fpsValues.size());
-            ImPlot::PlotInfLines("##current", &currentFrame, 1);
+            ImPlot::SetupAxes(
+                ""
+                , "FPS"
+                , ImPlotAxisFlags_NoDecorations 
+                | ImPlotAxisFlags_Lock
+                , ImPlotAxisFlags_LockMin
+            );
+
+            ImPlot::SetupAxesLimits(
+                0, fpsValues.size()
+                , 0.0f, 320.0f
+            );
+            
+            ImPlot::PlotLine(
+                "##fpsValues"
+                , fpsValues.data()
+                , fpsValues.size()
+            );
+
+            ImPlot::PlotInfLines(
+                "##current"
+                , &currentFrame
+                , 1
+            );
+            
             ImPlot::EndPlot();
         }
     }
@@ -48,8 +78,16 @@ static void renderPreferences(
 {
     if (ImGui::Begin("Preferences", &open))
     {
-        ImGui::DragFloat("DPI Scale", &preferences.dpiScale, 0.05f, 0.5f, 4.0f);
-        ImGui::TextWrapped("Some DPI Scale values will produce blurry fonts, so consider using an integer value.");
+        ImGui::DragFloat(
+            "DPI Scale"
+            , &preferences.dpiScale
+            , 0.05f
+            , 0.5f, 4.0f
+        );
+
+        ImGui::TextWrapped(
+            "Some DPI Scale values will produce blurry fonts, so consider using an integer value."
+        );
 
         if (ImGui::Button("Apply"))
         {
@@ -70,15 +108,16 @@ HUDState renderHUD(UIPreferences& preferences)
     ImGuiViewport& viewport{ *ImGui::GetMainViewport() };
     { // Create background windw, as a target for docking
         // These flags ensure the dockspace window is uninteractable and static
-        ImGuiWindowFlags constexpr WINDOW_FLAGS = ImGuiWindowFlags_None
-            | ImGuiWindowFlags_MenuBar
+        ImGuiWindowFlags constexpr WINDOW_FLAGS{
+            ImGuiWindowFlags_MenuBar
             | ImGuiWindowFlags_NoDocking
-            | ImGuiWindowFlags_NoDecoration 
+            | ImGuiWindowFlags_NoDecoration
             | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoBackground
-            | ImGuiWindowFlags_NoBringToFrontOnFocus 
+            | ImGuiWindowFlags_NoBringToFrontOnFocus
             | ImGuiWindowFlags_NoCollapse
-            | ImGuiWindowFlags_NoNavFocus;
+            | ImGuiWindowFlags_NoNavFocus
+        };
         
         ImGui::SetNextWindowPos(viewport.WorkPos);
         ImGui::SetNextWindowSize(viewport.WorkSize);
@@ -165,9 +204,18 @@ DockingLayout buildDefaultMultiWindowLayout(
 
     ImGuiID parentID{ parentNode };
 
-    ImGuiID const leftID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 3.0 / 10.0, nullptr, &parentID) };
-    ImGuiID const rightID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 3.0 / 7.0, nullptr, &parentID) };
-    ImGuiID const centerBottomID{ ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 3.0 / 10.0, nullptr, &parentID) };
+    ImGuiID const leftID{ 
+        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 3.0 / 10.0, nullptr, &parentID) 
+    };
+    
+    ImGuiID const rightID{ 
+        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 3.0 / 7.0, nullptr, &parentID) 
+    };
+    
+    ImGuiID const centerBottomID{ 
+        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 3.0 / 10.0, nullptr, &parentID) 
+    };
+    
     ImGuiID const centerTopID{ parentID };
 
     ImGui::DockBuilderFinish(parentNode);
@@ -199,11 +247,6 @@ void imguiMeshInstanceControls(
         .rowDropdown("Mesh", meshIndexSelected, 0, meshNames)
         .end();
 }
-
-static std::vector<std::tuple<RenderingPipelines, std::string>> renderingPipelineLabels{
-    std::make_tuple(RenderingPipelines::DEFERRED, "Deferred")
-    , std::make_tuple(RenderingPipelines::COMPUTE_COLLECTION, "Compute Collection")
-};
 
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 {
@@ -388,9 +431,18 @@ void imguiStructureControls<DebugLines>(
 
     auto table{ PropertyTable::begin() };
         
-    table.rowReadOnlyText("Pipeline", fmt::format("0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get())))
-        .rowReadOnlyInteger("Indices on GPU", structure.indices.get() ? structure.indices->deviceSize() : 0)
-        .rowReadOnlyInteger("Vertices on GPU", structure.vertices.get() ? structure.vertices->deviceSize() : 0);
+    table.rowReadOnlyText(
+            "Pipeline"
+            , fmt::format("0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get()))
+        )
+        .rowReadOnlyInteger(
+            "Indices on GPU"
+            , structure.indices.get() ? structure.indices->deviceSize() : 0
+        )
+        .rowReadOnlyInteger(
+            "Vertices on GPU"
+            , structure.vertices.get() ? structure.vertices->deviceSize() : 0
+        );
 
     if (!structure.pipeline || !structure.indices || !structure.vertices)
     {

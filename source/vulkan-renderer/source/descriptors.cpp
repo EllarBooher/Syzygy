@@ -17,10 +17,12 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 		.pImmutableSamplers{ nullptr }
 	};
 
-	m_bindings.push_back(Binding{
-		.binding{ newBinding },
-		.flags{ flags }
-	});
+	m_bindings.push_back(
+		Binding{
+			.binding{ newBinding },
+			.flags{ flags }
+		}
+	);
 
 	return *this;
 }
@@ -128,10 +130,10 @@ std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
 }
 
 void DescriptorAllocator::initPool(
-	VkDevice device, 
-	uint32_t maxSets, 
-	std::span<PoolSizeRatio const> poolRatios,
-	VkDescriptorPoolCreateFlags flags
+	VkDevice device
+	, uint32_t maxSets
+	, std::span<PoolSizeRatio const> poolRatios
+	, VkDescriptorPoolCreateFlags flags
 )
 {
 	std::vector<VkDescriptorPoolSize> poolSizes{};
@@ -139,10 +141,12 @@ void DescriptorAllocator::initPool(
 	{
 		auto const descriptorCount = static_cast<uint32_t>(roundf(ratio.ratio * maxSets));
 
-		poolSizes.push_back(VkDescriptorPoolSize{
-			.type{ ratio.type },
-			.descriptorCount{ descriptorCount },
-		});
+		poolSizes.push_back(
+			VkDescriptorPoolSize{
+				.type{ ratio.type },
+				.descriptorCount{ descriptorCount },
+			}
+		);
 	}
 
 	VkDescriptorPoolCreateInfo const poolInfo{
@@ -166,7 +170,10 @@ void DescriptorAllocator::destroyPool(VkDevice device)
 	vkDestroyDescriptorPool(device, pool, nullptr);
 }
 
-VkDescriptorSet DescriptorAllocator::allocate(VkDevice device, VkDescriptorSetLayout layout)
+VkDescriptorSet DescriptorAllocator::allocate(
+	VkDevice device
+	, VkDescriptorSetLayout layout
+)
 {
 	VkDescriptorSetAllocateInfo const allocInfo{
 		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO },

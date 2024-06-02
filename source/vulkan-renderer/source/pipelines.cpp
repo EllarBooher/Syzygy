@@ -7,7 +7,10 @@
 
 #include <glm/gtx/intersect.hpp>
 
-VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layout) const
+VkPipeline PipelineBuilder::buildPipeline(
+	VkDevice device
+	, VkPipelineLayout layout
+) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO },
@@ -98,11 +101,23 @@ VkPipeline PipelineBuilder::buildPipeline(VkDevice device, VkPipelineLayout layo
 	};
 
 	VkPipeline pipeline{ VK_NULL_HANDLE };
-	LogVkResult(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline), "Building graphics pipeline");
+	LogVkResult(
+		vkCreateGraphicsPipelines(
+			device
+			, VK_NULL_HANDLE
+			, 1
+			, &pipelineInfo
+			, nullptr
+			, &pipeline
+		), "Building graphics pipeline"
+	);
 	return pipeline;
 }
 
-void PipelineBuilder::pushShader(ShaderModuleReflected const& shader, VkShaderStageFlagBits stage)
+void PipelineBuilder::pushShader(
+	ShaderModuleReflected const& shader
+	, VkShaderStageFlagBits stage
+)
 {
 	m_shaderStages.push_back(
 		vkinit::pipelineShaderStageCreateInfo(
@@ -129,7 +144,10 @@ void PipelineBuilder::pushDynamicState(VkDynamicState dynamicState)
 	m_dynamicStates.insert(dynamicState);
 }
 
-void PipelineBuilder::setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace)
+void PipelineBuilder::setCullMode(
+	VkCullModeFlags cullMode
+	, VkFrontFace frontFace
+)
 {
 	m_rasterizer.cullMode = cullMode;
 	m_rasterizer.frontFace = frontFace;
@@ -181,7 +199,10 @@ void PipelineBuilder::disableDepthTest()
 	};
 }
 
-void PipelineBuilder::enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp)
+void PipelineBuilder::enableDepthTest(
+	bool depthWriteEnable
+	, VkCompareOp compareOp
+)
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
 		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
@@ -229,7 +250,9 @@ GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 		std::vector<VkPushConstantRange> ranges{};
 		if (shader.reflectionData().defaultEntryPointHasPushConstant())
 		{
-			ShaderReflectionData::PushConstant const& pushConstant{ shader.reflectionData().defaultPushConstant() };
+			ShaderReflectionData::PushConstant const& pushConstant{ 
+				shader.reflectionData().defaultPushConstant() 
+			};
 			// For the buffer, we allocate extra bytes to the push constant to simplify the offset math.
 			// Host side, we write to a subset of this buffer, then only copy the necessary range to the device.
 			m_shaderPushConstants.push_back(
@@ -261,7 +284,14 @@ GenericComputeCollectionPipeline::GenericComputeCollectionPipeline(
 		};
 
 		VkPipelineLayout layout{ VK_NULL_HANDLE };
-		LogVkResult(vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout), "Creating shader object pipeline layout");
+		LogVkResult(
+			vkCreatePipelineLayout(
+				device
+				, &layoutCreateInfo
+				, nullptr
+				, &layout
+			), "Creating shader object pipeline layout"
+		);
 		m_layouts.push_back(layout);
 	}
 }
@@ -278,15 +308,31 @@ void GenericComputeCollectionPipeline::recordDrawCommands(
 	VkShaderEXT const shaderObject{ shader.shaderObject() };
 	VkPipelineLayout const layout{ currentLayout() };
 
-	vkCmdBindShadersEXT(cmd, 1, &stage, &shaderObject);
+	vkCmdBindShadersEXT(
+		cmd
+		, 1
+		, &stage
+		, &shaderObject
+	);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 0, 1, &drawImageDescriptors, 0, nullptr);
+	vkCmdBindDescriptorSets(
+		cmd
+		, VK_PIPELINE_BIND_POINT_COMPUTE
+		, layout
+		, 0
+		, 1, &drawImageDescriptors
+		, 0
+		, nullptr
+	);
 
 	ShaderReflectionData const& reflectionData{ shader.reflectionData() };
 	if (reflectionData.defaultEntryPointHasPushConstant())
 	{
 		std::span<uint8_t const> const pushConstant{ readPushConstantBytes() };
-		std::vector<uint8_t> pushConstantBytes{ pushConstant.begin(), pushConstant.end() };
+		std::vector<uint8_t> pushConstantBytes{ 
+			pushConstant.begin()
+			, pushConstant.end() 
+		};
 
 		if (pushConstant.size() >= 16)
 		{
@@ -304,12 +350,26 @@ void GenericComputeCollectionPipeline::recordDrawCommands(
 			};
 		}
 
-		uint32_t const byteOffset{ reflectionData.defaultPushConstant().layoutOffsetBytes };
+		uint32_t const byteOffset{ 
+			reflectionData.defaultPushConstant().layoutOffsetBytes 
+		};
 
-		vkCmdPushConstants(cmd, layout, stage, byteOffset, pushConstantBytes.size() - byteOffset, pushConstantBytes.data() + byteOffset);
+		vkCmdPushConstants(
+			cmd
+			, layout
+			, stage
+			, byteOffset
+			, pushConstantBytes.size() - byteOffset
+			, pushConstantBytes.data() + byteOffset
+		);
 	}
 
-	vkCmdDispatch(cmd, std::ceil(drawExtent.width / 16.0), std::ceil(drawExtent.height / 16.0), 1);
+	vkCmdDispatch(
+		cmd
+		, std::ceil(drawExtent.width / 16.0)
+		, std::ceil(drawExtent.height / 16.0)
+		, 1
+	);
 }
 
 void GenericComputeCollectionPipeline::cleanup(VkDevice device)
@@ -330,16 +390,26 @@ DebugLineComputePipeline::DebugLineComputePipeline(
 	, VkFormat depthAttachmentFormat
 )
 {
-	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() };
-	ShaderModuleReflected const fragmentShader{ vkutil::loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() };
+	ShaderModuleReflected const vertexShader{ 
+		vkutil::loadShaderModule(device, "shaders/debug/debugline.vert.spv").value() 
+	};
+	ShaderModuleReflected const fragmentShader{ 
+		vkutil::loadShaderModule(device, "shaders/debug/debugline.frag.spv").value() 
+	};
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 	{
 		// Vertex push constant
-		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ 
+			vertexShader.reflectionData().defaultPushConstant() 
+		};
 
-		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
-		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
+		size_t const vertexPushConstantSize{ 
+			vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes 
+		};
+		size_t const vertexPushConstantSizeExpected{ 
+			sizeof(VertexPushConstant) 
+		};
 
 		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
 			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
@@ -348,7 +418,9 @@ DebugLineComputePipeline::DebugLineComputePipeline(
 			));
 		}
 
-		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));
+		pushConstantRanges.push_back(
+			vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT)
+		);
 	}
 
 	VkPipelineLayoutCreateInfo const layoutInfo{
@@ -501,23 +573,37 @@ void DebugLineComputePipeline::cleanup(VkDevice device)
 	vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }
 
-OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPipeline(VkDevice device, VkFormat depthAttachmentFormat)
+OffscreenPassInstancedMeshGraphicsPipeline::OffscreenPassInstancedMeshGraphicsPipeline(
+	VkDevice device
+	, VkFormat depthAttachmentFormat
+)
 {
-	ShaderModuleReflected const vertexShader{ vkutil::loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv").value() };
+	ShaderModuleReflected const vertexShader{ 
+		vkutil::loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv").value() 
+	};
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 	{
 		// Vertex push constant
-		ShaderReflectionData::PushConstant const& vertexPushConstant{ vertexShader.reflectionData().defaultPushConstant() };
+		ShaderReflectionData::PushConstant const& vertexPushConstant{ 
+			vertexShader.reflectionData().defaultPushConstant() 
+		};
 
-		size_t const vertexPushConstantSize{ vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes };
-		size_t const vertexPushConstantSizeExpected{ sizeof(VertexPushConstant) };
+		size_t const vertexPushConstantSize{ 
+			vertexPushConstant.type.paddedSizeBytes - vertexPushConstant.layoutOffsetBytes 
+		};
+		size_t const vertexPushConstantSizeExpected{ 
+			sizeof(VertexPushConstant) 
+		};
 
 		if (vertexPushConstantSize != vertexPushConstantSizeExpected) {
-			Warning(fmt::format("Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
-				, vertexPushConstantSize
-				, vertexPushConstantSizeExpected
-			));
+			Warning(
+				fmt::format(
+					"Loaded vertex push constant had a push constant of size {}, while implementation expects {}."
+					, vertexPushConstantSize
+					, vertexPushConstantSizeExpected
+				)
+			);
 		}
 
 		pushConstantRanges.push_back(vertexPushConstant.totalRange(VK_SHADER_STAGE_VERTEX_BIT));

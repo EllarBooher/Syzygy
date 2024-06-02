@@ -14,7 +14,10 @@ void PropertyTable::nameColumn(std::string const name)
     ImGui::Text(name.c_str());
 }
 
-bool PropertyTable::resetColumn(std::string const name, bool visible)
+bool PropertyTable::resetColumn(
+    std::string const name
+    , bool visible
+)
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
 
@@ -26,7 +29,10 @@ bool PropertyTable::resetColumn(std::string const name, bool visible)
     ImGui::SetNextItemWidth(width);
 
     bool const clicked{
-        ImGui::Button(fmt::format("<-##{}reset", name).c_str(), ImVec2{ -1.0f,0.0f })
+        ImGui::Button(
+            fmt::format("<-##{}reset", name).c_str()
+            , ImVec2{ -1.0f,0.0f }
+        )
     };
 
     return clicked;
@@ -42,11 +48,19 @@ PropertyTable PropertyTable::begin(std::string const name)
         | ImGuiTableFlags_Resizable
     );
 
-    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize);
+    ImGui::TableSetupColumn(
+        "Property"
+        , ImGuiTableColumnFlags_WidthFixed
+    );
+    ImGui::TableSetupColumn(
+        "Value"
+        , ImGuiTableColumnFlags_WidthStretch 
+        | ImGuiTableColumnFlags_NoResize
+    );
     ImGui::TableSetupColumn(
         "Reset"
-        , ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize
+        , ImGuiTableColumnFlags_WidthFixed 
+        | ImGuiTableColumnFlags_NoResize
         , ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::CalcTextSize("<-").x
     );
 
@@ -259,7 +273,11 @@ PropertyTable& PropertyTable::rowDropdown(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowText(std::string const& name, std::string& value, std::string const& resetValue)
+PropertyTable& PropertyTable::rowText(
+    std::string const& name
+    , std::string& value
+    , std::string const& resetValue
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -283,7 +301,10 @@ PropertyTable& PropertyTable::rowText(std::string const& name, std::string& valu
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyText(std::string const& name, std::string const& value)
+PropertyTable& PropertyTable::rowReadOnlyText(
+    std::string const& name
+    , std::string const& value
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -359,7 +380,12 @@ PropertyTable& PropertyTable::rowReadOnlyInteger(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowVec3(std::string const& name, glm::vec3& value, glm::vec3 const& resetValue, PropertySliderBehavior const behavior)
+PropertyTable& PropertyTable::rowVec3(
+    std::string const& name
+    , glm::vec3& value
+    , glm::vec3 const& resetValue
+    , PropertySliderBehavior const behavior
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -395,7 +421,10 @@ PropertyTable& PropertyTable::rowVec3(std::string const& name, glm::vec3& value,
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyVec3(std::string const& name, glm::vec3 const& value)
+PropertyTable& PropertyTable::rowReadOnlyVec3(
+    std::string const& name
+    , glm::vec3 const& value
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -431,7 +460,12 @@ PropertyTable& PropertyTable::rowReadOnlyVec3(std::string const& name, glm::vec3
     return *this;
 }
 
-PropertyTable& PropertyTable::rowFloat(std::string const& name, float& value, float const& resetValue, PropertySliderBehavior const behavior)
+PropertyTable& PropertyTable::rowFloat(
+    std::string const& name
+    , float& value
+    , float const& resetValue
+    , PropertySliderBehavior const behavior
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -459,7 +493,10 @@ PropertyTable& PropertyTable::rowFloat(std::string const& name, float& value, fl
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyFloat(std::string const& name, float const& value)
+PropertyTable& PropertyTable::rowReadOnlyFloat(
+    std::string const& name
+    , float const& value
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -488,7 +525,11 @@ PropertyTable& PropertyTable::rowReadOnlyFloat(std::string const& name, float co
     return *this;
 }
 
-PropertyTable& PropertyTable::rowBoolean(std::string const& name, bool& value, bool const& resetValue)
+PropertyTable& PropertyTable::rowBoolean(
+    std::string const& name
+    , bool& value
+    , bool const& resetValue
+)
 {
     if (!Self::rowBegin(name))
     {
@@ -508,7 +549,10 @@ PropertyTable& PropertyTable::rowBoolean(std::string const& name, bool& value, b
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyBoolean(std::string const& name, bool const& value)
+PropertyTable& PropertyTable::rowReadOnlyBoolean(
+    std::string const& name
+    , bool const& value
+)
 {
     if (!Self::rowBegin(name))
     {

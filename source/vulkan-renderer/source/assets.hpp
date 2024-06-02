@@ -21,7 +21,10 @@ struct MeshAsset {
 
 class Engine;
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(Engine* engine, std::string localPath);
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
+    Engine* engine
+    , std::string localPath
+);
 
 struct AssetFile
 {
@@ -36,4 +39,7 @@ struct AssetLoadingError
 
 using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
 
-AssetLoadingResult loadAssetFile(std::string const& localPath, VkDevice device);
+AssetLoadingResult loadAssetFile(
+    std::string const& localPath
+    , VkDevice device
+);

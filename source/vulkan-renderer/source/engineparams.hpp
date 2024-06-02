@@ -9,7 +9,8 @@
 #include "geometrystatics.hpp"
 #include "geometryhelpers.hpp"
 
-struct AtmosphereParameters {
+struct AtmosphereParameters 
+{
     struct AnimationParameters
     {
         bool animateSun{ false };
@@ -58,8 +59,12 @@ struct AtmosphereParameters {
 
         float const atmosphereThickness{ outDistance };
         // Calculations derived from sky.comp, we do a single ray straight up to get an idea of the ambient color
-        float const opticalDepthRayleigh{ altitudeDecayRayleigh / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayRayleigh)) };
-        float const opticalDepthMie{ altitudeDecayMie / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayMie)) };
+        float const opticalDepthRayleigh{ 
+            altitudeDecayRayleigh / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayRayleigh)) 
+        };
+        float const opticalDepthMie{ 
+            altitudeDecayMie / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayMie)) 
+        };
 
         glm::vec3 const tau{
             scatteringCoefficientRayleigh * opticalDepthRayleigh
@@ -195,7 +200,10 @@ struct CameraParameters {
         return geometry::projectionVk(fov, aspectRatio, near, far);
     }
 
-    glm::mat4 projectionOrthographic(float aspectRatio, float distance) const
+    glm::mat4 projectionOrthographic(
+        float aspectRatio
+        , float distance
+    ) const
     {
         // An orthographic projection has one view plane, so we compute it from the fov and distance.
 

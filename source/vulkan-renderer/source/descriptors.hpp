@@ -61,15 +61,18 @@ public:
 	VkDescriptorPool getPool() const { return pool; }
 
 	void initPool(
-		VkDevice device, 
-		uint32_t maxSets, 
-		std::span<PoolSizeRatio const> poolRatios,
-		VkDescriptorPoolCreateFlags flags
+		VkDevice device
+		, uint32_t maxSets
+		, std::span<PoolSizeRatio const> poolRatios
+		, VkDescriptorPoolCreateFlags flags
 	);
 	void clearDescriptors(VkDevice device);
 	void destroyPool(VkDevice device);
 
-	VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
+	VkDescriptorSet allocate(
+		VkDevice device
+		, VkDescriptorSetLayout layout
+	);
 
 private:
 	VkDescriptorPool pool{ VK_NULL_HANDLE };

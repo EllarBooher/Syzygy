@@ -9,7 +9,8 @@
 /** 
     A single VkBuffer alongside all of its allocation information. 
 */
-struct AllocatedBuffer {
+struct AllocatedBuffer 
+{
     AllocatedBuffer() {};
 
     AllocatedBuffer(AllocatedBuffer const& other) = delete;
@@ -49,12 +50,12 @@ struct AllocatedBuffer {
     VkBuffer buffer{ VK_NULL_HANDLE };
 
     static AllocatedBuffer allocate(
-        VkDevice device,
-        VmaAllocator allocator,
-        size_t allocationSize,
-        VkBufferUsageFlags bufferUsage,
-        VmaMemoryUsage memoryUsage,
-        VmaAllocationCreateFlags createFlags
+        VkDevice device
+        , VmaAllocator allocator
+        , size_t allocationSize
+        , VkBufferUsageFlags bufferUsage
+        , VmaMemoryUsage memoryUsage
+        , VmaAllocationCreateFlags createFlags
     );
 };
 
@@ -62,7 +63,8 @@ struct AllocatedBuffer {
 * Manages a buffer on the host and a buffer on the device. Tracks how many bytes are valid on either side,
 * based on what this structure copies to them. 
 */
-struct StagedBuffer {
+struct StagedBuffer 
+{
     StagedBuffer() = delete;
     
     StagedBuffer(StagedBuffer const& other) = delete;
@@ -74,14 +76,17 @@ struct StagedBuffer {
     StagedBuffer& operator=(StagedBuffer&& other) = default;
 
     static StagedBuffer allocate(
-        VkDevice device,
-        VmaAllocator allocator,
-        VkDeviceSize allocationSize,
-        VkBufferUsageFlags bufferUsage
+        VkDevice device
+        , VmaAllocator allocator
+        , VkDeviceSize allocationSize
+        , VkBufferUsageFlags bufferUsage
     );
 
     /** Does not record any barriers. */
-    void recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocator);
+    void recordCopyToDevice(
+        VkCommandBuffer cmd
+        , VmaAllocator allocator
+    );
 
     VkDeviceAddress deviceAddress() const;
     VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
@@ -117,7 +122,10 @@ struct StagedBuffer {
     bool isDirty() const { return m_dirty; };
 
 protected:
-    StagedBuffer(AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer)
+    StagedBuffer(
+        AllocatedBuffer&& deviceBuffer
+        , AllocatedBuffer&& stagingBuffer
+    )
         : m_deviceBuffer(std::move(deviceBuffer))
         , m_stagingBuffer(std::move(stagingBuffer))
     {};
@@ -149,24 +157,24 @@ struct TStagedBuffer : public StagedBuffer
     void stage(std::span<T const> data)
     {
         std::span<uint8_t const> const bytes(
-            reinterpret_cast<uint8_t const*>(data.data()), 
-            data.size_bytes()
+            reinterpret_cast<uint8_t const*>(data.data())
+            , data.size_bytes()
         );
         StagedBuffer::stageBytes(bytes);
     }
     void push(std::span<T const> data)
     {
         std::span<uint8_t const> const bytes(
-            reinterpret_cast<uint8_t const*>(data.data()),
-            data.size_bytes()
+            reinterpret_cast<uint8_t const*>(data.data())
+            , data.size_bytes()
         );
         StagedBuffer::pushBytes(bytes);
     }
     void push(T const& data)
     {
         std::span<uint8_t const> const bytes(
-            reinterpret_cast<uint8_t const*>(&data),
-            sizeof(T)
+            reinterpret_cast<uint8_t const*>(&data)
+            , sizeof(T)
         );
         StagedBuffer::pushBytes(bytes);
     }
@@ -180,7 +188,10 @@ struct TStagedBuffer : public StagedBuffer
     // TODO: get rid of this and have a write-only interface instead
     std::span<T> mapValidStaged()
     {
-        return std::span<T>(reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize());
+        return std::span<T>(
+            reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData)
+            , stagedSize()
+        );
     }
 
     // This can be used as a proxy for values on the device, as long as the only writes are from the host.
@@ -191,18 +202,28 @@ struct TStagedBuffer : public StagedBuffer
             Warning("Dirty buffer was accessed with a read, these are not the values last recorded onto the GPU.");
         }
 
-        return std::span<T const>(reinterpret_cast<T const*>(m_stagingBuffer.info.pMappedData), stagedSize());
+        return std::span<T const>(
+            reinterpret_cast<T const*>(m_stagingBuffer.info.pMappedData)
+            , stagedSize()
+        );
     }
 
     static TStagedBuffer<T> allocate(
-        VkDevice device,
-        VmaAllocator allocator,
-        VkDeviceSize capacity,
-        VkBufferUsageFlags bufferUsage
+        VkDevice device
+        , VmaAllocator allocator
+        , VkDeviceSize capacity
+        , VkBufferUsageFlags bufferUsage
     )
     {
         VkDeviceSize const allocationSizeBytes{ capacity * sizeof(T) };
-        return TStagedBuffer<T>(StagedBuffer::allocate(device, allocator, allocationSizeBytes, bufferUsage));
+        return TStagedBuffer<T>(
+            StagedBuffer::allocate(
+                device
+                , allocator
+                , allocationSizeBytes
+                , bufferUsage
+            )
+        );
     }
 
     VkDeviceSize deviceSize() const
@@ -221,10 +242,14 @@ struct TStagedBuffer : public StagedBuffer
     }
 };
 
-struct GPUMeshBuffers {
+struct GPUMeshBuffers 
+{
     GPUMeshBuffers() = delete;
 
-    explicit GPUMeshBuffers(AllocatedBuffer&& indexBuffer, AllocatedBuffer&& vertexBuffer)
+    explicit GPUMeshBuffers(
+        AllocatedBuffer&& indexBuffer
+        , AllocatedBuffer&& vertexBuffer
+    )
         : m_indexBuffer(std::move(indexBuffer))
         , m_vertexBuffer(std::move(vertexBuffer))
     {}

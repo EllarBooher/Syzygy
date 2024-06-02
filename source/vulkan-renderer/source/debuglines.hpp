@@ -21,7 +21,10 @@ struct DebugLines
         indices->clearStaged();
     }
 
-    void push(glm::vec3 start, glm::vec3 end)
+    void push(
+        glm::vec3 start
+        , glm::vec3 end
+    )
     {
         Vertex const startVertex{
             .position{ start },
@@ -48,7 +51,12 @@ struct DebugLines
     * Adds 4 line segmants defined by AB, BC, CD, DA. 
     * Winding does not matter since these are line segments.
     */
-    void pushQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
+    void pushQuad(
+        glm::vec3 a
+        , glm::vec3 b
+        , glm::vec3 c
+        , glm::vec3 d
+    )
     {
         push(a, b);
         push(b, c);
@@ -59,7 +67,11 @@ struct DebugLines
     /*
     * Push a rectangle with possibly non-axis-aligned extents.
     */
-    void pushRectangle(glm::vec3 center, glm::vec3 extentA, glm::vec3 extentB)
+    void pushRectangle(
+        glm::vec3 center
+        , glm::vec3 extentA
+        , glm::vec3 extentB
+    )
     {
         pushQuad(
             center + extentA + extentB
@@ -72,7 +84,11 @@ struct DebugLines
     /*
     * Push a rectangle, stretched along the (x,z) axes by extents.
     */
-    void pushRectangle(glm::vec3 center, glm::quat orientation, glm::vec2 extents)
+    void pushRectangle(
+        glm::vec3 center
+        , glm::quat orientation
+        , glm::vec2 extents
+    )
     {
         glm::vec3 scale{ extents.x, 1.0f, extents.y };
 
@@ -85,7 +101,11 @@ struct DebugLines
     /*
     * Push a rectangular prism, stretched along the (x,y,z) axes by extents.
     */
-    void pushBox(glm::vec3 center, glm::quat orientation, glm::vec3 extents)
+    void pushBox(
+        glm::vec3 center
+        , glm::quat orientation
+        , glm::vec3 extents
+    )
     {
         glm::vec3 right{ orientation * (extents * geometry::right) };
         glm::vec3 forward{ orientation * (extents * geometry::forward) };
@@ -101,12 +121,18 @@ struct DebugLines
         pushRectangle(center + forward, up, right);
     }
 
-    void recordCopy(VkCommandBuffer cmd, VmaAllocator allocator)
+    void recordCopy(
+        VkCommandBuffer cmd
+        , VmaAllocator allocator
+    )
     {
         vertices->recordCopyToDevice(cmd, allocator);
         indices->recordCopyToDevice(cmd, allocator);
     }
-    void cleanup(VkDevice device, VmaAllocator allocator)
+    void cleanup(
+        VkDevice device
+        , VmaAllocator allocator
+    )
     {
         pipeline->cleanup(device);
         pipeline.reset();

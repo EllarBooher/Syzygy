@@ -447,7 +447,8 @@ void DeferredShadingPipeline::recordDrawCommands(
         }
     }
 
-    if (renderMesh) { // Shadow maps
+    if (renderMesh) 
+    { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd
             , m_parameters.shadowPassParameters.depthBiasConstant
@@ -459,7 +460,8 @@ void DeferredShadingPipeline::recordDrawCommands(
         m_shadowPassArray.recordDrawCommands(cmd, sceneMesh, *sceneGeometry.models);
     }
 
-    if (renderMesh) { // Prepare GBuffer resources
+    if (renderMesh) 
+    { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         vkutil::transitionImage(
@@ -471,7 +473,8 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
     }
 
-    if (renderMesh) { // Deferred GBuffer pass
+    if (renderMesh) 
+    { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd
             , VkRect2D{ .extent{ drawRect.extent } }
@@ -616,7 +619,13 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
     else
     {
-        vkutil::transitionImage(cmd, depth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+        vkutil::transitionImage(
+            cmd
+            , depth.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+        );
 
         VkClearDepthStencilValue const clearValue{
             .depth{ 0.0 }
@@ -641,7 +650,13 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     { // Clear color image
-        vkutil::transitionImage(cmd, m_drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        vkutil::transitionImage(
+            cmd
+            , m_drawImage.image
+            , VK_IMAGE_LAYOUT_UNDEFINED
+            , VK_IMAGE_LAYOUT_GENERAL
+            , VK_IMAGE_ASPECT_COLOR_BIT
+        );
 
         VkClearColorValue const clearColor{
             .float32{ 0.0, 0.0, 0.0, 1.0}
@@ -665,8 +680,16 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     if (renderMesh) { // Lighting pass using GBuffer output
-        m_gBuffer.recordTransitionImages(cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-        m_shadowPassArray.recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        m_gBuffer.recordTransitionImages(
+            cmd
+            , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            , VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+        );
+        
+        m_shadowPassArray.recordTransitionActiveShadowMaps(
+            cmd
+            , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+        );
 
         VkShaderStageFlagBits const computeStage{ VK_SHADER_STAGE_COMPUTE_BIT };
         VkShaderEXT const shader{ m_lightingPassComputeShader.shaderObject() };

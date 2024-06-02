@@ -32,7 +32,11 @@ struct GBuffer
         };
     }
 
-    void recordTransitionImages(VkCommandBuffer cmd, VkImageLayout srcLayout, VkImageLayout dstLayout);
+    void recordTransitionImages(
+        VkCommandBuffer cmd
+        , VkImageLayout srcLayout
+        , VkImageLayout dstLayout
+    );
 
     void cleanup(
         VkDevice device

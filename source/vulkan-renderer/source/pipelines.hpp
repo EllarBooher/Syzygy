@@ -23,19 +23,41 @@ class PipelineBuilder {
 public:
     PipelineBuilder() {};
 
-    VkPipeline buildPipeline(VkDevice device, VkPipelineLayout layout) const;
-    void pushShader(ShaderModuleReflected const& shader, VkShaderStageFlagBits stage);
+    VkPipeline buildPipeline(
+        VkDevice device
+        , VkPipelineLayout layout
+    ) const;
+    
+    void pushShader(
+        ShaderModuleReflected const& shader
+        , VkShaderStageFlagBits stage
+    );
+    
     void setInputTopology(VkPrimitiveTopology topology);
+    
     void setPolygonMode(VkPolygonMode mode);
+    
     void pushDynamicState(VkDynamicState dynamicState);
-    void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
+    
+    void setCullMode(
+        VkCullModeFlags cullMode
+        , VkFrontFace frontFace
+    );
+    
     void setMultisamplingNone();
+    
     void setColorAttachment(VkFormat format);
+    
     void setDepthFormat(VkFormat format);
 
     void enableDepthBias();
+    
     void disableDepthTest();
-    void enableDepthTest(bool depthWriteEnable, VkCompareOp compareOp);
+    
+    void enableDepthTest(
+        bool depthWriteEnable
+        , VkCompareOp compareOp
+    );
 
 private:
 	std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages{};
@@ -81,8 +103,8 @@ class OffscreenPassInstancedMeshGraphicsPipeline
 {
 public:
     OffscreenPassInstancedMeshGraphicsPipeline(
-        VkDevice device,
-        VkFormat depthAttachmentFormat
+        VkDevice device
+        , VkFormat depthAttachmentFormat
     );
 
     void recordDrawCommands(
@@ -119,7 +141,10 @@ private:
 public:
     ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
     VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
-    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const { return m_vertexShader.reflectionData().defaultPushConstant(); };
+    ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const 
+    { 
+        return m_vertexShader.reflectionData().defaultPushConstant(); 
+    };
 };
 
 /*
@@ -196,9 +221,9 @@ class DebugLineComputePipeline
 {
 public:
     DebugLineComputePipeline(
-        VkDevice device,
-        VkFormat colorAttachmentFormat,
-        VkFormat depthAttachmentFormat
+        VkDevice device
+        , VkFormat colorAttachmentFormat
+        , VkFormat depthAttachmentFormat
     );
 
     DrawResultsGraphics recordDrawCommands(

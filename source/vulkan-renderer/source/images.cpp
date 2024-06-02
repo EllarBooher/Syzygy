@@ -143,7 +143,13 @@ void vkutil::recordCopyImageToImage(
         .depth{ 1 }
     };
 
-    vkutil::recordCopyImageToImage(cmd, source, destination, srcExtent, dstExtent);
+    vkutil::recordCopyImageToImage(
+        cmd
+        , source
+        , destination
+        , srcExtent
+        , dstExtent
+    );
 }
 
 void vkutil::recordCopyImageToImage(
@@ -175,7 +181,13 @@ void vkutil::recordCopyImageToImage(
         .z{ 1 },
     };
 
-    vkutil::recordCopyImageToImage(cmd, source, destination, srcMin, srcMax, dstMin, dstMax);
+    vkutil::recordCopyImageToImage(
+        cmd
+        , source
+        , destination
+        , srcMin, srcMax
+        , dstMin, dstMax
+    );
 }
 
 double vkutil::aspectRatio(VkExtent2D const extent)
@@ -231,9 +243,9 @@ std::optional<AllocatedImage> AllocatedImage::allocate(
 
     VkImageViewCreateInfo const imageViewInfo{
         vkinit::imageViewCreateInfo(
-            image.imageFormat,
-            image.image,
-            viewFlags
+            image.imageFormat
+            , image.image
+            , viewFlags
         )
     };
 

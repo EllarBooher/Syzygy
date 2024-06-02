@@ -20,37 +20,37 @@ namespace vkutil {
         Assumes source is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL and destination is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL.
     */
     void recordCopyImageToImage(
-        VkCommandBuffer cmd,
-        VkImage source,
-        VkImage destination,
-        VkExtent3D srcSize,
-        VkExtent3D dstSize
+        VkCommandBuffer cmd
+        , VkImage source
+        , VkImage destination
+        , VkExtent3D srcSize
+        , VkExtent3D dstSize
     );
 
     void recordCopyImageToImage(
-        VkCommandBuffer cmd,
-        VkImage source,
-        VkImage destination,
-        VkOffset3D srcMin,
-        VkOffset3D srcMax,
-        VkOffset3D dstMin,
-        VkOffset3D dstMax
+        VkCommandBuffer cmd
+        , VkImage source
+        , VkImage destination
+        , VkOffset3D srcMin
+        , VkOffset3D srcMax
+        , VkOffset3D dstMin
+        , VkOffset3D dstMax
     );
 
     // Copies a color image, with an assumed depth of 1.
     void recordCopyImageToImage(
-        VkCommandBuffer cmd,
-        VkImage source,
-        VkImage destination,
-        VkExtent2D srcSize,
-        VkExtent2D dstSize
+        VkCommandBuffer cmd
+        , VkImage source
+        , VkImage destination
+        , VkExtent2D srcSize
+        , VkExtent2D dstSize
     );
     void recordCopyImageToImage(
-        VkCommandBuffer cmd,
-        VkImage source,
-        VkImage destination,
-        VkRect2D src,
-        VkRect2D dst
+        VkCommandBuffer cmd
+        , VkImage source
+        , VkImage destination
+        , VkRect2D src
+        , VkRect2D dst
     );
 
     double aspectRatio(VkExtent2D extent);
@@ -63,7 +63,10 @@ struct AllocatedImage {
     VkExtent3D imageExtent{};
     VkFormat imageFormat{ VK_FORMAT_UNDEFINED };
 
-    void cleanup(VkDevice device, VmaAllocator allocator)
+    void cleanup(
+        VkDevice device
+        , VmaAllocator allocator
+    )
     {
         vkDestroyImageView(device, imageView, nullptr);
         vmaDestroyImage(allocator, image, allocation);
@@ -84,11 +87,11 @@ struct AllocatedImage {
     }
 
     static std::optional<AllocatedImage> allocate(
-        VmaAllocator allocator,
-        VkDevice device,
-        VkExtent3D extent,
-        VkFormat format,
-        VkImageAspectFlags viewFlags,
-        VkImageUsageFlags usageMask
+        VmaAllocator allocator
+        , VkDevice device
+        , VkExtent3D extent
+        , VkFormat format
+        , VkImageAspectFlags viewFlags
+        , VkImageUsageFlags usageMask
     );
 };

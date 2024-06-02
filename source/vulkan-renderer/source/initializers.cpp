@@ -39,17 +39,25 @@ VkImageSubresourceRange vkinit::imageSubresourceRange(VkImageAspectFlags aspectM
     };
 }
 
-VkImageSubresourceLayers vkinit::imageSubresourceLayers(VkImageAspectFlags aspectMask, uint32_t mipLevel, uint32_t baseArrayLayer, uint32_t baseArrayCount)
+VkImageSubresourceLayers vkinit::imageSubresourceLayers(
+    VkImageAspectFlags aspectMask
+    , uint32_t mipLevel
+    , uint32_t baseArrayLayer
+    , uint32_t baseArrayCount
+)
 {
     return {
-      .aspectMask = aspectMask,
-      .mipLevel = mipLevel,
-      .baseArrayLayer = baseArrayLayer,
-      .layerCount = baseArrayCount,
+        .aspectMask = aspectMask,
+        .mipLevel = mipLevel,
+        .baseArrayLayer = baseArrayLayer,
+        .layerCount = baseArrayCount,
     };
 }
 
-VkSemaphoreSubmitInfo vkinit::semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)
+VkSemaphoreSubmitInfo vkinit::semaphoreSubmitInfo(
+    VkPipelineStageFlags2 stageMask
+    , VkSemaphore semaphore
+)
 {
     return {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -72,9 +80,9 @@ VkCommandBufferSubmitInfo vkinit::commandBufferSubmitInfo(VkCommandBuffer cmd)
 }
 
 VkSubmitInfo2 vkinit::submitInfo(
-    std::vector<VkCommandBufferSubmitInfo> const& cmdInfo, 
-    std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
-    std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
+    std::vector<VkCommandBufferSubmitInfo> const& cmdInfo
+    , std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo
+    , std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
 )
 {
     return {
@@ -94,7 +102,12 @@ VkSubmitInfo2 vkinit::submitInfo(
     };
 }
 
-VkImageCreateInfo vkinit::imageCreateInfo(VkFormat format, VkImageLayout initialLayout, VkImageUsageFlags usageMask, VkExtent3D extent)
+VkImageCreateInfo vkinit::imageCreateInfo(
+    VkFormat format
+    , VkImageLayout initialLayout
+    , VkImageUsageFlags usageMask
+    , VkExtent3D extent
+)
 {
     return {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -152,7 +165,11 @@ VkSamplerCreateInfo vkinit::samplerCreateInfo(
     };
 }
 
-VkImageViewCreateInfo vkinit::imageViewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags)
+VkImageViewCreateInfo vkinit::imageViewCreateInfo(
+    VkFormat format
+    , VkImage image
+    , VkImageAspectFlags aspectFlags
+)
 {
     return {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -187,9 +204,9 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
 }
 
 VkRenderingInfo vkinit::renderingInfo(
-    VkRect2D drawRect,
-    std::span<VkRenderingAttachmentInfo const> colorAttachments,
-    VkRenderingAttachmentInfo const* pDepthAttachment
+    VkRect2D drawRect
+    , std::span<VkRenderingAttachmentInfo const> colorAttachments
+    , VkRenderingAttachmentInfo const* pDepthAttachment
 )
 {
     return {
@@ -208,7 +225,11 @@ VkRenderingInfo vkinit::renderingInfo(
     };
 }
 
-VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module, std::string const& entryPoint)
+VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(
+    VkShaderStageFlagBits stage
+    , VkShaderModule module
+    , std::string const& entryPoint
+)
 {
     return VkPipelineShaderStageCreateInfo{
         .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },

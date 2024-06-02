@@ -10,14 +10,16 @@ struct FloatBounds
 {
     float min{ -FLT_MAX };
     float max{ FLT_MAX };
-
 };
 
 struct PropertySliderBehavior
 {
     float const speed{ 0.0f };
     ImGuiSliderFlags const flags{ ImGuiSliderFlags_None };
-    FloatBounds bounds{ .min{ -FLT_MAX }, .max{ FLT_MAX } };
+    FloatBounds bounds{ 
+        .min{ -FLT_MAX }, 
+        .max{ FLT_MAX }, 
+    };
 };
 
 struct PropertyTable
@@ -101,13 +103,14 @@ public:
     // depending on if this rows button is collapsed or not. This is tracked internally.
     // This also adds proper styling and indenting.
     PropertyTable& childPropertyBegin();
+
     // This adds a new row for the collapsing button. See PropertyTable::childPropertyBegin.
     PropertyTable& rowChildPropertyBegin(std::string const& name);
 
     // A corresponding PropertyTable::rowChildPropertyBegin or PropertyTable::childPropertyBegin must have been called.
     PropertyTable& childPropertyEnd();
 
-    // Adds a row that contains a dropdown, containing a list of values, with a reset button.
+    // Adds a row that contains a dropdown, containing a list of values, alongside a reset button.
     PropertyTable& rowDropdown(
         std::string const& name
         , size_t& selectedIndex

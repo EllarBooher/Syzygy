@@ -27,9 +27,9 @@ struct overloaded : Ts...
 
 template<typename T>
 static void imguiPushStructureControl(
-    ShaderReflectionData::PushConstant const& pushConstant,
-    bool readOnly,
-    std::span<T> backingData
+    ShaderReflectionData::PushConstant const& pushConstant
+    , bool readOnly
+    , std::span<T> backingData
 )
 {
     if (!ImGui::CollapsingHeader(pushConstant.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -38,14 +38,19 @@ static void imguiPushStructureControl(
     }
 
     // TODO: This whole method is bad and should be refactored in a way to not need this templating
-    static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value);
+    static_assert(
+        std::is_same<T, uint8_t>::value 
+        || std::is_same<T, uint8_t const>::value
+    );
 
     ShaderReflectionData::Structure const& structure{ pushConstant.type };
 
     ImGui::Text("%s (%s)", "Push Constant", readOnly ? "Read Only" : "Mutable");
     {
         ImGui::BeginTable("Push Constant Reflection Data", 2
-            , ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg
+            , ImGuiTableFlags_BordersOuter 
+            | ImGuiTableFlags_BordersInnerH 
+            | ImGuiTableFlags_RowBg
         );
 
         ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
@@ -303,7 +308,10 @@ static void imguiPushStructureControl(
 template<>
 void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
 {
-    if (!ImGui::CollapsingHeader("Compute Collection Pipeline", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!ImGui::CollapsingHeader(
+        "Compute Collection Pipeline"
+        , ImGuiTreeNodeFlags_DefaultOpen
+    ))
     {
         return;
     }
@@ -334,7 +342,11 @@ void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
     if (reflectionData.defaultEntryPointHasPushConstant())
     {
         table.end();
-        imguiPushStructureControl(reflectionData.defaultPushConstant(), false, pipeline.mapPushConstantBytes());
+        imguiPushStructureControl(
+            reflectionData.defaultPushConstant()
+            , false
+            , pipeline.mapPushConstantBytes()
+        );
     }
     else
     {

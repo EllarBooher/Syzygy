@@ -127,11 +127,16 @@ struct ShaderReflectionData
 			};
 		}
 	};
+
 	std::map<std::string, PushConstant> pushConstantsByEntryPoint{};
 
 	std::string defaultEntryPoint{};
 
-	bool defaultEntryPointHasPushConstant() const { return pushConstantsByEntryPoint.contains(defaultEntryPoint); }
+	bool defaultEntryPointHasPushConstant() const 
+	{ 
+		return pushConstantsByEntryPoint.contains(defaultEntryPoint); 
+	}
+	
 	PushConstant const& defaultPushConstant() const 
 	{ 
 		return pushConstantsByEntryPoint.at(defaultEntryPoint); 
@@ -150,9 +155,9 @@ public:
 
 protected:
 	ShaderReflectedBase(
-		std::string name,
-		ShaderReflectionData reflectionData,
-		std::variant<VkShaderModule, VkShaderEXT> shaderHandle
+		std::string name
+		, ShaderReflectionData reflectionData
+		, std::variant<VkShaderModule, VkShaderEXT> shaderHandle
 	)
 		: m_name(name)
 		, m_reflectionData(reflectionData)
@@ -172,11 +177,15 @@ class ShaderModuleReflected : public ShaderReflectedBase
 {
 private:
 	ShaderModuleReflected(
-		std::string name,
-		ShaderReflectionData reflectionData,
-		VkShaderModule shaderHandle
+		std::string name
+		, ShaderReflectionData reflectionData
+		, VkShaderModule shaderHandle
 	)
-		: ShaderReflectedBase(name, reflectionData, shaderHandle)
+		: ShaderReflectedBase(
+			name
+			, reflectionData
+			, shaderHandle
+		)
 	{}
 
 public:
@@ -197,11 +206,15 @@ class ShaderObjectReflected : public ShaderReflectedBase
 {
 private:
 	ShaderObjectReflected(
-		std::string name,
-		ShaderReflectionData reflectionData,
-		VkShaderEXT shaderHandle
+		std::string name
+		, ShaderReflectionData reflectionData
+		, VkShaderEXT shaderHandle
 	)
-		: ShaderReflectedBase(name, reflectionData, shaderHandle)
+		: ShaderReflectedBase(
+			name
+			, reflectionData
+			, shaderHandle
+		)
 	{}
 
 public:

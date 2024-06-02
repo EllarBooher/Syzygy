@@ -93,7 +93,10 @@ DockingLayout buildDefaultMultiWindowLayout(
 );
 
 template<typename T>
-void imguiStructureControls(T& structure, T const& defaultValues);
+void imguiStructureControls(
+    T& structure
+    , T const& defaultValues
+);
 
 template<typename T>
 void imguiStructureControls(T& structure);
@@ -112,8 +115,8 @@ void imguiRenderingSelection(
 );
 
 void imguiPerformanceWindow(
-    std::span<double const> fpsValues, 
-    double averageFPS, 
-    size_t currentFrame,
-    float& targetFPS
+    std::span<double const> fpsValues
+    , double averageFPS
+    , size_t currentFrame
+    , float& targetFPS
 );

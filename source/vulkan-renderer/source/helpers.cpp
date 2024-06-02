@@ -7,32 +7,42 @@
 
 std::string MakeLogPrefix(std::source_location location)
 {
-    std::string const relativePath = DebugUtils::getLoadedDebugUtils().makeRelativePath(location.file_name()).string();
+    std::string const relativePath{
+        DebugUtils::getLoadedDebugUtils().makeRelativePath(location.file_name()).string()
+    };
     return fmt::format(
-        "[ {}:{} ]",
-        relativePath,
-        location.line()
+        "[ {}:{} ]"
+        , relativePath
+        , location.line()
     );
 }
 
-static void PrintLine(std::string message, fmt::color foregroundColor)
+static void PrintLine(
+    std::string message
+    , fmt::color foregroundColor
+)
 {
     fmt::print(
-        fg(foregroundColor),
-        "{}\n",
-        message
+        fg(foregroundColor)
+        , "{}\n"
+        , message
     );
 }
 
-void CheckVkResult(VkResult result, std::source_location location)
+void CheckVkResult(
+    VkResult result
+    , std::source_location location
+)
 {
     if (result != VK_SUCCESS)
     {
-        auto const message = fmt::format(
-            fmt::fg(fmt::color::red),
-            "Detected Vulkan Error : {}",
-            string_VkResult(result)
-        );
+        std::string const message{
+            fmt::format(
+                fmt::fg(fmt::color::red)
+                , "Detected Vulkan Error : {}"
+                , string_VkResult(result)
+            )
+        };
         throw std::runtime_error(MakeLogPrefix(location) + message);
     }
 }
@@ -41,10 +51,12 @@ void CheckVkResult_Imgui(VkResult result)
 {
     if (result != VK_SUCCESS)
     {
-        auto const message = fmt::format(
-            "Detected Vulkan Error : {}",
-            string_VkResult(result)
-        );
+        std::string const message{
+            fmt::format(
+                "Detected Vulkan Error : {}"
+                , string_VkResult(result)
+            )
+        };
         PrintLine(message, fmt::color::red);
     }
 }
@@ -60,32 +72,65 @@ void LogVkResult(
         return;
     }
 
-    Error(fmt::format("{} error: {}", message, string_VkResult(result)), location);
+    Error(
+        fmt::format("{} error: {}", message, string_VkResult(result))
+        , location
+    );
 }
 
-void LogBase(std::string message, std::source_location location, fmt::color color)
+void LogBase(
+    std::string message
+    , std::source_location location
+    , fmt::color color
+)
 {
-    PrintLine(fmt::format("{} {}", MakeLogPrefix(location), message), color);
+    PrintLine(
+        fmt::format("{} {}", MakeLogPrefix(location), message)
+        , color
+    );
 }
 
-void Log(std::string message, std::source_location location)
+void Log(
+    std::string message
+    , std::source_location location
+)
 {
-    LogBase(message, location, fmt::color::gray);
+    LogBase(
+        message
+        , location
+        , fmt::color::gray
+    );
 }
 
-void Warning(std::string message, std::source_location location)
+void Warning(
+    std::string message
+    , std::source_location location
+)
 {
-    LogBase(message, location, fmt::color::yellow);
+    LogBase(
+        message
+        , location
+        , fmt::color::yellow
+    );
 }
 
-void Error(std::string message, std::source_location location)
+void Error(
+    std::string message
+    , std::source_location location
+)
 {
-    LogBase(message, location, fmt::color::red);
+    LogBase(
+        message
+        , location
+        , fmt::color::red
+    );
 }
 
 void DebugUtils::init()
 {
-    std::filesystem::path const sourcePath{ std::filesystem::weakly_canonical(std::filesystem::path{ SOURCE_DIR }) };
+    std::filesystem::path const sourcePath{ 
+        std::filesystem::weakly_canonical(std::filesystem::path{ SOURCE_DIR }) 
+    };
 
     if (!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath))
     {
@@ -95,7 +140,13 @@ void DebugUtils::init()
     m_loadedDebugUtils = std::make_unique<DebugUtils>();
     m_loadedDebugUtils->m_sourcePath = sourcePath;
 
-    PrintLine(fmt::format("DebugUtils::Init success: Source path is \"{}\"", m_loadedDebugUtils->m_sourcePath.string()), fmt::color::gray);
+    PrintLine(
+        fmt::format(
+            "DebugUtils::Init success: Source path is \"{}\""
+            , m_loadedDebugUtils->m_sourcePath.string()
+        )
+        , fmt::color::gray
+    );
 }
 
 bool DebugUtils::validateRelativePath(std::filesystem::path path)
@@ -131,7 +182,10 @@ std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(std::filesystem
 std::filesystem::path DebugUtils::makeRelativePath(std::filesystem::path absolutePath) const
 {
     assert(absolutePath.is_absolute());
-    std::filesystem::path const relativePortion = absolutePath.lexically_relative(m_sourcePath).lexically_normal();
+
+    std::filesystem::path const relativePortion{
+        absolutePath.lexically_relative(m_sourcePath).lexically_normal()
+    };
 
     assert(validateRelativePath(relativePortion));
 

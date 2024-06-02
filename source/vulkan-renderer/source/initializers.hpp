@@ -8,32 +8,36 @@
 #include <optional>
 
 /** Shorthand factory method for info structs, with reasonable defaults. */
-namespace vkinit {
+namespace vkinit 
+{
     VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
     VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
     VkCommandBufferBeginInfo commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
     
     VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
     VkImageSubresourceLayers imageSubresourceLayers(
-        VkImageAspectFlags aspectMask, 
-        uint32_t mipLevel,
-        uint32_t baseArrayLayer = 0,
-        uint32_t baseArrayCount = 1
+        VkImageAspectFlags aspectMask
+        , uint32_t mipLevel
+        , uint32_t baseArrayLayer = 0
+        , uint32_t baseArrayCount = 1
     );
 
-    VkSemaphoreSubmitInfo semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
+    VkSemaphoreSubmitInfo semaphoreSubmitInfo(
+        VkPipelineStageFlags2 stageMask
+        , VkSemaphore semaphore
+    );
     VkCommandBufferSubmitInfo commandBufferSubmitInfo(VkCommandBuffer cmd);
     VkSubmitInfo2 submitInfo(
-        std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
-        std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
-        std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
+        std::vector<VkCommandBufferSubmitInfo> const& cmdInfo
+        , std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo
+        , std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
     );
 
     VkImageCreateInfo imageCreateInfo(
-        VkFormat format, 
-        VkImageLayout initialLayout,
-        VkImageUsageFlags usageMask, 
-        VkExtent3D extent
+        VkFormat format
+        , VkImageLayout initialLayout
+        , VkImageUsageFlags usageMask
+        , VkExtent3D extent
     );
 
     VkSamplerCreateInfo samplerCreateInfo(
@@ -44,9 +48,9 @@ namespace vkinit {
     );
 
     VkImageViewCreateInfo imageViewCreateInfo(
-        VkFormat format,
-        VkImage image,
-        VkImageAspectFlags aspectFlags
+        VkFormat format
+        , VkImage image
+        , VkImageAspectFlags aspectFlags
     );
 
     VkRenderingAttachmentInfo renderingAttachmentInfo(
@@ -56,15 +60,15 @@ namespace vkinit {
     );
 
     VkRenderingInfo renderingInfo(
-        VkRect2D drawRect,
-        std::span<VkRenderingAttachmentInfo const> colorAttachments,
-        VkRenderingAttachmentInfo const* pDepthAttachment
+        VkRect2D drawRect
+        , std::span<VkRenderingAttachmentInfo const> colorAttachments
+        , VkRenderingAttachmentInfo const* pDepthAttachment
     );
 
     VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
-        VkShaderStageFlagBits stage,
-        VkShaderModule module,
-        std::string const& entryPoint
+        VkShaderStageFlagBits stage
+        , VkShaderModule module
+        , std::string const& entryPoint
     );
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(

@@ -220,7 +220,13 @@ void ShadowPassArray::recordInitialize(
                 vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
             };
 
-            vkCmdClearDepthStencilImage(cmd, texture.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range);
+            vkCmdClearDepthStencilImage(
+                cmd
+                , texture.image
+                , VK_IMAGE_LAYOUT_GENERAL
+                , &clearValue
+                , 1, &range
+            );
         }
         
         // Prepare for recording of draw commands
@@ -259,7 +265,13 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
     for (size_t i{ 0 }; i < m_projViewMatrices->deviceSize(); i++)
     {
         AllocatedImage& texture{ m_textures[i] };
-        vkutil::transitionImage(cmd, texture.image, m_texturesCurrentLayout, dstLayout, VK_IMAGE_ASPECT_DEPTH_BIT);
+        vkutil::transitionImage(
+            cmd
+            , texture.image
+            , m_texturesCurrentLayout
+            , dstLayout
+            , VK_IMAGE_ASPECT_DEPTH_BIT
+        );
     }
 
     m_texturesCurrentLayout = dstLayout;

@@ -43,27 +43,31 @@
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
-CameraParameters const Engine::m_defaultCameraParameters = CameraParameters{
-    .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
-    .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
-    .fov{ 70.0f },
-    .near{ 0.1f },
-    .far{ 10000.0f },
+CameraParameters const Engine::m_defaultCameraParameters{
+    CameraParameters{
+        .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
+        .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
+        .fov{ 70.0f },
+        .near{ 0.1f },
+        .far{ 10000.0f },
+    }
 };
 
-AtmosphereParameters const Engine::m_defaultAtmosphereParameters = AtmosphereParameters{
-    .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
+AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
+    AtmosphereParameters{
+        .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
 
-    .earthRadiusMeters{ 6378000 },
-    .atmosphereRadiusMeters{ 6420000 },
+        .earthRadiusMeters{ 6378000 },
+        .atmosphereRadiusMeters{ 6420000 },
 
-    .groundColor{ 0.9, 0.8, 0.6 },
+        .groundColor{ 0.9, 0.8, 0.6 },
 
-    .scatteringCoefficientRayleigh{ glm::vec3(0.0000038, 0.0000135, 0.0000331) },
-    .altitudeDecayRayleigh{ 7994.0 },
+        .scatteringCoefficientRayleigh{ glm::vec3(0.0000038, 0.0000135, 0.0000331) },
+        .altitudeDecayRayleigh{ 7994.0 },
 
-    .scatteringCoefficientMie{ glm::vec3(0.000021) },
-    .altitudeDecayMie{ 1200.0 },
+        .scatteringCoefficientMie{ glm::vec3(0.000021) },
+        .altitudeDecayMie{ 1200.0 },
+    }
 };
 
 Engine::Engine()
@@ -475,9 +479,16 @@ glm::quat randomQuat()
     glm::vec2 const xy{ glm::diskRand(1.0f) };
     glm::vec2 const uv{ glm::diskRand(1.0f) };
 
-    float const s{ glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv)) };
+    float const s{ 
+        glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv)) 
+    };
 
-    return glm::quat(s * uv.y, xy.x, xy.y, s * uv.x);
+    return glm::quat(
+        s * uv.y
+        , xy.x
+        , xy.y
+        , s * uv.x
+    );
 }
 
 void Engine::initWorld()
@@ -519,18 +530,22 @@ void Engine::initWorld()
         }
 
         VkDeviceSize const maxInstanceCount{ m_meshInstances.originals.size() };
-        m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-            m_device,
-            m_allocator,
-            maxInstanceCount,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        ));
-        m_meshInstances.modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(TStagedBuffer<glm::mat4x4>::allocate(
-            m_device,
-            m_allocator,
-            maxInstanceCount,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        ));
+        m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+            TStagedBuffer<glm::mat4x4>::allocate(
+                m_device
+                , m_allocator
+                , maxInstanceCount
+                , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
+        m_meshInstances.modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+            TStagedBuffer<glm::mat4x4>::allocate(
+                m_device
+                , m_allocator
+                , maxInstanceCount
+                , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
 
         std::vector<glm::mat4x4> modelInverseTransposes{};
         for (glm::mat4x4 const& model : m_meshInstances.originals)
@@ -541,61 +556,70 @@ void Engine::initWorld()
         m_meshInstances.models->stage(m_meshInstances.originals);
         m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
 
-        immediateSubmit([&](VkCommandBuffer cmd) {
-            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
-            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
-        });
+        immediateSubmit(
+            [&](VkCommandBuffer cmd) {
+                m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+                m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd, m_allocator);
+            }
+        );
     }
 
     { // Camera
-        m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(TStagedBuffer<GPUTypes::Camera>::allocate(
-            m_device,
-            m_allocator,
-            20,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        ));
+        m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(
+            TStagedBuffer<GPUTypes::Camera>::allocate(
+                m_device
+                , m_allocator
+                , 20
+                , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
         m_camerasBuffer->push(GPUTypes::Camera{});
 
         m_cameraIndexMain = 0;
     }
 
     { // Atmosphere
-        m_atmospheresBuffer = std::make_unique<TStagedBuffer<GPUTypes::Atmosphere>>(TStagedBuffer<GPUTypes::Atmosphere>::allocate(
-            m_device,
-            m_allocator,
-            1,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        ));
+        m_atmospheresBuffer = std::make_unique<TStagedBuffer<GPUTypes::Atmosphere>>(
+            TStagedBuffer<GPUTypes::Atmosphere>::allocate(
+                m_device
+                , m_allocator
+                , 1
+                , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
         std::vector<GPUTypes::Atmosphere> const atmospheres{ m_atmosphereParameters.toDeviceEquivalent() };
         m_atmospheresBuffer->stage(atmospheres);
 
-        immediateSubmit([&](VkCommandBuffer cmd) {
-            m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
-        });
+        immediateSubmit(
+            [&](VkCommandBuffer cmd) 
+            {
+                m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
+            }
+        );
     }
 }
 
 void Engine::initDebug()
 {
     m_debugLines.pipeline = std::make_unique<DebugLineComputePipeline>(
-        m_device,
-        m_drawImage.imageFormat,
-        m_sceneDepthTexture.imageFormat
+        m_device
+        , m_drawImage.imageFormat
+        , m_sceneDepthTexture.imageFormat
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
-            m_device,
-            m_allocator,
-            1000,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            m_device
+            , m_allocator
+            , 1000
+            , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         )
     );
     m_debugLines.vertices = std::make_unique<TStagedBuffer<Vertex>>(
         TStagedBuffer<Vertex>::allocate(
-            m_device,
-            m_allocator,
-            1000,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            m_device
+            , m_allocator
+            , 1000
+            , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         )
     );
 }
@@ -625,9 +649,9 @@ void Engine::initGenericComputePipelines()
         , "shaders/matrix_color.comp.spv"
     };
     m_genericComputePipeline = std::make_unique<GenericComputeCollectionPipeline>(
-        m_device,
-        m_sceneTextureDescriptorLayout,
-        shaderPaths
+        m_device
+        , m_sceneTextureDescriptorLayout
+        , shaderPaths
     );
 }
 
@@ -636,17 +660,17 @@ void Engine::initImgui()
     Log("Initializing ImGui...");
 
     std::vector<VkDescriptorPoolSize> const poolSizes{
-        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 }
+        , { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 }
+        , { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 }
+        , { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 }
+        , { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 }
+        , { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
     };
 
     VkDescriptorPoolCreateInfo const poolInfo{
@@ -681,9 +705,13 @@ void Engine::initImgui()
     ImGui_ImplGlfw_InitForVulkan(m_window, true);
 
     // Load functions since we are using volk, and not the built-in vulkan loader
-    ImGui_ImplVulkan_LoadFunctions([](const char* functionName, void* vkInstance) {
-        return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(vkInstance)), functionName);
-        }, &m_instance);
+    ImGui_ImplVulkan_LoadFunctions(
+        [](const char* functionName, void* vkInstance) 
+        {
+            return vkGetInstanceProcAddr(*(reinterpret_cast<VkInstance*>(vkInstance)), functionName);
+        }
+        , &m_instance
+    );
     
     ImGui_ImplVulkan_InitInfo initInfo{
         .Instance{ m_instance },
@@ -736,7 +764,6 @@ void Engine::initImgui()
             , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
-
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
@@ -794,33 +821,40 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, true, immediateSubmitTimeout));
 }
 
-std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices)
+std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
+    std::span<uint32_t const> indices
+    , std::span<Vertex const> vertices
+)
 {
     // Allocate buffer 
 
     size_t const indexBufferSize{ indices.size_bytes() };
     size_t const vertexBufferSize{ vertices.size_bytes() };
 
-    AllocatedBuffer indexBuffer{ AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
-        indexBufferSize
-        , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-        | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-        , VMA_MEMORY_USAGE_GPU_ONLY
-        , 0
-    ) };
+    AllocatedBuffer indexBuffer{ 
+        AllocatedBuffer::allocate(
+            m_device
+            , m_allocator
+            , indexBufferSize
+            , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            , VMA_MEMORY_USAGE_GPU_ONLY
+            , 0
+        ) 
+    };
 
-    AllocatedBuffer vertexBuffer{ AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
-        vertexBufferSize
-        , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-        | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-        , VMA_MEMORY_USAGE_GPU_ONLY
-        , 0 
-    ) };
+    AllocatedBuffer vertexBuffer{ 
+        AllocatedBuffer::allocate(
+            m_device
+            , m_allocator
+            , vertexBufferSize
+            , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+            , VMA_MEMORY_USAGE_GPU_ONLY
+            , 0 
+        ) 
+    };
     VkBufferDeviceAddressInfo const addressInfo{
         .sType{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO },
         .pNext{ nullptr },
@@ -831,34 +865,41 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(std::span<uint32_t const
 
     // Copy data into buffer
 
-    AllocatedBuffer stagingBuffer{ AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
-        vertexBufferSize + indexBufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY
-        , VMA_ALLOCATION_CREATE_MAPPED_BIT
-    ) };
+    AllocatedBuffer stagingBuffer{ 
+        AllocatedBuffer::allocate(
+            m_device
+            , m_allocator
+            , vertexBufferSize + indexBufferSize
+            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+            , VMA_MEMORY_USAGE_CPU_ONLY
+            , VMA_ALLOCATION_CREATE_MAPPED_BIT
+        ) 
+    };
 
-    uint8_t* const data{ reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData()) };
+    uint8_t* const data{ 
+        reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData()) 
+    };
     memcpy(data, vertices.data(), vertexBufferSize);
     memcpy(data + vertexBufferSize, indices.data(), indexBufferSize);
 
-    immediateSubmit([&](VkCommandBuffer cmd) {
-        VkBufferCopy const vertexCopy{
-            .srcOffset{ 0 },
-            .dstOffset{ 0 },
-            .size{ vertexBufferSize },
-        };
-        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy);
+    immediateSubmit(
+        [&](VkCommandBuffer cmd) 
+        {
+            VkBufferCopy const vertexCopy{
+                .srcOffset{ 0 },
+                .dstOffset{ 0 },
+                .size{ vertexBufferSize },
+            };
+            vkCmdCopyBuffer(cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy);
 
-        VkBufferCopy const indexCopy{
-            .srcOffset{ vertexBufferSize },
-            .dstOffset{ 0 },
-            .size{ indexBufferSize },
-        };
-        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy);
-    });
+            VkBufferCopy const indexCopy{
+                .srcOffset{ vertexBufferSize },
+                .dstOffset{ 0 },
+                .size{ indexBufferSize },
+            };
+            vkCmdCopyBuffer(cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy);
+        }
+    );
 
     return std::make_unique<GPUMeshBuffers>(std::move(indexBuffer), std::move(vertexBuffer));
 }
@@ -887,7 +928,8 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 
 void Engine::mainLoop()
 {
-    while (!glfwWindowShouldClose(m_window)) {
+    while (!glfwWindowShouldClose(m_window)) 
+    {
         glfwPollEvents();
 
         if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE)
@@ -988,7 +1030,6 @@ bool Engine::renderUI(VkDevice const device)
 
     bool skipFrame{ false };
     std::optional<DockingLayout> dockingLayout{};
-
 
     if (hud.maximizeSceneViewport)
     {
@@ -1161,7 +1202,10 @@ bool Engine::renderUI(VkDevice const device)
     return skipFrame;
 }
 
-void Engine::tickWorld(double totalTime, double deltaTimeSeconds)
+void Engine::tickWorld(
+    double totalTime
+    , double deltaTimeSeconds
+)
 {
     std::span<glm::mat4x4> const models{ m_meshInstances.models->mapValidStaged() };
     std::span<glm::mat4x4> const modelInverseTransposes{ m_meshInstances.modelInverseTransposes->mapValidStaged() };
@@ -1247,7 +1291,7 @@ void Engine::draw()
 
         std::span<GPUTypes::Camera> cameras{ m_camerasBuffer->mapValidStaged() };
         cameras[m_cameraIndexMain] = {
-                m_useOrthographicProjection
+            m_useOrthographicProjection
             ? m_cameraParameters.toDeviceEquivalentOrthographic(aspectRatio, 5.0)
             : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
@@ -1276,8 +1320,9 @@ void Engine::draw()
     }
 
     {
-        vkutil::transitionImage(cmd,
-            m_sceneColorTexture.image
+        vkutil::transitionImage(
+            cmd
+            , m_sceneColorTexture.image
             , VK_IMAGE_LAYOUT_UNDEFINED
             , VK_IMAGE_LAYOUT_GENERAL
             , VK_IMAGE_ASPECT_COLOR_BIT
@@ -1396,8 +1441,16 @@ void Engine::draw()
                 , m_meshInstances
             );
 
-            m_debugLines.pushBox(m_sceneBounds.center, glm::quat_identity<float, glm::qualifier::defaultp>(), m_sceneBounds.extent);
-            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+            m_debugLines.pushBox(
+                m_sceneBounds.center
+                , glm::quat_identity<float, glm::qualifier::defaultp>()
+                , m_sceneBounds.extent
+            );
+            recordDrawDebugLines(
+                cmd
+                , m_cameraIndexMain
+                , *m_camerasBuffer
+            );
 
             break;
         }
@@ -1418,15 +1471,17 @@ void Engine::draw()
 
     // ImGui Drawing
     
-    vkutil::transitionImage(cmd,
-        m_sceneColorTexture.image
+    vkutil::transitionImage(
+        cmd
+        , m_sceneColorTexture.image
         , VK_IMAGE_LAYOUT_GENERAL
         , VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    vkutil::transitionImage(cmd,
-        m_drawImage.image
+    vkutil::transitionImage(
+        cmd
+        , m_drawImage.image
         , VK_IMAGE_LAYOUT_UNDEFINED
         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
@@ -1434,8 +1489,9 @@ void Engine::draw()
 
     recordDrawImgui(cmd, m_drawImage.imageView);
 
-    vkutil::transitionImage(cmd,
-        m_drawImage.image
+    vkutil::transitionImage(
+        cmd
+        , m_drawImage.image
         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         , VK_IMAGE_LAYOUT_GENERAL
         , VK_IMAGE_ASPECT_COLOR_BIT
@@ -1446,13 +1502,16 @@ void Engine::draw()
     // Copy image to swapchain
 
     uint32_t swapchainImageIndex;
-    VkResult const acquireResult{ vkAcquireNextImageKHR(m_device,
-        m_swapchain,
-        timeoutNanoseconds,
-        currentFrame.swapchainSemaphore,
-        VK_NULL_HANDLE, // No fence to signal
-        &swapchainImageIndex
-    ) };
+    VkResult const acquireResult{ 
+        vkAcquireNextImageKHR(
+                m_device
+                , m_swapchain
+                , timeoutNanoseconds
+                , currentFrame.swapchainSemaphore
+                , VK_NULL_HANDLE // No Fence to signal
+                , &swapchainImageIndex
+        ) 
+    };
     if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
     {
         m_resizeRequested = true;
@@ -1464,26 +1523,32 @@ void Engine::draw()
     VkImage const& swapchainImage = m_swapchainImages[swapchainImageIndex];
     VkImageView const& swapchainImageView = m_swapchainImageViews[swapchainImageIndex];
 
-    vkutil::transitionImage(cmd, 
-        m_drawImage.image
+    vkutil::transitionImage(
+        cmd
+        , m_drawImage.image
         , VK_IMAGE_LAYOUT_GENERAL
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
-    vkutil::transitionImage(cmd, 
-        swapchainImage
+    vkutil::transitionImage(
+        cmd
+        , swapchainImage
         , VK_IMAGE_LAYOUT_UNDEFINED
         , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         , VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    vkutil::recordCopyImageToImage(cmd,
-        m_drawImage.image, swapchainImage,
-        m_drawRect, VkRect2D{ .extent{ m_swapchainExtent} }
+    vkutil::recordCopyImageToImage(
+        cmd
+        , m_drawImage.image
+        , swapchainImage
+        , m_drawRect
+        , VkRect2D{ .extent{ m_swapchainExtent} }
     );
 
-    vkutil::transitionImage(cmd, 
-        swapchainImage
+    vkutil::transitionImage(
+        cmd
+        , swapchainImage
         , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
         , VK_IMAGE_ASPECT_COLOR_BIT
@@ -1495,21 +1560,21 @@ void Engine::draw()
 
     VkCommandBufferSubmitInfo const cmdSubmitInfo = vkinit::commandBufferSubmitInfo(cmd);
     VkSemaphoreSubmitInfo const waitInfo = vkinit::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, 
-        currentFrame.swapchainSemaphore
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT
+        , currentFrame.swapchainSemaphore
     );
     VkSemaphoreSubmitInfo const signalInfo = vkinit::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
-        currentFrame.renderSemaphore
+        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT
+        , currentFrame.renderSemaphore
     );
 
     auto const cmdSubmitInfos = std::vector<VkCommandBufferSubmitInfo>{ cmdSubmitInfo };
     auto const waitInfos = std::vector<VkSemaphoreSubmitInfo>{ waitInfo };
     auto const signalInfos = std::vector<VkSemaphoreSubmitInfo>{ signalInfo };
     VkSubmitInfo2 const submitInfo = vkinit::submitInfo(
-        cmdSubmitInfos,
-        waitInfos,
-        signalInfos
+        cmdSubmitInfos
+        , waitInfos
+        , signalInfos
     );
 
     CheckVkResult(vkQueueSubmit2(m_graphicsQueue, 1, &submitInfo, currentFrame.renderFence));
@@ -1541,7 +1606,10 @@ void Engine::draw()
     m_frameNumber++;
 }
 
-void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
+void Engine::recordDrawImgui(
+    VkCommandBuffer cmd
+    , VkImageView view
+)
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
         vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
@@ -1554,7 +1622,10 @@ void Engine::recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
                 .extent{
                     m_swapchainExtent
                 }
-            }, colorAttachments, nullptr)
+            }
+            , colorAttachments
+            , nullptr
+        )
     };
 
     vkCmdBeginRendering(cmd, &renderingInfo);
@@ -1596,18 +1667,20 @@ void Engine::recordDrawDebugLines(
     {
         m_debugLines.recordCopy(cmd, m_allocator);
 
-        DrawResultsGraphics const drawResults{ m_debugLines.pipeline->recordDrawCommands(
-            cmd
-            , false
-            , m_debugLines.lineWidth
-            , m_sceneRect
-            , m_sceneColorTexture
-            , m_sceneDepthTexture
-            , cameraIndex
-            , camerasBuffer
-            , *m_debugLines.vertices
-            , *m_debugLines.indices
-        ) };
+        DrawResultsGraphics const drawResults{ 
+            m_debugLines.pipeline->recordDrawCommands(
+                cmd
+                , false
+                , m_debugLines.lineWidth
+                , m_sceneRect
+                , m_sceneColorTexture
+                , m_sceneDepthTexture
+                , cameraIndex
+                , camerasBuffer
+                , *m_debugLines.vertices
+                , *m_debugLines.indices
+            ) 
+        };
 
         m_debugLines.lastFrameDrawResults = drawResults;
     }

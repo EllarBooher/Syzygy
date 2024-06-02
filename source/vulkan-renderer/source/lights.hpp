@@ -32,6 +32,7 @@ namespace lights
         };
     }
     
+// TODO: less parameters constructor
     static GPUTypes::LightSpot makeSpot(
         glm::vec4 const color
         , float const strength

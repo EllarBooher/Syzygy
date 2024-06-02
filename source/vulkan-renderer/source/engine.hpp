@@ -14,7 +14,8 @@
 
 struct GLFWwindow;
 
-struct FrameData {
+struct FrameData 
+{
     VkCommandPool commandPool{ VK_NULL_HANDLE };
     VkCommandBuffer mainCommandBuffer{ VK_NULL_HANDLE };
     
@@ -33,7 +34,8 @@ struct FrameData {
 /** The number of frames in flight at once. */
 constexpr uint32_t FRAME_OVERLAP = 2;
 
-class Engine {
+class Engine 
+{
     Engine();
 
 public:
@@ -48,11 +50,23 @@ private:
 
     void initVulkan();
 
-    void tickWorld(double totalTime, double deltaTimeSeconds);
+    void tickWorld(
+        double totalTime
+        , double deltaTimeSeconds
+    );
+    
     bool renderUI(VkDevice device);
     void draw();
-    void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
-    void recordDrawDebugLines(VkCommandBuffer cmd, uint32_t cameraIndex, TStagedBuffer<GPUTypes::Camera> const& camerasBuffer);
+    
+    void recordDrawImgui(
+        VkCommandBuffer cmd
+        , VkImageView view
+    );
+    void recordDrawDebugLines(
+        VkCommandBuffer cmd
+        , uint32_t cameraIndex
+        , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+    );
 
     void mainLoop();
 
@@ -175,8 +189,12 @@ private:
     RenderingPipelines m_activeRenderingPipeline{ RenderingPipelines::DEFERRED };
     std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
+
 public:
-    std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(std::span<uint32_t const> indices, std::span<Vertex const> vertices);
+    std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(
+        std::span<uint32_t const> indices
+        , std::span<Vertex const> vertices
+    );
 
 private:
     // Meshes

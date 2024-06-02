@@ -61,7 +61,10 @@ public:
 std::string MakeLogPrefix(std::source_location location);
 
 /** Checks that a VkResult is a success and throws a runtime error if not. */
-void CheckVkResult(VkResult result, std::source_location location = std::source_location::current());
+void CheckVkResult(
+    VkResult result
+    , std::source_location location = std::source_location::current()
+);
 /** A method used by Imgui's CheckVkResult callback that does not throw. */
 void CheckVkResult_Imgui(VkResult result);
 
@@ -74,7 +77,10 @@ void LogVkResult(
 
 /** Returns the value inside a vkb::Result if it is a success and throws a runtime error if not. */
 template<typename T>
-inline T UnwrapVkbResult(vkb::Result<T> result, std::source_location location = std::source_location::current())
+inline T UnwrapVkbResult(
+    vkb::Result<T> result
+    , std::source_location location = std::source_location::current()
+)
 {
     if (result.has_value())
     {
@@ -82,17 +88,28 @@ inline T UnwrapVkbResult(vkb::Result<T> result, std::source_location location = 
     }
 
     auto const message = fmt::format(
-        fmt::fg(fmt::color::red),
-        "Detected Vulkan Bootstrap Error: {}, {}",
-        result.error().message(),
-        string_VkResult(result.vk_result())
+        fmt::fg(fmt::color::red)
+        , "Detected Vulkan Bootstrap Error: {}, {}"
+        , result.error().message()
+        , string_VkResult(result.vk_result())
     );
     throw std::runtime_error(MakeLogPrefix(location) + message);
 }
 
 /** Logs the message in grey, alongside a prefix that indicates the code location. */
-void Log(std::string message, std::source_location location = std::source_location::current());
+void Log(
+    std::string message
+    , std::source_location location = std::source_location::current()
+);
+
 /** Logs the message in grey, alongside a prefix that indicates the code location. */
-void Warning(std::string message, std::source_location location = std::source_location::current());
+void Warning(
+    std::string message
+    , std::source_location location = std::source_location::current()
+);
+
 /** Logs the message in red, alongside a prefix that indicates the code location. */
-void Error(std::string message, std::source_location location = std::source_location::current());
+void Error(
+    std::string message
+    , std::source_location location = std::source_location::current()
+);
