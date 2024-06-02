@@ -35,7 +35,8 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	, VkDescriptorBindingFlags const flags
 )
 {
-	// We leave data uninitialized until layout creation time to avoid self referencing.
+	// We leave data uninitialized until layout creation time to avoid self 
+	// referencing.
 	VkDescriptorSetLayoutBinding const newBinding{
 		.binding{ binding },
 		.descriptorType{ type },
@@ -101,7 +102,9 @@ std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
 	}
 
 	VkDescriptorSetLayoutBindingFlagsCreateInfo const flagsInfo{
-		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO },
+		.sType{ 
+			VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO 
+		},
 		.pNext{ nullptr },
 
 		.bindingCount{ static_cast<uint32_t>(bindingFlags.size()) },
@@ -139,7 +142,9 @@ void DescriptorAllocator::initPool(
 	std::vector<VkDescriptorPoolSize> poolSizes{};
 	for (PoolSizeRatio const& ratio : poolRatios)
 	{
-		auto const descriptorCount = static_cast<uint32_t>(roundf(ratio.ratio * maxSets));
+		auto const descriptorCount{
+			static_cast<uint32_t>(roundf(ratio.ratio * maxSets))
+		};
 
 		poolSizes.push_back(
 			VkDescriptorPoolSize{

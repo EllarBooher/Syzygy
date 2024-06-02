@@ -12,12 +12,16 @@ static void validatePushConstant(
             shaderObject.reflectionData().defaultPushConstant()
         };
 
-        size_t const loadedPushConstantSize{ pushConstant.type.paddedSizeBytes };
+        size_t const loadedPushConstantSize{ 
+            pushConstant.type.paddedSizeBytes 
+        };
 
         if (loadedPushConstantSize != expectedSize)
         {
             Warning(
-                fmt::format("Loaded Shader \"{}\" had a push constant of size {}, while implementation expects {}."
+                fmt::format(
+                    "Loaded Shader \"{}\" had a push constant of size {}, "
+                    "while implementation expects {}."
                     , shaderObject.name()
                     , loadedPushConstantSize
                     , expectedSize
@@ -28,7 +32,9 @@ static void validatePushConstant(
     else if (expectedSize > 0)
     {
         Warning(
-            fmt::format("Loaded Shader \"{}\" had no push constant, while implementation expects one of size {}."
+            fmt::format(
+                "Loaded Shader \"{}\" had no push constant, "
+                "while implementation expects one of size {}."
                 , shaderObject.name()
                 , expectedSize
             )
@@ -117,7 +123,9 @@ static VkPipelineLayout createLayout(
     };
 
     VkPipelineLayout layout{ VK_NULL_HANDLE };
-    VkResult const result{ vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout) };
+    VkResult const result{ 
+        vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout) 
+    };
     if (result != VK_SUCCESS)
     {
         LogVkResult(result, "Creating shader object pipeline layout");
@@ -157,27 +165,56 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     { // Lights used during the pass
         VkDeviceSize constexpr maxLights{ 16 };
 
-        m_directionalLights = std::make_unique<TStagedBuffer<GPUTypes::LightDirectional>>(
-            TStagedBuffer<GPUTypes::LightDirectional>::allocate(device, allocator, maxLights, 0)
+        m_directionalLights = std::make_unique<
+            TStagedBuffer<GPUTypes::LightDirectional>
+        >(
+            TStagedBuffer<GPUTypes::LightDirectional>::allocate(
+                device
+                , allocator
+                , maxLights
+                , 0
+            )
         );
-        m_spotLights = std::make_unique<TStagedBuffer<GPUTypes::LightSpot>>(
-            TStagedBuffer<GPUTypes::LightSpot>::allocate(device, allocator, maxLights, 0)
+        m_spotLights = std::make_unique<
+            TStagedBuffer<GPUTypes::LightSpot>
+        >(
+            TStagedBuffer<GPUTypes::LightSpot>::allocate(
+                device
+                , allocator
+                , maxLights
+                , 0
+            )
         );
     }
 
     { // Descriptor Sets
         m_drawImageLayout = DescriptorLayoutBuilder()
-            .addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1, 0)
+            .addBinding(
+                0
+                , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , 1
+                , 0
+            )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE);
 
-        m_drawImageSet = descriptorAllocator.allocate(device, m_drawImageLayout);
+        m_drawImageSet = descriptorAllocator.allocate(
+            device
+            , m_drawImageLayout
+        );
 
         {
+            VkExtent3D const drawImageExtent{
+                .width{ dimensionCapacity.width},
+                .height{ dimensionCapacity.height},
+                .depth{ 1 }
+            };
+
             m_drawImage = AllocatedImage::allocate(
                 allocator
                 , device
-                , VkExtent3D{ .width{ dimensionCapacity.width}, .height{ dimensionCapacity.height}, .depth{ 1 } }
+                , drawImageExtent
                 , VK_FORMAT_R16G16B16A16_SFLOAT
                 , VK_IMAGE_ASPECT_COLOR_BIT
                 , VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -224,24 +261,47 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         };
 
         LogVkResult(
-            vkCreateSampler(device, &depthImageImmutableSamplerInfo, nullptr, &m_depthImageImmutableSampler)
+            vkCreateSampler(
+                device
+                , &depthImageImmutableSamplerInfo
+                , nullptr
+                , &m_depthImageImmutableSampler
+            )
             , "Creating depth sampler for deferred shading"
         );
 
         m_depthImageLayout = DescriptorLayoutBuilder()
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT, m_depthImageImmutableSampler, 0)
+            .addBinding(
+                0
+                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , m_depthImageImmutableSampler
+                , (VkDescriptorBindingFlags)0
+            )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE);
 
-        m_depthImageSet = descriptorAllocator.allocate(device, m_depthImageLayout);
+        m_depthImageSet = descriptorAllocator.allocate(
+            device
+            , m_depthImageLayout
+        );
     }
 
     size_t constexpr maxShadowMaps{ 10 };
-    m_shadowPassArray = ShadowPassArray::create(device, descriptorAllocator, allocator, 8192, maxShadowMaps).value();
+    m_shadowPassArray = ShadowPassArray::create(
+        device
+        , descriptorAllocator
+        , allocator
+        , 8192
+        , maxShadowMaps
+    ).value();
 
     { // GBuffer pipelines
         VkPushConstantRange const graphicsPushConstantRange{
-            .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT },
+            .stageFlags{ 
+                VK_SHADER_STAGE_VERTEX_BIT 
+                | VK_SHADER_STAGE_FRAGMENT_BIT 
+            },
             .offset{ 0 },
             .size{ sizeof(GBufferVertexPushConstant) },
         };
@@ -415,11 +475,30 @@ void DeferredShadingPipeline::recordDrawCommands(
     , MeshInstances const& sceneGeometry
 )
 {
-    VkPipelineStageFlags2 const bufferStages{ VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT };
-    cameras.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-    atmospheres.recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-    sceneGeometry.models->recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
-    sceneGeometry.modelInverseTransposes->recordTotalCopyBarrier(cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+    VkPipelineStageFlags2 const bufferStages{ 
+        VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT 
+        | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT 
+    };
+    cameras.recordTotalCopyBarrier(
+        cmd
+        , bufferStages
+        , VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+    atmospheres.recordTotalCopyBarrier(
+        cmd
+        , bufferStages
+        , VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+    sceneGeometry.models->recordTotalCopyBarrier(
+        cmd
+        , bufferStages
+        , VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+    sceneGeometry.modelInverseTransposes->recordTotalCopyBarrier(
+        cmd
+        , bufferStages
+        , VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
 
     { // Update lights
         if (directionalLights.size() > 0)
@@ -427,11 +506,15 @@ void DeferredShadingPipeline::recordDrawCommands(
             m_directionalLights->clearStaged();
             m_directionalLights->push(directionalLights);
             m_directionalLights->recordCopyToDevice(cmd, m_allocator);
-            m_directionalLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+            m_directionalLights->recordTotalCopyBarrier(
+                cmd
+                , VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
+                , VK_ACCESS_2_SHADER_READ_BIT
+            );
         }
         else
         {
-            m_directionalLights->clearBoth();
+            m_directionalLights->clearStagedAndDevice();
         }
 
         if (spotLights.size() > 0)
@@ -439,11 +522,15 @@ void DeferredShadingPipeline::recordDrawCommands(
             m_spotLights->clearStaged();
             m_spotLights->push(spotLights);
             m_spotLights->recordCopyToDevice(cmd, m_allocator);
-            m_spotLights->recordTotalCopyBarrier(cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+            m_spotLights->recordTotalCopyBarrier(
+                cmd
+                , VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
+                , VK_ACCESS_2_SHADER_READ_BIT
+            );
         }
         else
         {
-            m_spotLights->clearBoth();
+            m_spotLights->clearStagedAndDevice();
         }
     }
 
@@ -457,7 +544,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             , m_spotLights->readValidStaged()
         );
 
-        m_shadowPassArray.recordDrawCommands(cmd, sceneMesh, *sceneGeometry.models);
+        m_shadowPassArray.recordDrawCommands(
+            cmd
+            , sceneMesh
+            , *sceneGeometry.models
+        );
     }
 
     if (renderMesh) 
@@ -534,7 +625,11 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
         VkRenderingInfo const renderInfo{
-            vkinit::renderingInfo(VkRect2D{.extent{ drawRect.extent }}, gBufferAttachments,&depthAttachment)
+            vkinit::renderingInfo(
+                VkRect2D{.extent{ drawRect.extent }}
+                , gBufferAttachments
+                , &depthAttachment
+            )
         };
 
         std::array<VkShaderStageFlagBits, 2> stages{
@@ -588,7 +683,9 @@ void DeferredShadingPipeline::recordDrawCommands(
             GBufferVertexPushConstant const vertexPushConstant{
                 .vertexBuffer{ meshBuffers.vertexAddress() },
                 .modelBuffer{ sceneGeometry.models->deviceAddress() },
-                .modelInverseTransposeBuffer{ sceneGeometry.modelInverseTransposes->deviceAddress() },
+                .modelInverseTransposeBuffer{ 
+                    sceneGeometry.modelInverseTransposes->deviceAddress() 
+            },
                 .cameraBuffer{ cameras.deviceAddress() },
                 .cameraIndex{ viewCameraIndex },
             };
@@ -602,8 +699,20 @@ void DeferredShadingPipeline::recordDrawCommands(
         GeometrySurface const& drawnSurface{ sceneMesh.surfaces[0] };
 
         // Bind the entire index buffer of the mesh, but only draw a single surface.
-        vkCmdBindIndexBuffer(cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cmd, drawnSurface.indexCount, sceneGeometry.models->deviceSize(), drawnSurface.firstIndex, 0, 0);
+        vkCmdBindIndexBuffer(
+            cmd
+            , meshBuffers.indexBuffer()
+            , 0
+            , VK_INDEX_TYPE_UINT32
+        );
+        vkCmdDrawIndexed(
+            cmd
+            , drawnSurface.indexCount
+            , sceneGeometry.models->deviceSize()
+            , drawnSurface.firstIndex
+            , 0
+            , 0
+        );
 
         std::array<VkShaderStageFlagBits, 2> unboundStages{
             VK_SHADER_STAGE_VERTEX_BIT
@@ -613,7 +722,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_NULL_HANDLE
             , VK_NULL_HANDLE
         };
-        vkCmdBindShadersEXT(cmd, VKR_ARRAY(unboundStages), unboundHandles.data());
+        vkCmdBindShadersEXT(
+            cmd
+            , VKR_ARRAY(unboundStages)
+            , unboundHandles.data()
+        );
 
         vkCmdEndRendering(cmd);
     }
@@ -717,12 +830,19 @@ void DeferredShadingPipeline::recordDrawCommands(
             .directionalLightsBuffer{ m_directionalLights->deviceAddress() },
             .spotLightsBuffer{ m_spotLights->deviceAddress() },
 
-            .directionalLightCount{ static_cast<uint32_t>(m_directionalLights->deviceSize()) },
-            .spotLightCount{ static_cast<uint32_t>(m_spotLights->deviceSize()) },
+            .directionalLightCount{ 
+                static_cast<uint32_t>(m_directionalLights->deviceSize()) 
+            },
+            .spotLightCount{ 
+                static_cast<uint32_t>(m_spotLights->deviceSize()) 
+            },
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
             .gbufferOffset{ glm::vec2{ 0.0, 0.0 } },
-            .gbufferExtent{ glm::vec2(m_gBuffer.extent().width, m_gBuffer.extent().height)},
+            .gbufferExtent{ glm::vec2(
+                m_gBuffer.extent().width
+                , m_gBuffer.extent().height
+            )},
         };
         m_lightingPassPushConstant = pushConstant;
 
@@ -734,7 +854,12 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_lightingPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
+        vkCmdDispatch(
+            cmd
+            , std::ceil(drawRect.extent.width / 16.0)
+            , std::ceil(drawRect.extent.height / 16.0)
+            , 1
+        );
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
@@ -751,7 +876,9 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkutil::transitionImage(
             cmd
             , depth.image
-            , renderMesh ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            , renderMesh 
+            ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL 
+            : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
             , VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
             , VK_IMAGE_ASPECT_DEPTH_BIT
         );
@@ -779,7 +906,10 @@ void DeferredShadingPipeline::recordDrawCommands(
             .atmosphereIndex{ atmosphereIndex },
             .cameraIndex{ viewCameraIndex },
             .drawOffset{ glm::vec2{ 0.0, 0.0 } },
-            .drawExtent{ glm::vec2{ drawRect.extent.width, drawRect.extent.height } },
+            .drawExtent{ glm::vec2{ 
+                drawRect.extent.width
+                , drawRect.extent.height 
+            }},
         };
         m_skyPassPushConstant = pushConstant;
 
@@ -791,7 +921,12 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_skyPassPushConstant
         );
 
-        vkCmdDispatch(cmd, std::ceil(drawRect.extent.width / 16.0), std::ceil(drawRect.extent.height / 16.0), 1);
+        vkCmdDispatch(
+            cmd
+            , std::ceil(drawRect.extent.width / 16.0)
+            , std::ceil(drawRect.extent.height / 16.0)
+            , 1
+        );
 
         VkShaderEXT const unboundHandle{ VK_NULL_HANDLE };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);

@@ -41,7 +41,8 @@ struct AllocatedBuffer
         }
     }
 
-    // For now we store all of this with each buffer to simplify management at the cost of memory and speed.
+    // For now we store all of this with each buffer to simplify management 
+    // at the cost of memory and speed.
     VmaAllocator allocator{ VK_NULL_HANDLE };
     VmaAllocation allocation{ VK_NULL_HANDLE };
     VmaAllocationInfo info{};
@@ -59,10 +60,7 @@ struct AllocatedBuffer
     );
 };
 
-/*
-* Manages a buffer on the host and a buffer on the device. Tracks how many bytes are valid on either side,
-* based on what this structure copies to them. 
-*/
+// Two linked buffers of the same capacity, one on host and one on device.
 struct StagedBuffer 
 {
     StagedBuffer() = delete;
@@ -82,37 +80,47 @@ struct StagedBuffer
         , VkBufferUsageFlags bufferUsage
     );
 
-    /** Does not record any barriers. */
+    VkDeviceAddress deviceAddress() const;
+    VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
+
+    void overwriteStagedBytes(std::span<uint8_t const> data);
+    void pushStagedBytes(std::span<uint8_t const> data);
+    void popStagedBytes(size_t count);
+
+    // This zeroes out the size flags, and leaves the memory as-is.
+    void clearStaged();
+    // This zeroes out the size flags, and leaves the memory as-is.
+    void clearStagedAndDevice();
+
+    // This structure cannot know exactly how many bytes are up-to-date on the
+    // device side. This value is updated upon recording a copy, and assumes
+    // correct barrier usage so that the staged bytes in the staged amount are
+    // present when queueing further commands with read accesses.
+    // Thus, this is a read after write hazard that the host must be careful of.
+    VkDeviceSize deviceSizeQueuedBytes() const 
+    { 
+        return m_deviceSizeBytes; 
+    };
+
+    VkDeviceSize stagedCapacityBytes() const 
+    { 
+        return m_stagingBuffer.info.size; 
+    };
+    VkDeviceSize stagedSizeBytes() const 
+    { 
+        return m_stagedSizeBytes; 
+    };
+
+    // Does not record any barriers. See StagedBuffer::recordTotalCopyBarrier.
+    // This creates the assumption that the memory on the device is a snapshot
+    // of the staged memory at this point, even if a barrier has not been
+    // recorded yet.
     void recordCopyToDevice(
         VkCommandBuffer cmd
         , VmaAllocator allocator
     );
 
-    VkDeviceAddress deviceAddress() const;
-    VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
-
-    /** Copy an entire span of data into the staging buffer, and resets its size. */
-    void stageBytes(std::span<uint8_t const> data);
-
-    /** Pushes new data into the staging buffer. */
-    void pushBytes(std::span<uint8_t const> data);
-
-    void popBytes(size_t count);
-
-    void clearStaged();
-    void clearBoth();
-
-    /*
-    * This structure cannot know exactly how many bytes are up-to-date on the GPU-side buffer. 
-    * Therefore this parameter is updated upon recording a copy, and poses a read-after-write hazard.
-    */
-    VkDeviceSize deviceSizeQueuedBytes() const { return m_deviceSizeBytes; };
-
-    VkDeviceSize stagingCapacityBytes() const { return m_stagingBuffer.info.size; };
-    /** The number of bytes that have been copied to the staging buffer. */
-    VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
-
-    /** Records a barrier with a source mask for transfer copies, and a destination map for all reads */
+    // Records a barrier to compliment StagedBuffer::recordCopyToDevice.
     void recordTotalCopyBarrier(
         VkCommandBuffer cmd
         , VkPipelineStageFlags2 destinationStage
@@ -135,13 +143,11 @@ protected:
         m_dirty = dirty;
     }
 
-    /*
-    * Often we want to read the staged values (on the host) as if they are the values 
-    * that will be on the device during command execution.
-    * 
-    * This flag marks if the staged values have changed and if this invariant no longer holds, 
-    * even if only one value changed.
-    */
+    // Often we want to read the staged values from the host assuming they are 
+    // the values that will be on the device during command execution.
+    // 
+    // This flag marks if staged memory is possibly not in sync with 
+    // device memory.
     bool m_dirty{};
 
     AllocatedBuffer m_deviceBuffer{};
@@ -160,7 +166,7 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(data.data())
             , data.size_bytes()
         );
-        StagedBuffer::stageBytes(bytes);
+        StagedBuffer::overwriteStagedBytes(bytes);
     }
     void push(std::span<T const> data)
     {
@@ -168,7 +174,7 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(data.data())
             , data.size_bytes()
         );
-        StagedBuffer::pushBytes(bytes);
+        StagedBuffer::pushStagedBytes(bytes);
     }
     void push(T const& data)
     {
@@ -176,14 +182,15 @@ struct TStagedBuffer : public StagedBuffer
             reinterpret_cast<uint8_t const*>(&data)
             , sizeof(T)
         );
-        StagedBuffer::pushBytes(bytes);
+        StagedBuffer::pushStagedBytes(bytes);
     }
     void pop(size_t count)
     {
-        StagedBuffer::popBytes(count * sizeof(T));
+        StagedBuffer::popStagedBytes(count * sizeof(T));
     }
 
-    // These values may be out of date, and not the values used by the GPU upon command execution.
+    // These values may be out of date, and not the values used by the GPU 
+    // upon command execution.
     // Use this only as a convenient interface for modifying the staged values.
     // TODO: get rid of this and have a write-only interface instead
     std::span<T> mapValidStaged()
@@ -194,12 +201,16 @@ struct TStagedBuffer : public StagedBuffer
         );
     }
 
-    // This can be used as a proxy for values on the device, as long as the only writes are from the host.
+    // This can be used as a proxy for values on the device, 
+    // as long as the only writes are from the host.
     std::span<T const> readValidStaged() const
     {
         if (isDirty())
         {
-            Warning("Dirty buffer was accessed with a read, these are not the values last recorded onto the GPU.");
+            Warning(
+                "Dirty buffer was accessed with a read, "
+                "these are not the values last recorded onto the GPU."
+            );
         }
 
         return std::span<T const>(
@@ -233,7 +244,7 @@ struct TStagedBuffer : public StagedBuffer
 
     VkDeviceSize stagingCapacity() const
     {
-        return StagedBuffer::stagingCapacityBytes() / sizeof(T);
+        return StagedBuffer::stagedCapacityBytes() / sizeof(T);
     }
 
     VkDeviceSize stagedSize() const 

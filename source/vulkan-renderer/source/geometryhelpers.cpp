@@ -115,7 +115,8 @@ glm::mat4x4 geometry::projectionOrthoAABBVk(
     , glm::vec3 const geometryExtent
 )
 {
-    // Project every vertex of the AABB supplied, to determine how large the projection matrix needs to be
+    // Project every vertex of the AABB supplied, to determine how large 
+    // the projection matrix needs to be
 
     std::array<glm::vec3, 8> const aabbVertices{ 
         geometry::collectAABBVertices(geometryCenter, geometryExtent) 

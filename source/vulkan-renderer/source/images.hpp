@@ -6,7 +6,7 @@
 
 namespace vkutil {
     // Transitions the layout of an image, putting in a full memory barrier
-    //TODO: track image layout on images themselves, and make this automatic
+    // TODO: track image layout on images themselves, and make this automatic
     void transitionImage(
         VkCommandBuffer cmd
         , VkImage image
@@ -15,10 +15,9 @@ namespace vkutil {
         , VkImageAspectFlags aspects
     );
 
-    /**
-        Copies all RGBA of an image to another.
-        Assumes source is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL and destination is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL.
-    */
+    // Copies all RGBA of an image to another.
+    // Assumes source is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL 
+    // and destination is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL.
     void recordCopyImageToImage(
         VkCommandBuffer cmd
         , VkImage source

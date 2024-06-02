@@ -14,7 +14,7 @@ struct GBuffer
     VkDescriptorSetLayout descriptorLayout{ VK_NULL_HANDLE };
     VkDescriptorSet descriptors{ VK_NULL_HANDLE };
 
-    // We keep these around since every usage of the descriptor layout relies on them
+    // We keep these since their handles are baked into descriptors
     std::vector<VkSampler> immutableSamplers{};
 
     static std::optional<GBuffer> create(

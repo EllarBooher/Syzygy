@@ -20,12 +20,19 @@ namespace lights
         };
 
         glm::mat4x4 const projection{
-            geometry::projectionOrthoAABBVk(view, geometryCenter, geometryExtent)
+            geometry::projectionOrthoAABBVk(
+                view
+                , geometryCenter
+                , geometryExtent
+            )
         };
 
         return GPUTypes::LightDirectional{
             .color{ color },
-            .forward{ glm::vec4(geometry::forwardFromEulers(eulerAngles), 0.0) },
+            .forward{ glm::vec4{
+                    geometry::forwardFromEulers(eulerAngles)
+                    , 0.0
+            }},
             .projection{ projection },
             .view{ view },
             .strength{ strength },
@@ -48,8 +55,17 @@ namespace lights
     {
         return GPUTypes::LightSpot{
             .color{ color },
-            .forward{ glm::vec4(geometry::forwardFromEulers(eulerAngles), 0.0) },
-            .projection{ geometry::projectionVk(verticalFOV, horizontalScale, near, far)},
+            .forward{ glm::vec4{
+                geometry::forwardFromEulers(eulerAngles), 0.0
+            }},
+            .projection{ 
+                geometry::projectionVk(
+                    verticalFOV
+                    , horizontalScale
+                    , near
+                    , far
+                )
+            },
             .view{ geometry::viewVk(position, eulerAngles) },
             .position{ glm::vec4(position, 1.0) },
             .strength{ strength },

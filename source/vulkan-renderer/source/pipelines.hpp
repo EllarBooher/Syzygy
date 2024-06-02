@@ -98,11 +98,12 @@ private:
     VkFormat m_depthAttachmentFormat{ VK_FORMAT_UNDEFINED };
 };
 
-// This pipeline does an offscreen pass of some geometry to write depth information
-class OffscreenPassInstancedMeshGraphicsPipeline
+// This pipeline does an offscreen pass of some geometry 
+// to write depth information
+class OffscreenPassGraphicsPipeline
 {
 public:
-    OffscreenPassInstancedMeshGraphicsPipeline(
+    OffscreenPassGraphicsPipeline(
         VkDevice device
         , VkFormat depthAttachmentFormat
     );
@@ -122,7 +123,9 @@ public:
     void cleanup(VkDevice device);
 
 private:
-    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
+    ShaderModuleReflected m_vertexShader{ 
+        ShaderModuleReflected::MakeInvalid() 
+    };
 
     VkPipeline m_graphicsPipeline{ VK_NULL_HANDLE };
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
@@ -139,22 +142,25 @@ private:
     VertexPushConstant mutable m_vertexPushConstant{};
 
 public:
-    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
-    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+    ShaderModuleReflected const& vertexShader() const { 
+        return m_vertexShader; 
+    };
+    VertexPushConstant const& vertexPushConstant() const { 
+        return m_vertexPushConstant; 
+    };
     ShaderReflectionData::PushConstant const& vertexPushConstantReflected() const 
     { 
         return m_vertexShader.reflectionData().defaultPushConstant(); 
     };
 };
 
-/*
-* A generic compute pipeline driven entirely by a push constant. 
-* Supports multiple shader objects, swapping between them and only using one of them during dispatch.
-*/
-class GenericComputeCollectionPipeline
+// A generic compute pipeline driven entirely by a push constant. 
+// Supports multiple shader objects, swapping between them and only using 
+// one of them during dispatch.
+class ComputeCollectionPipeline
 {
 public:
-    GenericComputeCollectionPipeline(
+    ComputeCollectionPipeline(
         VkDevice device
         , VkDescriptorSetLayout drawImageDescriptorLayout
         , std::span<std::string const> shaderPaths
@@ -195,7 +201,13 @@ public:
         }
         else if (index >= count)
         {
-            Warning(fmt::format("Shader index {} is out of bounds of {}", index, count));
+            Warning(
+                fmt::format(
+                    "Shader index {} is out of bounds of {}"
+                    , index
+                    , count
+                )
+            );
             return;
         }
 
@@ -203,7 +215,10 @@ public:
     }
     size_t shaderIndex() const { return m_shaderIndex; };
     size_t shaderCount() const { return m_shaders.size(); };
-    std::span<ShaderObjectReflected const> shaders() const { return m_shaders; };
+    std::span<ShaderObjectReflected const> shaders() const 
+    { 
+        return m_shaders; 
+    };
 
 private:
     size_t m_shaderIndex{ 0 };
@@ -213,14 +228,11 @@ private:
     std::vector<VkPipelineLayout> m_layouts{}; 
 };
 
-/*
-* A pipeline that draws debug geometry such as lines and points in a compute pass
-* TODO: combine this with the other compute pipeline
-*/
-class DebugLineComputePipeline
+// A pipeline that draws debug geometry such as lines and points in a compute pass
+class DebugLineGraphicsPipeline
 {
 public:
-    DebugLineComputePipeline(
+    DebugLineGraphicsPipeline(
         VkDevice device
         , VkFormat colorAttachmentFormat
         , VkFormat depthAttachmentFormat
@@ -242,8 +254,12 @@ public:
     void cleanup(VkDevice device);
 
 private:
-    ShaderModuleReflected m_vertexShader{ ShaderModuleReflected::MakeInvalid() };
-    ShaderModuleReflected m_fragmentShader{ ShaderModuleReflected::MakeInvalid() };
+    ShaderModuleReflected m_vertexShader{ 
+        ShaderModuleReflected::MakeInvalid() 
+    };
+    ShaderModuleReflected m_fragmentShader{ 
+        ShaderModuleReflected::MakeInvalid() 
+    };
 
     struct VertexPushConstant
     {
@@ -260,8 +276,17 @@ private:
     VkPipelineLayout m_graphicsPipelineLayout{ VK_NULL_HANDLE };
 
 public:
-    ShaderModuleReflected const& vertexShader() const { return m_vertexShader; };
-    VertexPushConstant const& vertexPushConstant() const { return m_vertexPushConstant; };
+    ShaderModuleReflected const& vertexShader() const 
+    { 
+        return m_vertexShader; 
+    };
+    VertexPushConstant const& vertexPushConstant() const 
+    { 
+        return m_vertexPushConstant; 
+    };
 
-    ShaderModuleReflected const& fragmentShader() const { return m_fragmentShader; };
+    ShaderModuleReflected const& fragmentShader() const 
+    { 
+        return m_fragmentShader; 
+    };
 };

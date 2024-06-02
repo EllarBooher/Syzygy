@@ -5,7 +5,7 @@
 
 struct DebugLines
 {
-    std::unique_ptr<DebugLineComputePipeline> pipeline{};
+    std::unique_ptr<DebugLineGraphicsPipeline> pipeline{};
 
     std::unique_ptr<TStagedBuffer<Vertex>> vertices{};
     std::unique_ptr<TStagedBuffer<uint32_t>> indices{};

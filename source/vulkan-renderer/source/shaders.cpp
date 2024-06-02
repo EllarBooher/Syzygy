@@ -4,7 +4,9 @@
 #include "assets.hpp"
 #include <spirv_reflect.h>
 
-ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spirv_bytecode)
+ShaderReflectionData vkutil::generateReflectionData(
+	std::span<uint8_t const> spirv_bytecode
+)
 {
 	SpvReflectShaderModule module;
 	SpvReflectResult const result = spvReflectCreateShaderModule(
@@ -26,13 +28,27 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 		pushConstants.data()
 	);
 
-	std::map<std::string, ShaderReflectionData::PushConstant> pushConstantsByEntryPoint{};
-	for (auto const pEntryPoint : std::span<SpvReflectEntryPoint* const>(&module.entry_points, module.entry_point_count))
+	std::map<
+		std::string
+		, ShaderReflectionData::PushConstant
+	> pushConstantsByEntryPoint{};
+
+	auto const enumeratedEntryPoints{
+		std::span<SpvReflectEntryPoint* const>(&module.entry_points, module.entry_point_count)
+	};
+
+	for (auto const pEntryPoint : enumeratedEntryPoints)
 	{
 		SpvReflectEntryPoint const& entryPoint{ *pEntryPoint };
 
 		SpvReflectResult result;
-		SpvReflectBlockVariable const* pPushConstant{ spvReflectGetEntryPointPushConstantBlock(&module, entryPoint.name, &result) };
+		SpvReflectBlockVariable const* pPushConstant{ 
+			spvReflectGetEntryPointPushConstantBlock(
+				&module
+				, entryPoint.name
+				, &result
+			) 
+		};
 
 		if (result == SPV_REFLECT_RESULT_ERROR_ELEMENT_NOT_FOUND)
 		{
@@ -40,34 +56,46 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			continue;
 		}
 
-		// The only way the result is not success is if 1) the module is null or 2) the entry point does not exist, which we both know to be false.
+		// The only way the result is not success is if 
+		// 1) the module is null 
+		// or 2) the entry point does not exist, which we both know to be false.
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
 		SpvReflectBlockVariable const& pushConstant{ *pPushConstant };
 
-		std::vector<ShaderReflectionData::StructureMember> processedMembers{};
+		std::vector<ShaderReflectionData::Member> processedMembers{};
 
 		assert(pushConstant.type_description->op == SpvOp::SpvOpTypeStruct);
 
 		// Process members
-		std::span<SpvReflectBlockVariable> const members{ pushConstant.members, pushConstant.member_count };
+		std::span<SpvReflectBlockVariable> const members{ 
+			pushConstant.members, pushConstant.member_count 
+		};
 		for (SpvReflectBlockVariable const& member : members)
 		{
 			// Parse spirv-reflect type descriptions into type-safe form
 
 			uint32_t const offsetBytes{ member.offset };
 
-			SpvReflectTypeDescription const& typeDescription{ *member.type_description };
-			SpvReflectNumericTraits const& numericTraits{ typeDescription.traits.numeric };
+			SpvReflectTypeDescription const& typeDescription{ 
+				*member.type_description 
+			};
+			SpvReflectNumericTraits const& numericTraits{ 
+				typeDescription.traits.numeric 
+			};
 
 			// SPIR-V type names are empty for built in types ?
-			std::string const typeName{ typeDescription.type_name == nullptr ? "" : typeDescription.type_name };
+			std::string const typeName{ 
+				typeDescription.type_name == nullptr 
+				? "" 
+				: typeDescription.type_name 
+			};
 
 			uint32_t const bitWidth = member.numeric.scalar.width;
 
 			// For early exit, if the type ends up being unsupported
 
-			ShaderReflectionData::StructureMember const unsupportedMember{
+			ShaderReflectionData::Member const unsupportedMember{
 					.offsetBytes{ offsetBytes },
 					.name{ member.name },
 					.type{ ShaderReflectionData::SizedType{
@@ -81,10 +109,14 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 
 			SpvReflectTypeFlags const numericTypesMask{ 0x0000FFFF };
 
-			if (typeDescription.type_flags & SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_REF)
+			if (
+				typeDescription.type_flags 
+				& SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_REF
+			)
 			{
-				// SpirV-reflect should only add this flag if the type is an OpTypePointer
-				processedMembers.push_back(ShaderReflectionData::StructureMember{
+				// SpirV-reflect should only add this flag 
+				// if the type is an OpTypePointer
+				processedMembers.push_back(ShaderReflectionData::Member{
 					.offsetBytes{ offsetBytes },
 					.name{ member.name },
 					.type{
@@ -105,16 +137,25 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 				{
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_INT:
 					componentType = ShaderReflectionData::Integer{
-						.signedness{ static_cast<bool>(numericTraits.scalar.signedness) }
+						.signedness{ 
+							static_cast<bool>(numericTraits.scalar.signedness) 
+						}
 					};
 					break;
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_FLOAT:
 					componentType = ShaderReflectionData::Float{};
 					break;
 				default:
-					Warning(fmt::format("Unsupported push constant member type \"{}\" for \"{}\""
-						, std::to_string(typeDescription.type_flags & typeFlagComponentTypeMask)
-						, member.name)
+					Warning(
+						fmt::format(
+							"Unsupported push constant member type \"{}\" "
+							"for \"{}\""
+							, std::to_string(
+								typeDescription.type_flags 
+								& typeFlagComponentTypeMask
+							)
+							, member.name
+						)
 					);
 					processedMembers.push_back(unsupportedMember);
 					continue;
@@ -132,28 +173,38 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 						.componentCount{ numericTraits.vector.component_count }
 					};
 					break;
-				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX | SPV_REFLECT_TYPE_FLAG_VECTOR:
+				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX 
+					| SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_VECTOR:
 					format = ShaderReflectionData::Matrix{
 						.columnCount{ numericTraits.matrix.column_count },
 						.rowCount{ numericTraits.matrix.row_count }
 					};
 					break;
 				default:
-					Warning(fmt::format("Unsupported push constant member format \"{}\" for \"{}\""
-						, std::to_string(typeDescription.type_flags & typeFlagFormatMask)
-						, member.name)
+					Warning(
+						fmt::format(
+							"Unsupported push constant member format \"{}\" "
+							"for \"{}\""
+							, std::to_string(
+								typeDescription.type_flags 
+								& typeFlagFormatMask
+							)
+							, member.name
+						)
 					);
 					processedMembers.push_back(unsupportedMember);
 					continue;
 				}
 
-				processedMembers.push_back(ShaderReflectionData::StructureMember{
+				processedMembers.push_back(ShaderReflectionData::Member{
 					.offsetBytes{ offsetBytes },
 					.name{ member.name },
 					.type{
 						ShaderReflectionData::SizedType{
 							.typeData{ ShaderReflectionData::NumericType{
-								.componentBitWidth{ numericTraits.scalar.width },
+								.componentBitWidth{ 
+									numericTraits.scalar.width 
+								},
 								.componentType{ componentType },
 								.format{ format },
 							}},
@@ -166,25 +217,32 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 			}
 			else
 			{
-				Warning(fmt::format("Unsupported push constant member flag types \"{}\" for \"{}\""
-					, std::to_string(typeDescription.type_flags)
-					, member.name)
+				Warning(
+					fmt::format(
+						"Unsupported push constant member flag types \"{}\" "
+						"for \"{}\""
+						, std::to_string(typeDescription.type_flags)
+						, member.name
+					)
 				);
 				processedMembers.push_back(unsupportedMember);
 				continue;
 			}
 		}
 
-		pushConstantsByEntryPoint[std::string{ entryPoint.name }] = ShaderReflectionData::PushConstant{
-			.type{
-				.name{	pushConstant.type_description->type_name },
-				.sizeBytes{ pushConstant.size },
-				.paddedSizeBytes{ pushConstant.padded_size },
-				.members{ processedMembers },
-			},
-			.name{ pushConstant.name },
-			.layoutOffsetBytes{ pushConstant.offset }
-		};
+		pushConstantsByEntryPoint.insert({
+			std::string{ entryPoint.name }
+			, ShaderReflectionData::PushConstant{
+				.type{
+					.name{	pushConstant.type_description->type_name },
+					.sizeBytes{ pushConstant.size },
+					.paddedSizeBytes{ pushConstant.padded_size },
+					.members{ processedMembers },
+				},
+				.name{ pushConstant.name },
+				.layoutOffsetBytes{ pushConstant.offset }
+			}
+		});
 	}
 
 	std::string defaultEntryPoint{ module.entry_point_name };
@@ -197,7 +255,9 @@ ShaderReflectionData vkutil::generateReflectionData(std::span<uint8_t const> spi
 	};
 }
 
-bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other) const
+bool ShaderReflectionData::Structure::logicallyCompatible(
+	Structure const& other
+) const
 {
 	uint32_t memberIndex{ 0 };
 	uint32_t otherMemberIndex{ 0 };
@@ -205,9 +265,11 @@ bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other
 	size_t iterations{ 0 };
 	while (iterations < 100)
 	{
-		if (memberIndex >= members.size() || otherMemberIndex >= other.members.size())
+		if (memberIndex >= members.size() 
+			|| otherMemberIndex >= other.members.size())
 		{
-			// Reached the end without finding incompatible members, so the rest does not matter.
+			// Reached the end without finding incompatible members, 
+			// so the rest does not matter.
 			return true;
 		}
 
@@ -217,17 +279,21 @@ bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other
 			uint32_t endPaddedByte{ 0 };
 		};
 		auto const getByteRange{
-			[&](StructureMember const& member) {
+			[&](Member const& member) {
 				return ByteRange{
 					.startByte{ member.offsetBytes },
-					.endUnpaddedByte{ member.offsetBytes + member.type.sizeBytes },
-					.endPaddedByte{ member.offsetBytes + member.type.paddedSizeBytes },
+					.endUnpaddedByte{ 
+						member.offsetBytes + member.type.sizeBytes 
+					},
+					.endPaddedByte{ 
+						member.offsetBytes + member.type.paddedSizeBytes 
+					},
 				};
 			}
 		};
 
-		StructureMember const& member{ members[memberIndex] };
-		StructureMember const& otherMember{ other.members[otherMemberIndex] };
+		Member const& member{ members[memberIndex] };
+		Member const& otherMember{ other.members[otherMemberIndex] };
 
 		ByteRange const memberRange{ getByteRange(member) };
 		ByteRange const otherMemberRange{ getByteRange(otherMember) };
@@ -263,31 +329,43 @@ bool ShaderReflectionData::Structure::logicallyCompatible(Structure const& other
 			otherMemberIndex += 1;
 		}
 	}
-	Error(fmt::format("Ran out of iterations while checking shader structure compatibility between {} and {}."
-		, name
-		, other.name
-	));
+	Error(
+		fmt::format(
+			"Ran out of iterations while checking shader structure "
+			"compatibility between {} and {}."
+			, name
+			, other.name
+		)
+	);
 	return false;
 }
 
-bool ShaderReflectionData::NumericType::operator==(NumericType const& other) const
+bool ShaderReflectionData::NumericType::operator==(
+	NumericType const& other
+) const
 {
 	return other.componentBitWidth == componentBitWidth
 		&& other.componentType == componentType
 		&& other.format == format;
 }
 
-bool ShaderReflectionData::Integer::operator==(Integer const& other) const
+bool ShaderReflectionData::Integer::operator==(
+	Integer const& other
+) const
 {
 	return other.signedness == signedness;
 }
 
-bool ShaderReflectionData::Vector::operator==(Vector const& other) const
+bool ShaderReflectionData::Vector::operator==(
+	Vector const& other
+) const
 {
 	return other.componentCount == componentCount;
 }
 
-bool ShaderReflectionData::Matrix::operator==(Matrix const& other) const
+bool ShaderReflectionData::Matrix::operator==(
+	Matrix const& other
+) const
 {
 	return other.columnCount == columnCount
 		&& other.rowCount == rowCount;
@@ -304,7 +382,9 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 	, VkSpecializationInfo const specializationInfo
 )
 {
-	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+	ShaderReflectionData reflectionData{ 
+		vkutil::generateReflectionData(spirvBytecode) 
+	};
 
 	vkutil::ShaderResult<VkShaderEXT> compilationResult{
 		vkutil::CompileShaderObject(
@@ -318,7 +398,10 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 		)
 	};
 
-	LogVkResult(compilationResult.result, fmt::format("Created Shader Object {}", name));
+	LogVkResult(
+		compilationResult.result
+		, fmt::format("Created Shader Object {}", name)
+	);
 	if (compilationResult.result != VK_SUCCESS)
 	{
 		return {};
@@ -342,13 +425,17 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 	, VkSpecializationInfo const specializationInfo
 )
 {
-	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+	ShaderReflectionData reflectionData{ 
+		vkutil::generateReflectionData(spirvBytecode) 
+	};
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
 
 	if (reflectionData.defaultEntryPointHasPushConstant())
 	{
-		ShaderReflectionData::PushConstant const& pushConstant{ reflectionData.defaultPushConstant() };
+		ShaderReflectionData::PushConstant const& pushConstant{ 
+			reflectionData.defaultPushConstant() 
+		};
 		pushConstantRanges.push_back(pushConstant.totalRange(stage));
 	}
 
@@ -364,7 +451,10 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 		)
 	};
 
-	LogVkResult(compilationResult.result, fmt::format("Created Shader Object {}", name));
+	LogVkResult(
+		compilationResult.result
+		, fmt::format("Created Shader Object {}", name)
+	);
 	if (compilationResult.result != VK_SUCCESS)
 	{
 		return {};
@@ -390,11 +480,16 @@ std::optional<ShaderModuleReflected> ShaderModuleReflected::FromBytecode(
 
 	if (compilationResult.result != VK_SUCCESS)
 	{
-		LogVkResult(compilationResult.result, fmt::format("Failed to create shader module {}", name));
+		LogVkResult(
+			compilationResult.result
+			, fmt::format("Failed to create shader module {}", name)
+		);
 		return {};
 	}
 
-	ShaderReflectionData reflectionData{ vkutil::generateReflectionData(spirvBytecode) };
+	ShaderReflectionData reflectionData{ 
+		vkutil::generateReflectionData(spirvBytecode) 
+	};
 
 	Log(fmt::format("Successfully compiled ShaderModuleReflected: {}", name));
 	return ShaderModuleReflected(
@@ -454,14 +549,18 @@ vkutil::ShaderResult<VkShaderEXT> vkutil::CompileShaderObject(
 		.setLayoutCount{ static_cast<uint32_t>(layouts.size()) },
 		.pSetLayouts{ layouts.data() },
 
-		.pushConstantRangeCount{ static_cast<uint32_t>(pushConstantRanges.size()) },
+		.pushConstantRangeCount{ 
+			static_cast<uint32_t>(pushConstantRanges.size()) 
+		},
 		.pPushConstantRanges{ pushConstantRanges.data() },
 
 		.pSpecializationInfo{ &specializationInfo },
 	};
 
 	VkShaderEXT shaderObject{ VK_NULL_HANDLE };
-	VkResult const result{ vkCreateShadersEXT(device, 1, &createInfo, nullptr, &shaderObject) };
+	VkResult const result{ 
+		vkCreateShadersEXT(device, 1, &createInfo, nullptr, &shaderObject) 
+	};
 
 	return ShaderResult<VkShaderEXT>{
 		.shader{ shaderObject },
@@ -484,19 +583,26 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 		overloaded{
 			[&](AssetFile const& file)
 			{
-				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecodeReflected(
-					device
-					, file.fileName
-					, file.fileBytes
-					, stage
-					, nextStage
-					, layouts
-					, specializationInfo
-				)};
+				return std::optional<ShaderObjectReflected>{
+					ShaderObjectReflected::FromBytecodeReflected(
+						device
+						, file.fileName
+						, file.fileBytes
+						, stage
+						, nextStage
+						, layouts
+						, specializationInfo
+					)
+				};
 			},
 			[&](AssetLoadingError const& error)
 			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				Error(
+					fmt::format(
+						"Failed to load asset for shader: {}"
+						, error.message
+					)
+				);
 				return std::optional<ShaderObjectReflected>{};
 			}
 		}, fileLoadingResult
@@ -520,20 +626,27 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 		overloaded{
 			[&](AssetFile const& file)
 			{
-				return std::optional<ShaderObjectReflected>{ShaderObjectReflected::FromBytecode(
-					device
-					, file.fileName
-					, file.fileBytes
-					, stage
-					, nextStage
-					, layouts
-					, rangeOverrides
-					, specializationInfo
-				)};
+				return std::optional<ShaderObjectReflected>{
+					ShaderObjectReflected::FromBytecode(
+						device
+						, file.fileName
+						, file.fileBytes
+						, stage
+						, nextStage
+						, layouts
+						, rangeOverrides
+						, specializationInfo
+					)
+				};
 			},
 			[&](AssetLoadingError const& error)
 			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				Error(
+					fmt::format(
+						"Failed to load asset for shader: {}"
+						, error.message
+					)
+				);
 				return std::optional<ShaderObjectReflected>{};
 			}
 		}, fileLoadingResult
@@ -555,7 +668,9 @@ vkutil::ShaderResult<VkShaderModule> vkutil::CompileShaderModule(
 	};
 
 	VkShaderModule shaderModule{ VK_NULL_HANDLE };
-	VkResult const result{ vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) };
+	VkResult const result{ 
+		vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) 
+	};
 
 	return ShaderResult<VkShaderModule>{
 		.shader{ shaderModule },
@@ -574,15 +689,22 @@ std::optional<ShaderModuleReflected> vkutil::loadShaderModule(
 		overloaded{
 			[&](AssetFile const& file)
 			{
-				return std::optional<ShaderModuleReflected>{ShaderModuleReflected::FromBytecode(
-					device
-					, file.fileName
-					, file.fileBytes
-				)};
+				return std::optional<ShaderModuleReflected>{
+					ShaderModuleReflected::FromBytecode(
+						device
+						, file.fileName
+						, file.fileBytes
+					)
+				};
 			},
 			[&](AssetLoadingError const& error)
 			{
-				Error(fmt::format("Failed to load asset for shader: {}", error.message));
+				Error(
+					fmt::format(
+						"Failed to load asset for shader: {}"
+						, error.message
+					)
+				);
 				return std::optional<ShaderModuleReflected>{};
 			}
 		}, fileLoadingResult

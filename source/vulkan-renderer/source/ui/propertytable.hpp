@@ -27,14 +27,16 @@ struct PropertyTable
 private:
     typedef PropertyTable Self;
 
-    // Use 16 bit uints, since DearImGui uses 32 bit ints but we only use positive values.
+    // We use 16 bit unsized integers that fit inside ImGui's expected 
+    // 32 bit signed integers.
     static uint16_t constexpr PROPERTY_INDEX{ 0 };
     static uint16_t constexpr VALUE_INDEX{ 1 };
     static uint16_t constexpr RESET_INDEX{ 2 };
 
     uint16_t const m_styleVariablesCount{ 0 };
 
-    // Used to avoid name collision, by incrementing and salting names passed to ImGui.
+    // Used to avoid name collision, by incrementing and salting names passed 
+    // to ImGui.
     size_t m_propertyCount{ 0 };
 
     bool m_open{ false };
@@ -42,9 +44,9 @@ private:
 
     size_t m_childPropertyDepth{ 0 };
 
-    // The depth at which we first collapsed. If no value is set, we are not collapsed.
-    // We track this so when nesting child properties within a collapsed child, we can see when to stop being
-    // collapsed.
+    // The depth at which we first collapsed. If no value is set, 
+    // we are not collapsed. We track this so when nesting child properties 
+    // within a collapsed child, we can see when to stop being collapsed.
     std::optional<size_t> m_childPropertyFirstCollapse{ std::nullopt };
 
     PropertyTable() = delete;
@@ -69,8 +71,9 @@ private:
 
     void checkInvariant() const
     {
-        // If we are collapsed, it must have occured at the current or an earlier depth.
-        // Violation of this invariant likely means m_childPropertyDepth was decremented without updating collapse
+        // If we are collapsed, it must have occured at the current or an 
+        // earlier depth. Violation of this invariant likely means 
+        // m_childPropertyDepth was decremented without updating collapse
         // status.
         assert(
             !m_childPropertyFirstCollapse.has_value()
@@ -85,7 +88,8 @@ private:
             && m_childPropertyDepth > m_childPropertyFirstCollapse.value(); 
     }
 
-    // If this returns false, the row should not be modified further. Do NOT call rowEnd if this returns false.
+    // If this returns false, the row should not be modified further. 
+    // Do NOT call rowEnd if this returns false.
     bool rowBegin(std::string const& name);
     void rowEnd();
 
@@ -93,24 +97,28 @@ public:
     // Creates a separate window, that demonstrates PropertyTable usage.
     static void demoWindow(bool& open);
 
-    // Using the default name synchronizes the table's column widths (and possibly other properties) across the window.
+    // Using the default name synchronizes many of the table's properties
+    // across the window.
     static PropertyTable begin(std::string name = "PropertyTable");
 
     void end();
 
-    // Adds an arrow button to the previous row, and enters a collapsible section.
-    // Further calls to row drawing methods will be skipped until childPropertyEnd is called,
-    // depending on if this rows button is collapsed or not. This is tracked internally.
-    // This also adds proper styling and indenting.
+    // Adds an arrow button to the previous row, and enters a collapsible 
+    // section. Further calls to row drawing methods will be skipped until 
+    // childPropertyEnd is called, depending on if this rows button is 
+    // collapsed or not. This is tracked internally.
     PropertyTable& childPropertyBegin();
 
-    // This adds a new row for the collapsing button. See PropertyTable::childPropertyBegin.
+    // This adds a new row for the collapsing button. 
+    // See PropertyTable::childPropertyBegin.
     PropertyTable& rowChildPropertyBegin(std::string const& name);
 
-    // A corresponding PropertyTable::rowChildPropertyBegin or PropertyTable::childPropertyBegin must have been called.
+    // A corresponding PropertyTable::rowChildPropertyBegin 
+    // or PropertyTable::childPropertyBegin must have been called.
     PropertyTable& childPropertyEnd();
 
-    // Adds a row that contains a dropdown, containing a list of values, alongside a reset button.
+    // Adds a row that contains a dropdown, containing a list of values, 
+    // alongside a reset button.
     PropertyTable& rowDropdown(
         std::string const& name
         , size_t& selectedIndex
@@ -118,7 +126,8 @@ public:
         , std::span<std::string const> displayValues
     );
 
-    // Adds a row that contains an interactable text entry, alongside a reset button.
+    // Adds a row that contains an interactable text entry, 
+    // alongside a reset button.
     PropertyTable& rowText(
         std::string const& name
         , std::string& value
@@ -131,7 +140,8 @@ public:
         , std::string const& value
     );
 
-    // Adds a row that contains an interactable 32-bit signed integer entry, alongside a reset button.
+    // Adds a row that contains an interactable 32-bit signed integer entry, 
+    // alongside a reset button.
     PropertyTable& rowInteger(
         std::string const& name
         , int32_t& value
@@ -145,7 +155,8 @@ public:
         , int32_t const& value
     );
 
-    // Adds a row that contains an interactable three-float vector entry, alongside a reset button.
+    // Adds a row that contains an interactable three-float vector entry, 
+    // alongside a reset button.
     PropertyTable& rowVec3(
         std::string const& name
         , glm::vec3& value
@@ -159,7 +170,8 @@ public:
         , glm::vec3 const& value
     );
 
-    // Adds a row that contains an interactable float entry, alongside a reset button.
+    // Adds a row that contains an interactable float entry, 
+    // alongside a reset button.
     PropertyTable& rowFloat(
         std::string const& name
         , float& value
@@ -173,7 +185,8 @@ public:
         , float const& value
     );
 
-    // Adds a row that contains an interactable boolean entry, alongside a reset button.
+    // Adds a row that contains an interactable boolean entry, 
+    // alongside a reset button.
     PropertyTable& rowBoolean(
         std::string const& name
         , bool& value

@@ -25,7 +25,12 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
 
     { // sampler
         VkResult const samplerResult{
-            vkCreateSampler(device, &samplerInfo, nullptr, &shadowPass.m_sampler)
+            vkCreateSampler(
+                device
+                , &samplerInfo
+                , nullptr
+                , &shadowPass.m_sampler
+            )
         };
 
         if (samplerResult != VK_SUCCESS)
@@ -52,13 +57,18 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
         };
         if (!buildResult.has_value())
         {
-            Warning("Unable to build ShadowPassArray sampler descriptor layout.");
+            Warning(
+                "Unable to build ShadowPassArray sampler descriptor layout."
+            );
             return {};
         }
 
         shadowPass.m_samplerSetLayout = buildResult.value();
 
-        shadowPass.m_samplerSet = descriptorAllocator.allocate(device, shadowPass.m_samplerSetLayout);
+        shadowPass.m_samplerSet = descriptorAllocator.allocate(
+            device
+            , shadowPass.m_samplerSetLayout
+        );
 
         // No need to write into this set since we use an immutable sampler.
     }
@@ -111,13 +121,18 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
         };
         if (!buildResult.has_value())
         {
-            Warning("Unable to build ShadowPassArray textures descriptor layout.");
+            Warning(
+                "Unable to build ShadowPassArray textures descriptor layout."
+            );
             return {};
         }
 
         shadowPass.m_texturesSetLayout = buildResult.value();
 
-        shadowPass.m_texturesSet = descriptorAllocator.allocate(device, shadowPass.m_texturesSetLayout);
+        shadowPass.m_texturesSet = descriptorAllocator.allocate(
+            device
+            , shadowPass.m_texturesSetLayout
+        );
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
         for (AllocatedImage const& texture : shadowPass.m_textures)
@@ -150,10 +165,14 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
         vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
 
-    shadowPass.m_projViewMatrices = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+    shadowPass.m_projViewMatrices = std::make_unique<
+        TStagedBuffer<glm::mat4x4>
+    >(
         TStagedBuffer<glm::mat4x4>::allocate(device, allocator, 100, 0)
     );
-    shadowPass.m_pipeline = std::make_unique<OffscreenPassInstancedMeshGraphicsPipeline>(
+    shadowPass.m_pipeline = std::make_unique<
+        OffscreenPassGraphicsPipeline
+    >(
         device,
         VK_FORMAT_D32_SFLOAT
     );
@@ -172,7 +191,10 @@ void ShadowPassArray::recordInitialize(
     m_depthBias = depthBias;
     m_depthBiasSlope = depthBiasSlope;
 
-    { // Copy the projection * view matrices that give the light's POV for each shadow map
+    { 
+        // Copy the projection * view matrices that give 
+        // the light's POV for each shadow map
+        
         TStagedBuffer<glm::mat4x4>& projViewMatrices{ *m_projViewMatrices };
         projViewMatrices.clearStaged();
 
@@ -193,7 +215,10 @@ void ShadowPassArray::recordInitialize(
         if (projViewMatrices.stagedSize() > m_textures.size())
         {
             Warning("Not enough shadow maps allocated, skipping work.");
-            projViewMatrices.pop(projViewMatrices.stagedSize() - m_textures.size());
+            projViewMatrices.pop(
+                projViewMatrices.stagedSize() 
+                - m_textures.size()
+            );
         }
 
         projViewMatrices.recordCopyToDevice(cmd, m_allocator);
@@ -230,7 +255,10 @@ void ShadowPassArray::recordInitialize(
         }
         
         // Prepare for recording of draw commands
-        recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        recordTransitionActiveShadowMaps(
+            cmd
+            , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+        );
     }
 }
 

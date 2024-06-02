@@ -111,9 +111,15 @@ std::optional<GBuffer> GBuffer::create(
         for (size_t i{ 0 }; i < 4; i++)
         {
             VkSampler sampler{ VK_NULL_HANDLE };
-            if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+            VkResult const samplerResult{
+                vkCreateSampler(device, &samplerInfo, nullptr, &sampler)
+            };
+            if (samplerResult != VK_SUCCESS)
             {
-                Error(fmt::format("Failed to create GBuffer immutable sampler {}", i));
+                Error(fmt::format(
+                    "Failed to create GBuffer immutable sampler {}"
+                    , i
+                ));
                 return {};
             }
             buffer.immutableSamplers.push_back(sampler);
@@ -127,10 +133,34 @@ std::optional<GBuffer> GBuffer::create(
     // The descriptor for accessing all the samplers in the lighting passes
     VkDescriptorSetLayout const descriptorLayout{
         DescriptorLayoutBuilder{}
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT, diffuseColorSampler, 0)
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT, specularColorSampler, 0)
-            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT, normalSampler, 0)
-            .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT, worldPositionSampler, 0)
+            .addBinding(
+                0
+                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , diffuseColorSampler
+                , (VkDescriptorBindingFlags)0
+            )
+            .addBinding(
+                1
+                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , specularColorSampler
+                , (VkDescriptorBindingFlags)0
+            )
+            .addBinding(
+                2
+                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , normalSampler
+                , (VkDescriptorBindingFlags)0
+            )
+            .addBinding(
+                3
+                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                , VK_SHADER_STAGE_COMPUTE_BIT
+                , worldPositionSampler
+                , (VkDescriptorBindingFlags)0
+            )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE)
     };
@@ -140,7 +170,9 @@ std::optional<GBuffer> GBuffer::create(
         return {};
     }
     
-    VkDescriptorSet const descriptorSet{ descriptorAllocator.allocate(device, descriptorLayout) };
+    VkDescriptorSet const descriptorSet{ 
+        descriptorAllocator.allocate(device, descriptorLayout) 
+    };
 
     std::vector<VkDescriptorImageInfo> const imageInfos{
         VkDescriptorImageInfo{
@@ -183,7 +215,11 @@ std::optional<GBuffer> GBuffer::create(
     std::vector<VkWriteDescriptorSet> const writes{
         descriptorWrite
     };
-    vkUpdateDescriptorSets(device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(
+        device
+        , VKR_ARRAY(writes)
+        , VKR_ARRAY_NONE
+    );
 
     buffer.descriptors = descriptorSet;
     buffer.descriptorLayout = descriptorLayout;
@@ -197,13 +233,40 @@ void GBuffer::recordTransitionImages(
     , VkImageLayout dstLayout
 )
 {
-    vkutil::transitionImage(cmd, diffuseColor.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, specularColor.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, normal.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkutil::transitionImage(cmd, worldPosition.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkutil::transitionImage(
+        cmd
+        , diffuseColor.image
+        , srcLayout
+        , dstLayout
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
+    vkutil::transitionImage(
+        cmd
+        , specularColor.image
+        , srcLayout
+        , dstLayout
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
+    vkutil::transitionImage(
+        cmd
+        , normal.image
+        , srcLayout
+        , dstLayout
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
+    vkutil::transitionImage(
+        cmd
+        , worldPosition.image
+        , srcLayout
+        , dstLayout
+        , VK_IMAGE_ASPECT_COLOR_BIT
+    );
 }
 
-void GBuffer::cleanup(VkDevice device, VmaAllocator allocator)
+void GBuffer::cleanup(
+    VkDevice device
+    , VmaAllocator allocator
+)
 {
     diffuseColor.cleanup(device, allocator);
     specularColor.cleanup(device, allocator);

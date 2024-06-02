@@ -10,11 +10,19 @@
 /** Shorthand factory method for info structs, with reasonable defaults. */
 namespace vkinit 
 {
-    VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
-    VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
-    VkCommandBufferBeginInfo commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
+    VkFenceCreateInfo fenceCreateInfo(
+        VkFenceCreateFlags flags = 0
+    );
+    VkSemaphoreCreateInfo semaphoreCreateInfo(
+        VkSemaphoreCreateFlags flags = 0
+    );
+    VkCommandBufferBeginInfo commandBufferBeginInfo(
+        VkCommandBufferUsageFlags flags = 0
+    );
     
-    VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
+    VkImageSubresourceRange imageSubresourceRange(
+        VkImageAspectFlags aspectMask
+    );
     VkImageSubresourceLayers imageSubresourceLayers(
         VkImageAspectFlags aspectMask
         , uint32_t mipLevel
@@ -26,7 +34,9 @@ namespace vkinit
         VkPipelineStageFlags2 stageMask
         , VkSemaphore semaphore
     );
-    VkCommandBufferSubmitInfo commandBufferSubmitInfo(VkCommandBuffer cmd);
+    VkCommandBufferSubmitInfo commandBufferSubmitInfo(
+        VkCommandBuffer cmd
+    );
     VkSubmitInfo2 submitInfo(
         std::vector<VkCommandBufferSubmitInfo> const& cmdInfo
         , std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo

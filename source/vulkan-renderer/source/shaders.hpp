@@ -5,18 +5,17 @@
 #include <vector>
 #include <map>
 
-/**
-	Contains reflected data from a ShaderModule, to aid with UI and proper piping of data.
-	Work in progress, for now supports a very limited amount of reflection.
-*/
+// Contains reflected data from a ShaderModule, to aid with UI 
+// and proper piping of data.
+// Work in progress, for now supports a very limited amount of reflection.
 struct ShaderReflectionData
 {
-	/**
-		Type names correspond to the SPIR-V specification.
-		The type names are not meant to exactly match the specification opcodes and layouts,
-		just model it in a way that's useful.
-		See https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html section "2.2.2. Types"
-	*/
+	// Type names correspond to the SPIR-V specification.
+	// The type names are not meant to exactly match the specification opcodes 
+	// and layouts, just model it in a way that's useful.
+	// 
+	// See https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html 
+	// Section "2.2.2. Types"
 
 	// Corresponds to OpTypeInt
 	struct Integer
@@ -60,10 +59,8 @@ struct ShaderReflectionData
 		bool operator==(Pointer const& other) const = default;
 	};
 
-	/**
-		Represents a type whose reflection data could not be generated,
-		usually because the specific type is not supported yet.
-	*/
+	// Represents a type whose reflection data could not be generated,
+	// usually because the specific type is not supported yet.
 	using UnsupportedType = std::monostate;
 
 	struct SizedType
@@ -75,12 +72,13 @@ struct ShaderReflectionData
 		uint32_t paddedSizeBytes;
 	};
 
-	struct StructureMember
+	struct Member
 	{
 		uint32_t offsetBytes;
 		std::string name;
 		SizedType type;
 	};
+
 	// Corresponds to OpTypeStruct
 	struct Structure
 	{
@@ -89,33 +87,28 @@ struct ShaderReflectionData
 		uint32_t sizeBytes;
 		// TODO: figure out what exactly determines the padding size
 		uint32_t paddedSizeBytes;
-		std::vector<StructureMember> members;
+		std::vector<Member> members;
 
-		/**
-			Mutually checks if the members of this struct match any bitwise overlapping members in the other struct.
-		*/
+		// Mutually checks if the members of this struct match 
+		// any bitwise overlapping members in the other struct.
 		bool logicallyCompatible(Structure const& other) const;
 	};
 
-	/*
-		TODO: structs can have padding, as in bits in their representation that are not overlapped by members.
-		I need to investigate exactly how this works, and how best to model this.
-		This is important for push constants, since padding bits in one shader may be
-		accessed in another.
-	*/
+	// TODO: structs can have padding, as in bits in their representation 
+	// that are not overlapped by members. I need to investigate exactly 
+	// how this works, and how best to model this.
 
-	/**
-		As per the Vulkan specification, Push constants must be structs.
-		There can also only be one per entry point.
-		https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces-resources-pushconst
-	*/
+	// As per the Vulkan specification, Push constants must be structs.
+	// There can also only be one per entry point.
+	// https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#interfaces-resources-pushconst
 	struct PushConstant
 	{
 		Structure type{};
 		std::string name{};
 
 		// This is the minimum offset in the struct.
-		// The reflection data will include the implicit padding before this offset in the total size.
+		// The reflection data will include the implicit padding before this 
+		// offset in the total size.
 		uint32_t layoutOffsetBytes{ 0 };
 
 		VkPushConstantRange totalRange(VkShaderStageFlags stageFlags) const
@@ -148,7 +141,10 @@ class ShaderReflectedBase
 public:
 	ShaderReflectedBase() = delete;
 
-	ShaderReflectionData const& reflectionData() const { return m_reflectionData; }
+	ShaderReflectionData const& reflectionData() const 
+	{ 
+		return m_reflectionData; 
+	}
 	std::string name() const { return m_name; }
 
 	void cleanup(VkDevice device);
@@ -164,8 +160,14 @@ protected:
 		, m_shaderHandle(shaderHandle)
 	{}
 
-	VkShaderModule shaderModule() const { return std::get<VkShaderModule>(m_shaderHandle); }
-	VkShaderEXT shaderObject() const { return std::get<VkShaderEXT>(m_shaderHandle); }
+	VkShaderModule shaderModule() const 
+	{ 
+		return std::get<VkShaderModule>(m_shaderHandle); 
+	}
+	VkShaderEXT shaderObject() const 
+	{ 
+		return std::get<VkShaderEXT>(m_shaderHandle); 
+	}
 
 private:
 	std::string m_name{};
@@ -199,7 +201,10 @@ public:
 		return ShaderModuleReflected("", {}, VK_NULL_HANDLE);
 	}
 
-	VkShaderModule shaderModule() const { return ShaderReflectedBase::shaderModule(); }
+	VkShaderModule shaderModule() const 
+	{ 
+		return ShaderReflectedBase::shaderModule(); 
+	}
 };
 
 class ShaderObjectReflected : public ShaderReflectedBase
@@ -228,7 +233,9 @@ public:
 		, std::span<VkPushConstantRange const> pushConstantRanges
 		, VkSpecializationInfo specializationInfo
 	);
-	// Compiles a shader object, but derives push constant data from reflection
+
+	// Compiles a shader object, 
+	// but derives push constant data from reflection
 	static std::optional<ShaderObjectReflected> FromBytecodeReflected(
 		VkDevice device
 		, std::string name
@@ -244,7 +251,10 @@ public:
 		return ShaderObjectReflected("", {}, VK_NULL_HANDLE);
 	}
 
-	VkShaderEXT shaderObject() const { return ShaderReflectedBase::shaderObject(); }
+	VkShaderEXT shaderObject() const 
+	{ 
+		return ShaderReflectedBase::shaderObject(); 
+	}
 };
 
 namespace vkutil
@@ -297,7 +307,9 @@ namespace vkutil
 
 struct ComputeShaderWrapper
 {
-	ShaderModuleReflected computeShader{ ShaderModuleReflected::MakeInvalid() };
+	ShaderModuleReflected computeShader{ 
+		ShaderModuleReflected::MakeInvalid() 
+	};
 	VkPipeline pipeline{ VK_NULL_HANDLE };
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
 
@@ -310,5 +322,7 @@ struct ComputeShaderWrapper
 
 namespace vkutil
 {
-	ShaderReflectionData generateReflectionData(std::span<uint8_t const> spirv_bytecode);
+	ShaderReflectionData generateReflectionData(
+		std::span<uint8_t const> spirv_bytecode
+	);
 }

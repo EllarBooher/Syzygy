@@ -116,15 +116,16 @@ PropertyTable& PropertyTable::childPropertyBegin()
             : ImGuiDir_Down
         };
 
-        // We find the beginning of the previous column WITHOUT indents, by passing a minimal float.
-        // Passing 0.0 to SameLine puts the button after the column's text, which is not what we want.
+        // We find the beginning of the previous column WITHOUT indents, 
+        // by passing a minimal float. Passing 0.0 to SameLine puts the button 
+        // after the column's text, which is not what we want.
         // There might be a better way to do this. 
-
-        // We must precompute these values since changing the cursor changes them.
         auto const maxX{ ImGui::GetContentRegionMax().x };
         auto const columnWidth{ ImGui::GetColumnWidth() };
         auto const buttonWidth{ Self::collapseButtonWidth() };
 
+        // We must precompute the above values since 
+        // this line would modify them.
         ImGui::SameLine(FLT_MIN);
 
         auto const cursorX{ ImGui::GetCursorPosX() };
@@ -169,7 +170,8 @@ PropertyTable& PropertyTable::childPropertyEnd()
     checkInvariant();
     assert(
         m_childPropertyDepth > 0
-        && "rowChildPropertyEnd() called on PropertyTable with not enough matching rowChildPropertyBegin()"
+        && "(rowChildPropertyEnd() called on PropertyTable with not enough"
+        "matching rowChildPropertyBegin())"
     );
 
     ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
@@ -438,7 +440,9 @@ PropertyTable& PropertyTable::rowReadOnlyVec3(
     ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
     for (uint32_t component{ 0 }; component < 3; component++)
     {
-        float const interComponentSpacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+        float const interComponentSpacing{ 
+            ImGui::GetStyle().ItemInnerSpacing.x 
+        };
         if (component > 0) ImGui::SameLine(0.0f, interComponentSpacing);
 
         float componentValue{ value[component] };
@@ -704,7 +708,10 @@ void PropertyTable::demoWindow(bool& open)
                 , 592181
             )
         .childPropertyEnd() // Available Fields
-        .rowReadOnlyText("Child Properties", "Child Properties remember their collapse status.")
+        .rowReadOnlyText(
+            "Child Properties"
+            , "Child Properties remember their collapse status."
+        )
         .childPropertyBegin()
             .rowChildPropertyBegin("Child")
                 .rowChildPropertyBegin("Child")

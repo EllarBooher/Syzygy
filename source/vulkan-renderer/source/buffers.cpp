@@ -52,18 +52,19 @@ AllocatedBuffer AllocatedBuffer::allocate(
     return newBuffer;
 }
 
-
-/** 
-    Requires the allocator to possibly flush the staging buffer. 
-    This updates the assumed size of data on the device, which may not be accurate until the gpu copies the data.
-    Use a barrier before trying to access the data on the GPU.
-*/
 void StagedBuffer::recordCopyToDevice(
     VkCommandBuffer cmd
     , VmaAllocator allocator
 )
 {
-    CheckVkResult(vmaFlushAllocation(allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE));
+    CheckVkResult(
+        vmaFlushAllocation(
+            allocator
+            , m_stagingBuffer.allocation
+            , 0
+            , VK_WHOLE_SIZE
+        )
+    );
 
     markDirty(false);
 
@@ -72,7 +73,12 @@ void StagedBuffer::recordCopyToDevice(
         .dstOffset{ 0 },
         .size{ m_stagedSizeBytes },
     };
-    vkCmdCopyBuffer(cmd, m_stagingBuffer.buffer, m_deviceBuffer.buffer, 1, &copyInfo);
+    vkCmdCopyBuffer(
+        cmd
+        , m_stagingBuffer.buffer
+        , m_deviceBuffer.buffer
+        , 1, &copyInfo
+    );
 
     m_deviceSizeBytes = m_stagedSizeBytes;
 }
@@ -81,20 +87,23 @@ VkDeviceAddress StagedBuffer::deviceAddress() const
 {
     if (isDirty())
     {
-        Warning("Dirty buffer's device address was accessed, the buffer may have unexpected values at command execution.");
+        Warning(
+            "Dirty buffer's device address was accessed, "
+            "the buffer may have unexpected values at command execution."
+        );
     }
 
     return m_deviceBuffer.deviceAddress;
 }
 
-void StagedBuffer::stageBytes(std::span<uint8_t const> data)
+void StagedBuffer::overwriteStagedBytes(std::span<uint8_t const> data)
 {
     clearStaged();
     markDirty(true);
-    pushBytes(data);
+    pushStagedBytes(data);
 }
 
-void StagedBuffer::pushBytes(std::span<uint8_t const> data)
+void StagedBuffer::pushStagedBytes(std::span<uint8_t const> data)
 {
     assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
 
@@ -107,7 +116,7 @@ void StagedBuffer::pushBytes(std::span<uint8_t const> data)
     m_stagedSizeBytes += data.size_bytes();
 }
 
-void StagedBuffer::popBytes(size_t count)
+void StagedBuffer::popStagedBytes(size_t count)
 {
     markDirty(true);
 
@@ -127,7 +136,7 @@ void StagedBuffer::clearStaged()
     m_stagedSizeBytes = 0;
 }
 
-void StagedBuffer::clearBoth()
+void StagedBuffer::clearStagedAndDevice()
 {
     m_stagedSizeBytes = 0;
     m_deviceSizeBytes = 0;
@@ -165,7 +174,7 @@ StagedBuffer StagedBuffer::allocate(
         ) 
     };
 
-    // Don't worry about where these buffers were actually allocated for now, even if this leads to wasteful copies.
+    // We assume the allocation went correctly.
     // TODO: verify where these buffers allocated, and handle if they fail
 
     return StagedBuffer(

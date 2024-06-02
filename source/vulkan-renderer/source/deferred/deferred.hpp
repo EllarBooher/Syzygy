@@ -52,14 +52,19 @@ private:
 
     VmaAllocator m_allocator{ VK_NULL_HANDLE };
 
-    std::unique_ptr<TStagedBuffer<GPUTypes::LightDirectional>> m_directionalLights{};
-    std::unique_ptr<TStagedBuffer<GPUTypes::LightSpot>> m_spotLights{};
+    typedef TStagedBuffer<GPUTypes::LightDirectional> LightDirectionalBuffer;
+    std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
+
+    typedef TStagedBuffer<GPUTypes::LightSpot> LightSpotBuffer;
+    std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{ VK_NULL_HANDLE };
-    VkDescriptorSetLayout m_drawImageLayout{ VK_NULL_HANDLE }; // Used by compute shaders to output final image
+    // Used by compute shaders to output final image
+    VkDescriptorSetLayout m_drawImageLayout{ VK_NULL_HANDLE }; 
 
     VkDescriptorSet m_depthImageSet{ VK_NULL_HANDLE };
-    VkDescriptorSetLayout m_depthImageLayout{ VK_NULL_HANDLE }; // Used by compute shaders to read scene depth
+    // Used by compute shaders to read scene depth
+    VkDescriptorSetLayout m_depthImageLayout{ VK_NULL_HANDLE }; 
 
     VkSampler m_depthImageImmutableSampler{ VK_NULL_HANDLE };
 
@@ -78,9 +83,15 @@ private:
     };
 
     GBufferVertexPushConstant mutable m_gBufferVertexPushConstant{};
-    ShaderObjectReflected m_gBufferVertexShader{ ShaderObjectReflected::MakeInvalid() };
-    ShaderObjectReflected m_gBufferFragmentShader{ ShaderObjectReflected::MakeInvalid() };
-    VkPipelineLayout m_gBufferLayout{ VK_NULL_HANDLE }; //TODO: initialize these layouts
+    ShaderObjectReflected m_gBufferVertexShader{ 
+        ShaderObjectReflected::MakeInvalid() 
+    };
+    ShaderObjectReflected m_gBufferFragmentShader{ 
+        ShaderObjectReflected::MakeInvalid() 
+    };
+
+    // TODO: initialize these layouts
+    VkPipelineLayout m_gBufferLayout{ VK_NULL_HANDLE };
 
     struct LightingPassComputePushConstant
     {
@@ -100,7 +111,11 @@ private:
     };
 
     LightingPassComputePushConstant mutable m_lightingPassPushConstant{};
-    ShaderObjectReflected m_lightingPassComputeShader{ ShaderObjectReflected::MakeInvalid() };
+    
+    ShaderObjectReflected m_lightingPassComputeShader{ 
+        ShaderObjectReflected::MakeInvalid() 
+    };
+    
     VkPipelineLayout m_lightingPassLayout{ VK_NULL_HANDLE };
 
     struct SkyPassComputePushConstant
@@ -118,7 +133,11 @@ private:
     };
 
     SkyPassComputePushConstant mutable m_skyPassPushConstant{};
-    ShaderObjectReflected m_skyPassComputeShader{ ShaderObjectReflected::MakeInvalid() };
+    
+    ShaderObjectReflected m_skyPassComputeShader{ 
+        ShaderObjectReflected::MakeInvalid() 
+    };
+    
     VkPipelineLayout m_skyPassLayout{ VK_NULL_HANDLE };
 
 public:

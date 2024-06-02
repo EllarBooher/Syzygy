@@ -85,7 +85,8 @@ struct DockingLayout
 };
 
 // Builds a hardcoded hierarchy of docking nodes from the passed parent.
-// This also may break layouts, if windows have been moved or docked, since all new IDs are generated.
+// This also may break layouts, if windows have been moved or docked, 
+// since all new IDs are generated.
 DockingLayout buildDefaultMultiWindowLayout(
     ImVec2 pos
     , ImVec2 size

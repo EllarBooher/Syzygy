@@ -86,7 +86,8 @@ static void renderPreferences(
         );
 
         ImGui::TextWrapped(
-            "Some DPI Scale values will produce blurry fonts, so consider using an integer value."
+            "Some DPI Scale values will produce blurry fonts, "
+            "so consider using an integer value."
         );
 
         if (ImGui::Button("Apply"))
@@ -146,14 +147,30 @@ HUDState renderHUD(UIPreferences& preferences)
         {
             if (ImGui::BeginMenu("Tools"))
             {
-                ImGui::MenuItem("Preferences", nullptr, &showPreferences);
+                ImGui::MenuItem(
+                    "Preferences"
+                    , nullptr
+                    , &showPreferences
+                );
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Window"))
             {
-                ImGui::MenuItem("Maximize Scene Viewport", nullptr, &maximizeSceneViewport);
-                ImGui::MenuItem("UI Demo Window", nullptr, &showUIDemoWindow);
-                ImGui::MenuItem("Reset Window Layout", nullptr, &resetLayoutRequested);
+                ImGui::MenuItem(
+                    "Maximize Scene Viewport"
+                    , nullptr
+                    , &maximizeSceneViewport
+                );
+                ImGui::MenuItem(
+                    "UI Demo Window"
+                    , nullptr
+                    , &showUIDemoWindow
+                );
+                ImGui::MenuItem(
+                    "Reset Window Layout"
+                    , nullptr
+                    , &resetLayoutRequested
+                );
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
@@ -176,8 +193,15 @@ HUDState renderHUD(UIPreferences& preferences)
 
         ImGui::End();
 
-        if (showPreferences) renderPreferences(showPreferences, preferences, hud);
-        if (showUIDemoWindow) PropertyTable::demoWindow(showUIDemoWindow);
+        if (showPreferences)
+        {
+            renderPreferences(showPreferences, preferences, hud);
+        }
+
+        if (showUIDemoWindow)
+        {
+            PropertyTable::demoWindow(showUIDemoWindow);
+        }
     }
 
     static bool firstLoop{ true };
@@ -205,15 +229,33 @@ DockingLayout buildDefaultMultiWindowLayout(
     ImGuiID parentID{ parentNode };
 
     ImGuiID const leftID{ 
-        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Left, 3.0 / 10.0, nullptr, &parentID) 
+        ImGui::DockBuilderSplitNode(
+            parentID
+            , ImGuiDir_Left
+            , 3.0 / 10.0
+            , nullptr
+            , &parentID
+        ) 
     };
     
     ImGuiID const rightID{ 
-        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Right, 3.0 / 7.0, nullptr, &parentID) 
+        ImGui::DockBuilderSplitNode(
+            parentID
+            , ImGuiDir_Right
+            , 3.0 / 7.0
+            , nullptr
+            , &parentID
+        ) 
     };
     
     ImGuiID const centerBottomID{ 
-        ImGui::DockBuilderSplitNode(parentID, ImGuiDir_Down, 3.0 / 10.0, nullptr, &parentID) 
+        ImGui::DockBuilderSplitNode(
+            parentID
+            , ImGuiDir_Down
+            , 3.0 / 10.0
+            , nullptr
+            , &parentID
+        ) 
     };
     
     ImGuiID const centerTopID{ parentID };
@@ -264,11 +306,16 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     };
 
     auto const selectedIt{ 
-        std::find(pipelineOrdering.begin(), pipelineOrdering.end(), currentActivePipeline) 
+        std::find(
+            pipelineOrdering.begin()
+            , pipelineOrdering.end()
+            , currentActivePipeline
+        ) 
     };
     if (pipelineOrdering.end() == selectedIt)
     {
-        // If we can't find what index this pipeline should be, don't mess with it, since the engine may have set it.
+        // If we can't find what index this pipeline should be, 
+        // don't mess with it, since the engine may have set it.
         PropertyTable::begin()
             .rowReadOnlyText("", "Unknown pipeline selected")
             .end();
@@ -277,8 +324,10 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     {
         size_t const defaultIndex{ 0 };
         
-        size_t selectedIndex{ 
-            static_cast<size_t>(std::distance(pipelineOrdering.begin(), selectedIt)) 
+        auto selectedIndex{ 
+            static_cast<size_t>(
+                std::distance(pipelineOrdering.begin(), selectedIt)
+            ) 
         };
         
         PropertyTable::begin()
@@ -308,19 +357,23 @@ void imguiStructureControls<AtmosphereParameters>(
     PropertyTable::begin()
         .rowBoolean(
             "Animate Sun"
-            , atmosphere.animation.animateSun, defaultValues.animation.animateSun)
+            , atmosphere.animation.animateSun
+            , defaultValues.animation.animateSun)
         .rowFloat(
             "Sun Animation Speed"
-            , atmosphere.animation.animationSpeed, defaultValues.animation.animationSpeed
+            , atmosphere.animation.animationSpeed
+            , defaultValues.animation.animationSpeed
             , PropertySliderBehavior{
                 .bounds{ -20.0f, 20.0f },
             })
         .rowBoolean(
             "Skip Night"
-            , atmosphere.animation.skipNight, defaultValues.animation.skipNight)
+            , atmosphere.animation.skipNight
+            , defaultValues.animation.skipNight)
         .rowVec3(
             "Sun Euler Angles"
-            , atmosphere.sunEulerAngles, defaultValues.sunEulerAngles
+            , atmosphere.sunEulerAngles
+            , defaultValues.sunEulerAngles
             , PropertySliderBehavior{
                 .speed{ 0.1f },
             })
@@ -329,45 +382,52 @@ void imguiStructureControls<AtmosphereParameters>(
             , atmosphere.directionToSun())
         .rowVec3(
             "Ground Diffuse Color"
-            , atmosphere.groundColor, defaultValues.groundColor
+            , atmosphere.groundColor
+            , defaultValues.groundColor
             , PropertySliderBehavior{
                 .bounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Earth Radius"
-            , atmosphere.earthRadiusMeters, defaultValues.earthRadiusMeters
+            , atmosphere.earthRadiusMeters
+            , defaultValues.earthRadiusMeters
             , PropertySliderBehavior{
                 .bounds{ 1.0f, atmosphere.atmosphereRadiusMeters },
             })
         .rowFloat(
             "Atmosphere Radius"
-            , atmosphere.atmosphereRadiusMeters, defaultValues.atmosphereRadiusMeters
+            , atmosphere.atmosphereRadiusMeters
+            , defaultValues.atmosphereRadiusMeters
             , PropertySliderBehavior{
                 .bounds{ atmosphere.earthRadiusMeters, 1'000'000'000.0f },
             })
         .rowVec3(
             "Rayleigh Scattering Coefficient"
-            , atmosphere.scatteringCoefficientRayleigh, defaultValues.scatteringCoefficientRayleigh
+            , atmosphere.scatteringCoefficientRayleigh
+            , defaultValues.scatteringCoefficientRayleigh
             , PropertySliderBehavior{
                 .speed{ 0.001f },
                 .bounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Rayleigh Altitude Decay"
-            , atmosphere.altitudeDecayRayleigh, defaultValues.altitudeDecayRayleigh
+            , atmosphere.altitudeDecayRayleigh
+            , defaultValues.altitudeDecayRayleigh
             , PropertySliderBehavior{
                 .bounds{0.0f, 1'000'000.0f},
             })
         .rowVec3(
             "Mie Scattering Coefficient"
-            , atmosphere.scatteringCoefficientMie, defaultValues.scatteringCoefficientMie
+            , atmosphere.scatteringCoefficientMie
+            , defaultValues.scatteringCoefficientMie
             , PropertySliderBehavior{
                 .speed{ 0.001f },
                 .bounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Mie Altitude Decay"
-            , atmosphere.altitudeDecayMie, defaultValues.altitudeDecayMie
+            , atmosphere.altitudeDecayMie
+            , defaultValues.altitudeDecayMie
             , PropertySliderBehavior{
                 .bounds{0.0f, 1'000'000.0f},
             })
@@ -380,7 +440,14 @@ void imguiStructureControls<CameraParameters>(
     , CameraParameters const& defaultValues
 )
 {
-    if (!ImGui::CollapsingHeader("Camera Parameters", ImGuiTreeNodeFlags_DefaultOpen))
+    bool const headerOpen{
+        ImGui::CollapsingHeader(
+            "Camera Parameters"
+            , ImGuiTreeNodeFlags_DefaultOpen
+        )
+    };
+
+    if (!headerOpen)
     {
         return;
     }
@@ -424,7 +491,14 @@ void imguiStructureControls<DebugLines>(
     DebugLines& structure
 )
 {
-    if (!ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen))
+    bool const headerOpen{
+        ImGui::CollapsingHeader(
+            "Debug Lines"
+            , ImGuiTreeNodeFlags_DefaultOpen
+        )
+    };
+
+    if (!headerOpen)
     {
         return;
     }
@@ -433,7 +507,10 @@ void imguiStructureControls<DebugLines>(
         
     table.rowReadOnlyText(
             "Pipeline"
-            , fmt::format("0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get()))
+            , fmt::format(
+                "0x{:x}"
+                , reinterpret_cast<uintptr_t>(structure.pipeline.get())
+            )
         )
         .rowReadOnlyInteger(
             "Indices on GPU"
@@ -453,11 +530,19 @@ void imguiStructureControls<DebugLines>(
         table.rowBoolean("Enabled", structure.enabled, false);
     }
 
-    table.rowFloat("Line Width", structure.lineWidth, 1.0f, PropertySliderBehavior{
-        .bounds{ 0.0f, 100.0f }
-    });
+    table.rowFloat(
+        "Line Width"
+        , structure.lineWidth
+        , 1.0f
+        , PropertySliderBehavior{
+            .bounds{ 0.0f, 100.0f }
+        }
+    );
+
     {
-        DrawResultsGraphics const drawResults{ structure.lastFrameDrawResults };
+        DrawResultsGraphics const drawResults{ 
+            structure.lastFrameDrawResults 
+        };
 
         table.rowChildPropertyBegin("Draw Results")
             .rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
@@ -475,7 +560,14 @@ void imguiStructureControls<ShadowPassParameters>(
     , ShadowPassParameters const& defaultValues
 )
 {
-    if (!ImGui::CollapsingHeader("Shadow Pass Parameters", ImGuiTreeNodeFlags_DefaultOpen))
+    bool const headerOpen{
+        ImGui::CollapsingHeader(
+            "Shadow Pass Parameters"
+            , ImGuiTreeNodeFlags_DefaultOpen
+        )
+    };
+    
+    if (!headerOpen)
     {
         return;
     }
@@ -505,7 +597,11 @@ void imguiStructureControls<SceneBounds>(
     , SceneBounds const& defaultValues
 )
 {
-    if (!ImGui::CollapsingHeader("Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen))
+    bool const headerOpen{
+        ImGui::CollapsingHeader("Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen)
+    };
+    
+    if (!headerOpen)
     {
         return;
     }

@@ -38,7 +38,10 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
         parser.loadGltfBinary(&data, assetPath.parent_path(), gltfOptions) 
     };
     if (!load) {
-        Error(fmt::format("Failed to load glTF: {}", fastgltf::to_underlying(load.error())));
+        Error(fmt::format(
+            "Failed to load glTF: {}"
+            , fastgltf::to_underlying(load.error()))
+        );
         return {};
     }
     fastgltf::Asset const gltf{ std::move(load.get()) };
@@ -55,13 +58,17 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
         {
             surfaces.push_back(GeometrySurface{
                 .firstIndex{ static_cast<uint32_t>(indices.size()) },
-                .indexCount{ static_cast<uint32_t>(gltf.accessors[primitive.indicesAccessor.value()].count) },
+                .indexCount{ static_cast<uint32_t>(
+                    gltf.accessors[primitive.indicesAccessor.value()].count
+                ) },
             });
 
             size_t const initialVertexIndex{ vertices.size() };
 
             { // Indices, not optional
-                fastgltf::Accessor const& indexAccessor{ gltf.accessors[primitive.indicesAccessor.value()] };
+                fastgltf::Accessor const& indexAccessor{ 
+                    gltf.accessors[primitive.indicesAccessor.value()] 
+                };
                 indices.reserve(indices.size() + indexAccessor.count);
 
                 fastgltf::iterateAccessor<std::uint32_t>(gltf, indexAccessor,
@@ -102,7 +109,8 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
                     fastgltf::iterateAccessorWithIndex<glm::vec3>(
                         gltf
                         , gltf.accessors[(*normals).second]
-                        , [&](glm::vec3 normal, size_t index) {
+                        , [&](glm::vec3 normal, size_t index) 
+                        {
                             vertices[initialVertexIndex + index].normal = normal;
                         }
                     );
@@ -180,7 +188,13 @@ AssetLoadingResult loadAssetFile(
     if (pPath == nullptr)
     {
         return AssetLoadingError{
-            .message{fmt::format("Unable to parse path at \"{}\", this indicates the asset does not exist or the path is malformed", localPath)}
+            .message{
+                fmt::format(
+                    "Unable to parse path at \"{}\", this indicates the asset "
+                    "does not exist or the path is malformed"
+                    , localPath
+                )
+            }
         };
     }
     std::filesystem::path const path = *pPath.get();
@@ -190,7 +204,13 @@ AssetLoadingResult loadAssetFile(
     if (!file.is_open())
     {
         return AssetLoadingError{
-            .message{fmt::format("Unable to parse path at \"{}\", this indicates the asset does not exist or the path is malformed", localPath)}
+            .message{
+                fmt::format(
+                    "Unable to parse path at \"{}\", this indicates the asset "
+                    "does not exist or the path is malformed"
+                    , localPath
+                )
+            }
         };
     }
 

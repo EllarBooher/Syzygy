@@ -3,17 +3,15 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-/*
-* This namespace contains types that are used in shaders on the GPU.
-* They contain padding and must faithfully represent their counterparts.
-* These are intended for byte-wise copying to the GPU, not for manipulation by UI or the engine.
-*/
+// This namespace contains types that are used in shaders on the GPU.
+// They contain padding and must faithfully represent their counterparts.
+// These are intended for byte-wise copying to the GPU, not for manipulation 
+// by UI or the engine.
 namespace GPUTypes
 {
-    /*
-    * For ease of reading, group members by 16 bytes, which is a size of a single-precision vec4.
-    * The gpu equivalents will likely use std430 packing.
-    */
+    // For ease of reading, group members by 16 bytes, which is a size of 
+    // a single-precision vec4.
+    // The gpu equivalents will likely use std430 packing.
 
     struct Camera
     {
@@ -84,9 +82,10 @@ namespace GPUTypes
         glm::vec4 position;
 
         float strength;
-        // The factor by which light falls off per unit distance, usually derived from the tangent of half the fov
+        // The factor by which light falls off per unit distance, 
+        // usually derived from the tangent of half the fov
         float falloffFactor;
-        // The distance that light starts to fall off, i.e. the near plane of the light
+        // The distance that light starts to fall off
         float falloffDistance;
         uint8_t padding0[4]{};
     };

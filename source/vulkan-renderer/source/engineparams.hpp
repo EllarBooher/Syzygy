@@ -38,10 +38,14 @@ struct AtmosphereParameters
     glm::vec3 scatteringCoefficientMie{ 1.0 };
     float altitudeDecayMie{ 1.0 };
 
-    // Returns an estimate of the color of sunlight that has reached the origin.
+    // Returns an estimate of the color of sunlight that has reached the 
+    // origin.
     glm::vec4 computeSunlight() const
     {
-        float const surfaceCosine{ glm::dot(directionToSun(), glm::vec3{0.0,-1.0,0.0})};
+        float const surfaceCosine{ 
+            glm::dot(directionToSun()
+            , glm::vec3{0.0,-1.0,0.0})
+        };
         if (surfaceCosine <= 0.0)
         {
             return glm::vec4(0.0, 0.0, 0.0, 1.0);
@@ -58,12 +62,18 @@ struct AtmosphereParameters
         );
 
         float const atmosphereThickness{ outDistance };
-        // Calculations derived from sky.comp, we do a single ray straight up to get an idea of the ambient color
+
+        // Calculations derived from sky.comp, we do a single ray straight up 
+        // to get an idea of the ambient color
         float const opticalDepthRayleigh{ 
-            altitudeDecayRayleigh / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayRayleigh)) 
+            altitudeDecayRayleigh 
+            / surfaceCosine 
+            * (1.0f - std::exp(-atmosphereThickness / altitudeDecayRayleigh)) 
         };
         float const opticalDepthMie{ 
-            altitudeDecayMie / surfaceCosine * (1.0f - std::exp(-atmosphereThickness / altitudeDecayMie)) 
+            altitudeDecayMie 
+            / surfaceCosine 
+            * (1.0f - std::exp(-atmosphereThickness / altitudeDecayMie)) 
         };
 
         glm::vec3 const tau{
@@ -91,7 +101,11 @@ struct AtmosphereParameters
             .altitudeDecayRayleigh{ altitudeDecayRayleigh },
             .scatteringCoefficientMie{ scatteringCoefficientMie },
             .altitudeDecayMie{ altitudeDecayMie },
-            .ambientColor{ glm::vec3(sunlight) * groundColor * glm::dot(sunDirection, glm::vec3(0.0,-1.0,0.0))},
+            .ambientColor{ 
+                glm::vec3(sunlight) 
+                * groundColor 
+                * glm::dot(sunDirection, glm::vec3(0.0,-1.0,0.0))
+            },
             .atmosphereRadiusMeters{ atmosphereRadiusMeters },
             .sunlightColor{ glm::vec3(sunlight) },
             .groundColor{ groundColor },
@@ -108,7 +122,9 @@ struct CameraParameters {
 
     GPUTypes::Camera toDeviceEquivalent(float aspectRatio) const
     {
-        glm::mat4x4 const projViewInverse{ glm::inverse(projection(aspectRatio) * view()) };
+        glm::mat4x4 const projViewInverse{
+            glm::inverse(projection(aspectRatio) * view())
+        };
 
         return GPUTypes::Camera{
             .projection{ projection(aspectRatio) },
@@ -133,7 +149,10 @@ struct CameraParameters {
         forward = glm::normalize(forward);
         geometryExtent = glm::abs(geometryExtent);
 
-        glm::vec3 const cameraPosition{ geometryCenter + (-1.0f * glm::length(geometryExtent) * forward) };
+        glm::vec3 const cameraPosition{ 
+            geometryCenter 
+            + (-1.0f * glm::length(geometryExtent) * forward) 
+        };
 
         glm::mat4x4 const cameraView{
             geometry::lookAtVkSafe(
@@ -143,9 +162,15 @@ struct CameraParameters {
         };
 
         glm::mat4x4 const projection{
-            geometry::projectionOrthoAABBVk(cameraView, geometryCenter, geometryExtent)
+            geometry::projectionOrthoAABBVk(
+                cameraView
+                , geometryCenter
+                , geometryExtent
+            )
         };
-        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
+        glm::mat4x4 const projViewInverse{ 
+            glm::inverse(projection * view()) 
+        };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -164,8 +189,12 @@ struct CameraParameters {
         , float planeDistance
     ) const
     {
-        glm::mat4x4 const projection{ projectionOrthographic(aspectRatio, planeDistance) };
-        glm::mat4x4 const projViewInverse{ glm::inverse(projection * view()) };
+        glm::mat4x4 const projection{ 
+            projectionOrthographic(aspectRatio, planeDistance) 
+        };
+        glm::mat4x4 const projViewInverse{ 
+            glm::inverse(projection * view()) 
+        };
 
         return GPUTypes::Camera{
             .projection{ projection },
@@ -179,35 +208,42 @@ struct CameraParameters {
         };
     }
 
-    /** Returns the matrix that transforms from camera-local space to world space */
+    // The matrix that transforms from camera to world space
     glm::mat4 transform() const
     {
         return geometry::transformVk(cameraPosition, eulerAngles);
     }
 
+    // The inverse of transform
     glm::mat4 view() const
     {
         return geometry::viewVk(cameraPosition, eulerAngles);
     }
 
+    // Rotates, but does not translate from camera to world space
     glm::mat4 rotation() const
     {
         return glm::orientate4(eulerAngles);
     }
 
+    // Projects from camera space to clip space
     glm::mat4 projection(float aspectRatio) const
     {
         return geometry::projectionVk(fov, aspectRatio, near, far);
     }
 
+    // Projects from camera space to clip space
     glm::mat4 projectionOrthographic(
         float aspectRatio
         , float distance
     ) const
     {
-        // An orthographic projection has one view plane, so we compute it from the fov and distance.
+        // An orthographic projection has one view plane, 
+        // so we compute it from the fov and distance.
 
-        float const height = glm::tan(fov / 2.0) * distance;
+        float const height{
+            glm::tan(fov / 2.0f) * distance
+        };
         
         glm::vec3 const min{ -aspectRatio * height, -height, near };
         glm::vec3 const max{ aspectRatio * height, height, far };
@@ -215,11 +251,9 @@ struct CameraParameters {
         return geometry::projectionOrthoVk(min, max);
     }
 
-    /**
-        Generates the projection * view matrix that transforms from world to clip space.
-        Aspect ratio is a function of the drawn surface, so it is passed in at generation time.
-        Produces a right handed matrix- x is right, y is down, and z is forward.
-    */
+    // Generates the projection * view matrix that transforms from world to 
+    // clip space. Aspect ratio is a function of the drawn surface, so it is 
+    // passed in at generation time.
     glm::mat4 toProjView(float aspectRatio) const
     {
         return projection(aspectRatio) * view();

@@ -32,12 +32,20 @@ static void imguiPushStructureControl(
     , std::span<T> backingData
 )
 {
-    if (!ImGui::CollapsingHeader(pushConstant.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+    bool const headerOpen{
+        ImGui::CollapsingHeader(
+            pushConstant.name.c_str()
+            , ImGuiTreeNodeFlags_DefaultOpen
+        )
+    };
+    
+    if (!headerOpen)
     {
         return;
     }
 
-    // TODO: This whole method is bad and should be refactored in a way to not need this templating
+    // TODO: This whole method is bad and should be refactored in a 
+    // way to not need this templating
     static_assert(
         std::is_same<T, uint8_t>::value 
         || std::is_same<T, uint8_t const>::value
@@ -66,7 +74,12 @@ static void imguiPushStructureControl(
             ImGui::TableSetColumnIndex(columnIndexProperty);
             ImGui::Text("Layout Byte Offset");
             ImGui::TableSetColumnIndex(columnIndexValue);
-            ImGui::Text(fmt::format("{}", pushConstant.layoutOffsetBytes).c_str());
+            ImGui::Text(
+                fmt::format(
+                    "{}"
+                    , pushConstant.layoutOffsetBytes
+                ).c_str()
+            );
         }
         {
             ImGui::TableNextRow();
@@ -87,7 +100,10 @@ static void imguiPushStructureControl(
             | ImGuiTableFlags_RowBg
         );
 
-        ImGui::TableSetupColumn("Member Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(
+            "Member Name"
+            , ImGuiTableColumnFlags_WidthStretch
+        );
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed);
@@ -105,7 +121,7 @@ static void imguiPushStructureControl(
         // Members can be sparse, with implied padding between them.
         // We track those bytes so we can print to the UI that there is padding.
         uint32_t lastByte{ 0 };
-        for (ShaderReflectionData::StructureMember const& member : structure.members)
+        for (ShaderReflectionData::Member const& member : structure.members)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(offsetIndex);
@@ -121,21 +137,31 @@ static void imguiPushStructureControl(
             ImGui::Text(fmt::format("{}", member.type.paddedSizeBytes).c_str());
 
             std::visit(overloaded{
-                [&](ShaderReflectionData::UnsupportedType const& unsupportedType) {
-                    ImGui::Text(fmt::format("Unsupported member \"{}\"", member.name).c_str());
+                [&](ShaderReflectionData::UnsupportedType const& unsupportedType) 
+                {
+                    ImGui::Text(
+                        fmt::format(
+                            "Unsupported member \"{}\""
+                            , member.name
+                        ).c_str()
+                    );
                 },
                 [&](ShaderReflectionData::Pointer const& pointerType) {
-                    // Pointers should be 8 bytes, I am not sure when this would fail
+                    // Pointers should be 8 bytes, 
+                    // I am not sure when this would fail
                     assert(member.type.sizeBytes == 8);
 
-                    std::string const memberLabel{ fmt::format("##{}", member.name) };
+                    std::string const memberLabel{ 
+                        fmt::format("##{}", member.name) 
+                    };
 
                     size_t byteOffset{ member.offsetBytes };
 
                     if (structure.paddedSizeBytes > backingData.size())
                     {
                         // Hacky fix for when backingdata is offset
-                        // TODO: Make runtime push constant data consistant with offsets
+                        // TODO: Make runtime push constant data consistant 
+                        // with offsets
                         byteOffset -= pushConstant.layoutOffsetBytes;
                     }
 
@@ -149,7 +175,9 @@ static void imguiPushStructureControl(
                         ImGui::InputScalar(
                             memberLabel.c_str(),
                             ImGuiDataType_U64,
-                            reinterpret_cast<void*>(const_cast<uint8_t*>(pDataPointer))
+                            reinterpret_cast<void*>(
+                                const_cast<uint8_t*>(pDataPointer)
+                            )
                         );
                         ImGui::PopItemWidth();
                     }
@@ -180,8 +208,12 @@ static void imguiPushStructureControl(
                     bool bSupportedType{ true };
                     ImGuiDataType imguiDataType{ ImGuiDataType_Float };
                     std::visit(overloaded{
-                        [&](ShaderReflectionData::Integer const& integerComponent) {
-                            assert(integerComponent.signedness == 0 || integerComponent.signedness == 1);
+                        [&](ShaderReflectionData::Integer const& integerComponent) 
+                        {
+                            assert(
+                                integerComponent.signedness == 0 
+                                || integerComponent.signedness == 1
+                            );
 
                             switch (integerComponent.signedness)
                             {
@@ -227,7 +259,8 @@ static void imguiPushStructureControl(
                                 break;
                             }
                         },
-                        [&](ShaderReflectionData::Float const& floatComponent) {
+                        [&](ShaderReflectionData::Float const& floatComponent) 
+                        {
                             ImGuiDataType imguiDataType{ ImGuiDataType_Float };
                             switch (numericType.componentBitWidth)
                             {
@@ -251,20 +284,33 @@ static void imguiPushStructureControl(
                     {
                         ImGui::TableSetColumnIndex(columnIndexValue);
                         ImGui::Text(
-                            fmt::format("Unsupported component bit width {} for member {}", numericType.componentBitWidth, member.name).c_str()
+                            fmt::format(
+                                "Unsupported component bit width {} "
+                                "for member {}"
+                                , numericType.componentBitWidth, member.name
+                            ).c_str()
                         );
                         return;
                     }
 
                     // SPIR-V aggregate types are column major. 
-                    // We render each "column" of the spirv data type as a "row" of imgui inputs to avoid flipping.
+                    // We render each "column" of the spirv data type as a 
+                    // "row" of imgui inputs to avoid flipping.
                     for (uint32_t column{ 0 }; column < columns; column++)
                     {
-                        size_t byteOffset{ column * rows * numericType.componentBitWidth / 8 + member.offsetBytes };
+                        size_t byteOffset{ 
+                            (
+                                column 
+                                * rows 
+                                * numericType.componentBitWidth / 8
+                            )
+                            + member.offsetBytes 
+                        };
                         if (structure.paddedSizeBytes > backingData.size())
                         {
                             // Hacky fix for when backingdata is offset
-                            // TODO: Make runtime push constant data consistant with offsets
+                            // TODO: Make runtime push constant data 
+                            // consistant with offsets
                             byteOffset -= pushConstant.layoutOffsetBytes;
                         }
 
@@ -273,25 +319,43 @@ static void imguiPushStructureControl(
                             Warning("Offset ");
                         }
 
-                        T* const pDataPointer{ &backingData[byteOffset] };
+                        T* const pData{ &backingData[byteOffset] };
 
                         // Check that ImGui won't modify out of bounds data
-                        assert((byteOffset + rows * numericType.componentBitWidth / 8) <= backingData.size());
+                        size_t const lastByte{
+                            static_cast<size_t>(
+                                rows
+                                * numericType.componentBitWidth / 8
+                            )
+                            + byteOffset
+                        };
+                        assert(lastByte <= backingData.size());
 
-                        std::string const rowLabel{ fmt::format("##{}{}", member.name, column) };
+                        std::string const rowLabel{ 
+                            fmt::format(
+                                "##{}{}"
+                                , member.name
+                                , column
+                            ) 
+                        };
 
                         ImGui::TableSetColumnIndex(columnIndexValue);
                         ImGui::BeginDisabled(readOnly);
                         {
-                            ImGui::PushItemWidth(-FLT_MIN); // This hides the label
+                            // This hides the label
+                            ImGui::PushItemWidth(-FLT_MIN); 
                             ImGui::InputScalarN(
-                                rowLabel.c_str(),
-                                imguiDataType,
-                                reinterpret_cast<void*>(const_cast<uint8_t*>(pDataPointer)),
-                                rows,
-                                nullptr,
-                                nullptr,
-                                imguiDataType == ImGuiDataType_Float ? "%.6f" : nullptr
+                                rowLabel.c_str()
+                                , imguiDataType
+                                , reinterpret_cast<void*>(
+                                    const_cast<uint8_t*>(pData)
+                                )
+                                , rows
+                                , nullptr
+                                , nullptr
+                                , imguiDataType == ImGuiDataType_Float 
+                                ? "%.6f" 
+                                : nullptr
                             );
                             ImGui::PopItemWidth();
                         }
@@ -306,7 +370,7 @@ static void imguiPushStructureControl(
 }
 
 template<>
-void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
+void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
 {
     if (!ImGui::CollapsingHeader(
         "Compute Collection Pipeline"
@@ -336,8 +400,12 @@ void imguiPipelineControls(GenericComputeCollectionPipeline& pipeline)
 
     pipeline.selectShader(currentShaderIndex);
 
-    ShaderObjectReflected const& currentShader{ pipeline.currentShader() };
-    ShaderReflectionData const& reflectionData{ currentShader.reflectionData() };
+    ShaderObjectReflected const& currentShader{ 
+        pipeline.currentShader() 
+    };
+    ShaderReflectionData const& reflectionData{ 
+        currentShader.reflectionData() 
+    };
 
     if (reflectionData.defaultEntryPointHasPushConstant())
     {

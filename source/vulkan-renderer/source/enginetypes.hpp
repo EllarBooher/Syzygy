@@ -94,7 +94,9 @@ private:
     bool m_saturated{ false };
 };
 
-/** A quick and dirty way to keep track of the destruction order for vulkan objects. */
+// A quick and dirty way to keep track of the destruction order for 
+// vulkan objects.
+// TODO: deprecate this
 class DeletionQueue {
 public:
     void pushFunction(std::function<void()>&& function) {

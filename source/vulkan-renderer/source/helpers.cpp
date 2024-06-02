@@ -8,7 +8,9 @@
 std::string MakeLogPrefix(std::source_location location)
 {
     std::string const relativePath{
-        DebugUtils::getLoadedDebugUtils().makeRelativePath(location.file_name()).string()
+        DebugUtils::getLoadedDebugUtils().makeRelativePath(
+            location.file_name()
+        ).string()
     };
     return fmt::format(
         "[ {}:{} ]"
@@ -132,9 +134,15 @@ void DebugUtils::init()
         std::filesystem::weakly_canonical(std::filesystem::path{ SOURCE_DIR }) 
     };
 
-    if (!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath))
+    if (
+        !std::filesystem::exists(sourcePath) 
+        || !std::filesystem::is_directory(sourcePath)
+    )
     {
-        throw std::runtime_error("DebugUtils::Init failure: Source path does not point to valid directory.");
+        throw std::runtime_error(
+            "DebugUtils::Init failure: "
+            "Source path does not point to valid directory."
+        );
     }
 
     m_loadedDebugUtils = std::make_unique<DebugUtils>();
@@ -165,21 +173,29 @@ bool DebugUtils::validateRelativePath(std::filesystem::path path)
     return true;
 }
 
-std::filesystem::path DebugUtils::makeAbsolutePath(std::filesystem::path localPath) const
+std::filesystem::path DebugUtils::makeAbsolutePath(
+    std::filesystem::path localPath
+) const
 {
     return (m_sourcePath / localPath).lexically_normal();
 }
 
-std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(std::filesystem::path localPath) const
+std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(
+    std::filesystem::path localPath
+) const
 {
     if (!validateRelativePath(localPath))
     {
         return nullptr;
     }
-    return std::make_unique<std::filesystem::path>(makeAbsolutePath(localPath));
+    return std::make_unique<std::filesystem::path>(
+        makeAbsolutePath(localPath)
+    );
 }
 
-std::filesystem::path DebugUtils::makeRelativePath(std::filesystem::path absolutePath) const
+std::filesystem::path DebugUtils::makeRelativePath(
+    std::filesystem::path absolutePath
+) const
 {
     assert(absolutePath.is_absolute());
 

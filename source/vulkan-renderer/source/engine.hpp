@@ -19,13 +19,14 @@ struct FrameData
     VkCommandPool commandPool{ VK_NULL_HANDLE };
     VkCommandBuffer mainCommandBuffer{ VK_NULL_HANDLE };
     
-    /** The semaphore that the swapchain signals when its image is ready to be written to. */
+    // The semaphore that the swapchain signals when its 
+    // image is ready to be written to.
     VkSemaphore swapchainSemaphore{ VK_NULL_HANDLE };
 
-    /** The semaphore that the swapchain waits on before presenting. */
+    // The semaphore that the swapchain waits on before presenting.
     VkSemaphore renderSemaphore{ VK_NULL_HANDLE };
     
-    /** The fence that the CPU waits on to ensure the frame is not in use. */
+    // The fence that the CPU waits on to ensure the frame is not in use.
     VkFence renderFence{ VK_NULL_HANDLE };
 
     DeletionQueue deletionQueue{};
@@ -142,8 +143,9 @@ private:
 
     // Draw Resources
 
-    // Instead of resizing all resources to be exactly the window size, we just draw into a limited scissor.
-    // This constant defines the max size, to inform the creation of resources that can contain any requested draw extent
+    // Instead of resizing all resources to be exactly the window size, we draw 
+    // into a limited scissor. This constant defines the max size, to inform 
+    // the creation of resources that can contain any requested draw extent
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{ 4096, 4096 };
 
     VkSampler m_imguiSceneTextureSampler{ VK_NULL_HANDLE };
@@ -152,19 +154,23 @@ private:
 
     VkRect2D m_sceneRect{};
 
-    // Rendered into by most render passes. Used as an image by UI rendering, to render properly as a window.
+    // Rendered into by most render passes. Used as an image by UI rendering, 
+    // to render properly as a window.
     AllocatedImage m_sceneColorTexture{};
     // Depth image used for graphics passes
     AllocatedImage m_sceneDepthTexture{};
 
-    // The rectangle drawn into, usually the window/swapchain/UI viewport extents are all the same
+    // The rectangle drawn into, usually the window/swapchain/UI viewport 
+    // extents are all the same
     VkRect2D m_drawRect{};
 
     // The final image output, blitted to the swapchain
     AllocatedImage m_drawImage{};
 
     std::array<FrameData, FRAME_OVERLAP> m_frames{};
-    FrameData& getCurrentFrame() { return m_frames[m_frameNumber % m_frames.size()]; }
+    FrameData& getCurrentFrame() { 
+        return m_frames[m_frameNumber % m_frames.size()]; 
+    }
 
     // Immediate submit structures
 
@@ -172,7 +178,8 @@ private:
     VkCommandBuffer m_immCommandBuffer{ VK_NULL_HANDLE };
     VkCommandPool m_immCommandPool{ VK_NULL_HANDLE };
 
-    /** Immediately opens and submits a command buffer. Use for one-off things outside the render loop or when hangs are okay. */
+    // Immediately opens and submits a command buffer. Use for one-off things 
+    // outside the render loop or when hangs are okay.
     void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 
     // Descriptor
@@ -186,8 +193,10 @@ private:
 
     DebugLines m_debugLines{};
 
-    RenderingPipelines m_activeRenderingPipeline{ RenderingPipelines::DEFERRED };
-    std::unique_ptr<GenericComputeCollectionPipeline> m_genericComputePipeline{};
+    RenderingPipelines m_activeRenderingPipeline{ 
+        RenderingPipelines::DEFERRED 
+    };
+    std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
 
 public:
@@ -225,7 +234,9 @@ private:
 
     uint32_t m_atmosphereIndex{ 0 };
     static AtmosphereParameters const m_defaultAtmosphereParameters;
-    AtmosphereParameters m_atmosphereParameters{ m_defaultAtmosphereParameters };
+    AtmosphereParameters m_atmosphereParameters{ 
+        m_defaultAtmosphereParameters 
+    };
 
     std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
     std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
