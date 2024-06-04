@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-
 class Engine;
 
 class Application
@@ -15,8 +13,8 @@ public:
     // Runs in a blocking manner.
     void run();
 
-    bool loadedSuccessfully() const { return m_engine.get() != nullptr; };
+    bool loadedSuccessfully() const { return m_engine != nullptr; };
 
 private:
-    std::unique_ptr<Engine> m_engine{ nullptr };
+    Engine* m_engine{ nullptr };
 };

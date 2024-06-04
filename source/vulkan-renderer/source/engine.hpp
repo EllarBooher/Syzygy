@@ -37,12 +37,13 @@ constexpr uint32_t FRAME_OVERLAP = 2;
 
 class Engine 
 {
+private:
     Engine();
 
 public:
     void run();
 
-    static std::unique_ptr<Engine> loadEngine();
+    static Engine* loadEngine();
 
 private:
     void init();

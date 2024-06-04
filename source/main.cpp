@@ -1,5 +1,7 @@
 #include "application.hpp"
 
+#include <stdlib.h>
+
 int main()
 {
     Application application{};

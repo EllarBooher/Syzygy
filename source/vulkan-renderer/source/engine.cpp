@@ -83,17 +83,23 @@ void Engine::run()
     cleanup();
 }
 
-std::unique_ptr<Engine> Engine::loadEngine()
+Engine* Engine::loadEngine()
 {
-    return std::make_unique<Engine>(Engine{});
+    if (m_loadedEngine == nullptr)
+    {
+        Log("Loading Engine.");
+        m_loadedEngine = new Engine();
+    }
+    else
+    {
+        Warning("Called loadEngine when one was already loaded. No new engine was loaded.");
+    }
+
+    return m_loadedEngine;
 }
 
 void Engine::init()
 {
-    assert(m_loadedEngine == nullptr);
-    m_loadedEngine = this;
-
-    DebugUtils::init();
     initWindow();
     initVulkan();
 

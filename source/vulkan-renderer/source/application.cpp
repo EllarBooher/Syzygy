@@ -13,18 +13,20 @@ Application::Application()
     catch (std::exception const& exception)
     {
         std::cerr << "Failed to load engine:" << exception.what() << std::endl;
-        m_engine.reset();
+        // TODO: cleanup
+        m_engine = nullptr;
     }
 }
 
 Application::~Application()
 {
-
+    delete m_engine;
 }
 
 void Application::run()
 {
     try {
+        Log("Running Engine.");
         m_engine->run();
     }
     catch (const std::exception& e) {
