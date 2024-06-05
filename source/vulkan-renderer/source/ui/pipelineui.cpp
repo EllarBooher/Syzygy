@@ -28,8 +28,8 @@ struct overloaded : Ts...
 template<typename T>
 static void imguiPushStructureControl(
     ShaderReflectionData::PushConstant const& pushConstant
-    , bool readOnly
-    , std::span<T> backingData
+    , bool const readOnly
+    , std::span<T> const backingData
 )
 {
     bool const headerOpen{
@@ -312,11 +312,6 @@ static void imguiPushStructureControl(
                             // TODO: Make runtime push constant data 
                             // consistant with offsets
                             byteOffset -= pushConstant.layoutOffsetBytes;
-                        }
-
-                        if (byteOffset > backingData.size())
-                        {
-                            Warning("Offset ");
                         }
 
                         T* const pData{ &backingData[byteOffset] };

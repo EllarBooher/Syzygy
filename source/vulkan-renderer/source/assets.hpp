@@ -23,7 +23,7 @@ class Engine;
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     Engine* engine
-    , std::string localPath
+    , std::string const& localPath
 );
 
 struct AssetFile

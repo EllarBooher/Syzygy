@@ -6,9 +6,7 @@
 
 #include <vk_mem_alloc.h>
 
-/** 
-    A single VkBuffer alongside all of its allocation information. 
-*/
+// A single VkBuffer alongside all of its allocation information. 
 struct AllocatedBuffer 
 {
     AllocatedBuffer() {};
@@ -220,10 +218,10 @@ struct TStagedBuffer : public StagedBuffer
     }
 
     static TStagedBuffer<T> allocate(
-        VkDevice device
-        , VmaAllocator allocator
-        , VkDeviceSize capacity
-        , VkBufferUsageFlags bufferUsage
+        VkDevice const device
+        , VmaAllocator const allocator
+        , VkDeviceSize const capacity
+        , VkBufferUsageFlags const bufferUsage
     )
     {
         VkDeviceSize const allocationSizeBytes{ capacity * sizeof(T) };
@@ -272,6 +270,8 @@ struct GPUMeshBuffers
     GPUMeshBuffers& operator=(GPUMeshBuffers const& other) = delete;
 
     GPUMeshBuffers& operator=(GPUMeshBuffers&& other) = default;
+
+    // These are not const since they give access to the underlying memory.
 
     VkDeviceAddress indexAddress() { return m_indexBuffer.deviceAddress; }
     VkBuffer indexBuffer() { return m_indexBuffer.buffer; }

@@ -58,7 +58,10 @@ public:
         return m_texturesSet; 
     };
 
-    void cleanup(VkDevice device, VmaAllocator allocator)
+    void cleanup(
+        VkDevice const device
+        , VmaAllocator const allocator
+    )
     {
         for (auto& image : m_textures)
         {

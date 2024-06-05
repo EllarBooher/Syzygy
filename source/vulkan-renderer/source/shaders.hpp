@@ -111,7 +111,7 @@ struct ShaderReflectionData
 		// offset in the total size.
 		uint32_t layoutOffsetBytes{ 0 };
 
-		VkPushConstantRange totalRange(VkShaderStageFlags stageFlags) const
+		VkPushConstantRange totalRange(VkShaderStageFlags const stageFlags) const
 		{
 			return VkPushConstantRange{
 				.stageFlags{ stageFlags },
@@ -223,7 +223,7 @@ private:
 	{}
 
 public:
-	static std::optional<ShaderObjectReflected> FromBytecode(
+	static std::optional<ShaderObjectReflected> fromBytecode(
 		VkDevice device
 		, std::string name
 		, std::span<uint8_t const> spirvBytecode
@@ -236,7 +236,7 @@ public:
 
 	// Compiles a shader object, 
 	// but derives push constant data from reflection
-	static std::optional<ShaderObjectReflected> FromBytecodeReflected(
+	static std::optional<ShaderObjectReflected> fromBytecodeReflected(
 		VkDevice device
 		, std::string name
 		, std::span<uint8_t const> spirvBytecode
@@ -246,7 +246,7 @@ public:
 		, VkSpecializationInfo specializationInfo
 	);
 
-	static ShaderObjectReflected MakeInvalid()
+	static ShaderObjectReflected makeInvalid()
 	{
 		return ShaderObjectReflected("", {}, VK_NULL_HANDLE);
 	}
@@ -266,7 +266,7 @@ namespace vkutil
 		VkResult result;
 	};
 
-	ShaderResult<VkShaderEXT> CompileShaderObject(
+	ShaderResult<VkShaderEXT> compileShaderObject(
 		VkDevice device
 		, std::span<uint8_t const> spirvBytecode
 		, VkShaderStageFlagBits stage
@@ -276,7 +276,7 @@ namespace vkutil
 		, VkSpecializationInfo specializationInfo
 	);
 
-	ShaderResult<VkShaderModule> CompileShaderModule(
+	ShaderResult<VkShaderModule> compileShaderModule(
 		VkDevice device
 		, std::span<uint8_t const> spirvBytecode
 	);

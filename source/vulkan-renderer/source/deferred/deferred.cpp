@@ -51,7 +51,7 @@ static ShaderObjectReflected loadShader(
     , size_t const expectedPushConstantSize
 )
 {
-    std::optional<ShaderObjectReflected> loadResult{
+    std::optional<ShaderObjectReflected> const loadResult{
         vkutil::loadShaderObject(
             device
             , path
@@ -61,6 +61,7 @@ static ShaderObjectReflected loadShader(
             , {}
         )
     };
+
     if (loadResult.has_value())
     {
         validatePushConstant(loadResult.value(), expectedPushConstantSize);
@@ -68,7 +69,7 @@ static ShaderObjectReflected loadShader(
     }
     else
     {
-        return ShaderObjectReflected::MakeInvalid();
+        return ShaderObjectReflected::makeInvalid();
     }
 }
 
@@ -99,12 +100,12 @@ static ShaderObjectReflected loadShader(
     }
     else
     {
-        return ShaderObjectReflected::MakeInvalid();
+        return ShaderObjectReflected::makeInvalid();
     }
 }
 
 static VkPipelineLayout createLayout(
-    VkDevice device
+    VkDevice const device
     , std::span<VkDescriptorSetLayout const> const setLayouts
     , std::span<VkPushConstantRange const> const ranges
 )
@@ -144,7 +145,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     m_allocator = allocator;
 
     { // GBuffer
-        std::optional<GBuffer> gBufferResult{
+        std::optional<GBuffer> const gBufferResult{
             GBuffer::create(
                 device
                 , dimensionCapacity
@@ -163,25 +164,21 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     }
 
     { // Lights used during the pass
-        VkDeviceSize constexpr maxLights{ 16 };
+        VkDeviceSize constexpr LIGHT_CAPACITY{ 16 };
 
-        m_directionalLights = std::make_unique<
-            TStagedBuffer<GPUTypes::LightDirectional>
-        >(
+        m_directionalLights = std::make_unique<TStagedBuffer<GPUTypes::LightDirectional>>(
             TStagedBuffer<GPUTypes::LightDirectional>::allocate(
                 device
                 , allocator
-                , maxLights
+                , LIGHT_CAPACITY
                 , 0
             )
         );
-        m_spotLights = std::make_unique<
-            TStagedBuffer<GPUTypes::LightSpot>
-        >(
+        m_spotLights = std::make_unique<TStagedBuffer<GPUTypes::LightSpot>>(
             TStagedBuffer<GPUTypes::LightSpot>::allocate(
                 device
                 , allocator
-                , maxLights
+                , LIGHT_CAPACITY
                 , 0
             )
         );
@@ -470,7 +467,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     , uint32_t const atmosphereIndex
     , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
     , SceneBounds const& sceneBounds
-    , bool renderMesh
+    , bool const renderMesh
     , MeshAsset const& sceneMesh
     , MeshInstances const& sceneGeometry
 )
@@ -632,11 +629,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             )
         };
 
-        std::array<VkShaderStageFlagBits, 2> stages{
+        std::array<VkShaderStageFlagBits, 2> const stages{
             VK_SHADER_STAGE_VERTEX_BIT
             , VK_SHADER_STAGE_FRAGMENT_BIT
         };
-        std::array<VkShaderEXT, 2> shaders{
+        std::array<VkShaderEXT, 2> const shaders{
             m_gBufferVertexShader.shaderObject()
             , m_gBufferFragmentShader.shaderObject()
         };
@@ -714,11 +711,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             , 0
         );
 
-        std::array<VkShaderStageFlagBits, 2> unboundStages{
+        std::array<VkShaderStageFlagBits, 2> const unboundStages{
             VK_SHADER_STAGE_VERTEX_BIT
             , VK_SHADER_STAGE_FRAGMENT_BIT
         };
-        std::array<VkShaderEXT, 2> unboundHandles{
+        std::array<VkShaderEXT, 2> const unboundHandles{
             VK_NULL_HANDLE
             , VK_NULL_HANDLE
         };
@@ -887,7 +884,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         VkShaderEXT const shader{ m_skyPassComputeShader.shaderObject() };
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
 
-        std::array<VkDescriptorSet, 2> descriptorSets{
+        std::array<VkDescriptorSet, 2> const descriptorSets{
             m_drawImageSet
             , m_depthImageSet
         };
@@ -996,10 +993,13 @@ void DeferredShadingPipeline::updateRenderTargetDescriptors(
         depthImageWrite
     };
 
-    vkUpdateDescriptorSets(device, VKR_ARRAY(writes), 0, nullptr);
+    vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
 }
 
-void DeferredShadingPipeline::cleanup(VkDevice device, VmaAllocator allocator)
+void DeferredShadingPipeline::cleanup(
+    VkDevice const device
+    , VmaAllocator const allocator
+)
 {
     m_shadowPassArray.cleanup(device, allocator);
     m_gBuffer.cleanup(device, allocator);

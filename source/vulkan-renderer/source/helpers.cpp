@@ -5,7 +5,7 @@
 #include <regex>
 #include <array>
 
-std::string MakeLogPrefix(std::source_location location)
+std::string MakeLogPrefix(std::source_location const location)
 {
     std::string const relativePath{
         DebugUtils::getLoadedDebugUtils().makeRelativePath(
@@ -20,8 +20,8 @@ std::string MakeLogPrefix(std::source_location location)
 }
 
 static void PrintLine(
-    std::string message
-    , fmt::color foregroundColor
+    std::string const message
+    , fmt::color const foregroundColor
 )
 {
     fmt::print(
@@ -32,47 +32,42 @@ static void PrintLine(
 }
 
 void CheckVkResult(
-    VkResult result
-    , std::source_location location
+    VkResult const result
+    , std::source_location const location
 )
 {
-    if (result != VK_SUCCESS)
-    {
-        std::string const message{
-            fmt::format(
-                fmt::fg(fmt::color::red)
-                , "Detected Vulkan Error : {}"
-                , string_VkResult(result)
-            )
-        };
-        throw std::runtime_error(MakeLogPrefix(location) + message);
-    }
+    if (result == VK_SUCCESS) return;
+
+    std::string const message{
+        fmt::format(
+            fmt::fg(fmt::color::red)
+            , "Detected Vulkan Error : {}"
+            , string_VkResult(result)
+        )
+    };
+    throw std::runtime_error(MakeLogPrefix(location) + message);
 }
 
-void CheckVkResult_Imgui(VkResult result)
+void CheckVkResult_Imgui(VkResult const result)
 {
-    if (result != VK_SUCCESS)
-    {
-        std::string const message{
-            fmt::format(
-                "Detected Vulkan Error : {}"
-                , string_VkResult(result)
-            )
-        };
-        PrintLine(message, fmt::color::red);
-    }
+    if (result == VK_SUCCESS) return;
+    
+    std::string const message{
+        fmt::format(
+            "Detected Vulkan Error : {}"
+            , string_VkResult(result)
+        )
+    };
+    PrintLine(message, fmt::color::red);
 }
 
 void LogVkResult(
-    VkResult result
-    , std::string message
-    , std::source_location location
+    VkResult const result
+    , std::string const message
+    , std::source_location const location
 )
 {
-    if (result == VK_SUCCESS)
-    {
-        return;
-    }
+    if (result == VK_SUCCESS) return;
 
     Error(
         fmt::format("{} error: {}", message, string_VkResult(result))
@@ -81,20 +76,24 @@ void LogVkResult(
 }
 
 void LogBase(
-    std::string message
-    , std::source_location location
-    , fmt::color color
+    std::string const message
+    , std::source_location const location
+    , fmt::color const color
 )
 {
     PrintLine(
-        fmt::format("{} {}", MakeLogPrefix(location), message)
+        fmt::format(
+            "{} {}"
+            , MakeLogPrefix(location)
+            , message
+        )
         , color
     );
 }
 
 void Log(
-    std::string message
-    , std::source_location location
+    std::string const message
+    , std::source_location const location
 )
 {
     LogBase(
@@ -105,8 +104,8 @@ void Log(
 }
 
 void Warning(
-    std::string message
-    , std::source_location location
+    std::string const message
+    , std::source_location const location
 )
 {
     LogBase(
@@ -117,8 +116,8 @@ void Warning(
 }
 
 void Error(
-    std::string message
-    , std::source_location location
+    std::string const message
+    , std::source_location const location
 )
 {
     LogBase(
@@ -157,7 +156,7 @@ void DebugUtils::init()
     );
 }
 
-bool DebugUtils::validateRelativePath(std::filesystem::path path)
+bool DebugUtils::validateRelativePath(std::filesystem::path const path)
 {
     if (!path.is_relative())
     {
@@ -174,14 +173,14 @@ bool DebugUtils::validateRelativePath(std::filesystem::path path)
 }
 
 std::filesystem::path DebugUtils::makeAbsolutePath(
-    std::filesystem::path localPath
+    std::filesystem::path const localPath
 ) const
 {
     return (m_sourcePath / localPath).lexically_normal();
 }
 
 std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(
-    std::filesystem::path localPath
+    std::filesystem::path const localPath
 ) const
 {
     if (!validateRelativePath(localPath))
@@ -194,7 +193,7 @@ std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(
 }
 
 std::filesystem::path DebugUtils::makeRelativePath(
-    std::filesystem::path absolutePath
+    std::filesystem::path const absolutePath
 ) const
 {
     assert(absolutePath.is_absolute());

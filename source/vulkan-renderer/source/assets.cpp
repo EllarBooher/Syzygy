@@ -14,8 +14,8 @@
 #include "helpers.hpp"
 
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
-    Engine* engine
-    , std::string localPath
+    Engine* const engine
+    , std::string const& localPath
 )
 {
     std::filesystem::path const assetPath{ 
@@ -27,7 +27,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     fastgltf::GltfDataBuffer data;
     data.loadFromFile(assetPath);
 
-    auto constexpr gltfOptions{
+    auto constexpr GLTF_OPTIONS{
         fastgltf::Options::LoadGLBBuffers
         | fastgltf::Options::LoadExternalBuffers
     };
@@ -35,7 +35,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     fastgltf::Parser parser{};
 
     fastgltf::Expected<fastgltf::Asset> load{ 
-        parser.loadGltfBinary(&data, assetPath.parent_path(), gltfOptions) 
+        parser.loadGltfBinary(&data, assetPath.parent_path(), GLTF_OPTIONS) 
     };
     if (!load) {
         Error(fmt::format(
@@ -147,16 +147,15 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
             }
         }
 
-        // Set the colors to the normals for debugging
-        bool constexpr overrideColors{ false };
-        if (overrideColors) {
+        bool constexpr DEBUG_OVERRIDE_COLORS{ false };
+        if (DEBUG_OVERRIDE_COLORS) {
             for (Vertex& vertex : vertices) {
                 vertex.color = glm::vec4(vertex.normal, 1.0f);
             }
         }
 
-        bool constexpr flipY{ true };
-        if (flipY) {
+        bool constexpr FLIP_Y{ true };
+        if (FLIP_Y) {
             for (Vertex& vertex : vertices) {
                 vertex.normal.y *= -1;
                 vertex.position.y *= -1;
@@ -179,7 +178,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
 
 AssetLoadingResult loadAssetFile(
     std::string const& localPath
-    , VkDevice device
+    , VkDevice const device
 )
 {
     std::unique_ptr<std::filesystem::path> const pPath{

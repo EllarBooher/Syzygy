@@ -192,7 +192,7 @@ public:
         return m_layouts[m_shaderIndex];
     }
 
-    void selectShader(size_t index)
+    void selectShader(size_t const index)
     {
         size_t const count{ m_shaders.size() };
         if (count == 0)

@@ -16,6 +16,7 @@ add_library(vulkan-renderer STATIC
 	"source/shadowpass.cpp"
 	"source/deferred/deferred.cpp"
 	"source/deferred/gbuffer.cpp"
+	"source/debuglines.cpp"
 )
 
 target_include_directories(vulkan-renderer PUBLIC 

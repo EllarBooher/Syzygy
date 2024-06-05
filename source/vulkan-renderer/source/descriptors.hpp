@@ -47,9 +47,7 @@ private:
 	std::vector<Binding> m_bindings{};
 };
 
-/**
-A struct that holds a descriptor pool and allows allocating from it.
-*/
+// Holds a descriptor pool and allows allocating from it.
 class DescriptorAllocator
 {
 public:

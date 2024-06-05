@@ -16,7 +16,7 @@ void PropertyTable::nameColumn(std::string const name)
 
 bool PropertyTable::resetColumn(
     std::string const name
-    , bool visible
+    , bool const visible
 )
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
@@ -88,7 +88,7 @@ void PropertyTable::end()
 PropertyTable& PropertyTable::childPropertyBegin()
 {
     static std::unordered_map<ImGuiID, bool> collapseStatus{};
-    bool constexpr collapsedDefault{ true };
+    bool constexpr COLLAPSED_DEFAULT{ true };
 
     checkInvariant();
 
@@ -106,7 +106,7 @@ PropertyTable& PropertyTable::childPropertyBegin()
 
         if (!collapseStatus.contains(arrowButtonID))
         {
-            collapseStatus.insert({ arrowButtonID, collapsedDefault });
+            collapseStatus.insert({ arrowButtonID, COLLAPSED_DEFAULT });
         }
 
         bool& collapsed{ collapseStatus.at(arrowButtonID) };
@@ -220,7 +220,7 @@ PropertyTable& PropertyTable::rowDropdown(
     std::string const& name
     , size_t& selectedIndex
     , size_t const& defaultIndex
-    , std::span<std::string const> displayValues
+    , std::span<std::string const> const displayValues
 )
 {
     if (!Self::rowBegin(name))

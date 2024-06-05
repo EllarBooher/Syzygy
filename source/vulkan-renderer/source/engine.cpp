@@ -177,9 +177,6 @@ void Engine::initVulkan()
 
     initImgui();
 
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
     Log("Vulkan Initialized.");
 }
 
@@ -331,12 +328,12 @@ void Engine::initDrawTargets()
     // Initialize the image used for rendering outside of the swapchain.
 
     m_sceneColorTexture = AllocatedImage::allocate(
-        m_allocator,
-        m_device,
-        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        m_allocator
+        , m_device
+        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
+        , VK_FORMAT_R16G16B16A16_SFLOAT
+        , VK_IMAGE_ASPECT_COLOR_BIT
+        , VK_IMAGE_USAGE_TRANSFER_SRC_BIT
         | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g. ImGui
         | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics passes
@@ -344,24 +341,24 @@ void Engine::initDrawTargets()
     ).value();
 
     m_drawImage = AllocatedImage::allocate(
-        m_allocator,
-        m_device,
-        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
+        m_allocator
+        , m_device
+        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
+        , VK_FORMAT_R16G16B16A16_SFLOAT
+        , VK_IMAGE_ASPECT_COLOR_BIT
+        , VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
         | VK_IMAGE_USAGE_STORAGE_BIT
         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
     ).value(); //TODO: handle failed case
 
     m_sceneDepthTexture = AllocatedImage::allocate(
-        m_allocator,
-        m_device,
-        VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 },
-        VK_FORMAT_D32_SFLOAT,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+        m_allocator
+        , m_device
+        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
+        , VK_FORMAT_D32_SFLOAT
+        , VK_IMAGE_ASPECT_DEPTH_BIT
+        , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
         | VK_IMAGE_USAGE_SAMPLED_BIT
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
     ).value();
@@ -643,9 +640,7 @@ void Engine::initWorld()
                 , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
         );
-        m_meshInstances.modelInverseTransposes = std::make_unique<
-            TStagedBuffer<glm::mat4x4>
-        >(
+        m_meshInstances.modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(
             TStagedBuffer<glm::mat4x4>::allocate(
                 m_device
                 , m_allocator
@@ -679,9 +674,7 @@ void Engine::initWorld()
     }
 
     { // Camera
-        m_camerasBuffer = std::make_unique<
-            TStagedBuffer<GPUTypes::Camera>
-        >(
+        m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(
             TStagedBuffer<GPUTypes::Camera>::allocate(
                 m_device
                 , m_allocator
@@ -695,9 +688,7 @@ void Engine::initWorld()
     }
 
     { // Atmosphere
-        m_atmospheresBuffer = std::make_unique<
-            TStagedBuffer<GPUTypes::Atmosphere>
-        >(
+        m_atmospheresBuffer = std::make_unique<TStagedBuffer<GPUTypes::Atmosphere>>(
             TStagedBuffer<GPUTypes::Atmosphere>::allocate(
                 m_device
                 , m_allocator
@@ -965,21 +956,21 @@ void Engine::immediateSubmit(
     );
 
     // 100 second timeout
-    uint64_t const immediateSubmitTimeout{ 100'000'000'000 };
+    uint64_t constexpr SUBMIT_TIMEOUT_NANOSECONDS{ 100'000'000'000 };
     CheckVkResult(
         vkWaitForFences(
             m_device
             , 1
             , &m_immFence
             , true
-            , immediateSubmitTimeout
+            , SUBMIT_TIMEOUT_NANOSECONDS
         )
     );
 }
 
 std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
-    std::span<uint32_t const> indices
-    , std::span<Vertex const> vertices
+    std::span<uint32_t const> const indices
+    , std::span<Vertex const> const vertices
 )
 {
     // Allocate buffer 
@@ -1428,8 +1419,8 @@ bool Engine::renderUI(VkDevice const device)
 }
 
 void Engine::tickWorld(
-    double totalTime
-    , double deltaTimeSeconds
+    double const totalTime
+    , double const deltaTimeSeconds
 )
 {
     std::span<glm::mat4x4> const models{ 
@@ -1518,13 +1509,13 @@ void Engine::draw()
 {
     FrameData& currentFrame = getCurrentFrame();
 
-    uint64_t const timeoutNanoseconds = 1'000'000'000; // 1 second
+    uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
     CheckVkResult(
         vkWaitForFences(
             m_device
             , 1, &currentFrame.renderFence
             , VK_TRUE
-            , timeoutNanoseconds
+            , FRAME_WAIT_TIMEOUT_NANOSECONDS
         )
     );
 
@@ -1617,10 +1608,10 @@ void Engine::draw()
                     atmospheres[m_atmosphereIndex] 
                 };
 
-                float const time{ // position of sun as proxy for time
+                float const sunCosine{ // position of sun as proxy for time
                     glm::dot(geometry::up, atmosphere.directionToSun)
                 };
-                if (time > 0.0)
+                if (sunCosine > 0.0)
                 { // Sunlight
                     directionalLights.push_back(
                         lights::makeDirectional(
@@ -1633,30 +1624,30 @@ void Engine::draw()
                     );
                 }
 
-                float constexpr timeSunset{ 0.06 };
-                if (time < timeSunset)
+                float constexpr SUNSET_COSINE{ 0.06 };
+                if (sunCosine < SUNSET_COSINE)
                 { // Moonlight
-                    float constexpr moonrisePeriod{ 0.08 };
+                    float constexpr MOONRISE_LENGTH{ 0.08 };
                     float const moonlightStrength{
                         0.1f * (
-                            time < timeSunset - moonrisePeriod
+                            sunCosine < SUNSET_COSINE - MOONRISE_LENGTH
                             ? 1.0f
-                            : glm::abs(time - timeSunset) / moonrisePeriod
+                            : glm::abs(sunCosine - SUNSET_COSINE) / MOONRISE_LENGTH
                         )
                     };
 
-                    auto const moonlightColor{
-                        glm::vec4(
-                            glm::normalize(glm::vec3(0.3, 0.4, 0.6))
-                            , 1.0
-                        )
+                    glm::vec4 constexpr MOONLIGHT_COLOR_RGBA{ 0.3, 0.4, 0.6, 1.0 };
+                    glm::vec3 constexpr MOONLIGHT_EULER_ANGLES{
+                        -1.5708
+                        , 0.0
+                        , 0.0
                     };
 
                     directionalLights.push_back(
                         lights::makeDirectional(
-                            moonlightColor
+                            MOONLIGHT_COLOR_RGBA
                             , moonlightStrength
-                            , glm::vec3(-1.5708, 0.0, 0.0)
+                            , MOONLIGHT_EULER_ANGLES
                             , m_sceneBounds.center
                             , m_sceneBounds.extent
                         )
@@ -1788,7 +1779,7 @@ void Engine::draw()
         vkAcquireNextImageKHR(
                 m_device
                 , m_swapchain
-                , timeoutNanoseconds
+                , FRAME_WAIT_TIMEOUT_NANOSECONDS
                 , currentFrame.swapchainSemaphore
                 , VK_NULL_HANDLE // No Fence to signal
                 , &swapchainImageIndex
@@ -1913,15 +1904,15 @@ void Engine::draw()
 }
 
 void Engine::recordDrawImgui(
-    VkCommandBuffer cmd
-    , VkImageView view
+    VkCommandBuffer const cmd
+    , VkImageView const view
 )
 {
     VkRenderingAttachmentInfo const colorAttachmentInfo{
         vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
     };
 
-    std::vector<VkRenderingAttachmentInfo> colorAttachments{ 
+    std::vector<VkRenderingAttachmentInfo> const colorAttachments{ 
         colorAttachmentInfo 
     };
     VkRenderingInfo const renderingInfo{

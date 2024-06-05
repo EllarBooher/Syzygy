@@ -31,7 +31,7 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	uint32_t const binding
 	, VkDescriptorType const type
 	, VkShaderStageFlags const stageMask
-	, std::span<VkSampler const> samplers
+	, std::span<VkSampler const> const samplers
 	, VkDescriptorBindingFlags const flags
 )
 {
@@ -64,7 +64,7 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	, VkDescriptorBindingFlags const flags
 )
 {
-	std::array<VkSampler, 1> samplers{ sampler };
+	std::array<VkSampler, 1> const samplers{ sampler };
 	return addBinding(
 		binding
 		, type
@@ -80,8 +80,8 @@ void DescriptorLayoutBuilder::clear()
 }
 
 std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
-	VkDevice device
-	, VkDescriptorSetLayoutCreateFlags layoutFlags
+	VkDevice const device
+	, VkDescriptorSetLayoutCreateFlags const layoutFlags
 ) const
 {
 	std::vector<VkDescriptorSetLayoutBinding> bindings{};
@@ -133,10 +133,10 @@ std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
 }
 
 void DescriptorAllocator::initPool(
-	VkDevice device
-	, uint32_t maxSets
-	, std::span<PoolSizeRatio const> poolRatios
-	, VkDescriptorPoolCreateFlags flags
+	VkDevice const device
+	, uint32_t const maxSets
+	, std::span<PoolSizeRatio const> const poolRatios
+	, VkDescriptorPoolCreateFlags const flags
 )
 {
 	std::vector<VkDescriptorPoolSize> poolSizes{};
@@ -165,19 +165,19 @@ void DescriptorAllocator::initPool(
 	CheckVkResult(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
 }
 
-void DescriptorAllocator::clearDescriptors(VkDevice device)
+void DescriptorAllocator::clearDescriptors(VkDevice const device)
 {
 	CheckVkResult(vkResetDescriptorPool(device, pool, 0));
 }
 
-void DescriptorAllocator::destroyPool(VkDevice device)
+void DescriptorAllocator::destroyPool(VkDevice const device)
 {
 	vkDestroyDescriptorPool(device, pool, nullptr);
 }
 
 VkDescriptorSet DescriptorAllocator::allocate(
-	VkDevice device
-	, VkDescriptorSetLayout layout
+	VkDevice const device
+	, VkDescriptorSetLayout const layout
 )
 {
 	VkDescriptorSetAllocateInfo const allocInfo{

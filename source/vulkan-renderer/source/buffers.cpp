@@ -2,12 +2,12 @@
 #include "helpers.hpp"
 
 AllocatedBuffer AllocatedBuffer::allocate(
-    VkDevice device
-    , VmaAllocator allocator
-    , size_t allocationSize
-    , VkBufferUsageFlags bufferUsage
-    , VmaMemoryUsage memoryUsage
-    , VmaAllocationCreateFlags createFlags
+    VkDevice const device
+    , VmaAllocator const allocator
+    , size_t const allocationSize
+    , VkBufferUsageFlags const bufferUsage
+    , VmaMemoryUsage const memoryUsage
+    , VmaAllocationCreateFlags const createFlags
 )
 {
     VkBufferCreateInfo const bufferInfo{
@@ -53,8 +53,8 @@ AllocatedBuffer AllocatedBuffer::allocate(
 }
 
 void StagedBuffer::recordCopyToDevice(
-    VkCommandBuffer cmd
-    , VmaAllocator allocator
+    VkCommandBuffer const cmd
+    , VmaAllocator const allocator
 )
 {
     CheckVkResult(
@@ -96,14 +96,14 @@ VkDeviceAddress StagedBuffer::deviceAddress() const
     return m_deviceBuffer.deviceAddress;
 }
 
-void StagedBuffer::overwriteStagedBytes(std::span<uint8_t const> data)
+void StagedBuffer::overwriteStagedBytes(std::span<uint8_t const> const data)
 {
     clearStaged();
     markDirty(true);
     pushStagedBytes(data);
 }
 
-void StagedBuffer::pushStagedBytes(std::span<uint8_t const> data)
+void StagedBuffer::pushStagedBytes(std::span<uint8_t const> const data)
 {
     assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
 
@@ -116,7 +116,7 @@ void StagedBuffer::pushStagedBytes(std::span<uint8_t const> data)
     m_stagedSizeBytes += data.size_bytes();
 }
 
-void StagedBuffer::popStagedBytes(size_t count)
+void StagedBuffer::popStagedBytes(size_t const count)
 {
     markDirty(true);
 
@@ -143,10 +143,10 @@ void StagedBuffer::clearStagedAndDevice()
 }
 
 StagedBuffer StagedBuffer::allocate(
-    VkDevice device
-    , VmaAllocator allocator
-    , VkDeviceSize allocationSize
-    , VkBufferUsageFlags bufferUsage
+    VkDevice const device
+    , VmaAllocator const allocator
+    , VkDeviceSize const allocationSize
+    , VkBufferUsageFlags const bufferUsage
 )
 {
     AllocatedBuffer deviceBuffer{ 
@@ -184,9 +184,9 @@ StagedBuffer StagedBuffer::allocate(
 }
 
 void StagedBuffer::recordTotalCopyBarrier(
-    VkCommandBuffer cmd
-    , VkPipelineStageFlags2 destinationStage
-    , VkAccessFlags2 destinationAccessFlags
+    VkCommandBuffer const cmd
+    , VkPipelineStageFlags2 const destinationStage
+    , VkAccessFlags2 const destinationAccessFlags
 ) const
 {
     VkBufferMemoryBarrier2 const bufferMemoryBarrier{

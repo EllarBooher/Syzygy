@@ -21,12 +21,7 @@ struct AtmosphereParameters
     AnimationParameters animation{};
 
     glm::vec3 sunEulerAngles{ 0.0, 0.0, 0.0 };
-
-    glm::vec3 directionToSun() const
-    {
-        return -geometry::forwardFromEulers(sunEulerAngles);
-    }
-
+    
     float earthRadiusMeters{ 0.0 };
     float atmosphereRadiusMeters{ 0.0 };
 
@@ -37,6 +32,11 @@ struct AtmosphereParameters
 
     glm::vec3 scatteringCoefficientMie{ 1.0 };
     float altitudeDecayMie{ 1.0 };
+
+    glm::vec3 directionToSun() const
+    {
+        return -geometry::forwardFromEulers(sunEulerAngles);
+    }
 
     // Returns an estimate of the color of sunlight that has reached the 
     // origin.
@@ -185,8 +185,8 @@ struct CameraParameters {
     }
 
     GPUTypes::Camera toDeviceEquivalentOrthographic(
-        float aspectRatio
-        , float planeDistance
+        float const aspectRatio
+        , float const planeDistance
     ) const
     {
         glm::mat4x4 const projection{ 
@@ -227,15 +227,15 @@ struct CameraParameters {
     }
 
     // Projects from camera space to clip space
-    glm::mat4 projection(float aspectRatio) const
+    glm::mat4 projection(float const aspectRatio) const
     {
         return geometry::projectionVk(fov, aspectRatio, near, far);
     }
 
     // Projects from camera space to clip space
     glm::mat4 projectionOrthographic(
-        float aspectRatio
-        , float distance
+        float const aspectRatio
+        , float const distance
     ) const
     {
         // An orthographic projection has one view plane, 
@@ -254,7 +254,7 @@ struct CameraParameters {
     // Generates the projection * view matrix that transforms from world to 
     // clip space. Aspect ratio is a function of the drawn surface, so it is 
     // passed in at generation time.
-    glm::mat4 toProjView(float aspectRatio) const
+    glm::mat4 toProjView(float const aspectRatio) const
     {
         return projection(aspectRatio) * view();
     }

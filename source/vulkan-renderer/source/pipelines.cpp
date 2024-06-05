@@ -8,8 +8,8 @@
 #include <glm/gtx/intersect.hpp>
 
 VkPipeline PipelineBuilder::buildPipeline(
-	VkDevice device
-	, VkPipelineLayout layout
+	VkDevice const device
+	, VkPipelineLayout const layout
 ) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
@@ -121,7 +121,7 @@ VkPipeline PipelineBuilder::buildPipeline(
 
 void PipelineBuilder::pushShader(
 	ShaderModuleReflected const& shader
-	, VkShaderStageFlagBits stage
+	, VkShaderStageFlagBits const stage
 )
 {
 	m_shaderStages.push_back(
@@ -133,25 +133,25 @@ void PipelineBuilder::pushShader(
 	);
 }
 
-void PipelineBuilder::setInputTopology(VkPrimitiveTopology topology)
+void PipelineBuilder::setInputTopology(VkPrimitiveTopology const topology)
 {
 	m_inputAssembly.topology = topology;
 	m_inputAssembly.primitiveRestartEnable = VK_FALSE;
 }
 
-void PipelineBuilder::setPolygonMode(VkPolygonMode mode)
+void PipelineBuilder::setPolygonMode(VkPolygonMode const mode)
 {
 	m_rasterizer.polygonMode = mode;
 }
 
-void PipelineBuilder::pushDynamicState(VkDynamicState dynamicState)
+void PipelineBuilder::pushDynamicState(VkDynamicState const dynamicState)
 {
 	m_dynamicStates.insert(dynamicState);
 }
 
 void PipelineBuilder::setCullMode(
-	VkCullModeFlags cullMode
-	, VkFrontFace frontFace
+	VkCullModeFlags const cullMode
+	, VkFrontFace const frontFace
 )
 {
 	m_rasterizer.cullMode = cullMode;
@@ -168,14 +168,14 @@ void PipelineBuilder::setMultisamplingNone()
 	m_multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-void PipelineBuilder::setColorAttachment(VkFormat format)
+void PipelineBuilder::setColorAttachment(VkFormat const format)
 {
 	m_colorAttachment = ColorAttachmentSpecification{
 		.format{ format },
 	};
 }
 
-void PipelineBuilder::setDepthFormat(VkFormat format)
+void PipelineBuilder::setDepthFormat(VkFormat const format)
 {
 	m_depthAttachmentFormat = format;
 }
@@ -205,8 +205,8 @@ void PipelineBuilder::disableDepthTest()
 }
 
 void PipelineBuilder::enableDepthTest(
-	bool depthWriteEnable
-	, VkCompareOp compareOp
+	bool const depthWriteEnable
+	, VkCompareOp const compareOp
 )
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
@@ -227,9 +227,9 @@ void PipelineBuilder::enableDepthTest(
 }
 
 ComputeCollectionPipeline::ComputeCollectionPipeline(
-	VkDevice device
-	, VkDescriptorSetLayout drawImageDescriptorLayout
-	, std::span<std::string const> shaderPaths
+	VkDevice const device
+	, VkDescriptorSetLayout const drawImageDescriptorLayout
+	, std::span<std::string const> const shaderPaths
 )
 {
 	std::vector<VkDescriptorSetLayout> const layouts{ 
@@ -308,9 +308,9 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
 }
 
 void ComputeCollectionPipeline::recordDrawCommands(
-	VkCommandBuffer cmd
-	, VkDescriptorSet drawImageDescriptors
-	, VkExtent2D drawExtent
+	VkCommandBuffer const cmd
+	, VkDescriptorSet const drawImageDescriptors
+	, VkExtent2D const drawExtent
 ) const
 {
 	ShaderObjectReflected const& shader{ currentShader() };
@@ -390,7 +390,7 @@ void ComputeCollectionPipeline::recordDrawCommands(
 	);
 }
 
-void ComputeCollectionPipeline::cleanup(VkDevice device)
+void ComputeCollectionPipeline::cleanup(VkDevice const device)
 {
 	for (ShaderObjectReflected& shader : m_shaders)
 	{
@@ -403,9 +403,9 @@ void ComputeCollectionPipeline::cleanup(VkDevice device)
 }
 
 DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
-	VkDevice device
-	, VkFormat colorAttachmentFormat
-	, VkFormat depthAttachmentFormat
+	VkDevice const device
+	, VkFormat const colorAttachmentFormat
+	, VkFormat const depthAttachmentFormat
 )
 {
 	ShaderModuleReflected const vertexShader{ 
@@ -499,13 +499,13 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 }
 
 DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer cmd
-	, bool reuseDepthAttachment
-	, float lineWidth
-	, VkRect2D drawRect
+	VkCommandBuffer const cmd
+	, bool const reuseDepthAttachment
+	, float const lineWidth
+	, VkRect2D const drawRect
 	, AllocatedImage const& color
 	, AllocatedImage const& depth
-	, uint32_t cameraIndex
+	, uint32_t const cameraIndex
 	, TStagedBuffer<GPUTypes::Camera> const& cameras
 	, TStagedBuffer<Vertex> const& endpoints
 	, TStagedBuffer<uint32_t> const& indices
@@ -623,7 +623,7 @@ DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
 	};
 }
 
-void DebugLineGraphicsPipeline::cleanup(VkDevice device)
+void DebugLineGraphicsPipeline::cleanup(VkDevice const device)
 {
 	m_fragmentShader.cleanup(device);
 	m_vertexShader.cleanup(device);
@@ -633,8 +633,8 @@ void DebugLineGraphicsPipeline::cleanup(VkDevice device)
 }
 
 OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
-	VkDevice device
-	, VkFormat depthAttachmentFormat
+	VkDevice const device
+	, VkFormat const depthAttachmentFormat
 )
 {
 	ShaderModuleReflected const vertexShader{ 
@@ -728,12 +728,12 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 }
 
 void OffscreenPassGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer cmd
-	, bool reuseDepthAttachment
-	, float depthBias
-	, float depthBiasSlope
+	VkCommandBuffer const cmd
+	, bool const reuseDepthAttachment
+	, float const depthBias
+	, float const depthBiasSlope
 	, AllocatedImage const& depth
-	, uint32_t projViewIndex
+	, uint32_t const projViewIndex
 	, TStagedBuffer<glm::mat4x4> const& projViewMatrices
 	, MeshAsset const& mesh
 	, TStagedBuffer<glm::mat4x4> const& models
@@ -844,7 +844,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 	vkCmdEndRendering(cmd);
 }
 
-void OffscreenPassGraphicsPipeline::cleanup(VkDevice device)
+void OffscreenPassGraphicsPipeline::cleanup(VkDevice const device)
 {
 	m_vertexShader.cleanup(device);
 

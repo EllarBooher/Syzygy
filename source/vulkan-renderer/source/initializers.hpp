@@ -7,7 +7,7 @@
 #include <span>
 #include <optional>
 
-/** Shorthand factory method for info structs, with reasonable defaults. */
+// Shorthand factory methods for data-holding Vulkan structs, with reasonable defaults.
 namespace vkinit 
 {
     VkFenceCreateInfo fenceCreateInfo(

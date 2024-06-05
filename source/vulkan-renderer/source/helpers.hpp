@@ -82,8 +82,8 @@ void LogVkResult(
 // and throws a runtime error if not.
 template<typename T>
 inline T UnwrapVkbResult(
-    vkb::Result<T> result
-    , std::source_location location = std::source_location::current()
+    vkb::Result<T> const result
+    , std::source_location const location = std::source_location::current()
 )
 {
     if (result.has_value())

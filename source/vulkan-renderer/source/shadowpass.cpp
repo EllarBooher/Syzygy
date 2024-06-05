@@ -165,16 +165,12 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
         vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
 
-    shadowPass.m_projViewMatrices = std::make_unique<
-        TStagedBuffer<glm::mat4x4>
-    >(
+    shadowPass.m_projViewMatrices = std::make_unique<TStagedBuffer<glm::mat4x4>>(
         TStagedBuffer<glm::mat4x4>::allocate(device, allocator, 100, 0)
     );
-    shadowPass.m_pipeline = std::make_unique<
-        OffscreenPassGraphicsPipeline
-    >(
-        device,
-        VK_FORMAT_D32_SFLOAT
+    shadowPass.m_pipeline = std::make_unique<OffscreenPassGraphicsPipeline>(
+        device
+        , VK_FORMAT_D32_SFLOAT
     );
 
     return shadowPass;

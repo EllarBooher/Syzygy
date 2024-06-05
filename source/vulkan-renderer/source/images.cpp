@@ -3,7 +3,7 @@
 #include "helpers.hpp"
 #include "initializers.hpp"
 
-VkOffset3D ExtentToOffset(VkExtent3D extent)
+static VkOffset3D extentToOffset(VkExtent3D const extent)
 {
     auto const x = static_cast<int32_t>(extent.width);
     auto const y = static_cast<int32_t>(extent.height);
@@ -65,14 +65,14 @@ void vkutil::recordCopyImageToImage(
         },
         .srcOffsets{
             VkOffset3D{},
-            ExtentToOffset(srcSize),
+            extentToOffset(srcSize),
         },
         .dstSubresource{ 
             vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) 
         },
         .dstOffsets{
             VkOffset3D{},
-            ExtentToOffset(dstSize),
+            extentToOffset(dstSize),
         },
     };
 
@@ -92,13 +92,13 @@ void vkutil::recordCopyImageToImage(
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer cmd
-    , VkImage source
-    , VkImage destination
-    , VkOffset3D srcMin
-    , VkOffset3D srcMax
-    , VkOffset3D dstMin
-    , VkOffset3D dstMax
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkOffset3D const srcMin
+    , VkOffset3D const srcMax
+    , VkOffset3D const dstMin
+    , VkOffset3D const dstMax
 )
 {
     VkImageBlit2 const blitRegion{
@@ -164,11 +164,11 @@ void vkutil::recordCopyImageToImage(
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer cmd
-    , VkImage source
-    , VkImage destination
-    , VkRect2D srcSize
-    , VkRect2D dstSize
+    VkCommandBuffer const cmd
+    , VkImage const source
+    , VkImage const destination
+    , VkRect2D const srcSize
+    , VkRect2D const dstSize
 )
 {
     VkOffset3D const srcMin{
@@ -212,12 +212,12 @@ double vkutil::aspectRatio(VkExtent2D const extent)
 }
 
 std::optional<AllocatedImage> AllocatedImage::allocate(
-    VmaAllocator allocator
-    , VkDevice device
-    , VkExtent3D extent
-    , VkFormat format
-    , VkImageAspectFlags viewFlags
-    , VkImageUsageFlags usageMask
+    VmaAllocator const allocator
+    , VkDevice const device
+    , VkExtent3D const extent
+    , VkFormat const format
+    , VkImageAspectFlags const viewFlags
+    , VkImageUsageFlags const usageMask
 )
 {
     AllocatedImage image{

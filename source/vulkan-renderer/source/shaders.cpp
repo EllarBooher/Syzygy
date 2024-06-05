@@ -5,7 +5,7 @@
 #include <spirv_reflect.h>
 
 ShaderReflectionData vkutil::generateReflectionData(
-	std::span<uint8_t const> spirv_bytecode
+	std::span<uint8_t const> const spirv_bytecode
 )
 {
 	SpvReflectShaderModule module;
@@ -42,7 +42,7 @@ ShaderReflectionData vkutil::generateReflectionData(
 		SpvReflectEntryPoint const& entryPoint{ *pEntryPoint };
 
 		SpvReflectResult result;
-		SpvReflectBlockVariable const* pPushConstant{ 
+		SpvReflectBlockVariable const* const pPushConstant{ 
 			spvReflectGetEntryPointPushConstantBlock(
 				&module
 				, entryPoint.name
@@ -58,7 +58,8 @@ ShaderReflectionData vkutil::generateReflectionData(
 
 		// The only way the result is not success is if 
 		// 1) the module is null 
-		// or 2) the entry point does not exist, which we both know to be false.
+		// or 2) the entry point does not exist
+		// Which we both know to be false.
 		assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
 		SpvReflectBlockVariable const& pushConstant{ *pPushConstant };
@@ -371,7 +372,7 @@ bool ShaderReflectionData::Matrix::operator==(
 		&& other.rowCount == rowCount;
 }
 
-std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
+std::optional<ShaderObjectReflected> ShaderObjectReflected::fromBytecode(
 	VkDevice const device
 	, std::string const name
 	, std::span<uint8_t const> const spirvBytecode
@@ -382,12 +383,12 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 	, VkSpecializationInfo const specializationInfo
 )
 {
-	ShaderReflectionData reflectionData{ 
+	ShaderReflectionData const reflectionData{ 
 		vkutil::generateReflectionData(spirvBytecode) 
 	};
 
-	vkutil::ShaderResult<VkShaderEXT> compilationResult{
-		vkutil::CompileShaderObject(
+	vkutil::ShaderResult<VkShaderEXT> const compilationResult{
+		vkutil::compileShaderObject(
 			device
 			, spirvBytecode
 			, stage
@@ -409,13 +410,13 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecode(
 
 	Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
 	return ShaderObjectReflected(
-		name,
-		reflectionData,
-		compilationResult.shader
+		name
+		, reflectionData
+		, compilationResult.shader
 	);
 }
 
-std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflected(
+std::optional<ShaderObjectReflected> ShaderObjectReflected::fromBytecodeReflected(
 	VkDevice const device
 	, std::string const name
 	, std::span<uint8_t const> const spirvBytecode
@@ -425,7 +426,7 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 	, VkSpecializationInfo const specializationInfo
 )
 {
-	ShaderReflectionData reflectionData{ 
+	ShaderReflectionData const reflectionData{ 
 		vkutil::generateReflectionData(spirvBytecode) 
 	};
 
@@ -439,8 +440,8 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 		pushConstantRanges.push_back(pushConstant.totalRange(stage));
 	}
 
-	vkutil::ShaderResult<VkShaderEXT> compilationResult{
-		vkutil::CompileShaderObject(
+	vkutil::ShaderResult<VkShaderEXT> const compilationResult{
+		vkutil::compileShaderObject(
 			device
 			, spirvBytecode
 			, stage
@@ -462,9 +463,9 @@ std::optional<ShaderObjectReflected> ShaderObjectReflected::FromBytecodeReflecte
 
 	Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
 	return ShaderObjectReflected(
-		name,
-		reflectionData,
-		compilationResult.shader
+		name
+		, reflectionData
+		, compilationResult.shader
 	);
 }
 
@@ -474,8 +475,8 @@ std::optional<ShaderModuleReflected> ShaderModuleReflected::FromBytecode(
 	, std::span<uint8_t const> const spirvBytecode
 )
 {
-	vkutil::ShaderResult<VkShaderModule> compilationResult{
-		vkutil::CompileShaderModule(device, spirvBytecode)
+	vkutil::ShaderResult<VkShaderModule> const compilationResult{
+		vkutil::compileShaderModule(device, spirvBytecode)
 	};
 
 	if (compilationResult.result != VK_SUCCESS)
@@ -487,15 +488,15 @@ std::optional<ShaderModuleReflected> ShaderModuleReflected::FromBytecode(
 		return {};
 	}
 
-	ShaderReflectionData reflectionData{ 
+	ShaderReflectionData const reflectionData{ 
 		vkutil::generateReflectionData(spirvBytecode) 
 	};
 
 	Log(fmt::format("Successfully compiled ShaderModuleReflected: {}", name));
 	return ShaderModuleReflected(
-		name,
-		reflectionData,
-		compilationResult.shader
+		name
+		, reflectionData
+		, compilationResult.shader
 	);
 }
 
@@ -521,7 +522,7 @@ void ShaderReflectedBase::cleanup(VkDevice const device)
 	);
 }
 
-vkutil::ShaderResult<VkShaderEXT> vkutil::CompileShaderObject(
+vkutil::ShaderResult<VkShaderEXT> vkutil::compileShaderObject(
 	VkDevice const device
 	, std::span<uint8_t const> const spirvBytecode
 	, VkShaderStageFlagBits const stage
@@ -584,7 +585,7 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 			[&](AssetFile const& file)
 			{
 				return std::optional<ShaderObjectReflected>{
-					ShaderObjectReflected::FromBytecodeReflected(
+					ShaderObjectReflected::fromBytecodeReflected(
 						device
 						, file.fileName
 						, file.fileBytes
@@ -627,7 +628,7 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 			[&](AssetFile const& file)
 			{
 				return std::optional<ShaderObjectReflected>{
-					ShaderObjectReflected::FromBytecode(
+					ShaderObjectReflected::fromBytecode(
 						device
 						, file.fileName
 						, file.fileBytes
@@ -653,9 +654,10 @@ std::optional<ShaderObjectReflected> vkutil::loadShaderObject(
 	);
 }
 
-vkutil::ShaderResult<VkShaderModule> vkutil::CompileShaderModule(
+vkutil::ShaderResult<VkShaderModule> vkutil::compileShaderModule(
 	VkDevice const device
-	, std::span<uint8_t const> const spirvBytecode)
+	, std::span<uint8_t const> const spirvBytecode
+)
 {
 	VkShaderModuleCreateInfo const createInfo{
 		.sType{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO },

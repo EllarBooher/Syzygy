@@ -1,7 +1,7 @@
 #include "initializers.hpp"
 
 VkFenceCreateInfo vkinit::fenceCreateInfo(
-    VkFenceCreateFlags flags
+    VkFenceCreateFlags const flags
 )
 {
     return {
@@ -12,7 +12,7 @@ VkFenceCreateInfo vkinit::fenceCreateInfo(
 }
 
 VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(
-    VkSemaphoreCreateFlags flags
+    VkSemaphoreCreateFlags const flags
 )
 {
     return {
@@ -23,7 +23,7 @@ VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(
 }
 
 VkCommandBufferBeginInfo vkinit::commandBufferBeginInfo(
-    VkCommandBufferUsageFlags flags
+    VkCommandBufferUsageFlags const flags
 )
 {
     return {
@@ -35,7 +35,7 @@ VkCommandBufferBeginInfo vkinit::commandBufferBeginInfo(
 }
 
 VkImageSubresourceRange vkinit::imageSubresourceRange(
-    VkImageAspectFlags aspectMask
+    VkImageAspectFlags const aspectMask
 )
 {
     return {
@@ -48,10 +48,10 @@ VkImageSubresourceRange vkinit::imageSubresourceRange(
 }
 
 VkImageSubresourceLayers vkinit::imageSubresourceLayers(
-    VkImageAspectFlags aspectMask
-    , uint32_t mipLevel
-    , uint32_t baseArrayLayer
-    , uint32_t baseArrayCount
+    VkImageAspectFlags const aspectMask
+    , uint32_t const mipLevel
+    , uint32_t const baseArrayLayer
+    , uint32_t const baseArrayCount
 )
 {
     return {
@@ -63,8 +63,8 @@ VkImageSubresourceLayers vkinit::imageSubresourceLayers(
 }
 
 VkSemaphoreSubmitInfo vkinit::semaphoreSubmitInfo(
-    VkPipelineStageFlags2 stageMask
-    , VkSemaphore semaphore
+    VkPipelineStageFlags2 const stageMask
+    , VkSemaphore const semaphore
 )
 {
     return {
@@ -78,7 +78,7 @@ VkSemaphoreSubmitInfo vkinit::semaphoreSubmitInfo(
 }
 
 VkCommandBufferSubmitInfo vkinit::commandBufferSubmitInfo(
-    VkCommandBuffer cmd
+    VkCommandBuffer const cmd
 )
 {
     return {
@@ -119,10 +119,10 @@ VkSubmitInfo2 vkinit::submitInfo(
 }
 
 VkImageCreateInfo vkinit::imageCreateInfo(
-    VkFormat format
-    , VkImageLayout initialLayout
-    , VkImageUsageFlags usageMask
-    , VkExtent3D extent
+    VkFormat const format
+    , VkImageLayout const initialLayout
+    , VkImageUsageFlags const usageMask
+    , VkExtent3D const extent
 )
 {
     return {
@@ -192,9 +192,9 @@ VkSamplerCreateInfo vkinit::samplerCreateInfo(
 }
 
 VkImageViewCreateInfo vkinit::imageViewCreateInfo(
-    VkFormat format
-    , VkImage image
-    , VkImageAspectFlags aspectFlags
+    VkFormat const format
+    , VkImage const image
+    , VkImageAspectFlags const aspectFlags
 )
 {
     return {
@@ -234,9 +234,9 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
 }
 
 VkRenderingInfo vkinit::renderingInfo(
-    VkRect2D drawRect
-    , std::span<VkRenderingAttachmentInfo const> colorAttachments
-    , VkRenderingAttachmentInfo const* pDepthAttachment
+    VkRect2D const drawRect
+    , std::span<VkRenderingAttachmentInfo const> const colorAttachments
+    , VkRenderingAttachmentInfo const* const pDepthAttachment
 )
 {
     return {
@@ -256,8 +256,8 @@ VkRenderingInfo vkinit::renderingInfo(
 }
 
 VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(
-    VkShaderStageFlagBits stage
-    , VkShaderModule module
+    VkShaderStageFlagBits const stage
+    , VkShaderModule const module
     , std::string const& entryPoint
 )
 {

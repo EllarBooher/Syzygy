@@ -17,9 +17,9 @@
 #include "propertytable.hpp"
 
 void imguiPerformanceWindow(
-    std::span<double const> fpsValues
-    , double averageFPS
-    , size_t currentFrame
+    std::span<double const> const fpsValues
+    , double const averageFPS
+    , size_t const currentFrame
     , float& targetFPS)
 {
     if (ImGui::Begin("Performance Information"))
@@ -108,8 +108,8 @@ HUDState renderHUD(UIPreferences& preferences)
 
     ImGuiViewport& viewport{ *ImGui::GetMainViewport() };
     { // Create background windw, as a target for docking
-        // These flags ensure the dockspace window is uninteractable and static
-        ImGuiWindowFlags constexpr WINDOW_FLAGS{
+
+        ImGuiWindowFlags constexpr WINDOW_INVISIBLE_FLAGS{
             ImGuiWindowFlags_MenuBar
             | ImGuiWindowFlags_NoDocking
             | ImGuiWindowFlags_NoDecoration
@@ -135,7 +135,7 @@ HUDState renderHUD(UIPreferences& preferences)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
         bool const backgroundWindow{
-            ImGui::Begin("BackgroundWindow", nullptr, WINDOW_FLAGS)
+            ImGui::Begin("BackgroundWindow", nullptr, WINDOW_INVISIBLE_FLAGS)
         };
 
         // Can this ever happen?
@@ -272,7 +272,7 @@ DockingLayout buildDefaultMultiWindowLayout(
 
 void imguiMeshInstanceControls(
     bool& shouldRender
-    , std::span<std::shared_ptr<MeshAsset> const> meshes
+    , std::span<std::shared_ptr<MeshAsset> const> const meshes
     , size_t& meshIndexSelected
 )
 {

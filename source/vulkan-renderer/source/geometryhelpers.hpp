@@ -21,7 +21,6 @@
 // However, this results in a left-handed coordinate system. 
 // The creation of a right-handed projection matrix with flipped depth values
 // is difficult, and this is just one difficulty that these helpers aid on.
-
 namespace geometry
 {
     glm::vec3 projectPointOnPlane(

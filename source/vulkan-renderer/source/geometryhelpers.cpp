@@ -19,8 +19,8 @@ glm::vec3 geometry::projectPointOnPlane(
 }
 
 std::array<glm::vec3, 8> geometry::collectAABBVertices(
-    glm::vec3 center
-    , glm::vec3 extent
+    glm::vec3 const center
+    , glm::vec3 const extent
 )
 {
     return std::array<glm::vec3, 8>{
@@ -36,9 +36,9 @@ std::array<glm::vec3, 8> geometry::collectAABBVertices(
 }
 
 glm::mat4x4 geometry::lookAtVk(
-    glm::vec3 eye
-    , glm::vec3 center
-    , glm::vec3 up
+    glm::vec3 const eye
+    , glm::vec3 const center
+    , glm::vec3 const up
 )
 {
     return glm::scale(glm::vec3(1.0, -1.0, -1.0)) 
@@ -50,8 +50,8 @@ glm::mat4x4 geometry::lookAtVk(
 }
 
 glm::mat4x4 geometry::lookAtVkSafe(
-    glm::vec3 eye
-    , glm::vec3 center
+    glm::vec3 const eye
+    , glm::vec3 const center
 )
 {
     float constexpr tolerance{ 0.99 };
@@ -82,7 +82,10 @@ glm::mat4x4 geometry::projectionVk(
     );
 }
 
-glm::mat4x4 geometry::projectionOrthoVk(glm::vec3 min, glm::vec3 max)
+glm::mat4x4 geometry::projectionOrthoVk(
+    glm::vec3 const min
+    , glm::vec3 const max
+)
 {
     return glm::orthoLH_ZO(
         min.x
@@ -94,17 +97,23 @@ glm::mat4x4 geometry::projectionOrthoVk(glm::vec3 min, glm::vec3 max)
     );
 }
 
-glm::vec3 geometry::forwardFromEulers(glm::vec3 eulerAngles)
+glm::vec3 geometry::forwardFromEulers(glm::vec3 const eulerAngles)
 {
     return glm::orientate3(eulerAngles) * geometry::forward;
 }
 
-glm::mat4x4 geometry::transformVk(glm::vec3 position, glm::vec3 eulerAngles)
+glm::mat4x4 geometry::transformVk(
+    glm::vec3 const position
+    , glm::vec3 const eulerAngles
+)
 {
     return glm::translate(position) * glm::orientate4(eulerAngles);
 }
 
-glm::mat4x4 geometry::viewVk(glm::vec3 position, glm::vec3 eulerAngles)
+glm::mat4x4 geometry::viewVk(
+    glm::vec3 const position
+    , glm::vec3 const eulerAngles
+)
 {
     return glm::inverse(transformVk(position, eulerAngles));
 }

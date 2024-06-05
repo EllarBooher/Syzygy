@@ -32,8 +32,7 @@ struct FrameData
     DeletionQueue deletionQueue{};
 };
 
-/** The number of frames in flight at once. */
-constexpr uint32_t FRAME_OVERLAP = 2;
+size_t constexpr FRAMES_IN_FLIGHT = 2;
 
 class Engine 
 {
@@ -168,7 +167,7 @@ private:
     // The final image output, blitted to the swapchain
     AllocatedImage m_drawImage{};
 
-    std::array<FrameData, FRAME_OVERLAP> m_frames{};
+    std::array<FrameData, FRAMES_IN_FLIGHT> m_frames{};
     FrameData& getCurrentFrame() { 
         return m_frames[m_frameNumber % m_frames.size()]; 
     }

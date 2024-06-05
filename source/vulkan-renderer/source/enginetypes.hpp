@@ -62,7 +62,7 @@ struct Vertex {
 };
 
 struct RingBuffer {
-    void write(double value)
+    void write(double const value)
     {
         m_values[m_index] = value;
         m_index += 1;
@@ -70,7 +70,7 @@ struct RingBuffer {
         m_index = m_index % m_values.size();
     }
 
-    static double arithmeticAverage(std::span<double const> span)
+    static double arithmeticAverage(std::span<double const> const span)
     {
         double const sum{ std::accumulate(span.begin(), span.end(), 1.0) };
         return sum / static_cast<double>(span.size());

@@ -82,12 +82,12 @@ private:
         uint8_t padding0[12]{};
     };
 
-    GBufferVertexPushConstant mutable m_gBufferVertexPushConstant{};
+    GBufferVertexPushConstant /* mutable */ m_gBufferVertexPushConstant{};
     ShaderObjectReflected m_gBufferVertexShader{ 
-        ShaderObjectReflected::MakeInvalid() 
+        ShaderObjectReflected::makeInvalid() 
     };
     ShaderObjectReflected m_gBufferFragmentShader{ 
-        ShaderObjectReflected::MakeInvalid() 
+        ShaderObjectReflected::makeInvalid() 
     };
 
     // TODO: initialize these layouts
@@ -110,10 +110,10 @@ private:
         glm::vec2 gbufferExtent{};
     };
 
-    LightingPassComputePushConstant mutable m_lightingPassPushConstant{};
+    LightingPassComputePushConstant /* mutable */ m_lightingPassPushConstant{};
     
     ShaderObjectReflected m_lightingPassComputeShader{ 
-        ShaderObjectReflected::MakeInvalid() 
+        ShaderObjectReflected::makeInvalid() 
     };
     
     VkPipelineLayout m_lightingPassLayout{ VK_NULL_HANDLE };
@@ -132,10 +132,10 @@ private:
         uint8_t padding0[8]{};
     };
 
-    SkyPassComputePushConstant mutable m_skyPassPushConstant{};
+    SkyPassComputePushConstant /* mutable */ m_skyPassPushConstant{};
     
     ShaderObjectReflected m_skyPassComputeShader{ 
-        ShaderObjectReflected::MakeInvalid() 
+        ShaderObjectReflected::makeInvalid() 
     };
     
     VkPipelineLayout m_skyPassLayout{ VK_NULL_HANDLE };

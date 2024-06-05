@@ -4,9 +4,9 @@
 #include "../helpers.hpp"
 
 std::optional<GBuffer> GBuffer::create(
-    VkDevice device
-    , VkExtent2D drawExtent
-    , VmaAllocator allocator
+    VkDevice const device
+    , VkExtent2D const drawExtent
+    , VmaAllocator const allocator
     , DescriptorAllocator& descriptorAllocator
 )
 {
@@ -228,9 +228,9 @@ std::optional<GBuffer> GBuffer::create(
 }
 
 void GBuffer::recordTransitionImages(
-    VkCommandBuffer cmd
-    , VkImageLayout srcLayout
-    , VkImageLayout dstLayout
+    VkCommandBuffer const cmd
+    , VkImageLayout const srcLayout
+    , VkImageLayout const dstLayout
 )
 {
     vkutil::transitionImage(
@@ -264,8 +264,8 @@ void GBuffer::recordTransitionImages(
 }
 
 void GBuffer::cleanup(
-    VkDevice device
-    , VmaAllocator allocator
+    VkDevice const device
+    , VmaAllocator const allocator
 )
 {
     diffuseColor.cleanup(device, allocator);
