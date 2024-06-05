@@ -4,26 +4,29 @@ The purpose of this renderer is to study concepts in rendering, engine architect
 
 ## Requirements
 
-This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with `msvc_x64`.\
-Requires CMake 3.28 or higher, and probably a version of Visual Studio that has CMake support.\
-Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extension `VK_EXT_shader_object` (and a few other features/extensions).
+This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with `msvc_x64`.
+
+Requires CMake 3.28 or higher, and probably a version of Visual Studio that has CMake support.
+
+Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extensions such as `VK_EXT_shader_object` and others. Note, this fact seems to stop RenderDoc from working. NSight complains about the newer extensions, but seems to still mostly work.
 
 ## Dependencies
+You must download the following, or figure out a way to provide the required files yourself:
 
 - [Vulkan SDK](https://vulkan.lunarg.com/), at least 1.3.280, for `vulkan.h`, `glslangValidator.exe`, and a few debug utilities
 
 CMake is configured to use FetchContent to pull most of the following dependencies from Github. See [`cmake/dependencies.cmake`](cmake/dependencies.cmake) for the versions in use.
 
-- [Dear ImGui](https://github.com/ocornut/imgui)
-- [fastgltf](https://github.com/spnda/fastgltf.git)
-- [fmt](https://github.com/fmtlib/fmt.git)
-- [glfw](https://github.com/glfw/glfw.git)
-- [glm](https://github.com/g-truc/glm.git)
-- [implot](https://github.com/epezent/implot), a library which extends Dear ImGui to add real-time plots
-- [spirv-reflect](https://github.com/KhronosGroup/SPIRV-Reflect.git)
-- [vk-bootstrap](https://github.com/charles-lunarg/vk-bootstrap.git)
-- [volk](https://github.com/zeux/volk.git)
-- [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git)
+- [Dear ImGui](https://github.com/ocornut/imgui), for the user interface
+- [fastgltf](https://github.com/spnda/fastgltf.git), for loading 3D models and scenes
+- [fmt](https://github.com/fmtlib/fmt.git), for formatting strings
+- [glfw](https://github.com/glfw/glfw.git), for the windowing backend
+- [glm](https://github.com/g-truc/glm.git), for linear algebra
+- [implot](https://github.com/epezent/implot), for real-time plots in Dear ImGui
+- [spirv-reflect](https://github.com/KhronosGroup/SPIRV-Reflect.git), for reflecting SPIR-V shader bytecode
+- [vk-bootstrap](https://github.com/charles-lunarg/vk-bootstrap.git), for the initialization of some Vulkan objects
+- [volk](https://github.com/zeux/volk.git), for dynamically linking to Vulkan
+- [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git), for quickly allocating memory via Vulkan
 
 CMake is configured with an optional `Shaders` target, for which building calls upon `glslangValidator` to compile all the shaders (with extensions `.frag`, `.vert`, `.comp`) in the [`shaders`](shaders) folders. The repo will include the most up-to-date versions of the compiled `.spv` files, so this step is only needed to aid development.
 
@@ -37,11 +40,13 @@ git clone https://github.com/EllarBooher/VulkanRenderer.git
 
 To configure and compile:
 
-1. Open the root folder that git downloaded, by default `VulkanRenderer`
-2. Within Visual Studio, generate with CMake via `Project -> Configure Cache`. Visual Studio uses `CMakeSettings.json` to configure this step, such as where the built files go.
-3. Now, you can build and run the generated `vulkan-renderer` target.
+1. Open the root folder that git downloaded, directly with Visual Studio.
+2. Run CMake via `Project -> Configure Cache`. Visual Studio uses `CMakeSettings.json` to configure this step, such as output location.
+3. After CMake has finished running, you can build and run the generated `Renderer.exe` target.
 
-Alternatively, you can generate solution files by running the following from a folder outside of the source.
+Alternatively, you can always run cmake yourself. This is useful if you want to generate Visual Studio solutions. This also lets you potentially use other generators, but building has only been tested with the above process.
+
+For example, run the following from a folder outside of the source:
 
 ```bash
 cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
@@ -79,6 +84,7 @@ cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
 - Render graph
 - Rigidbody physics engine
 - Runtime compilation and modification of shader code
+- Multithreading
 
 ## Resources
 
