@@ -6,16 +6,7 @@
 
 Application::Application()
 {
-    try
-    {
-        m_engine = Engine::loadEngine();
-    }
-    catch (std::exception const& exception)
-    {
-        std::cerr << "Failed to load engine:" << exception.what() << std::endl;
-        // TODO: cleanup
-        m_engine = nullptr;
-    }
+    m_engine = Engine::loadEngine();
 }
 
 Application::~Application()
