@@ -66,7 +66,7 @@ private:
     void recordDrawDebugLines(
         VkCommandBuffer cmd
         , uint32_t cameraIndex
-        , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+        , TStagedBuffer<gputypes::Camera> const& camerasBuffer
     );
 
     void mainLoop();
@@ -238,8 +238,8 @@ private:
         m_defaultAtmosphereParameters 
     };
 
-    std::unique_ptr<TStagedBuffer<GPUTypes::Camera>> m_camerasBuffer{};
-    std::unique_ptr<TStagedBuffer<GPUTypes::Atmosphere>> m_atmospheresBuffer{};
+    std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};
+    std::unique_ptr<TStagedBuffer<gputypes::Atmosphere>> m_atmospheresBuffer{};
 
     // End Vulkan
 };

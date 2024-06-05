@@ -166,16 +166,16 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     { // Lights used during the pass
         VkDeviceSize constexpr LIGHT_CAPACITY{ 16 };
 
-        m_directionalLights = std::make_unique<TStagedBuffer<GPUTypes::LightDirectional>>(
-            TStagedBuffer<GPUTypes::LightDirectional>::allocate(
+        m_directionalLights = std::make_unique<TStagedBuffer<gputypes::LightDirectional>>(
+            TStagedBuffer<gputypes::LightDirectional>::allocate(
                 device
                 , allocator
                 , LIGHT_CAPACITY
                 , 0
             )
         );
-        m_spotLights = std::make_unique<TStagedBuffer<GPUTypes::LightSpot>>(
-            TStagedBuffer<GPUTypes::LightSpot>::allocate(
+        m_spotLights = std::make_unique<TStagedBuffer<gputypes::LightSpot>>(
+            TStagedBuffer<gputypes::LightSpot>::allocate(
                 device
                 , allocator
                 , LIGHT_CAPACITY
@@ -460,12 +460,12 @@ void DeferredShadingPipeline::recordDrawCommands(
     , VkImageLayout const colorLayout
     , AllocatedImage const& color
     , AllocatedImage const& depth
-    , std::span<GPUTypes::LightDirectional const> const directionalLights
-    , std::span<GPUTypes::LightSpot const> const spotLights
+    , std::span<gputypes::LightDirectional const> const directionalLights
+    , std::span<gputypes::LightSpot const> const spotLights
     , uint32_t const viewCameraIndex
-    , TStagedBuffer<GPUTypes::Camera> const& cameras
+    , TStagedBuffer<gputypes::Camera> const& cameras
     , uint32_t const atmosphereIndex
-    , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
+    , TStagedBuffer<gputypes::Atmosphere> const& atmospheres
     , SceneBounds const& sceneBounds
     , bool const renderMesh
     , MeshAsset const& sceneMesh

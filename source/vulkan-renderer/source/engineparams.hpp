@@ -87,14 +87,14 @@ struct AtmosphereParameters
         return glm::vec4(attenuation, 1.0);
     };
 
-    GPUTypes::Atmosphere toDeviceEquivalent() const
+    gputypes::Atmosphere toDeviceEquivalent() const
     {
         // TODO: move these computations out to somewhere more sensible
 
         glm::vec4 const sunlight{ computeSunlight() };
         glm::vec3 const sunDirection{ glm::normalize(directionToSun()) };
 
-        return GPUTypes::Atmosphere{
+        return gputypes::Atmosphere{
             .directionToSun{ sunDirection },
             .earthRadiusMeters{ earthRadiusMeters },
             .scatteringCoefficientRayleigh{ scatteringCoefficientRayleigh },
@@ -120,13 +120,13 @@ struct CameraParameters {
     float near{ 0.0f };
     float far{ 1.0f };
 
-    GPUTypes::Camera toDeviceEquivalent(float aspectRatio) const
+    gputypes::Camera toDeviceEquivalent(float aspectRatio) const
     {
         glm::mat4x4 const projViewInverse{
             glm::inverse(projection(aspectRatio) * view())
         };
 
-        return GPUTypes::Camera{
+        return gputypes::Camera{
             .projection{ projection(aspectRatio) },
             .inverseProjection{ glm::inverse(projection(aspectRatio)) },
             .view{ view() },
@@ -139,7 +139,7 @@ struct CameraParameters {
     }
 
     // Make a projection camera that tightly contains 
-    GPUTypes::Camera makeShadowpassCamera(
+    gputypes::Camera makeShadowpassCamera(
         float const aspectRatio
         , glm::vec3 forward
         , glm::vec3 const geometryCenter
@@ -172,7 +172,7 @@ struct CameraParameters {
             glm::inverse(projection * view()) 
         };
 
-        return GPUTypes::Camera{
+        return gputypes::Camera{
             .projection{ projection },
             .inverseProjection{ glm::inverse(projection) },
             .view{ cameraView },
@@ -184,7 +184,7 @@ struct CameraParameters {
         };
     }
 
-    GPUTypes::Camera toDeviceEquivalentOrthographic(
+    gputypes::Camera toDeviceEquivalentOrthographic(
         float const aspectRatio
         , float const planeDistance
     ) const
@@ -196,7 +196,7 @@ struct CameraParameters {
             glm::inverse(projection * view()) 
         };
 
-        return GPUTypes::Camera{
+        return gputypes::Camera{
             .projection{ projection },
             .inverseProjection{ glm::inverse(projection) },
             .view{ view() },

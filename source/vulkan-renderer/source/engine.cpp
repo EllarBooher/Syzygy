@@ -674,29 +674,29 @@ void Engine::initWorld()
     }
 
     { // Camera
-        m_camerasBuffer = std::make_unique<TStagedBuffer<GPUTypes::Camera>>(
-            TStagedBuffer<GPUTypes::Camera>::allocate(
+        m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
+            TStagedBuffer<gputypes::Camera>::allocate(
                 m_device
                 , m_allocator
                 , 20
                 , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
         );
-        m_camerasBuffer->push(GPUTypes::Camera{});
+        m_camerasBuffer->push(gputypes::Camera{});
 
         m_cameraIndexMain = 0;
     }
 
     { // Atmosphere
-        m_atmospheresBuffer = std::make_unique<TStagedBuffer<GPUTypes::Atmosphere>>(
-            TStagedBuffer<GPUTypes::Atmosphere>::allocate(
+        m_atmospheresBuffer = std::make_unique<TStagedBuffer<gputypes::Atmosphere>>(
+            TStagedBuffer<gputypes::Atmosphere>::allocate(
                 m_device
                 , m_allocator
                 , 1
                 , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
         );
-        std::vector<GPUTypes::Atmosphere> const atmospheres{ 
+        std::vector<gputypes::Atmosphere> const atmospheres{ 
             m_atmosphereParameters.toDeviceEquivalent() 
         };
         m_atmospheresBuffer->stage(atmospheres);
@@ -1538,7 +1538,7 @@ void Engine::draw()
     { // Copy cameras to gpu
         double const aspectRatio{ vkutil::aspectRatio(m_sceneRect.extent) };
 
-        std::span<GPUTypes::Camera> cameras{ 
+        std::span<gputypes::Camera> cameras{ 
             m_camerasBuffer->mapValidStaged()
         };
         cameras[m_cameraIndexMain] = {
@@ -1554,7 +1554,7 @@ void Engine::draw()
     }
 
     { // Copy atmospheres to gpu
-        std::span<GPUTypes::Atmosphere> const stagedAtmospheres{
+        std::span<gputypes::Atmosphere> const stagedAtmospheres{
             m_atmospheresBuffer->mapValidStaged()
         };
         if (stagedAtmospheres.size() <= m_atmosphereIndex)
@@ -1598,13 +1598,13 @@ void Engine::draw()
         {
         case RenderingPipelines::DEFERRED:
         {
-            std::vector<GPUTypes::LightDirectional> directionalLights{};
-            std::span<GPUTypes::Atmosphere const> const atmospheres{
+            std::vector<gputypes::LightDirectional> directionalLights{};
+            std::span<gputypes::Atmosphere const> const atmospheres{
                 m_atmospheresBuffer->readValidStaged()
             };
             if (m_atmosphereIndex < atmospheres.size())
             {
-                GPUTypes::Atmosphere const atmosphere{ 
+                gputypes::Atmosphere const atmosphere{ 
                     atmospheres[m_atmosphereIndex] 
                 };
 
@@ -1667,7 +1667,7 @@ void Engine::draw()
                 );
             }
 
-            std::vector<GPUTypes::LightSpot> const spotLights{
+            std::vector<gputypes::LightSpot> const spotLights{
                 lights::makeSpot(
                     glm::vec4(0.0, 1.0, 0.0, 1.0)
                     , 30.0
@@ -1703,7 +1703,7 @@ void Engine::draw()
                 , directionalLights
                 , m_showSpotlights 
                 ? spotLights 
-                : std::vector<GPUTypes::LightSpot>{}
+                : std::vector<gputypes::LightSpot>{}
                 , m_cameraIndexMain
                 , *m_camerasBuffer
                 , m_atmosphereIndex
@@ -1954,7 +1954,7 @@ void Engine::recordDrawImgui(
 void Engine::recordDrawDebugLines(
     VkCommandBuffer const cmd
     , uint32_t const cameraIndex
-    , TStagedBuffer<GPUTypes::Camera> const& camerasBuffer
+    , TStagedBuffer<gputypes::Camera> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};

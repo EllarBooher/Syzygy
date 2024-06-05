@@ -23,12 +23,12 @@ public:
         , VkImageLayout colorLayout
         , AllocatedImage const& color
         , AllocatedImage const& depth
-        , std::span<GPUTypes::LightDirectional const> directionalLights
-        , std::span<GPUTypes::LightSpot const> spotLights
+        , std::span<gputypes::LightDirectional const> directionalLights
+        , std::span<gputypes::LightSpot const> spotLights
         , uint32_t viewCameraIndex
-        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , TStagedBuffer<gputypes::Camera> const& cameras
         , uint32_t atmosphereIndex
-        , TStagedBuffer<GPUTypes::Atmosphere> const& atmospheres
+        , TStagedBuffer<gputypes::Atmosphere> const& atmospheres
         , SceneBounds const& sceneBounds
         , bool renderMesh
         , MeshAsset const& sceneMesh
@@ -52,10 +52,10 @@ private:
 
     VmaAllocator m_allocator{ VK_NULL_HANDLE };
 
-    typedef TStagedBuffer<GPUTypes::LightDirectional> LightDirectionalBuffer;
+    typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
-    typedef TStagedBuffer<GPUTypes::LightSpot> LightSpotBuffer;
+    typedef TStagedBuffer<gputypes::LightSpot> LightSpotBuffer;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{ VK_NULL_HANDLE };

@@ -180,8 +180,8 @@ void ShadowPassArray::recordInitialize(
     VkCommandBuffer const cmd
     , float const depthBias
     , float const depthBiasSlope
-    , std::span<GPUTypes::LightDirectional const> const directionalLights
-    , std::span<GPUTypes::LightSpot const> const spotLights
+    , std::span<gputypes::LightDirectional const> const directionalLights
+    , std::span<gputypes::LightSpot const> const spotLights
 )
 {
     m_depthBias = depthBias;
@@ -195,13 +195,13 @@ void ShadowPassArray::recordInitialize(
         projViewMatrices.clearStaged();
 
         size_t shadowMapCount{ 0 };
-        for (GPUTypes::LightDirectional const& light : directionalLights)
+        for (gputypes::LightDirectional const& light : directionalLights)
         {
             projViewMatrices.push(light.projection * light.view);
 
             shadowMapCount += 1;
         }
-        for (GPUTypes::LightSpot const& light : spotLights)
+        for (gputypes::LightSpot const& light : spotLights)
         {
             projViewMatrices.push(light.projection * light.view);
 

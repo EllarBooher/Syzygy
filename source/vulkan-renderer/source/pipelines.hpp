@@ -246,7 +246,7 @@ public:
         , AllocatedImage const& color
         , AllocatedImage const& depth
         , uint32_t cameraIndex
-        , TStagedBuffer<GPUTypes::Camera> const& cameras
+        , TStagedBuffer<gputypes::Camera> const& cameras
         , TStagedBuffer<Vertex> const& endpoints
         , TStagedBuffer<uint32_t> const& indices
     ) const;

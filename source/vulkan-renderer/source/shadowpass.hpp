@@ -25,8 +25,8 @@ public:
         VkCommandBuffer cmd
         , float depthBias
         , float depthBiasSlope
-        , std::span<GPUTypes::LightDirectional const> directionalLights
-        , std::span<GPUTypes::LightSpot const> spotLights
+        , std::span<gputypes::LightDirectional const> directionalLights
+        , std::span<gputypes::LightSpot const> spotLights
     );
 
     void recordDrawCommands(

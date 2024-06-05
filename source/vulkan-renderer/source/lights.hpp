@@ -7,7 +7,7 @@
 
 namespace lights
 {
-    static GPUTypes::LightDirectional makeDirectional(
+    static gputypes::LightDirectional makeDirectional(
         glm::vec4 const color
         , float const strength
         , glm::vec3 const eulerAngles
@@ -27,7 +27,7 @@ namespace lights
             )
         };
 
-        return GPUTypes::LightDirectional{
+        return gputypes::LightDirectional{
             .color{ color },
             .forward{ glm::vec4{
                     geometry::forwardFromEulers(eulerAngles)
@@ -40,7 +40,7 @@ namespace lights
     }
     
 // TODO: less parameters constructor
-    static GPUTypes::LightSpot makeSpot(
+    static gputypes::LightSpot makeSpot(
         glm::vec4 const color
         , float const strength
         , float const falloffFactor
@@ -53,7 +53,7 @@ namespace lights
         , float const far
     )
     {
-        return GPUTypes::LightSpot{
+        return gputypes::LightSpot{
             .color{ color },
             .forward{ glm::vec4{
                 geometry::forwardFromEulers(eulerAngles), 0.0

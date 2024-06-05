@@ -7,7 +7,7 @@
 // They contain padding and must faithfully represent their counterparts.
 // These are intended for byte-wise copying to the GPU, not for manipulation 
 // by UI or the engine.
-namespace GPUTypes
+namespace gputypes
 {
     // For ease of reading, group members by 16 bytes, which is a size of 
     // a single-precision vec4.
