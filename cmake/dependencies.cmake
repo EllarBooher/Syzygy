@@ -1,6 +1,10 @@
+message(STATUS "Fetching dependencies")
+
 include(FetchContent)
+
 # Disquiet to see git clone progress
 set(FETCHCONTENT_QUIET ON)
+message(STATUS "Fetching dependencies - FetchContent quieting is ${FETCHCONTENT_QUIET}")
 
 FetchContent_Declare(
 	fmt

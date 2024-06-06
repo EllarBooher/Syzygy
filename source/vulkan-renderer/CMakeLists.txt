@@ -1,3 +1,6 @@
+SET(RENDERER_NAME "vulkan-renderer")
+message(STATUS "${RENDERER_NAME} - begin")
+
 add_library(vulkan-renderer STATIC 
 	"Source/engine.cpp"
 	"Source/initializers.cpp"
@@ -23,7 +26,6 @@ target_include_directories(vulkan-renderer PUBLIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-# quotes to support path with spaces
 add_compile_definitions(SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 target_compile_definitions(
