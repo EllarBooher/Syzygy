@@ -16,13 +16,13 @@ ShaderReflectionData vkutil::generateReflectionData(
 	);
 
 	uint32_t pushConstantCounts;
-	spvReflectEnumeratePushConstants(
+	spvReflectEnumeratePushConstantBlocks(
 		&module,
 		&pushConstantCounts,
 		nullptr
 	);
 	std::vector<SpvReflectBlockVariable*> pushConstants(pushConstantCounts);
-	spvReflectEnumeratePushConstants(
+	spvReflectEnumeratePushConstantBlocks(
 		&module,
 		&pushConstantCounts,
 		pushConstants.data()

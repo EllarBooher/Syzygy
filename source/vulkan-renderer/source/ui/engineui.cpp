@@ -24,7 +24,7 @@ void imguiPerformanceWindow(
 {
     if (ImGui::Begin("Performance Information"))
     {
-        ImGui::Text(fmt::format("FPS: {:.1f}", averageFPS).c_str());
+        ImGui::Text("%s", fmt::format("FPS: {:.1f}", averageFPS).c_str());
         float const minFPS{ 10.0 };
         float const maxFPS{ 1000.0 };
         ImGui::DragScalar(

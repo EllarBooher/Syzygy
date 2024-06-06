@@ -26,6 +26,8 @@ struct AllocatedBuffer
         other.deviceAddress = {};
         other.buffer = VK_NULL_HANDLE;
     };
+    AllocatedBuffer& operator=(AllocatedBuffer const& other) = delete;
+    AllocatedBuffer& operator=(AllocatedBuffer&& other) = default;
 
     ~AllocatedBuffer() noexcept
     {

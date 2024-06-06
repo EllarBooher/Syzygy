@@ -1,7 +1,7 @@
 SET(RENDERER_NAME "vulkan-renderer")
 message(STATUS "${RENDERER_NAME} - begin")
 
-add_library(vulkan-renderer STATIC 
+add_library(${RENDERER_NAME} STATIC 
 	"Source/engine.cpp"
 	"Source/initializers.cpp"
 	"Source/images.cpp"
@@ -61,10 +61,14 @@ add_library(imgui
 	${IMGUI_BACKENDS_DIR}/imgui_impl_vulkan.cpp
  )
 target_include_directories(
-	imgui 
+	imgui SYSTEM
 	PUBLIC 
 	${imgui_SOURCE_DIR} 
 	${IMGUI_BACKENDS_DIR} 
+)
+target_include_directories(
+	imgui
+	PUBLIC
 	"${CMAKE_SOURCE_DIR}/thirdparty/imgui" # Patch in imconfig.h alternative
 )
 target_link_libraries(
@@ -102,7 +106,17 @@ target_link_libraries(
 )
 
 FetchContent_MakeAvailable(vk-bootstrap)
+
 FetchContent_MakeAvailable(fastgltf)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_definitions(
+		fastgltf
+		PRIVATE
+		_SILENCE_CXX20_U8PATH_DEPRECATION_WARNING
+	)
+endif()
+
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(volk)
 

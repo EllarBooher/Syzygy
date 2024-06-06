@@ -28,8 +28,8 @@ void DebugLines::push(
 
     uint32_t const index{ static_cast<uint32_t>(indices->stagedSize()) };
 
-    vertices->push(std::initializer_list{ startVertex, endVertex });
-    indices->push(std::initializer_list{ index, index + 1 });
+    vertices->push(std::initializer_list<Vertex>{ startVertex, endVertex });
+    indices->push(std::initializer_list<uint32_t>{ index, index + 1 });
 }
 
 void DebugLines::pushQuad(

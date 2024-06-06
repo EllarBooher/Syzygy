@@ -11,7 +11,7 @@
 void PropertyTable::nameColumn(std::string const name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
-    ImGui::Text(name.c_str());
+    ImGui::Text("%s", name.c_str());
 }
 
 bool PropertyTable::resetColumn(
@@ -315,7 +315,7 @@ PropertyTable& PropertyTable::rowReadOnlyText(
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
-    ImGui::TextWrapped(value.c_str());
+    ImGui::TextWrapped("%s", value.c_str());
 
     Self::rowEnd();
 

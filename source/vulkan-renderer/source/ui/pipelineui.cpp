@@ -16,7 +16,7 @@ static void TypeLabel(std::string const& label)
     float const buttonWidth{ textSize.x + 10.0f};
 
     ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
-    ImGui::Text(label.c_str());
+    ImGui::Text("%s", label.c_str());
 }
 
 template<class... Ts>
@@ -75,7 +75,8 @@ static void imguiPushStructureControl(
             ImGui::Text("Layout Byte Offset");
             ImGui::TableSetColumnIndex(columnIndexValue);
             ImGui::Text(
-                fmt::format(
+                "%s"
+                , fmt::format(
                     "{}"
                     , pushConstant.layoutOffsetBytes
                 ).c_str()
@@ -87,7 +88,7 @@ static void imguiPushStructureControl(
             ImGui::TableSetColumnIndex(columnIndexProperty);
             ImGui::Text("Byte Size");
             ImGui::TableSetColumnIndex(columnIndexValue);
-            ImGui::Text(fmt::format("{}", structure.sizeBytes).c_str());
+            ImGui::Text("%s", fmt::format("{}", structure.sizeBytes).c_str());
         }
 
         ImGui::EndTable();
@@ -125,22 +126,23 @@ static void imguiPushStructureControl(
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(offsetIndex);
-            ImGui::Text(fmt::format("{}", member.offsetBytes).c_str());
+            ImGui::Text("%s", fmt::format("{}", member.offsetBytes).c_str());
 
             ImGui::TableSetColumnIndex(memberNameIndex);
-            ImGui::Text(member.name.c_str());
+            ImGui::Text("%s", member.name.c_str());
 
             ImGui::TableSetColumnIndex(columnIndexSize);
-            ImGui::Text(fmt::format("{}", member.type.sizeBytes).c_str());
+            ImGui::Text("%s", fmt::format("{}", member.type.sizeBytes).c_str());
 
             ImGui::TableSetColumnIndex(columnIndexPaddedSize);
-            ImGui::Text(fmt::format("{}", member.type.paddedSizeBytes).c_str());
+            ImGui::Text("%s", fmt::format("{}", member.type.paddedSizeBytes).c_str());
 
             std::visit(overloaded{
                 [&](ShaderReflectionData::UnsupportedType const& unsupportedType) 
                 {
                     ImGui::Text(
-                        fmt::format(
+                        "%s"
+                        , fmt::format(
                             "Unsupported member \"{}\""
                             , member.name
                         ).c_str()
@@ -215,9 +217,8 @@ static void imguiPushStructureControl(
                                 || integerComponent.signedness == 1
                             );
 
-                            switch (integerComponent.signedness)
+                            if (integerComponent.signedness)
                             {
-                            case 0: //unsigned
                                 switch (numericType.componentBitWidth)
                                 {
                                 case 8:
@@ -236,8 +237,9 @@ static void imguiPushStructureControl(
                                     bSupportedType = false;
                                     break;
                                 }
-                                break;
-                            default: //signed
+                            }
+                            else
+                            {
                                 switch (numericType.componentBitWidth)
                                 {
                                 case 8:
@@ -256,7 +258,6 @@ static void imguiPushStructureControl(
                                     bSupportedType = false;
                                     break;
                                 }
-                                break;
                             }
                         },
                         [&](ShaderReflectionData::Float const& floatComponent) 
@@ -284,7 +285,8 @@ static void imguiPushStructureControl(
                     {
                         ImGui::TableSetColumnIndex(columnIndexValue);
                         ImGui::Text(
-                            fmt::format(
+                            "%s"
+                            , fmt::format(
                                 "Unsupported component bit width {} "
                                 "for member {}"
                                 , numericType.componentBitWidth, member.name
