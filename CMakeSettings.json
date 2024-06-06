@@ -9,7 +9,8 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_x64" ]
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "intelliSenseMode": "windows-msvc-x64"
     },
     {
       "name": "x64-clang-Debug",
@@ -20,8 +21,9 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [ "clang_cl_x64" ],
-      "enableClangTidyCodeAnalysis": true
+      "inheritEnvironments": [ "clang_cl_x64_x64" ],
+      "enableClangTidyCodeAnalysis": true,
+      "intelliSenseMode": "windows-clang-x64"
     }
   ]
 }
