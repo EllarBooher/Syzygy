@@ -7,3 +7,5 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory("shaders")
 add_subdirectory("source")
+
+include(cmake/clang-tools.cmake)
