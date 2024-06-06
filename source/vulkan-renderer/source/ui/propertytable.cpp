@@ -651,51 +651,51 @@ void PropertyTable::demoWindow(bool& open)
                 "Bounds Minimum"
                 , minimumBound, -1.0f
                 , PropertySliderBehavior{ 
-                    .speed{1.0f} 
+                    .speed = 1.0f, 
                 })
             .rowFloat(
                 "Bounds Maximum"
                 , maximumBound, 1.0f
                 , PropertySliderBehavior{
-                    .speed{1.0f}
+                    .speed = 1.0f,
                 })
             .rowInteger(
                 "Bounded Integer"
                 , valueBoundedInteger
                 , 0
                 , PropertySliderBehavior{
-                    .bounds{ minimumBound, maximumBound },
+                    .bounds = FloatBounds{ minimumBound, maximumBound },
                 })
             .rowFloat(
                 "Bounded Float"
                 , valueBoundedFloat, 0.0f
                 , PropertySliderBehavior{
-                    .bounds{ minimumBound, maximumBound },
+                    .bounds = FloatBounds{ minimumBound, maximumBound },
                 })
             .rowVec3(
                 "Bounded Vec3"
                 , valueBoundedVec3, glm::vec3{ 0.0f }
                 , PropertySliderBehavior{
-                    .bounds{ minimumBound, maximumBound },
+                    .bounds = FloatBounds{ minimumBound, maximumBound },
                 })
             .rowInteger(
                 "Unbounded Integer"
                 , valueUnboundedInteger
                 , 0
                 , PropertySliderBehavior{
-                    .speed{ 1.0f },
+                    .speed = 1.0f,
                 })
             .rowFloat(
                 "Unbounded Float"
                 , valueUnboundedFloat, 0.0f
                 , PropertySliderBehavior{
-                    .speed{ 1.0f },
+                    .speed = 1.0f,
                 })
             .rowVec3(
                 "Unbounded Vec3"
                 , valueUnboundedVec3, glm::vec3{ 0.0f }
                 , PropertySliderBehavior{
-                    .speed{ 0.1f },
+                    .speed = 0.1f,
                 })
             .rowReadOnlyFloat(
                 "Read Only Float"
@@ -726,7 +726,7 @@ void PropertyTable::demoWindow(bool& open)
             , valueUnboundedFloat3
             , 0.0f
             , PropertySliderBehavior{
-                .speed{ 1.0f },
+                .speed = 1.0f,
             })
         .childPropertyBegin()
             .rowReadOnlyText("Some Child Property", "")

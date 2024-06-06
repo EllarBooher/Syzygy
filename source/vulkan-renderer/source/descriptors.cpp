@@ -10,17 +10,17 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 )
 {
 	VkDescriptorSetLayoutBinding const newBinding{
-		.binding{ binding },
-		.descriptorType{ type },
-		.descriptorCount{ count },
-		.stageFlags{ stageMask },
-		.pImmutableSamplers{ nullptr }
+		.binding = binding,
+		.descriptorType = type,
+		.descriptorCount = count,
+		.stageFlags = stageMask,
+		.pImmutableSamplers = nullptr,
 	};
 
 	m_bindings.push_back(
 		Binding{
-			.binding{ newBinding },
-			.flags{ flags }
+			.binding = newBinding,
+			.flags = flags,
 		}
 	);
 
@@ -38,18 +38,18 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	// We leave data uninitialized until layout creation time to avoid self 
 	// referencing.
 	VkDescriptorSetLayoutBinding const newBinding{
-		.binding{ binding },
-		.descriptorType{ type },
-		.descriptorCount{ 0 },
-		.stageFlags{ stageMask },
-		.pImmutableSamplers{ nullptr }
+		.binding = binding,
+		.descriptorType = type,
+		.descriptorCount = 0,
+		.stageFlags = stageMask,
+		.pImmutableSamplers = nullptr,
 	};
 
 	m_bindings.push_back(
 		Binding{
-			.immutableSamplers{ samplers.begin(), samplers.end() },
-			.binding{ newBinding },
-			.flags{ flags },
+			.immutableSamplers = std::vector<VkSampler>{ samplers.begin(), samplers.end() },
+			.binding = newBinding,
+			.flags = flags,
 		}
 	);
 
@@ -102,21 +102,21 @@ std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
 	}
 
 	VkDescriptorSetLayoutBindingFlagsCreateInfo const flagsInfo{
-		.sType{ 
+		.sType = 
 			VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO 
-		},
-		.pNext{ nullptr },
+		,
+		.pNext = nullptr,
 
-		.bindingCount{ static_cast<uint32_t>(bindingFlags.size()) },
-		.pBindingFlags{ bindingFlags.data() },
+		.bindingCount = static_cast<uint32_t>(bindingFlags.size()),
+		.pBindingFlags = bindingFlags.data(),
 	};
 
 	VkDescriptorSetLayoutCreateInfo const info{
-		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO },
-		.pNext{ &flagsInfo },
-		.flags{ layoutFlags },
-		.bindingCount{ static_cast<uint32_t>(bindings.size()) },
-		.pBindings{ bindings.data() },
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.pNext = &flagsInfo,
+		.flags = layoutFlags,
+		.bindingCount = static_cast<uint32_t>(bindings.size()),
+		.pBindings = bindings.data(),
 	};
 
 	VkDescriptorSetLayout set;
@@ -148,18 +148,18 @@ void DescriptorAllocator::initPool(
 
 		poolSizes.push_back(
 			VkDescriptorPoolSize{
-				.type{ ratio.type },
-				.descriptorCount{ descriptorCount },
+				.type = ratio.type,
+				.descriptorCount = descriptorCount,
 			}
 		);
 	}
 
 	VkDescriptorPoolCreateInfo const poolInfo{
-		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO },
-		.flags{ flags },
-		.maxSets{ maxSets },
-		.poolSizeCount{ static_cast<uint32_t>(poolSizes.size()) },
-		.pPoolSizes{ poolSizes.data() },
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = flags,
+		.maxSets = maxSets,
+		.poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+		.pPoolSizes = poolSizes.data(),
 	};
 
 	CheckVkResult(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
@@ -181,11 +181,11 @@ VkDescriptorSet DescriptorAllocator::allocate(
 )
 {
 	VkDescriptorSetAllocateInfo const allocInfo{
-		.sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO },
-		.pNext{ nullptr },
-		.descriptorPool{ pool },
-		.descriptorSetCount{ 1 },
-		.pSetLayouts{ &layout }
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.pNext = nullptr,
+		.descriptorPool = pool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &layout,
 	};
 
 	VkDescriptorSet set;

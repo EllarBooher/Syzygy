@@ -5,6 +5,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 #include "geometrystatics.hpp"
 #include "geometryhelpers.hpp"
@@ -99,20 +100,19 @@ struct AtmosphereParameters
         glm::vec3 const sunDirection{ glm::normalize(directionToSun()) };
 
         return gputypes::Atmosphere{
-            .directionToSun{ sunDirection },
-            .earthRadiusMeters{ earthRadiusMeters },
-            .scatteringCoefficientRayleigh{ scatteringCoefficientRayleigh },
-            .altitudeDecayRayleigh{ altitudeDecayRayleigh },
-            .scatteringCoefficientMie{ scatteringCoefficientMie },
-            .altitudeDecayMie{ altitudeDecayMie },
-            .ambientColor{ 
+            .directionToSun = sunDirection,
+            .earthRadiusMeters = earthRadiusMeters,
+            .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
+            .altitudeDecayRayleigh = altitudeDecayRayleigh,
+            .scatteringCoefficientMie = scatteringCoefficientMie,
+            .altitudeDecayMie = altitudeDecayMie,
+            .ambientColor = 
                 glm::vec3(sunlight) 
                 * groundColor 
-                * glm::dot(sunDirection, glm::vec3(0.0,-1.0,0.0))
-            },
-            .atmosphereRadiusMeters{ atmosphereRadiusMeters },
-            .sunlightColor{ glm::vec3(sunlight) },
-            .groundColor{ groundColor },
+                * glm::dot(sunDirection, glm::vec3(0.0,-1.0,0.0)),
+            .atmosphereRadiusMeters = atmosphereRadiusMeters,
+            .sunlightColor = glm::vec3(sunlight),
+            .groundColor = groundColor,
         };
     }
 };
@@ -131,14 +131,14 @@ struct CameraParameters {
         };
 
         return gputypes::Camera{
-            .projection{ projection(aspectRatio) },
-            .inverseProjection{ glm::inverse(projection(aspectRatio)) },
-            .view{ view() },
-            .viewInverseTranspose{ glm::inverseTranspose(view()) },
-            .rotation{ rotation() },
-            .projViewInverse{ projViewInverse },
-            .forwardWorld{ rotation() * glm::vec4(geometry::forward,0.0) },
-            .position{ glm::vec4{ cameraPosition, 1.0 } },
+            .projection = projection(aspectRatio),
+            .inverseProjection = glm::inverse(projection(aspectRatio)),
+            .view = view(),
+            .viewInverseTranspose = glm::inverseTranspose(view()),
+            .rotation = rotation(),
+            .projViewInverse = projViewInverse,
+            .forwardWorld = rotation() * glm::vec4(geometry::forward,0.0),
+            .position = glm::vec4{ cameraPosition, 1.0 },
         };
     }
 
@@ -177,14 +177,14 @@ struct CameraParameters {
         };
 
         return gputypes::Camera{
-            .projection{ projection },
-            .inverseProjection{ glm::inverse(projection) },
-            .view{ cameraView },
-            .viewInverseTranspose{ glm::inverseTranspose(cameraView) },
-            .rotation{ glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))) },
-            .projViewInverse{ projViewInverse },
-            .forwardWorld{ glm::vec4(forward, 0.0) },
-            .position{ glm::vec4(cameraPosition,1.0) }
+            .projection = projection,
+            .inverseProjection = glm::inverse(projection),
+            .view = cameraView,
+            .viewInverseTranspose = glm::inverseTranspose(cameraView),
+            .rotation = glm::mat4x4(glm::mat3x3(glm::inverse(cameraView))),
+            .projViewInverse = projViewInverse,
+            .forwardWorld = glm::vec4(forward, 0.0),
+            .position = glm::vec4(cameraPosition,1.0),
         };
     }
 
@@ -201,14 +201,14 @@ struct CameraParameters {
         };
 
         return gputypes::Camera{
-            .projection{ projection },
-            .inverseProjection{ glm::inverse(projection) },
-            .view{ view() },
-            .viewInverseTranspose{ glm::inverseTranspose(view()) },
-            .rotation{ rotation() },
-            .projViewInverse{ projViewInverse },
-            .forwardWorld{ rotation() * glm::vec4(geometry::forward, 0.0) },
-            .position{ glm::vec4(cameraPosition, 1.0) },
+            .projection = projection,
+            .inverseProjection = glm::inverse(projection),
+            .view = view(),
+            .viewInverseTranspose = glm::inverseTranspose(view()),
+            .rotation = rotation(),
+            .projViewInverse = projViewInverse,
+            .forwardWorld = rotation() * glm::vec4(geometry::forward, 0.0),
+            .position = glm::vec4(cameraPosition, 1.0),
         };
     }
 

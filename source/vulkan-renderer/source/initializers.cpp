@@ -5,9 +5,9 @@ VkFenceCreateInfo vkinit::fenceCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO },
-        .pNext{ nullptr },
-        .flags{ flags },
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = flags,
     };
 }
 
@@ -16,9 +16,9 @@ VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO },
-        .pNext{ nullptr },
-        .flags{ flags },
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = flags,
     };
 }
 
@@ -27,10 +27,10 @@ VkCommandBufferBeginInfo vkinit::commandBufferBeginInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO },
-        .pNext{ nullptr },
-        .flags{ flags },
-        .pInheritanceInfo{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = flags,
+        .pInheritanceInfo = nullptr,
     };
 }
 
@@ -39,11 +39,11 @@ VkImageSubresourceRange vkinit::imageSubresourceRange(
 )
 {
     return {
-        .aspectMask{ aspectMask },
-        .baseMipLevel{ 0 },
-        .levelCount{ VK_REMAINING_MIP_LEVELS },
-        .baseArrayLayer{ 0 },
-        .layerCount{ VK_REMAINING_ARRAY_LAYERS },
+        .aspectMask = aspectMask,
+        .baseMipLevel = 0,
+        .levelCount = VK_REMAINING_MIP_LEVELS,
+        .baseArrayLayer = 0,
+        .layerCount = VK_REMAINING_ARRAY_LAYERS,
     };
 }
 
@@ -55,10 +55,10 @@ VkImageSubresourceLayers vkinit::imageSubresourceLayers(
 )
 {
     return {
-        .aspectMask{ aspectMask },
-        .mipLevel{ mipLevel },
-        .baseArrayLayer{ baseArrayLayer },
-        .layerCount{ baseArrayCount },
+        .aspectMask = aspectMask,
+        .mipLevel = mipLevel,
+        .baseArrayLayer = baseArrayLayer,
+        .layerCount = baseArrayCount,
     };
 }
 
@@ -68,12 +68,12 @@ VkSemaphoreSubmitInfo vkinit::semaphoreSubmitInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO },
-        .pNext{ nullptr },
-        .semaphore{ semaphore },
-        .value{ 1 },
-        .stageMask{ stageMask },
-        .deviceIndex{ 0 }, // Assume single device, at index 0.
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .semaphore = semaphore,
+        .value = 1,
+        .stageMask = stageMask,
+        .deviceIndex = 0, // Assume single device, at index 0.
     };
 }
 
@@ -82,10 +82,10 @@ VkCommandBufferSubmitInfo vkinit::commandBufferSubmitInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO },
-        .pNext{ nullptr },
-        .commandBuffer{ cmd },
-        .deviceMask{ 0 },
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+        .pNext = nullptr,
+        .commandBuffer = cmd,
+        .deviceMask = 0,
     };
 }
 
@@ -96,25 +96,19 @@ VkSubmitInfo2 vkinit::submitInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+        .pNext = nullptr,
 
-        .flags{ 0 },
+        .flags = 0,
 
-        .waitSemaphoreInfoCount{ 
-            static_cast<uint32_t>(waitSemaphoreInfo.size()) 
-        },
-        .pWaitSemaphoreInfos{ waitSemaphoreInfo.data() },
+        .waitSemaphoreInfoCount = static_cast<uint32_t>(waitSemaphoreInfo.size()), 
+        .pWaitSemaphoreInfos = waitSemaphoreInfo.data(),
 
-        .commandBufferInfoCount{
-            static_cast<uint32_t>(cmdInfo.size())
-        },
-        .pCommandBufferInfos{ cmdInfo.data() },
+        .commandBufferInfoCount = static_cast<uint32_t>(cmdInfo.size()),
+        .pCommandBufferInfos = cmdInfo.data(),
 
-        .signalSemaphoreInfoCount{
-            static_cast<uint32_t>(signalSemaphoreInfo.size())
-        },
-        .pSignalSemaphoreInfos{ signalSemaphoreInfo.data() },
+        .signalSemaphoreInfoCount = static_cast<uint32_t>(signalSemaphoreInfo.size()),
+        .pSignalSemaphoreInfos = signalSemaphoreInfo.data(),
     };
 }
 
@@ -126,29 +120,29 @@ VkImageCreateInfo vkinit::imageCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ 0 },
+        .flags = 0,
 
-        .imageType{ VK_IMAGE_TYPE_2D },
+        .imageType = VK_IMAGE_TYPE_2D,
         
-        .format{ format },
-        .extent{ extent },
+        .format = format,
+        .extent = extent,
 
-        .mipLevels{ 1 },
-        .arrayLayers{ 1 },
+        .mipLevels = 1,
+        .arrayLayers = 1,
 
-        .samples{ VK_SAMPLE_COUNT_1_BIT },
+        .samples = VK_SAMPLE_COUNT_1_BIT,
 
-        .tiling{ VK_IMAGE_TILING_OPTIMAL },
-        .usage{ usageMask },
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = usageMask,
 
-        .sharingMode{ VK_SHARING_MODE_EXCLUSIVE },
-        .queueFamilyIndexCount{ 0 },
-        .pQueueFamilyIndices{ nullptr },
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
 
-        .initialLayout{ initialLayout },
+        .initialLayout = initialLayout,
     };
 }
 
@@ -160,34 +154,34 @@ VkSamplerCreateInfo vkinit::samplerCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ flags },
+        .flags = flags,
 
-        .magFilter{ filter },
-        .minFilter{ filter },
+        .magFilter = filter,
+        .minFilter = filter,
 
-        .mipmapMode{ VK_SAMPLER_MIPMAP_MODE_LINEAR },
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
 
-        .addressModeU{ addressMode },
-        .addressModeV{ addressMode },
-        .addressModeW{ addressMode },
+        .addressModeU = addressMode,
+        .addressModeV = addressMode,
+        .addressModeW = addressMode,
 
-        .mipLodBias{ 0.0f },
+        .mipLodBias = 0.0f,
 
-        .anisotropyEnable{ VK_FALSE },
-        .maxAnisotropy{ 1.0f },
+        .anisotropyEnable = VK_FALSE,
+        .maxAnisotropy = 1.0f,
 
-        .compareEnable{ VK_FALSE },
-        .compareOp{ VK_COMPARE_OP_NEVER },
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_NEVER,
 
-        .minLod{ 0.0f },
-        .maxLod{ 1.0f },
+        .minLod = 0.0f,
+        .maxLod = 1.0f,
 
-        .borderColor{ borderColor },
+        .borderColor = borderColor,
 
-        .unnormalizedCoordinates{ VK_FALSE },
+        .unnormalizedCoordinates = VK_FALSE,
     };
 }
 
@@ -198,16 +192,15 @@ VkImageViewCreateInfo vkinit::imageViewCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ 0 },
+        .flags = 0,
 
-        .image{ image },
-        .viewType{ VK_IMAGE_VIEW_TYPE_2D },
-        .format{ format },
-        .components{},
-        .subresourceRange{ vkinit::imageSubresourceRange(aspectFlags) },
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange = vkinit::imageSubresourceRange(aspectFlags),
     };
 }
 
@@ -218,18 +211,18 @@ VkRenderingAttachmentInfo vkinit::renderingAttachmentInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = nullptr,
 
-        .imageView{ view },
-        .imageLayout{ layout },
-        .loadOp{ 
+        .imageView = view,
+        .imageLayout = layout,
+        .loadOp = 
             clearValue.has_value() 
             ? VK_ATTACHMENT_LOAD_OP_CLEAR 
             : VK_ATTACHMENT_LOAD_OP_LOAD
-        },
-        .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-        .clearValue{ clearValue.value_or(VkClearValue{})},
+        ,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearValue.value_or(VkClearValue{}),
     };
 }
 
@@ -240,18 +233,19 @@ VkRenderingInfo vkinit::renderingInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_RENDERING_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .pNext = nullptr,
 
-        .flags{ 0 },
-        .renderArea{ drawRect },
-        .layerCount{ 1 },
-        .viewMask{ 0 },
-
-        .colorAttachmentCount{ static_cast<uint32_t>(colorAttachments.size()) },
-        .pColorAttachments{ colorAttachments.data() },
-        .pDepthAttachment{ pDepthAttachment },
-        .pStencilAttachment{ nullptr }
+        .flags = 0,
+        .renderArea = drawRect,
+        .layerCount = 1,
+        .viewMask = 0,
+        
+        .colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size()),
+        .pColorAttachments = colorAttachments.data(),
+        
+        .pDepthAttachment = pDepthAttachment,
+        .pStencilAttachment = nullptr,
     };
 }
 
@@ -262,14 +256,14 @@ VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(
 )
 {
     return VkPipelineShaderStageCreateInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ 0 },
-        .stage{ stage },
-        .module{ module },
-        .pName{ entryPoint.c_str() },
-        .pSpecializationInfo{ nullptr },
+        .flags = 0,
+        .stage = stage,
+        .module = module,
+        .pName = entryPoint.c_str(),
+        .pSpecializationInfo = nullptr,
     };
 }
 
@@ -280,16 +274,16 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(
 )
 {
     return {
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ flags },
+        .flags = flags,
 
-        .setLayoutCount{ static_cast<uint32_t>(layouts.size())},
-        .pSetLayouts{ layouts.data() },
+        .setLayoutCount = static_cast<uint32_t>(layouts.size()),
+        .pSetLayouts = layouts.data(),
 
-        .pushConstantRangeCount{ static_cast<uint32_t>(ranges.size()) },
-        .pPushConstantRanges{ ranges.data() },
+        .pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
+        .pPushConstantRanges = ranges.data(),
     };
 }
 

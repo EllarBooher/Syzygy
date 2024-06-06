@@ -13,11 +13,11 @@ VkPipeline PipelineBuilder::buildPipeline(
 ) const
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.pNext = nullptr,
 
-		.viewportCount{ 1 },
-		.scissorCount{ 1 },
+		.viewportCount = 1,
+		.scissorCount = 1,
 
 		// We use dynamic rendering, so no other members are needed
 	};
@@ -35,30 +35,30 @@ VkPipeline PipelineBuilder::buildPipeline(
 	}
 
 	VkPipelineColorBlendStateCreateInfo const colorBlending{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		.pNext = nullptr,
 
-		.logicOpEnable{ VK_FALSE },
-		.logicOp{ VK_LOGIC_OP_COPY },
+		.logicOpEnable = VK_FALSE,
+		.logicOp = VK_LOGIC_OP_COPY,
 
-		.attachmentCount{ static_cast<uint32_t>(attachmentStates.size()) },
-		.pAttachments{ attachmentStates.data() },
+		.attachmentCount = static_cast<uint32_t>(attachmentStates.size()),
+		.pAttachments = attachmentStates.data(),
 	};
 
 	VkPipelineRenderingCreateInfo const renderInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+		.pNext = nullptr,
 
-		.colorAttachmentCount{ static_cast<uint32_t>(colorFormats.size()) },
-		.pColorAttachmentFormats{ colorFormats.data() },
-
-		.depthAttachmentFormat{ m_depthAttachmentFormat },
+		.colorAttachmentCount = static_cast<uint32_t>(colorFormats.size()),
+		.pColorAttachmentFormats = colorFormats.data(),
+		
+		.depthAttachmentFormat = m_depthAttachmentFormat,
 	};
 
 	// Dummy vertex input 
 	VkPipelineVertexInputStateCreateInfo const vertexInputInfo
 	{ 
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO }
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 	};
 
 	std::vector<VkDynamicState> dynamicStates{
@@ -71,38 +71,37 @@ VkPipeline PipelineBuilder::buildPipeline(
 	dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
 
 	VkPipelineDynamicStateCreateInfo const dynamicInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO },
-
-		.dynamicStateCount{ static_cast<uint32_t>(dynamicStates.size()) },
-		.pDynamicStates{ dynamicStates.data() }
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+		.pDynamicStates = dynamicStates.data(),
 	};
 
 
 	VkGraphicsPipelineCreateInfo const pipelineInfo{
-		.sType{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO },
-		.pNext{ &renderInfo },
+		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.pNext = &renderInfo,
 
-		.stageCount{ static_cast<uint32_t>(m_shaderStages.size()) },
-		.pStages{ m_shaderStages.data() },
+		.stageCount = static_cast<uint32_t>(m_shaderStages.size()),
+		.pStages = m_shaderStages.data(),
 
-		.pVertexInputState{ &vertexInputInfo },
-		.pInputAssemblyState{ &m_inputAssembly },
+		.pVertexInputState = &vertexInputInfo,
+		.pInputAssemblyState = &m_inputAssembly,
 
-		.pTessellationState{ nullptr },
+		.pTessellationState = nullptr,
 
-		.pViewportState{ &viewportState },
-		.pRasterizationState{ &m_rasterizer },
-		.pMultisampleState{ &m_multisampling },
+		.pViewportState = &viewportState,
+		.pRasterizationState = &m_rasterizer,
+		.pMultisampleState = &m_multisampling,
 
-		.pDepthStencilState{ &m_depthStencil },
-		.pColorBlendState{ &colorBlending },
-		.pDynamicState{ &dynamicInfo },
+		.pDepthStencilState = &m_depthStencil,
+		.pColorBlendState = &colorBlending,
+		.pDynamicState = &dynamicInfo,
 
-		.layout{ layout },
-		.renderPass{ VK_NULL_HANDLE }, // dynamic rendering
-		.subpass{ 0 },
-		.basePipelineHandle{ VK_NULL_HANDLE },
-		.basePipelineIndex{ 0 },
+		.layout = layout,
+		.renderPass = VK_NULL_HANDLE, // dynamic rendering used
+		.subpass = 0,
+		.basePipelineHandle = VK_NULL_HANDLE,
+		.basePipelineIndex = 0,
 	};
 
 	VkPipeline pipeline{ VK_NULL_HANDLE };
@@ -171,7 +170,7 @@ void PipelineBuilder::setMultisamplingNone()
 void PipelineBuilder::setColorAttachment(VkFormat const format)
 {
 	m_colorAttachment = ColorAttachmentSpecification{
-		.format{ format },
+		.format = format,
 	};
 }
 
@@ -188,19 +187,17 @@ void PipelineBuilder::enableDepthBias()
 void PipelineBuilder::disableDepthTest()
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.pNext = nullptr,
 
-		.flags{ 0 },
-		.depthTestEnable{ VK_FALSE },
-		.depthWriteEnable{ VK_FALSE },
-		.depthCompareOp{ VK_COMPARE_OP_NEVER },
-		.depthBoundsTestEnable{ VK_FALSE },
-		.stencilTestEnable{ VK_FALSE },
-		.front{},
-		.back{},
-		.minDepthBounds{ 0.0f },
-		.maxDepthBounds{ 1.0f },
+		.flags = 0,
+		.depthTestEnable = VK_FALSE,
+		.depthWriteEnable = VK_FALSE,
+		.depthCompareOp = VK_COMPARE_OP_NEVER,
+		.depthBoundsTestEnable = VK_FALSE,
+		.stencilTestEnable = VK_FALSE,
+		.minDepthBounds = 0.0f,
+		.maxDepthBounds = 1.0f,
 	};
 }
 
@@ -210,19 +207,17 @@ void PipelineBuilder::enableDepthTest(
 )
 {
 	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.pNext = nullptr,
 
-		.flags{ 0 },
-		.depthTestEnable{ VK_TRUE },
-		.depthWriteEnable{ depthWriteEnable ? VK_TRUE : VK_FALSE },
-		.depthCompareOp{ compareOp },
-		.depthBoundsTestEnable{ VK_FALSE },
-		.stencilTestEnable{ VK_FALSE },
-		.front{},
-		.back{},
-		.minDepthBounds{ 0.0f },
-		.maxDepthBounds{ 1.0f },
+		.flags = 0,
+		.depthTestEnable = VK_TRUE,
+		.depthWriteEnable = depthWriteEnable ? VK_TRUE : VK_FALSE,
+		.depthCompareOp = compareOp,
+		.depthBoundsTestEnable = VK_FALSE,
+		.stencilTestEnable = VK_FALSE,
+		.minDepthBounds = 0.0f,
+		.maxDepthBounds = 1.0f,
 	};
 }
 
@@ -282,16 +277,16 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
 		);
 
 		VkPipelineLayoutCreateInfo const layoutCreateInfo{
-			.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-			.pNext{ nullptr },
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
 
-			.flags{ 0 },
+			.flags = 0,
 
-			.setLayoutCount{ 1 },
-			.pSetLayouts{ &drawImageDescriptorLayout },
+			.setLayoutCount = 1,
+			.pSetLayouts = &drawImageDescriptorLayout,
 
-			.pushConstantRangeCount{ static_cast<uint32_t>(ranges.size()) },
-			.pPushConstantRanges{ ranges.data() },
+			.pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
+			.pPushConstantRanges = ranges.data(),
 		};
 
 		VkPipelineLayout layout{ VK_NULL_HANDLE };
@@ -454,18 +449,16 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 	}
 
 	VkPipelineLayoutCreateInfo const layoutInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext = nullptr,
 
-		.flags{ 0 },
+		.flags = 0,
 
-		.setLayoutCount{ 0 },
-		.pSetLayouts{ nullptr },
+		.setLayoutCount = 0,
+		.pSetLayouts = nullptr,
 
-		.pushConstantRangeCount{ 
-			static_cast<uint32_t>(pushConstantRanges.size()) 
-		},
-		.pPushConstantRanges{ pushConstantRanges.data() },
+		.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+		.pPushConstantRanges = pushConstantRanges.data(),
 	};
 
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
@@ -512,40 +505,38 @@ DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
 ) const
 {
 	VkRenderingAttachmentInfo const colorAttachment{
-		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
 
-		.imageView{ color.imageView },
-		.imageLayout{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
+		.imageView = color.imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 
-		.resolveMode{ VK_RESOLVE_MODE_NONE },
-		.resolveImageView{ VK_NULL_HANDLE },
-		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+		.resolveMode = VK_RESOLVE_MODE_NONE,
+		.resolveImageView = VK_NULL_HANDLE,
+		.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-		.loadOp{ VK_ATTACHMENT_LOAD_OP_LOAD },
-		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
-
-		.clearValue{},
+		.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 	};
 	VkAttachmentLoadOp const depthLoadOp{ reuseDepthAttachment
 		? VK_ATTACHMENT_LOAD_OP_LOAD
 		: VK_ATTACHMENT_LOAD_OP_CLEAR
 	};
 	VkRenderingAttachmentInfo const depthAttachment{
-		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
 
-		.imageView{ depth.imageView },
-		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+		.imageView = depth.imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-		.resolveMode{ VK_RESOLVE_MODE_NONE },
-		.resolveImageView{ VK_NULL_HANDLE },
-		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+		.resolveMode = VK_RESOLVE_MODE_NONE,
+		.resolveImageView = VK_NULL_HANDLE,
+		.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-		.loadOp{ depthLoadOp },
-		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+		.loadOp = depthLoadOp,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 
-		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+		.clearValue = VkClearValue{.depthStencil{.depth = 0.0f}},
 	};
 
 	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ 
@@ -582,12 +573,12 @@ DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
 	vkCmdSetLineWidth(cmd, lineWidth);
 
 	VkViewport const viewport{
-		.x{ static_cast<float>(drawRect.offset.x) },
-		.y{ static_cast<float>(drawRect.offset.y) },
-		.width{ static_cast<float>(drawRect.extent.width) },
-		.height{ static_cast<float>(drawRect.extent.height) },
-		.minDepth{ 0.0f },
-		.maxDepth{ 1.0f },
+		.x = static_cast<float>(drawRect.offset.x),
+		.y = static_cast<float>(drawRect.offset.y),
+		.width = static_cast<float>(drawRect.extent.width),
+		.height = static_cast<float>(drawRect.extent.height),
+		.minDepth = 0.0f,
+		.maxDepth = 1.0f,
 	};
 
 	vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -598,9 +589,9 @@ DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
 
 	{ // Vertex push constant
 		VertexPushConstant const vertexPushConstant{
-			.vertexBuffer{ endpoints.deviceAddress() },
-			.cameraBuffer{ cameras.deviceAddress() },
-			.cameraIndex{ cameraIndex },
+			.vertexBuffer = endpoints.deviceAddress(),
+			.cameraBuffer = cameras.deviceAddress(),
+			.cameraIndex = cameraIndex,
 		};
 		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
 			VK_SHADER_STAGE_VERTEX_BIT,
@@ -617,9 +608,9 @@ DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
 	vkCmdEndRendering(cmd);
 
 	return DrawResultsGraphics{
-		.drawCalls{ 1 },
-		.verticesDrawn{ endpoints.deviceSize() },
-		.indicesDrawn{ indices.deviceSize() }
+		.drawCalls = 1,
+		.verticesDrawn = endpoints.deviceSize(),
+		.indicesDrawn = indices.deviceSize(),
 	};
 }
 
@@ -677,18 +668,16 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 	}
 
 	VkPipelineLayoutCreateInfo const layoutInfo{
-		.sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext = nullptr,
 
-		.flags{ 0 },
+		.flags = 0,
 
-		.setLayoutCount{ 0 },
-		.pSetLayouts{ nullptr },
+		.setLayoutCount = 0,
+		.pSetLayouts = nullptr,
 
-		.pushConstantRangeCount{ 
-			static_cast<uint32_t>(pushConstantRanges.size()) 
-		},
-		.pPushConstantRanges{ pushConstantRanges.data() },
+		.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+		.pPushConstantRanges = pushConstantRanges.data(),
 	};
 
 	VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
@@ -744,29 +733,29 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 		: VK_ATTACHMENT_LOAD_OP_CLEAR
 	};
 	VkRenderingAttachmentInfo const depthAttachment{
-		.sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+		.pNext = nullptr,
 
-		.imageView{ depth.imageView },
-		.imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+		.imageView = depth.imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-		.resolveMode{ VK_RESOLVE_MODE_NONE },
-		.resolveImageView{ VK_NULL_HANDLE },
-		.resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+		.resolveMode = VK_RESOLVE_MODE_NONE,
+		.resolveImageView = VK_NULL_HANDLE,
+		.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-		.loadOp{ depthLoadOp },
-		.storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+		.loadOp = depthLoadOp,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 
-		.clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+		.clearValue = VkClearValue{.depthStencil{.depth = 0.0f }},
 	};
 
 	VkExtent2D const drawExtent{
-		.width{depth.imageExtent.width},
-		.height{depth.imageExtent.height},
+		.width = depth.imageExtent.width,
+		.height = depth.imageExtent.height,
 	};
 	VkRenderingInfo const renderInfo{
 		vkinit::renderingInfo(
-			VkRect2D{.extent{drawExtent}}
+			VkRect2D{.extent = drawExtent }
 			, {}
 			, &depthAttachment
 		)
@@ -782,24 +771,24 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
 
 	VkViewport const viewport{
-		.x{ 0 },
-		.y{ 0 },
-		.width{ static_cast<float>(drawExtent.width) },
-		.height{ static_cast<float>(drawExtent.height) },
-		.minDepth{ 0.0f },
-		.maxDepth{ 1.0f },
+		.x = 0,
+		.y = 0,
+		.width = static_cast<float>(drawExtent.width),
+		.height = static_cast<float>(drawExtent.height),
+		.minDepth = 0.0f,
+		.maxDepth = 1.0f,
 	};
 
 	vkCmdSetViewport(cmd, 0, 1, &viewport);
 
 	VkRect2D const scissor{
 		.offset{
-			.x{ 0 },
-			.y{ 0 },
+			.x = 0,
+			.y = 0,
 		},
 		.extent{
-			.width{ drawExtent.width },
-			.height{ drawExtent.height },
+			.width = drawExtent.width,
+			.height = drawExtent.height,
 		},
 	};
 
@@ -810,10 +799,10 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
 	{ // Vertex push constant
 		VertexPushConstant const vertexPushConstant{
-			.vertexBufferAddress{ meshBuffers.vertexAddress() },
-			.modelBufferAddress{ models.deviceAddress() },
-			.projViewBufferAddress{ projViewMatrices.deviceAddress() },
-			.projViewIndex{ projViewIndex }
+			.vertexBufferAddress = meshBuffers.vertexAddress(),
+			.modelBufferAddress = models.deviceAddress(),
+			.projViewBufferAddress = projViewMatrices.deviceAddress(),
+			.projViewIndex = projViewIndex,
 		};
 		vkCmdPushConstants(cmd, m_graphicsPipelineLayout,
 			VK_SHADER_STAGE_VERTEX_BIT,

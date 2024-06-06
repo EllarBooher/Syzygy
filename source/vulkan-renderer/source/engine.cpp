@@ -45,30 +45,30 @@
 
 CameraParameters const Engine::m_defaultCameraParameters{
     CameraParameters{
-        .cameraPosition{ glm::vec3(0.0f,-8.0f,-8.0f) },
-        .eulerAngles{ glm::vec3(-0.3f,0.0f,0.0f) },
-        .fov{ 70.0f },
-        .near{ 0.1f },
-        .far{ 10000.0f },
+        .cameraPosition = glm::vec3(0.0f,-8.0f,-8.0f),
+        .eulerAngles = glm::vec3(-0.3f,0.0f,0.0f),
+        .fov = 70.0f,
+        .near = 0.1f,
+        .far = 10000.0f,
     }
 };
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     AtmosphereParameters{
-        .sunEulerAngles{ glm::vec3(1.00 , 0.0, 0.0) },
+        .sunEulerAngles = glm::vec3(1.00 , 0.0, 0.0),
 
-        .earthRadiusMeters{ 6378000 },
-        .atmosphereRadiusMeters{ 6420000 },
+        .earthRadiusMeters = 6378000,
+        .atmosphereRadiusMeters = 6420000,
 
-        .groundColor{ 0.9, 0.8, 0.6 },
+        .groundColor = glm::vec3{ 0.9, 0.8, 0.6 },
 
-        .scatteringCoefficientRayleigh{ 
+        .scatteringCoefficientRayleigh = 
             glm::vec3(0.0000038, 0.0000135, 0.0000331) 
-        },
-        .altitudeDecayRayleigh{ 7994.0 },
+        ,
+        .altitudeDecayRayleigh = 7994.0,
 
-        .scatteringCoefficientMie{ glm::vec3(0.000021) },
-        .altitudeDecayMie{ 1200.0 },
+        .scatteringCoefficientMie = glm::vec3(0.000021),
+        .altitudeDecayMie = 1200.0,
     }
 };
 
@@ -209,31 +209,31 @@ void Engine::initInstanceSurfaceDevices()
 
     VkPhysicalDeviceVulkan13Features const features13
     {
-        .synchronization2{ VK_TRUE },
-        .dynamicRendering{ VK_TRUE },
+        .synchronization2 = VK_TRUE,
+        .dynamicRendering = VK_TRUE,
     };
 
     VkPhysicalDeviceVulkan12Features const features12
     {
-        .descriptorIndexing{ VK_TRUE },
+        .descriptorIndexing = VK_TRUE,
 
-        .descriptorBindingPartiallyBound{ VK_TRUE },
-        .runtimeDescriptorArray{ VK_TRUE },
+        .descriptorBindingPartiallyBound = VK_TRUE,
+        .runtimeDescriptorArray = VK_TRUE,
 
-        .bufferDeviceAddress{ VK_TRUE },
+        .bufferDeviceAddress = VK_TRUE,
     };
     
     VkPhysicalDeviceFeatures const features
     {
-        .wideLines{ VK_TRUE },
+        .wideLines = VK_TRUE,
     };
 
     VkPhysicalDeviceShaderObjectFeaturesEXT const shaderObjectFeature
     {
-        .sType{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
+        .pNext = nullptr,
 
-        .shaderObject{ VK_TRUE },
+        .shaderObject = VK_TRUE,
     };
 
     vkb::Result<vkb::PhysicalDevice> const physicalDeviceBuildResult{
@@ -429,12 +429,12 @@ void Engine::initCommands()
         )
     );
     VkCommandBufferAllocateInfo const immCmdAllocInfo{
-        .sType{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = nullptr,
 
-        .commandPool{ m_immCommandPool },
-        .level{ VK_COMMAND_BUFFER_LEVEL_PRIMARY },
-        .commandBufferCount{ 1 },
+        .commandPool = m_immCommandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
     };
     CheckVkResult(
         vkAllocateCommandBuffers(
@@ -526,24 +526,24 @@ void Engine::initDescriptors()
 void Engine::updateDescriptors()
 {
     VkDescriptorImageInfo const sceneTextureInfo{
-        .sampler{ VK_NULL_HANDLE },
-        .imageView{ m_sceneColorTexture.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
+        .sampler = VK_NULL_HANDLE,
+        .imageView = m_sceneColorTexture.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
     };
 
     VkWriteDescriptorSet const sceneTextureWrite{
-        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
 
-        .dstSet{ m_sceneTextureDescriptors },
-        .dstBinding{ 0 },
-        .dstArrayElement{ 0 },
-        .descriptorCount{ 1 },
-        .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
+        .dstSet = m_sceneTextureDescriptors,
+        .dstBinding = 0,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
 
-        .pImageInfo{ &sceneTextureInfo },
-        .pBufferInfo{ nullptr },
-        .pTexelBufferView{ nullptr },
+        .pImageInfo = &sceneTextureInfo,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
     };
 
     std::vector<VkWriteDescriptorSet> const writes{
@@ -785,12 +785,12 @@ void Engine::initImgui()
     };
 
     VkDescriptorPoolCreateInfo const poolInfo{
-        .sType{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO },
-        .flags{ VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT },
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 
-        .maxSets{ 1000 },
-        .poolSizeCount{ static_cast<uint32_t>(poolSizes.size())},
-        .pPoolSizes{ poolSizes.data() },
+        .maxSets = 1000,
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data(),
     };
 
     VkDescriptorPool imguiDescriptorPool{ VK_NULL_HANDLE };
@@ -810,17 +810,17 @@ void Engine::initImgui()
         m_drawImage.imageFormat 
     };
     VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = nullptr,
 
-        .viewMask{ 0 }, // Not sure on this value
-        .colorAttachmentCount{ 
+        .viewMask = 0, // Not sure on this value
+        .colorAttachmentCount = 
             static_cast<uint32_t>(colorAttachmentFormats.size()) 
-        },
-        .pColorAttachmentFormats{ colorAttachmentFormats.data() },
+        ,
+        .pColorAttachmentFormats = colorAttachmentFormats.data(),
 
-        .depthAttachmentFormat{ VK_FORMAT_UNDEFINED },
-        .stencilAttachmentFormat{ VK_FORMAT_UNDEFINED },
+        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED,
     };
 
     ImGui::StyleColorsDark();
@@ -840,27 +840,27 @@ void Engine::initImgui()
     );
     
     ImGui_ImplVulkan_InitInfo initInfo{
-        .Instance{ m_instance },
-        .PhysicalDevice{ m_physicalDevice },
-        .Device{ m_device },
+        .Instance = m_instance,
+        .PhysicalDevice = m_physicalDevice,
+        .Device = m_device,
 
-        .QueueFamily{ m_graphicsQueueFamily },
-        .Queue{ m_graphicsQueue },
+        .QueueFamily = m_graphicsQueueFamily,
+        .Queue = m_graphicsQueue,
 
-        .DescriptorPool{ imguiDescriptorPool },
+        .DescriptorPool = imguiDescriptorPool,
 
-        .MinImageCount{ 3 },
-        .ImageCount{ 3 },
-        .MSAASamples{ VK_SAMPLE_COUNT_1_BIT }, // No MSAA
+        .MinImageCount = 3,
+        .ImageCount = 3,
+        .MSAASamples = VK_SAMPLE_COUNT_1_BIT, // No MSAA
 
         // Dynamic rendering
-        .UseDynamicRendering{ true },
-        .PipelineRenderingCreateInfo{ dynamicRenderingInfo },
+        .UseDynamicRendering = true,
+        .PipelineRenderingCreateInfo = dynamicRenderingInfo,
 
         // Allocation/Debug
-        .Allocator{ nullptr },
-        .CheckVkResultFn{ CheckVkResult_Imgui },
-        .MinAllocationSize{ 1024 * 1024 },
+        .Allocator = nullptr,
+        .CheckVkResultFn = CheckVkResult_Imgui,
+        .MinAllocationSize = 1024 * 1024,
     };
     m_imguiDescriptorPool = imguiDescriptorPool;
 
@@ -1003,10 +1003,10 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
         ) 
     };
     VkBufferDeviceAddressInfo const addressInfo{
-        .sType{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+        .pNext = nullptr,
 
-        .buffer{ vertexBuffer.buffer },
+        .buffer = vertexBuffer.buffer,
     };
     VkDeviceAddress const vertexBufferAddress{ 
         vkGetBufferDeviceAddress(m_device, &addressInfo) 
@@ -1035,9 +1035,9 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
         [&](VkCommandBuffer cmd) 
         {
             VkBufferCopy const vertexCopy{
-                .srcOffset{ 0 },
-                .dstOffset{ 0 },
-                .size{ vertexBufferSize },
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = vertexBufferSize,
             };
             vkCmdCopyBuffer(
                 cmd
@@ -1047,9 +1047,9 @@ std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
             );
 
             VkBufferCopy const indexCopy{
-                .srcOffset{ vertexBufferSize },
-                .dstOffset{ 0 },
-                .size{ indexBufferSize },
+                .srcOffset = vertexBufferSize,
+                .dstOffset = 0,
+                .size = indexBufferSize,
             };
             vkCmdCopyBuffer(
                 cmd
@@ -1223,18 +1223,14 @@ bool Engine::renderUI(VkDevice const device)
         ))
         {
             VkExtent2D const sceneContentExtent{
-                .width{ static_cast<uint32_t>(
-                    ImGui::GetContentRegionAvail().x)
-                },
-                .height{ static_cast<uint32_t>(
-                    ImGui::GetContentRegionAvail().y)
-                },
+                .width = static_cast<uint32_t>(ImGui::GetContentRegionAvail().x),
+                .height = static_cast<uint32_t>(ImGui::GetContentRegionAvail().y),
             };
 
             m_sceneRect = VkRect2D{
                 .offset{ VkOffset2D{
-                    .x{ 0 },
-                    .y{ 0 }
+                    .x = 0,
+                    .y = 0,
                 }},
                 .extent{ VkExtent2D{ sceneContentExtent } },
             };
@@ -1376,18 +1372,14 @@ bool Engine::renderUI(VkDevice const device)
             if (ImGui::Begin("SceneViewport"))
             {
                 VkExtent2D const sceneContentExtent{
-                    .width{ static_cast<uint32_t>(
-                        ImGui::GetContentRegionAvail().x)
-                    },
-                    .height{ static_cast<uint32_t>(
-                        ImGui::GetContentRegionAvail().y)
-                    },
+                    .width = static_cast<uint32_t>(ImGui::GetContentRegionAvail().x),
+                    .height = static_cast<uint32_t>(ImGui::GetContentRegionAvail().y),
                 };
 
                 m_sceneRect = VkRect2D{
                     .offset{ VkOffset2D{
-                        .x{ 0 },
-                        .y{ 0 }
+                        .x = 0,
+                        .y = 0,
                     }},
                     .extent{ sceneContentExtent },
                 };
@@ -1934,14 +1926,14 @@ void Engine::recordDrawImgui(
     m_drawRect = VkRect2D{
         .offset{
             VkOffset2D{
-                .x{ static_cast<int32_t>(drawData->DisplayPos.x) },
-                .y{ static_cast<int32_t>(drawData->DisplayPos.y) },
+                .x = static_cast<int32_t>(drawData->DisplayPos.x),
+                .y = static_cast<int32_t>(drawData->DisplayPos.y),
             }
         },
         .extent{
             VkExtent2D{
-                .width{ static_cast<uint32_t>(drawData->DisplaySize.x) },
-                .height{ static_cast<uint32_t>(drawData->DisplaySize.y) },
+                .width = static_cast<uint32_t>(drawData->DisplaySize.x),
+                .height = static_cast<uint32_t>(drawData->DisplaySize.y),
             }
         },
     };

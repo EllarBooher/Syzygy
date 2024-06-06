@@ -111,16 +111,16 @@ static VkPipelineLayout createLayout(
 )
 {
     VkPipelineLayoutCreateInfo const layoutCreateInfo{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .pNext = nullptr,
 
-        .flags{ 0 },
+        .flags = 0,
 
-        .setLayoutCount{ static_cast<uint32_t>(setLayouts.size()) },
-        .pSetLayouts{ setLayouts.data() },
+        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+        .pSetLayouts = setLayouts.data(),
 
-        .pushConstantRangeCount{ static_cast<uint32_t>(ranges.size()) },
-        .pPushConstantRanges{ ranges.data() },
+        .pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
+        .pPushConstantRanges = ranges.data(),
     };
 
     VkPipelineLayout layout{ VK_NULL_HANDLE };
@@ -203,9 +203,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         {
             VkExtent3D const drawImageExtent{
-                .width{ dimensionCapacity.width},
-                .height{ dimensionCapacity.height},
-                .depth{ 1 }
+                .width = dimensionCapacity.width,
+                .height = dimensionCapacity.height,
+                .depth = 1,
             };
 
             m_drawImage = AllocatedImage::allocate(
@@ -221,24 +221,24 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             ).value();
 
             VkDescriptorImageInfo const drawImageInfo{
-                .sampler{ VK_NULL_HANDLE },
-                .imageView{ m_drawImage.imageView },
-                .imageLayout{ VK_IMAGE_LAYOUT_GENERAL },
+                .sampler = VK_NULL_HANDLE,
+                .imageView = m_drawImage.imageView,
+                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
             };
 
             VkWriteDescriptorSet const drawImageWrite{
-                .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-                .pNext{ nullptr },
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
 
-                .dstSet{ m_drawImageSet },
-                .dstBinding{ 0 },
-                .dstArrayElement{ 0 },
-                .descriptorCount{ 1 },
-                .descriptorType{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE },
+                .dstSet = m_drawImageSet,
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
 
-                .pImageInfo{ &drawImageInfo },
-                .pBufferInfo{ nullptr },
-                .pTexelBufferView{ nullptr },
+                .pImageInfo = &drawImageInfo,
+                .pBufferInfo = nullptr,
+                .pTexelBufferView = nullptr,
             };
 
             std::vector<VkWriteDescriptorSet> const writes{
@@ -295,12 +295,10 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
     { // GBuffer pipelines
         VkPushConstantRange const graphicsPushConstantRange{
-            .stageFlags{ 
-                VK_SHADER_STAGE_VERTEX_BIT 
-                | VK_SHADER_STAGE_FRAGMENT_BIT 
-            },
-            .offset{ 0 },
-            .size{ sizeof(GBufferVertexPushConstant) },
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT 
+                | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = sizeof(GBufferVertexPushConstant),
         };
 
         m_gBufferVertexShader = loadShader(
@@ -323,9 +321,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         std::vector<VkPushConstantRange> const gBufferPushConstantRanges{
             VkPushConstantRange{
-                .stageFlags{ VK_SHADER_STAGE_VERTEX_BIT },
-                .offset{ 0 },
-                .size{ sizeof(GBufferVertexPushConstant) },
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                .offset = 0,
+                .size = sizeof(GBufferVertexPushConstant),
             }
         };
         m_gBufferLayout = createLayout(
@@ -355,9 +353,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         std::vector<VkPushConstantRange> const lightingPassPushConstantRanges{
             VkPushConstantRange{
-                .stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-                .offset{ 0 },
-                .size{ sizeof(LightingPassComputePushConstant) },
+                .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                .offset = 0,
+                .size = sizeof(LightingPassComputePushConstant),
             }
         };
         m_lightingPassLayout = createLayout(
@@ -384,9 +382,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         std::vector<VkPushConstantRange> const skyPassPushConstantRanges{
             VkPushConstantRange{
-                .stageFlags{ VK_SHADER_STAGE_COMPUTE_BIT },
-                .offset{ 0 },
-                .size{ sizeof(SkyPassComputePushConstant) },
+                .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                .offset = 0,
+                .size = sizeof(SkyPassComputePushConstant),
             }
         };
         m_skyPassLayout = createLayout(
@@ -405,12 +403,12 @@ void setRasterizationShaderObjectState(
 )
 {
     VkViewport const viewport{
-        .x{ static_cast<float>(drawRect.offset.x) },
-        .y{ static_cast<float>(drawRect.offset.y) },
-        .width{ static_cast<float>(drawRect.extent.width) },
-        .height{ static_cast<float>(drawRect.extent.height) },
-        .minDepth{ 0.0f },
-        .maxDepth{ 1.0f },
+        .x = static_cast<float>(drawRect.offset.x),
+        .y = static_cast<float>(drawRect.offset.y),
+        .width = static_cast<float>(drawRect.extent.width),
+        .height = static_cast<float>(drawRect.extent.height),
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
     };
 
     vkCmdSetViewportWithCount(cmd, 1, &viewport);
@@ -580,20 +578,20 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
 
         VkRenderingAttachmentInfo const depthAttachment{
-            .sType{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO },
-            .pNext{ nullptr },
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
 
-            .imageView{ depth.imageView },
-            .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL },
+            .imageView= depth.imageView,
+            .imageLayout= VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-            .resolveMode{ VK_RESOLVE_MODE_NONE },
-            .resolveImageView{ VK_NULL_HANDLE },
-            .resolveImageLayout{ VK_IMAGE_LAYOUT_UNDEFINED },
+            .resolveMode=VK_RESOLVE_MODE_NONE,
+            .resolveImageView=VK_NULL_HANDLE,
+            .resolveImageLayout=VK_IMAGE_LAYOUT_UNDEFINED,
 
-            .loadOp{ VK_ATTACHMENT_LOAD_OP_CLEAR },
-            .storeOp{ VK_ATTACHMENT_STORE_OP_STORE },
+            .loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp=VK_ATTACHMENT_STORE_OP_STORE,
 
-            .clearValue{ VkClearValue{.depthStencil{.depth{ 0.0f }}} },
+            .clearValue{ VkClearValue{.depthStencil{.depth = 0.0f}} },
         };
 
         VkColorComponentFlags const colorComponentFlags{
@@ -640,35 +638,35 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdBeginRendering(cmd, &renderInfo);
 
-        VkClearColorValue const clearColor{
-            .float32{ 0.0, 0.0, 0.0, 0.0}
+        VkClearValue const clearColor{
+            .color{.float32{0.0, 0.0, 0.0, 0.0}}
         };
         std::array<VkClearAttachment, 4> const clearAttachments{
             VkClearAttachment{
-                .aspectMask{ VK_IMAGE_ASPECT_COLOR_BIT },
-                .colorAttachment{ 0 },
-                .clearValue{ clearColor },
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = 0,
+                .clearValue = clearColor,
             },
             VkClearAttachment{
-                .aspectMask{ VK_IMAGE_ASPECT_COLOR_BIT },
-                .colorAttachment{ 1 },
-                .clearValue{ clearColor },
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = 1,
+                .clearValue = clearColor,
             },
             VkClearAttachment{
-                .aspectMask{ VK_IMAGE_ASPECT_COLOR_BIT },
-                .colorAttachment{ 2 },
-                .clearValue{ clearColor },
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = 2,
+                .clearValue = clearColor,
             },
             VkClearAttachment{
-                .aspectMask{ VK_IMAGE_ASPECT_COLOR_BIT },
-                .colorAttachment{ 3 },
-                .clearValue{ clearColor },
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = 3,
+                .clearValue = clearColor,
             }
         };
         VkClearRect const clearRect{
-            .rect{ VkRect2D{.extent{ drawRect.extent }} },
-            .baseArrayLayer{ 0 },
-            .layerCount{ 1 },
+            .rect = VkRect2D{.extent{ drawRect.extent }},
+            .baseArrayLayer = 0,
+            .layerCount = 1,
         };
         vkCmdClearAttachments(cmd, VKR_ARRAY(clearAttachments), 1, &clearRect);
 
@@ -678,13 +676,12 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         { // Vertex push constant
             GBufferVertexPushConstant const vertexPushConstant{
-                .vertexBuffer{ meshBuffers.vertexAddress() },
-                .modelBuffer{ sceneGeometry.models->deviceAddress() },
-                .modelInverseTransposeBuffer{ 
-                    sceneGeometry.modelInverseTransposes->deviceAddress() 
-            },
-                .cameraBuffer{ cameras.deviceAddress() },
-                .cameraIndex{ viewCameraIndex },
+                .vertexBuffer = meshBuffers.vertexAddress(),
+                .modelBuffer = sceneGeometry.models->deviceAddress(),
+                .modelInverseTransposeBuffer = 
+                    sceneGeometry.modelInverseTransposes->deviceAddress(),
+                .cameraBuffer = cameras.deviceAddress(),
+                .cameraIndex = viewCameraIndex,
             };
             vkCmdPushConstants(cmd, m_gBufferLayout,
                 VK_SHADER_STAGE_VERTEX_BIT,
@@ -738,7 +735,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         VkClearDepthStencilValue const clearValue{
-            .depth{ 0.0 }
+            .depth = 0.0
         };
         VkImageSubresourceRange const range{
             vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
@@ -821,25 +818,21 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         LightingPassComputePushConstant const pushConstant{
-            .cameraBuffer{ cameras.deviceAddress() },
-            .atmosphereBuffer{ atmospheres.deviceAddress() },
+            .cameraBuffer = cameras.deviceAddress(),
+            .atmosphereBuffer = atmospheres.deviceAddress(),
 
-            .directionalLightsBuffer{ m_directionalLights->deviceAddress() },
-            .spotLightsBuffer{ m_spotLights->deviceAddress() },
+            .directionalLightsBuffer = m_directionalLights->deviceAddress(),
+            .spotLightsBuffer = m_spotLights->deviceAddress(),
 
-            .directionalLightCount{ 
-                static_cast<uint32_t>(m_directionalLights->deviceSize()) 
-            },
-            .spotLightCount{ 
-                static_cast<uint32_t>(m_spotLights->deviceSize()) 
-            },
-            .atmosphereIndex{ atmosphereIndex },
-            .cameraIndex{ viewCameraIndex },
-            .gbufferOffset{ glm::vec2{ 0.0, 0.0 } },
-            .gbufferExtent{ glm::vec2(
+            .directionalLightCount = static_cast<uint32_t>(m_directionalLights->deviceSize()),
+            .spotLightCount = static_cast<uint32_t>(m_spotLights->deviceSize()),
+            .atmosphereIndex = atmosphereIndex,
+            .cameraIndex = viewCameraIndex,
+            .gbufferOffset = glm::vec2{ 0.0, 0.0 },
+            .gbufferExtent = glm::vec2(
                 m_gBuffer.extent().width
                 , m_gBuffer.extent().height
-            )},
+            ),
         };
         m_lightingPassPushConstant = pushConstant;
 
@@ -898,15 +891,12 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         SkyPassComputePushConstant const pushConstant{
-            .atmosphereBuffer{ atmospheres.deviceAddress() },
-            .cameraBuffer{ cameras.deviceAddress() },
-            .atmosphereIndex{ atmosphereIndex },
-            .cameraIndex{ viewCameraIndex },
-            .drawOffset{ glm::vec2{ 0.0, 0.0 } },
-            .drawExtent{ glm::vec2{ 
-                drawRect.extent.width
-                , drawRect.extent.height 
-            }},
+            .atmosphereBuffer = atmospheres.deviceAddress(),
+            .cameraBuffer = cameras.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex,
+            .cameraIndex = viewCameraIndex,
+            .drawOffset = glm::vec2{ 0.0, 0.0 },
+            .drawExtent = glm::vec2{ drawRect.extent.width, drawRect.extent.height },
         };
         m_skyPassPushConstant = pushConstant;
 
@@ -969,24 +959,24 @@ void DeferredShadingPipeline::updateRenderTargetDescriptors(
 )
 {
     VkDescriptorImageInfo const depthImageInfo{
-        .sampler{ VK_NULL_HANDLE },
-        .imageView{ depthImage.imageView },
-        .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL }
+        .sampler = VK_NULL_HANDLE,
+        .imageView = depthImage.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
     };
 
     VkWriteDescriptorSet const depthImageWrite{
-        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
 
-        .dstSet{ m_depthImageSet },
-        .dstBinding{ 0 },
-        .dstArrayElement{ 0 },
-        .descriptorCount{ 1 },
-        .descriptorType{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER },
+        .dstSet = m_depthImageSet,
+        .dstBinding = 0,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 
-        .pImageInfo{ &depthImageInfo },
-        .pBufferInfo{ nullptr },
-        .pTexelBufferView{ nullptr },
+        .pImageInfo = &depthImageInfo,
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
     };
 
     std::vector<VkWriteDescriptorSet> const writes{

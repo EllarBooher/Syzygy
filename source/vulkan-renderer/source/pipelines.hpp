@@ -64,11 +64,11 @@ private:
     std::set<VkDynamicState> m_dynamicStates{};
 
 	VkPipelineInputAssemblyStateCreateInfo m_inputAssembly{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
     };
 	VkPipelineRasterizationStateCreateInfo m_rasterizer{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO },
-        .lineWidth{ 1.0 },
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .lineWidth = 1.0,
     };
 
     struct ColorAttachmentSpecification
@@ -77,21 +77,20 @@ private:
 
         // TODO: expose blending in pipeline builder
         VkPipelineColorBlendAttachmentState blending{
-            .blendEnable{ VK_FALSE },
-            .colorWriteMask{
+            .blendEnable = VK_FALSE,
+            .colorWriteMask =
                 VK_COLOR_COMPONENT_R_BIT
                 | VK_COLOR_COMPONENT_G_BIT
                 | VK_COLOR_COMPONENT_B_BIT
-                | VK_COLOR_COMPONENT_A_BIT
-            }
+                | VK_COLOR_COMPONENT_A_BIT,            
         };
     };
 
     VkPipelineMultisampleStateCreateInfo m_multisampling{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO }
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
     };
     VkPipelineDepthStencilStateCreateInfo m_depthStencil{
-        .sType{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO }
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
     };
 
     std::optional<ColorAttachmentSpecification> m_colorAttachment{};

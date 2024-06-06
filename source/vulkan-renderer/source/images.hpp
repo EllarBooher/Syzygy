@@ -74,8 +74,8 @@ struct AllocatedImage {
     VkExtent2D extent2D() const
     {
         return VkExtent2D{
-            .width{ imageExtent.width },
-            .height{ imageExtent.height },
+            .width = imageExtent.width,
+            .height = imageExtent.height,
         };
     }
 

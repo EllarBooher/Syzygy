@@ -11,9 +11,9 @@ std::optional<GBuffer> GBuffer::create(
 )
 {
     VkExtent3D const extent{
-        .width{ drawExtent.width },
-        .height{ drawExtent.height },
-        .depth{ 1 }
+        .width = drawExtent.width,
+        .height = drawExtent.height,
+        .depth = 1,
     };
 
     GBuffer buffer{};
@@ -176,40 +176,40 @@ std::optional<GBuffer> GBuffer::create(
 
     std::vector<VkDescriptorImageInfo> const imageInfos{
         VkDescriptorImageInfo{
-            .sampler{ VK_NULL_HANDLE },
-            .imageView{ buffer.diffuseColor.imageView },
-            .imageLayout{ VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL },
+            .sampler = VK_NULL_HANDLE,
+            .imageView = buffer.diffuseColor.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
         , VkDescriptorImageInfo{
-            .sampler{ VK_NULL_HANDLE },
-            .imageView{ buffer.specularColor.imageView },
-            .imageLayout{ VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL },
+            .sampler = VK_NULL_HANDLE,
+            .imageView = buffer.specularColor.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
         , VkDescriptorImageInfo{
-            .sampler{ VK_NULL_HANDLE },
-            .imageView{ buffer.normal.imageView },
-            .imageLayout{ VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL },
+            .sampler = VK_NULL_HANDLE,
+            .imageView = buffer.normal.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
         , VkDescriptorImageInfo{
-            .sampler{ VK_NULL_HANDLE },
-            .imageView{ buffer.worldPosition.imageView },
-            .imageLayout{ VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL },
+            .sampler = VK_NULL_HANDLE,
+            .imageView = buffer.worldPosition.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
     };
 
     VkWriteDescriptorSet const descriptorWrite{
-        .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
 
-        .dstSet{ descriptorSet },
-        .dstBinding{ 0 },
-        .dstArrayElement{ 0 },
-        .descriptorCount{ static_cast<uint32_t>(imageInfos.size()) },
-        .descriptorType{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER },
+        .dstSet = descriptorSet,
+        .dstBinding = 0,
+        .dstArrayElement = 0,
+        .descriptorCount = static_cast<uint32_t>(imageInfos.size()),
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 
-        .pImageInfo{ imageInfos.data() },
-        .pBufferInfo{ nullptr },
-        .pTexelBufferView{ nullptr },
+        .pImageInfo = imageInfos.data(),
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
     };
 
     std::vector<VkWriteDescriptorSet> const writes{

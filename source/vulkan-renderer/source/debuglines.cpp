@@ -12,18 +12,18 @@ void DebugLines::push(
 )
 {
     Vertex const startVertex{
-        .position{ start },
-        .uv_x{ 0.0 },
-        .normal{ glm::vec3(0.0) },
-        .uv_y{ 0.0 },
-        .color{ glm::vec4(1.0,0.0,0.0,1.0) },
+        .position = start,
+        .uv_x = 0.0,
+        .normal = glm::vec3(0.0),
+        .uv_y = 0.0,
+        .color = glm::vec4(1.0,0.0,0.0,1.0),
     };
     Vertex const endVertex{
-        .position{ end },
-        .uv_x{ 1.0 },
-        .normal{ glm::vec3(0.0) },
-        .uv_y{ 0.0 },
-        .color{ glm::vec4(0.0,0.0,1.0,1.0) },
+        .position = end,
+        .uv_x = 1.0,
+        .normal = glm::vec3(0.0),
+        .uv_y = 0.0,
+        .color = glm::vec4(0.0,0.0,1.0,1.0),
     };
 
     uint32_t const index{ static_cast<uint32_t>(indices->stagedSize()) };

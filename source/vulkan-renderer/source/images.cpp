@@ -21,29 +21,29 @@ void vkutil::transitionImage(
 )
 {
     VkImageMemoryBarrier2 const imageBarrier{
-        .sType{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .pNext = nullptr,
 
-        .srcStageMask{ VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT },
-        .srcAccessMask{ VK_ACCESS_2_MEMORY_WRITE_BIT },
-        .dstStageMask{ VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT },
-        .dstAccessMask{
+        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstAccessMask =
             VK_ACCESS_2_MEMORY_WRITE_BIT
             | VK_ACCESS_2_MEMORY_READ_BIT
-        },
+        ,
 
-        .oldLayout{ oldLayout },
-        .newLayout{ newLayout },
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
 
-        .image{ image },
-        .subresourceRange{ vkinit::imageSubresourceRange(aspects) },
+        .image = image,
+        .subresourceRange = vkinit::imageSubresourceRange(aspects),
     };
 
     VkDependencyInfo const depInfo{
-        .sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
-        .pNext{ nullptr },
-        .imageMemoryBarrierCount{ 1 },
-        .pImageMemoryBarriers{ &imageBarrier },
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .pNext = nullptr,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &imageBarrier,
     };
 
     vkCmdPipelineBarrier2(cmd, &depInfo);
@@ -58,19 +58,15 @@ void vkutil::recordCopyImageToImage(
 )
 {
     VkImageBlit2 const blitRegion{
-        .sType{ VK_STRUCTURE_TYPE_IMAGE_BLIT_2 },
-        .pNext{ nullptr },
-        .srcSubresource{ 
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) 
-        },
-        .srcOffsets{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+        .pNext = nullptr,
+        .srcSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0), 
+        .srcOffsets = {
             VkOffset3D{},
             extentToOffset(srcSize),
         },
-        .dstSubresource{ 
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) 
-        },
-        .dstOffsets{
+        .dstSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0), 
+        .dstOffsets = {
             VkOffset3D{},
             extentToOffset(dstSize),
         },
@@ -78,14 +74,14 @@ void vkutil::recordCopyImageToImage(
 
     VkBlitImageInfo2 const blitInfo{
         .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
-        .pNext{ nullptr },
-        .srcImage{ source },
-        .srcImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL },
-        .dstImage{ destination },
-        .dstImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL },
-        .regionCount{ 1 },
-        .pRegions{ &blitRegion },
-        .filter{ VK_FILTER_LINEAR }
+        .pNext = nullptr,
+        .srcImage = source,
+        .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        .dstImage = destination,
+        .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .regionCount = 1,
+        .pRegions = &blitRegion,
+        .filter = VK_FILTER_LINEAR,
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
@@ -102,19 +98,15 @@ void vkutil::recordCopyImageToImage(
 )
 {
     VkImageBlit2 const blitRegion{
-        .sType{ VK_STRUCTURE_TYPE_IMAGE_BLIT_2 },
-        .pNext{ nullptr },
-        .srcSubresource{ 
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) 
-        },
-        .srcOffsets{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+        .pNext = nullptr,
+        .srcSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .srcOffsets = {
             srcMin,
             srcMax,
         },
-        .dstSubresource{ 
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0) 
-        },
-        .dstOffsets{
+        .dstSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .dstOffsets = {
             dstMin,
             dstMax,
         },
@@ -122,14 +114,14 @@ void vkutil::recordCopyImageToImage(
 
     VkBlitImageInfo2 const blitInfo{
         .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
-        .pNext{ nullptr },
-        .srcImage{ source },
-        .srcImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL },
-        .dstImage{ destination },
-        .dstImageLayout{ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL },
-        .regionCount{ 1 },
-        .pRegions{ &blitRegion },
-        .filter{ VK_FILTER_LINEAR }
+        .pNext = nullptr,
+        .srcImage = source,
+        .srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        .dstImage = destination,
+        .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .regionCount = 1,
+        .pRegions = &blitRegion,
+        .filter = VK_FILTER_LINEAR,
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
@@ -144,14 +136,14 @@ void vkutil::recordCopyImageToImage(
 )
 {
     VkExtent3D const srcExtent{
-        .width{ srcSize.width },
-        .height{ srcSize.height },
-        .depth{ 1 }
+        .width = srcSize.width,
+        .height = srcSize.height,
+        .depth = 1,
     };
     VkExtent3D const dstExtent{
-        .width{ dstSize.width },
-        .height{ dstSize.height },
-        .depth{ 1 }
+        .width = dstSize.width,
+        .height = dstSize.height,
+        .depth = 1,
     };
 
     vkutil::recordCopyImageToImage(
@@ -172,24 +164,24 @@ void vkutil::recordCopyImageToImage(
 )
 {
     VkOffset3D const srcMin{
-        .x{ static_cast<int32_t>(srcSize.offset.x) },
-        .y{ static_cast<int32_t>(srcSize.offset.y) },
-        .z{ 0 },
+        .x = static_cast<int32_t>(srcSize.offset.x),
+        .y = static_cast<int32_t>(srcSize.offset.y),
+        .z = 0,
     };
     VkOffset3D const srcMax{
-        .x{ static_cast<int32_t>(srcMin.x + srcSize.extent.width) },
-        .y{ static_cast<int32_t>(srcMin.y + srcSize.extent.height) },
-        .z{ 1 },
+        .x = static_cast<int32_t>(srcMin.x + srcSize.extent.width),
+        .y = static_cast<int32_t>(srcMin.y + srcSize.extent.height),
+        .z = 1,
     };
     VkOffset3D const dstMin{
-        .x{ static_cast<int32_t>(dstSize.offset.x) },
-        .y{ static_cast<int32_t>(dstSize.offset.y) },
-        .z{ 0 },
+        .x = static_cast<int32_t>(dstSize.offset.x),
+        .y = static_cast<int32_t>(dstSize.offset.y),
+        .z = 0,
     };
     VkOffset3D const dstMax{
-        .x{ static_cast<int32_t>(dstMin.x + dstSize.extent.width) },
-        .y{ static_cast<int32_t>(dstMin.y + dstSize.extent.height) },
-        .z{ 1 },
+        .x = static_cast<int32_t>(dstMin.x + dstSize.extent.width),
+        .y = static_cast<int32_t>(dstMin.y + dstSize.extent.height),
+        .z = 1,
     };
 
     vkutil::recordCopyImageToImage(
@@ -221,9 +213,9 @@ std::optional<AllocatedImage> AllocatedImage::allocate(
 )
 {
     AllocatedImage image{
-        .allocation{ VK_NULL_HANDLE },
-        .image{ VK_NULL_HANDLE },
-        .imageView{ VK_NULL_HANDLE },
+        .allocation = VK_NULL_HANDLE,
+        .image = VK_NULL_HANDLE,
+        .imageView = VK_NULL_HANDLE,
 
         .imageExtent = extent,
         .imageFormat = format

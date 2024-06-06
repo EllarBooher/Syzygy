@@ -114,9 +114,9 @@ struct ShaderReflectionData
 		VkPushConstantRange totalRange(VkShaderStageFlags const stageFlags) const
 		{
 			return VkPushConstantRange{
-				.stageFlags{ stageFlags },
-				.offset{ layoutOffsetBytes },
-				.size{ type.sizeBytes - layoutOffsetBytes },
+				.stageFlags = stageFlags,
+				.offset = layoutOffsetBytes,
+				.size = type.sizeBytes - layoutOffsetBytes,
 			};
 		}
 	};

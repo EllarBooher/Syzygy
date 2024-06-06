@@ -28,14 +28,11 @@ namespace lights
         };
 
         return gputypes::LightDirectional{
-            .color{ color },
-            .forward{ glm::vec4{
-                    geometry::forwardFromEulers(eulerAngles)
-                    , 0.0
-            }},
-            .projection{ projection },
-            .view{ view },
-            .strength{ strength },
+            .color = color,
+            .forward = glm::vec4{ geometry::forwardFromEulers(eulerAngles), 0.0 },
+            .projection = projection,
+            .view = view,
+            .strength = strength,
         };
     }
     
@@ -54,23 +51,14 @@ namespace lights
     )
     {
         return gputypes::LightSpot{
-            .color{ color },
-            .forward{ glm::vec4{
-                geometry::forwardFromEulers(eulerAngles), 0.0
-            }},
-            .projection{ 
-                geometry::projectionVk(
-                    verticalFOV
-                    , horizontalScale
-                    , near
-                    , far
-                )
-            },
-            .view{ geometry::viewVk(position, eulerAngles) },
-            .position{ glm::vec4(position, 1.0) },
-            .strength{ strength },
-            .falloffFactor{ falloffFactor },
-            .falloffDistance{ falloffDistance },
+            .color = color ,
+            .forward = glm::vec4{ geometry::forwardFromEulers(eulerAngles), 0.0 },
+            .projection = geometry::projectionVk(verticalFOV, horizontalScale, near, far ),
+            .view = geometry::viewVk(position, eulerAngles) ,
+            .position = glm::vec4(position, 1.0) ,
+            .strength = strength ,
+            .falloffFactor = falloffFactor ,
+            .falloffDistance = falloffDistance ,
         };
     }
 }

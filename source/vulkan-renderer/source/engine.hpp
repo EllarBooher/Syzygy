@@ -132,7 +132,7 @@ private:
 
     ImGuiStyle m_imguiStyleDefault{};
     static UIPreferences constexpr m_uiPreferencesDefault{
-        .dpiScale{ 1.0f }
+        .dpiScale = 1.0f,
     };
     UIPreferences m_uiPreferences{ m_uiPreferencesDefault };
     
@@ -224,8 +224,8 @@ private:
     // These scene bounds help inform shadow map generation
     // TODO: compute this from the scene
     SceneBounds m_sceneBounds{
-        .center{ 0.0, -4.0, 0.0 },
-        .extent{ 40.0, 5.0, 40.0 },
+        .center = glm::vec3{ 0.0, -4.0, 0.0 },
+        .extent = glm::vec3{ 40.0, 5.0, 40.0 },
     };
 
     bool m_useOrthographicProjection{ false };
