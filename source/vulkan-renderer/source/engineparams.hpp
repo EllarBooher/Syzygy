@@ -53,13 +53,17 @@ struct AtmosphereParameters
 
         glm::vec3 const start{ 0.0, -earthRadiusMeters, 0.0 };
         float outDistance{ 0.0 };
-        glm::intersectRaySphere(
+        if(!glm::intersectRaySphere(
             start
             , directionToSun()
             , glm::vec3(0.0)
             , atmosphereRadiusMeters * atmosphereRadiusMeters
             , outDistance
-        );
+        ))
+        {
+            glm::vec4 constexpr RAW_SUNLIGHT_COLOR{ 1.0, 1.0, 1.0, 1.0 };
+            return RAW_SUNLIGHT_COLOR;
+        };
 
         float const atmosphereThickness{ outDistance };
 
