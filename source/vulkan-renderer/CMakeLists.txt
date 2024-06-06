@@ -1,7 +1,8 @@
-SET(RENDERER_NAME "vulkan-renderer")
-message(STATUS "${RENDERER_NAME} - begin")
+message(STATUS "vulkan-renderer - begin")
 
-add_library(${RENDERER_NAME} STATIC 
+add_library(
+	vulkan-renderer
+	STATIC 
 	"Source/engine.cpp"
 	"Source/initializers.cpp"
 	"Source/images.cpp"
@@ -22,7 +23,11 @@ add_library(${RENDERER_NAME} STATIC
 	"source/debuglines.cpp"
 )
 
-target_include_directories(vulkan-renderer PUBLIC 
+add_dependencies(vulkan-renderer Shaders)
+
+target_include_directories(
+	vulkan-renderer
+	PUBLIC 
 	"${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
