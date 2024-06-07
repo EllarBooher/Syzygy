@@ -263,10 +263,10 @@ DockingLayout buildDefaultMultiWindowLayout(
     ImGui::DockBuilderFinish(parentNode);
 
     return DockingLayout{
-        .left{ leftID },
-        .right{ rightID },
-        .centerBottom{ centerBottomID },
-        .centerTop{ centerTopID },
+        .left = leftID,
+        .right = rightID,
+        .centerBottom = centerBottomID,
+        .centerTop = centerTopID,
     };
 }
 
@@ -364,7 +364,7 @@ void imguiStructureControls<AtmosphereParameters>(
             , atmosphere.animation.animationSpeed
             , defaultValues.animation.animationSpeed
             , PropertySliderBehavior{
-                .bounds{ -20.0f, 20.0f },
+                .bounds = FloatBounds{ -20.0f, 20.0f },
             })
         .rowBoolean(
             "Skip Night"
@@ -375,7 +375,7 @@ void imguiStructureControls<AtmosphereParameters>(
             , atmosphere.sunEulerAngles
             , defaultValues.sunEulerAngles
             , PropertySliderBehavior{
-                .speed{ 0.1f },
+                .speed = 0.1f,
             })
         .rowReadOnlyVec3(
             "Direction to Sun"
@@ -385,51 +385,51 @@ void imguiStructureControls<AtmosphereParameters>(
             , atmosphere.groundColor
             , defaultValues.groundColor
             , PropertySliderBehavior{
-                .bounds{ 0.0f, 1.0f },
+                .bounds = FloatBounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Earth Radius"
             , atmosphere.earthRadiusMeters
             , defaultValues.earthRadiusMeters
             , PropertySliderBehavior{
-                .bounds{ 1.0f, atmosphere.atmosphereRadiusMeters },
+                .bounds = FloatBounds{ 1.0f, atmosphere.atmosphereRadiusMeters },
             })
         .rowFloat(
             "Atmosphere Radius"
             , atmosphere.atmosphereRadiusMeters
             , defaultValues.atmosphereRadiusMeters
             , PropertySliderBehavior{
-                .bounds{ atmosphere.earthRadiusMeters, 1'000'000'000.0f },
+                .bounds = FloatBounds{atmosphere.earthRadiusMeters, 1'000'000'000.0f },
             })
         .rowVec3(
             "Rayleigh Scattering Coefficient"
             , atmosphere.scatteringCoefficientRayleigh
             , defaultValues.scatteringCoefficientRayleigh
             , PropertySliderBehavior{
-                .speed{ 0.001f },
-                .bounds{ 0.0f, 1.0f },
+                .speed = 0.001f,
+                .bounds = FloatBounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Rayleigh Altitude Decay"
             , atmosphere.altitudeDecayRayleigh
             , defaultValues.altitudeDecayRayleigh
             , PropertySliderBehavior{
-                .bounds{0.0f, 1'000'000.0f},
+                .bounds = FloatBounds{0.0f, 1'000'000.0f},
             })
         .rowVec3(
             "Mie Scattering Coefficient"
             , atmosphere.scatteringCoefficientMie
             , defaultValues.scatteringCoefficientMie
             , PropertySliderBehavior{
-                .speed{ 0.001f },
-                .bounds{ 0.0f, 1.0f },
+                .speed = 0.001f,
+                .bounds = FloatBounds{ 0.0f, 1.0f },
             })
         .rowFloat(
             "Mie Altitude Decay"
             , atmosphere.altitudeDecayMie
             , defaultValues.altitudeDecayMie
             , PropertySliderBehavior{
-                .bounds{0.0f, 1'000'000.0f},
+                .bounds = FloatBounds{0.0f, 1'000'000.0f},
             })
         .end();
 }
@@ -457,31 +457,31 @@ void imguiStructureControls<CameraParameters>(
             "Camera Position"
             , structure.cameraPosition, defaultValues.cameraPosition
             , PropertySliderBehavior{
-                .speed{ 1.0f }
+                .speed = 1.0f,
             })
         .rowVec3(
             "Euler Angles"
             , structure.eulerAngles, defaultValues.eulerAngles
             , PropertySliderBehavior{
-                .bounds{ -glm::pi<float>(), glm::pi<float>() }
+                .bounds = FloatBounds{ -glm::pi<float>(), glm::pi<float>() },
             })
         .rowFloat(
             "Field of View"
             , structure.fov, defaultValues.fov
             , PropertySliderBehavior{
-                .bounds{ 0.01f, 179.99f }
+                .bounds = FloatBounds{ 0.01f, 179.99f },
             })
         .rowFloat(
             "Near Plane"
             , structure.near, std::min(structure.far, defaultValues.near)
             , PropertySliderBehavior{
-                .bounds{ 0.01f, structure.far }
+                .bounds = FloatBounds{ 0.01f, structure.far },
             })
         .rowFloat(
             "Far Plane"
             , structure.far, std::max(structure.near, defaultValues.far)
             , PropertySliderBehavior{
-                .bounds{ structure.near + 0.01f, 1'000'000.0f }
+                .bounds = FloatBounds{ structure.near + 0.01f, 1'000'000.0f },
             })
         .end();
 }
@@ -535,7 +535,7 @@ void imguiStructureControls<DebugLines>(
         , structure.lineWidth
         , 1.0f
         , PropertySliderBehavior{
-            .bounds{ 0.0f, 100.0f }
+            .bounds{ 0.0f, 100.0f },
         }
     );
 
@@ -577,7 +577,7 @@ void imguiStructureControls<ShadowPassParameters>(
             "Depth Bias Constant"
             , structure.depthBiasConstant, defaultValues.depthBiasConstant
             , PropertySliderBehavior{
-                .speed{0.01f}
+                .speed = 0.01f,
             })
         .rowReadOnlyBoolean(
             "Depth Bias Clamp"
@@ -586,7 +586,7 @@ void imguiStructureControls<ShadowPassParameters>(
             "Depth Bias Slope"
             , structure.depthBiasSlope, defaultValues.depthBiasSlope
             , PropertySliderBehavior{
-                .speed{0.01f}
+                .speed = 0.01f,
             })
         .end();
 }
@@ -611,13 +611,13 @@ void imguiStructureControls<SceneBounds>(
             "Scene Center"
             , structure.center, defaultValues.center
             , PropertySliderBehavior{
-                .speed{1.0f}
+                .speed = 1.0f,
             })
         .rowVec3(
             "Scene Extent"
             , structure.extent, defaultValues.extent
             , PropertySliderBehavior{
-                .speed{1.0f}
+                .speed = 1.0f,
             })
         .end();
 }

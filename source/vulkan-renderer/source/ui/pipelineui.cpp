@@ -426,8 +426,8 @@ void imguiPipelineControls(DeferredShadingPipeline& pipeline)
     imguiStructureControls(
         pipeline.m_parameters.shadowPassParameters
         , ShadowPassParameters{
-            .depthBiasConstant{ 2.0 },
-            .depthBiasSlope{ -5.0 },
+            .depthBiasConstant = 2.0,
+            .depthBiasSlope = -5.0,
         }
     );
 }

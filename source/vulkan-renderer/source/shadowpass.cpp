@@ -75,9 +75,9 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
 
     { // shadow map textures
         VkExtent3D const shadowmapExtent{
-            .width{ shadowMapSize },
-            .height{ shadowMapSize },
-            .depth{ 1 }
+            .width = shadowMapSize ,
+            .height = shadowMapSize ,
+            .depth = 1,
         };
 
         for (size_t i{ 0 }; i < capacity; i++)
@@ -138,25 +138,25 @@ std::optional<ShadowPassArray> ShadowPassArray::create(
         for (AllocatedImage const& texture : shadowPass.m_textures)
         {
             mapInfos.push_back(VkDescriptorImageInfo{
-                .sampler{ VK_NULL_HANDLE }, // sampled images
-                .imageView{ texture.imageView },
-                .imageLayout{ VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL },
+                .sampler = VK_NULL_HANDLE, // sampled images
+                .imageView = texture.imageView,
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
             });
         }
 
         VkWriteDescriptorSet const shadowMapWrite{
-            .sType{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET },
-            .pNext{ nullptr },
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
 
-            .dstSet{ shadowPass.m_texturesSet },
-            .dstBinding{ 0 },
-            .dstArrayElement{ 0 },
-            .descriptorCount{ static_cast<uint32_t>(mapInfos.size()) },
-            .descriptorType{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE },
+            .dstSet = shadowPass.m_texturesSet,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = static_cast<uint32_t>(mapInfos.size()),
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 
-            .pImageInfo{ mapInfos.data() },
-            .pBufferInfo{ nullptr },
-            .pTexelBufferView{ nullptr },
+            .pImageInfo = mapInfos.data(),
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr,
         };
 
         std::vector<VkWriteDescriptorSet> const writes{
@@ -234,7 +234,7 @@ void ShadowPassArray::recordInitialize(
             AllocatedImage& texture{ m_textures[i] };
 
             VkClearDepthStencilValue const clearValue{
-                .depth{ 0.0 }
+                .depth = 0.0,
             };
 
             VkImageSubresourceRange const range{

@@ -8,8 +8,8 @@
 
 struct FloatBounds
 {
-    float min{ -FLT_MAX };
-    float max{ FLT_MAX };
+    float min = -FLT_MAX;
+    float max = FLT_MAX;
 };
 
 struct PropertySliderBehavior
@@ -17,8 +17,8 @@ struct PropertySliderBehavior
     float const speed{ 0.0f };
     ImGuiSliderFlags const flags{ ImGuiSliderFlags_None };
     FloatBounds bounds{ 
-        .min{ -FLT_MAX }, 
-        .max{ FLT_MAX }, 
+        .min = -FLT_MAX, 
+        .max = FLT_MAX, 
     };
 };
 

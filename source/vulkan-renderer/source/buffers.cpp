@@ -11,16 +11,16 @@ AllocatedBuffer AllocatedBuffer::allocate(
 )
 {
     VkBufferCreateInfo const bufferInfo{
-        .sType{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
 
-        .size{ allocationSize },
-        .usage{ bufferUsage },
+        .size = allocationSize,
+        .usage = bufferUsage,
     };
 
     VmaAllocationCreateInfo const vmaAllocInfo{
-        .flags{ createFlags },
-        .usage{ memoryUsage },
+        .flags = createFlags,
+        .usage = memoryUsage,
     };
 
     AllocatedBuffer newBuffer{};
@@ -39,10 +39,10 @@ AllocatedBuffer AllocatedBuffer::allocate(
     if (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
     {
         VkBufferDeviceAddressInfo const addressInfo{
-            .sType{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO },
-            .pNext{ nullptr },
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .pNext = nullptr,
 
-            .buffer{ newBuffer.buffer },
+            .buffer = newBuffer.buffer,
         };
         newBuffer.deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
     }
@@ -69,9 +69,9 @@ void StagedBuffer::recordCopyToDevice(
     markDirty(false);
 
     VkBufferCopy const copyInfo{
-        .srcOffset{ 0 },
-        .dstOffset{ 0 },
-        .size{ m_stagedSizeBytes },
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = m_stagedSizeBytes,
     };
     vkCmdCopyBuffer(
         cmd
@@ -190,37 +190,37 @@ void StagedBuffer::recordTotalCopyBarrier(
 ) const
 {
     VkBufferMemoryBarrier2 const bufferMemoryBarrier{
-        .sType{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+        .pNext = nullptr,
 
-        .srcStageMask{ VK_PIPELINE_STAGE_2_COPY_BIT },
-        .srcAccessMask{ VK_ACCESS_2_TRANSFER_WRITE_BIT },
+        .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+        .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
 
-        .dstStageMask{ destinationStage },
-        .dstAccessMask{ destinationAccessFlags },
+        .dstStageMask = destinationStage,
+        .dstAccessMask = destinationAccessFlags,
 
-        .srcQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
-        .dstQueueFamilyIndex{ VK_QUEUE_FAMILY_IGNORED },
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 
-        .buffer{ deviceBuffer() },
-        .offset{ 0 },
-        .size{ deviceSizeQueuedBytes() },
+        .buffer = deviceBuffer(),
+        .offset = 0,
+        .size = deviceSizeQueuedBytes(),
     };
 
     VkDependencyInfo const transformsDependency{
-        .sType{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO },
-        .pNext{ nullptr },
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .pNext = nullptr,
 
-        .dependencyFlags{ 0 },
+        .dependencyFlags = 0,
 
-        .memoryBarrierCount{ 0 },
-        .pMemoryBarriers{ nullptr },
+        .memoryBarrierCount = 0,
+        .pMemoryBarriers = nullptr,
 
-        .bufferMemoryBarrierCount{ 1 },
-        .pBufferMemoryBarriers{ &bufferMemoryBarrier },
+        .bufferMemoryBarrierCount = 1,
+        .pBufferMemoryBarriers = &bufferMemoryBarrier,
 
-        .imageMemoryBarrierCount{ 0 },
-        .pImageMemoryBarriers{ nullptr },
+        .imageMemoryBarrierCount = 0,
+        .pImageMemoryBarriers = nullptr,
     };
 
     vkCmdPipelineBarrier2(cmd, &transformsDependency);

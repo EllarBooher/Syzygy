@@ -97,15 +97,15 @@ ShaderReflectionData vkutil::generateReflectionData(
 			// For early exit, if the type ends up being unsupported
 
 			ShaderReflectionData::Member const unsupportedMember{
-					.offsetBytes{ offsetBytes },
-					.name{ member.name },
-					.type{ ShaderReflectionData::SizedType{
-						.typeData{ ShaderReflectionData::UnsupportedType{} },
+					.offsetBytes = offsetBytes,
+					.name = member.name,
+					.type = ShaderReflectionData::SizedType{
+						.typeData = ShaderReflectionData::UnsupportedType{},
 
-						.name{ typeName },
-						.sizeBytes{ member.size },
-						.paddedSizeBytes{ member.padded_size },
-					} },
+						.name = typeName,
+						.sizeBytes = member.size,
+						.paddedSizeBytes = member.padded_size,
+					},
 			};
 
 			SpvReflectTypeFlags const numericTypesMask{ 0x0000FFFF };
@@ -118,15 +118,13 @@ ShaderReflectionData vkutil::generateReflectionData(
 				// SpirV-reflect should only add this flag 
 				// if the type is an OpTypePointer
 				processedMembers.push_back(ShaderReflectionData::Member{
-					.offsetBytes{ offsetBytes },
-					.name{ member.name },
-					.type{
-						ShaderReflectionData::SizedType{
-							.typeData{ ShaderReflectionData::Pointer{} },
-							.name{ typeName },
-							.sizeBytes{ member.size },
-							.paddedSizeBytes{ member.padded_size },
-						}
+					.offsetBytes = offsetBytes,
+					.name = member.name,
+					.type = ShaderReflectionData::SizedType{
+						.typeData = ShaderReflectionData::Pointer{},
+						.name = typeName,
+						.sizeBytes = member.size,
+						.paddedSizeBytes = member.padded_size,
 					}
 				});
 			}
@@ -138,9 +136,7 @@ ShaderReflectionData vkutil::generateReflectionData(
 				{
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_INT:
 					componentType = ShaderReflectionData::Integer{
-						.signedness{ 
-							static_cast<bool>(numericTraits.scalar.signedness) 
-						}
+						.signedness = static_cast<bool>(numericTraits.scalar.signedness),
 					};
 					break;
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_FLOAT:
@@ -171,14 +167,14 @@ ShaderReflectionData vkutil::generateReflectionData(
 					break;
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_VECTOR:
 					format = ShaderReflectionData::Vector{
-						.componentCount{ numericTraits.vector.component_count }
+						.componentCount = numericTraits.vector.component_count,
 					};
 					break;
 				case SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_MATRIX 
 					| SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_VECTOR:
 					format = ShaderReflectionData::Matrix{
-						.columnCount{ numericTraits.matrix.column_count },
-						.rowCount{ numericTraits.matrix.row_count }
+						.columnCount = numericTraits.matrix.column_count,
+						.rowCount = numericTraits.matrix.row_count,
 					};
 					break;
 				default:
@@ -198,21 +194,17 @@ ShaderReflectionData vkutil::generateReflectionData(
 				}
 
 				processedMembers.push_back(ShaderReflectionData::Member{
-					.offsetBytes{ offsetBytes },
-					.name{ member.name },
-					.type{
-						ShaderReflectionData::SizedType{
-							.typeData{ ShaderReflectionData::NumericType{
-								.componentBitWidth{ 
-									numericTraits.scalar.width 
-								},
-								.componentType{ componentType },
-								.format{ format },
-							}},
-							.name{ typeName },
-							.sizeBytes{ member.size },
-							.paddedSizeBytes{ member.padded_size },
-						}
+					.offsetBytes = offsetBytes,
+					.name = member.name,
+					.type = ShaderReflectionData::SizedType{
+						.typeData = ShaderReflectionData::NumericType{
+							.componentBitWidth = numericTraits.scalar.width,
+							.componentType = componentType,
+							.format = format,
+						},
+						.name = typeName,
+						.sizeBytes = member.size,
+						.paddedSizeBytes = member.padded_size,
 					}
 				});
 			}
@@ -235,13 +227,13 @@ ShaderReflectionData vkutil::generateReflectionData(
 			std::string{ entryPoint.name }
 			, ShaderReflectionData::PushConstant{
 				.type{
-					.name{	pushConstant.type_description->type_name },
-					.sizeBytes{ pushConstant.size },
-					.paddedSizeBytes{ pushConstant.padded_size },
-					.members{ processedMembers },
+					.name = pushConstant.type_description->type_name,
+					.sizeBytes = pushConstant.size,
+					.paddedSizeBytes = pushConstant.padded_size,
+					.members = processedMembers,
 				},
-				.name{ pushConstant.name },
-				.layoutOffsetBytes{ pushConstant.offset }
+				.name = pushConstant.name,
+				.layoutOffsetBytes = pushConstant.offset,
 			}
 		});
 	}
@@ -251,8 +243,8 @@ ShaderReflectionData vkutil::generateReflectionData(
 	spvReflectDestroyShaderModule(&module);
 
 	return ShaderReflectionData{
-		.pushConstantsByEntryPoint{ pushConstantsByEntryPoint },
-		.defaultEntryPoint{ defaultEntryPoint },
+		.pushConstantsByEntryPoint = pushConstantsByEntryPoint,
+		.defaultEntryPoint = defaultEntryPoint,
 	};
 }
 
@@ -282,13 +274,9 @@ bool ShaderReflectionData::Structure::logicallyCompatible(
 		auto const getByteRange{
 			[&](Member const& member) {
 				return ByteRange{
-					.startByte{ member.offsetBytes },
-					.endUnpaddedByte{ 
-						member.offsetBytes + member.type.sizeBytes 
-					},
-					.endPaddedByte{ 
-						member.offsetBytes + member.type.paddedSizeBytes 
-					},
+					.startByte = member.offsetBytes,
+					.endUnpaddedByte = member.offsetBytes + member.type.sizeBytes,
+					.endPaddedByte = member.offsetBytes + member.type.paddedSizeBytes,
 				};
 			}
 		};
@@ -533,29 +521,27 @@ vkutil::ShaderResult<VkShaderEXT> vkutil::compileShaderObject(
 )
 {
 	VkShaderCreateInfoEXT const createInfo{
-		.sType{ VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
+		.pNext = nullptr,
 
-		.flags{ 0 },
+		.flags = 0,
 
-		.stage{ stage },
-		.nextStage{ nextStage },
+		.stage = stage,
+		.nextStage = nextStage,
 
-		.codeType{ VkShaderCodeTypeEXT::VK_SHADER_CODE_TYPE_SPIRV_EXT },
-		.codeSize{ spirvBytecode.size() },
-		.pCode{ spirvBytecode.data() },
+		.codeType = VkShaderCodeTypeEXT::VK_SHADER_CODE_TYPE_SPIRV_EXT,
+		.codeSize = spirvBytecode.size(),
+		.pCode = spirvBytecode.data(),
 
-		.pName{"main"},
+		.pName = "main",
 
-		.setLayoutCount{ static_cast<uint32_t>(layouts.size()) },
-		.pSetLayouts{ layouts.data() },
+		.setLayoutCount = static_cast<uint32_t>(layouts.size()),
+		.pSetLayouts = layouts.data(),
 
-		.pushConstantRangeCount{ 
-			static_cast<uint32_t>(pushConstantRanges.size()) 
-		},
-		.pPushConstantRanges{ pushConstantRanges.data() },
+		.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+		.pPushConstantRanges = pushConstantRanges.data(),
 
-		.pSpecializationInfo{ &specializationInfo },
+		.pSpecializationInfo = &specializationInfo,
 	};
 
 	VkShaderEXT shaderObject{ VK_NULL_HANDLE };
@@ -564,8 +550,8 @@ vkutil::ShaderResult<VkShaderEXT> vkutil::compileShaderObject(
 	};
 
 	return ShaderResult<VkShaderEXT>{
-		.shader{ shaderObject },
-		.result{ result },
+		.shader = shaderObject,
+		.result = result,
 	};
 }
 
@@ -660,13 +646,13 @@ vkutil::ShaderResult<VkShaderModule> vkutil::compileShaderModule(
 )
 {
 	VkShaderModuleCreateInfo const createInfo{
-		.sType{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO },
-		.pNext{ nullptr },
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.pNext = nullptr,
 
-		.flags{ 0 },
+		.flags = 0,
 
-		.codeSize{ spirvBytecode.size() },
-		.pCode{ reinterpret_cast<uint32_t const*>(spirvBytecode.data()) },
+		.codeSize = spirvBytecode.size(),
+		.pCode = reinterpret_cast<uint32_t const*>(spirvBytecode.data()),
 	};
 
 	VkShaderModule shaderModule{ VK_NULL_HANDLE };
@@ -675,8 +661,8 @@ vkutil::ShaderResult<VkShaderModule> vkutil::compileShaderModule(
 	};
 
 	return ShaderResult<VkShaderModule>{
-		.shader{ shaderModule },
-		.result{ result },
+		.shader = shaderModule,
+		.result = result,
 	};
 }
 

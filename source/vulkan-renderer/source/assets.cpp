@@ -57,10 +57,8 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
         for (auto&& primitive : mesh.primitives)
         {
             surfaces.push_back(GeometrySurface{
-                .firstIndex{ static_cast<uint32_t>(indices.size()) },
-                .indexCount{ static_cast<uint32_t>(
-                    gltf.accessors[primitive.indicesAccessor.value()].count
-                ) },
+                .firstIndex = static_cast<uint32_t>(indices.size()),
+                .indexCount = static_cast<uint32_t>(gltf.accessors[primitive.indicesAccessor.value()].count),
             });
 
             size_t const initialVertexIndex{ vertices.size() };
@@ -90,11 +88,11 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
                     , positionAccessor
                     , [&](glm::vec3 position, size_t index) {
                         vertices.push_back(Vertex{
-                            .position{ position },
-                            .uv_x{ 0.0f },
-                            .normal{ 1, 0, 0 },
-                            .uv_y{ 0.0f },
-                            .color{ glm::vec4(1.0f) },
+                            .position = position,
+                            .uv_x = 0.0f,
+                            .normal = glm::vec3{1, 0, 0},
+                            .uv_y = 0.0f,
+                            .color = glm::vec4{1.0f},
                         });
                     }
                 );
@@ -165,9 +163,9 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
         newMeshes.push_back(
             std::make_shared<MeshAsset>(
                 MeshAsset{
-                    .name{ std::string{ mesh.name } },
-                    .surfaces{ surfaces },
-                    .meshBuffers{ engine->uploadMeshToGPU(indices, vertices) },
+                    .name = std::string{ mesh.name },
+                    .surfaces = surfaces,
+                    .meshBuffers = engine->uploadMeshToGPU(indices, vertices),
                 }
             )
         );
@@ -187,13 +185,12 @@ AssetLoadingResult loadAssetFile(
     if (pPath == nullptr)
     {
         return AssetLoadingError{
-            .message{
+            .message =
                 fmt::format(
                     "Unable to parse path at \"{}\", this indicates the asset "
                     "does not exist or the path is malformed"
                     , localPath
-                )
-            }
+                ),
         };
     }
     std::filesystem::path const path = *pPath.get();
@@ -203,13 +200,12 @@ AssetLoadingResult loadAssetFile(
     if (!file.is_open())
     {
         return AssetLoadingError{
-            .message{
+            .message =
                 fmt::format(
                     "Unable to parse path at \"{}\", this indicates the asset "
                     "does not exist or the path is malformed"
                     , localPath
-                )
-            }
+            ),
         };
     }
 
@@ -217,7 +213,7 @@ AssetLoadingResult loadAssetFile(
     if (fileSizeBytes == 0)
     {
         return AssetLoadingError{
-            .message{fmt::format("Shader file is empty at \"{}\"", localPath)}
+            .message = fmt::format("Shader file is empty at \"{}\"", localPath),
         };
     }
 
@@ -229,7 +225,7 @@ AssetLoadingResult loadAssetFile(
     file.close();
 
     return AssetFile{
-        .fileName{ path.filename().string() },
-        .fileBytes{ buffer },
+        .fileName = path.filename().string(),
+        .fileBytes = buffer,
     };
 }
