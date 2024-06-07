@@ -4,7 +4,9 @@ The purpose of this renderer is to study concepts in rendering, engine architect
 
 ## Requirements
 
-This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with both MSVC and Clang.
+This project was developed in Visual Studio Community 2022 on Windows 11. It has been compiled with both MSVC and Clang (specifically `clang-cl`) via VS integration.
+
+For now, only Windows is known to be supported.
 
 Requires CMake 3.28 or higher, and probably a version of Visual Studio that has CMake support.
 
@@ -17,11 +19,11 @@ You must download the following, or figure out a way to provide the required fil
 
 CMake is configured to use FetchContent to pull most of the following dependencies from Github. See [`cmake/dependencies.cmake`](cmake/dependencies.cmake) for the versions in use.
 
-- [Dear ImGui](https://github.com/ocornut/imgui), for the user interface
 - [fastgltf](https://github.com/spnda/fastgltf.git), for loading 3D models and scenes
 - [fmt](https://github.com/fmtlib/fmt.git), for formatting strings
 - [glfw](https://github.com/glfw/glfw.git), for the windowing backend
 - [glm](https://github.com/g-truc/glm.git), for linear algebra
+- [Dear ImGui](https://github.com/ocornut/imgui), for the user interface
 - [implot](https://github.com/epezent/implot), for real-time plots in Dear ImGui
 - [spirv-reflect](https://github.com/KhronosGroup/SPIRV-Reflect.git), for reflecting SPIR-V shader bytecode
 - [vk-bootstrap](https://github.com/charles-lunarg/vk-bootstrap.git), for the initialization of some Vulkan objects
