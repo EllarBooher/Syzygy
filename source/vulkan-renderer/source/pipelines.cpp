@@ -7,10 +7,7 @@
 
 #include <glm/gtx/intersect.hpp>
 
-VkPipeline PipelineBuilder::buildPipeline(
-	VkDevice const device
-	, VkPipelineLayout const layout
-) const
+auto PipelineBuilder::buildPipeline(VkDevice const device, VkPipelineLayout const layout) const -> VkPipeline
 {
 	VkPipelineViewportStateCreateInfo const viewportState{
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -491,18 +488,18 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 	m_graphicsPipeline = pipelineBuilder.buildPipeline(device, pipelineLayout);
 }
 
-DrawResultsGraphics DebugLineGraphicsPipeline::recordDrawCommands(
-	VkCommandBuffer const cmd
-	, bool const reuseDepthAttachment
-	, float const lineWidth
-	, VkRect2D const drawRect
-	, AllocatedImage const& color
-	, AllocatedImage const& depth
-	, uint32_t const cameraIndex
-	, TStagedBuffer<gputypes::Camera> const& cameras
-	, TStagedBuffer<Vertex> const& endpoints
-	, TStagedBuffer<uint32_t> const& indices
-) const
+auto DebugLineGraphicsPipeline::recordDrawCommands(
+    VkCommandBuffer const cmd,
+    bool const reuseDepthAttachment,
+    float const lineWidth,
+    VkRect2D const drawRect,
+    AllocatedImage const &color,
+    AllocatedImage const &depth,
+    uint32_t const cameraIndex,
+    TStagedBuffer<gputypes::Camera> const &cameras,
+    TStagedBuffer<Vertex> const &endpoints,
+    TStagedBuffer<uint32_t> const &indices
+) const -> DrawResultsGraphics
 {
 	VkRenderingAttachmentInfo const colorAttachment{
 		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,

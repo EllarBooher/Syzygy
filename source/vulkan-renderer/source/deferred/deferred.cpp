@@ -42,14 +42,14 @@ static void validatePushConstant(
     }
 }
 
-static ShaderObjectReflected loadShader(
-    VkDevice const device
-    , std::string const path
-    , VkShaderStageFlagBits const stage
-    , VkShaderStageFlags const nextStage
-    , std::span<VkDescriptorSetLayout const> const descriptorSets
-    , size_t const expectedPushConstantSize
-)
+static auto loadShader(
+    VkDevice const device,
+    std::string const path,
+    VkShaderStageFlagBits const stage,
+    VkShaderStageFlags const nextStage,
+    std::span<VkDescriptorSetLayout const> const descriptorSets,
+    size_t const expectedPushConstantSize
+) -> ShaderObjectReflected
 {
     std::optional<ShaderObjectReflected> const loadResult{
         vkutil::loadShaderObject(
@@ -73,14 +73,14 @@ static ShaderObjectReflected loadShader(
     }
 }
 
-static ShaderObjectReflected loadShader(
-    VkDevice const device
-    , std::string const path
-    , VkShaderStageFlagBits const stage
-    , VkShaderStageFlags const nextStage
-    , std::span<VkDescriptorSetLayout const> const descriptorSets
-    , VkPushConstantRange const rangeOverride
-)
+static auto loadShader(
+    VkDevice const device,
+    std::string const path,
+    VkShaderStageFlagBits const stage,
+    VkShaderStageFlags const nextStage,
+    std::span<VkDescriptorSetLayout const> const descriptorSets,
+    VkPushConstantRange const rangeOverride
+) -> ShaderObjectReflected
 {
     std::optional<ShaderObjectReflected> loadResult{
         vkutil::loadShaderObject(
@@ -104,11 +104,11 @@ static ShaderObjectReflected loadShader(
     }
 }
 
-static VkPipelineLayout createLayout(
-    VkDevice const device
-    , std::span<VkDescriptorSetLayout const> const setLayouts
-    , std::span<VkPushConstantRange const> const ranges
-)
+static auto createLayout(
+    VkDevice const device,
+    std::span<VkDescriptorSetLayout const> const setLayouts,
+    std::span<VkPushConstantRange const> const ranges
+) -> VkPipelineLayout
 {
     VkPipelineLayoutCreateInfo const layoutCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,

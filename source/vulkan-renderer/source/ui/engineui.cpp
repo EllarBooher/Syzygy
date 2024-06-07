@@ -102,7 +102,7 @@ static void renderPreferences(
     ImGui::End();
 }
 
-HUDState renderHUD(UIPreferences& preferences)
+auto renderHUD(UIPreferences &preferences) -> HUDState
 {
     HUDState hud{};
 
@@ -214,11 +214,7 @@ HUDState renderHUD(UIPreferences& preferences)
     return hud;
 }
 
-DockingLayout buildDefaultMultiWindowLayout(
-    ImVec2 const pos
-    , ImVec2 const size
-    , ImGuiID const parentNode
-)
+auto buildDefaultMultiWindowLayout(ImVec2 const pos, ImVec2 const size, ImGuiID const parentNode) -> DockingLayout
 {
     ImGui::DockBuilderAddNode(parentNode);
 

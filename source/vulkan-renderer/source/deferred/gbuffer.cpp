@@ -3,12 +3,12 @@
 #include "../initializers.hpp"
 #include "../helpers.hpp"
 
-std::optional<GBuffer> GBuffer::create(
-    VkDevice const device
-    , VkExtent2D const drawExtent
-    , VmaAllocator const allocator
-    , DescriptorAllocator& descriptorAllocator
-)
+auto GBuffer::create(
+    VkDevice const device,
+    VkExtent2D const drawExtent,
+    VmaAllocator const allocator,
+    DescriptorAllocator &descriptorAllocator
+) -> std::optional<GBuffer>
 {
     VkExtent3D const extent{
         .width = drawExtent.width,

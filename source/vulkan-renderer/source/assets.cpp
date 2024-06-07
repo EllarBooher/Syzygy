@@ -13,10 +13,8 @@
 
 #include "helpers.hpp"
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
-    Engine* const engine
-    , std::string const& localPath
-)
+auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
+    -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
     std::filesystem::path const assetPath{ 
         DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath) 
@@ -174,10 +172,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     return newMeshes;
 }
 
-AssetLoadingResult loadAssetFile(
-    std::string const& localPath
-    , VkDevice const device
-)
+auto loadAssetFile(std::string const &localPath, VkDevice const device) -> AssetLoadingResult
 {
     std::unique_ptr<std::filesystem::path> const pPath{
         DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(localPath))

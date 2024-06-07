@@ -3,7 +3,7 @@
 #include "helpers.hpp"
 #include "initializers.hpp"
 
-static VkOffset3D extentToOffset(VkExtent3D const extent)
+static auto extentToOffset(VkExtent3D const extent) -> VkOffset3D
 {
     auto const x = static_cast<int32_t>(extent.width);
     auto const y = static_cast<int32_t>(extent.height);
@@ -193,7 +193,7 @@ void vkutil::recordCopyImageToImage(
     );
 }
 
-double vkutil::aspectRatio(VkExtent2D const extent)
+auto vkutil::aspectRatio(VkExtent2D const extent) -> double
 {
     auto const width{ static_cast<float>(extent.width) };
     auto const height{ static_cast<float>(extent.height) };
@@ -203,14 +203,14 @@ double vkutil::aspectRatio(VkExtent2D const extent)
     return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0f;
 }
 
-std::optional<AllocatedImage> AllocatedImage::allocate(
-    VmaAllocator const allocator
-    , VkDevice const device
-    , VkExtent3D const extent
-    , VkFormat const format
-    , VkImageAspectFlags const viewFlags
-    , VkImageUsageFlags const usageMask
-)
+auto AllocatedImage::allocate(
+    VmaAllocator const allocator,
+    VkDevice const device,
+    VkExtent3D const extent,
+    VkFormat const format,
+    VkImageAspectFlags const viewFlags,
+    VkImageUsageFlags const usageMask
+) -> std::optional<AllocatedImage>
 {
     AllocatedImage image{
         .allocation = VK_NULL_HANDLE,

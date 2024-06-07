@@ -6,11 +6,8 @@
 
 #include "geometrystatics.hpp"
 
-glm::vec3 geometry::projectPointOnPlane(
-    glm::vec3 const planePoint
-    , glm::vec3 const planeNormal
-    , glm::vec3 const point
-)
+auto geometry::projectPointOnPlane(glm::vec3 const planePoint, glm::vec3 const planeNormal, glm::vec3 const point)
+    -> glm::vec3
 {
     glm::vec3 const toPoint{ point - planePoint };
     glm::vec3 const projection{ glm::dot(toPoint, planeNormal) * planeNormal };
@@ -18,10 +15,7 @@ glm::vec3 geometry::projectPointOnPlane(
     return projection + point;
 }
 
-std::array<glm::vec3, 8> geometry::collectAABBVertices(
-    glm::vec3 const center
-    , glm::vec3 const extent
-)
+auto geometry::collectAABBVertices(glm::vec3 const center, glm::vec3 const extent) -> std::array<glm::vec3, 8>
 {
     return std::array<glm::vec3, 8>{
         center + glm::vec3(extent.x, extent.y, extent.z),
@@ -35,11 +29,7 @@ std::array<glm::vec3, 8> geometry::collectAABBVertices(
     };
 }
 
-glm::mat4x4 geometry::lookAtVk(
-    glm::vec3 const eye
-    , glm::vec3 const center
-    , glm::vec3 const up
-)
+auto geometry::lookAtVk(glm::vec3 const eye, glm::vec3 const center, glm::vec3 const up) -> glm::mat4x4
 {
     return glm::scale(glm::vec3(1.0, -1.0, -1.0)) 
         * glm::lookAtRH(
@@ -49,10 +39,7 @@ glm::mat4x4 geometry::lookAtVk(
     );
 }
 
-glm::mat4x4 geometry::lookAtVkSafe(
-    glm::vec3 const eye
-    , glm::vec3 const center
-)
+auto geometry::lookAtVkSafe(glm::vec3 const eye, glm::vec3 const center) -> glm::mat4x4
 {
     float constexpr tolerance{ 0.99 };
 
@@ -67,12 +54,7 @@ glm::mat4x4 geometry::lookAtVkSafe(
     );
 }
 
-glm::mat4x4 geometry::projectionVk(
-    float const fov
-    , float const aspectRatio
-    , float const near
-    , float const far
-)
+auto geometry::projectionVk(float const fov, float const aspectRatio, float const near, float const far) -> glm::mat4x4
 {
     return glm::perspectiveLH_ZO(
         glm::radians(fov)
@@ -82,10 +64,7 @@ glm::mat4x4 geometry::projectionVk(
     );
 }
 
-glm::mat4x4 geometry::projectionOrthoVk(
-    glm::vec3 const min
-    , glm::vec3 const max
-)
+auto geometry::projectionOrthoVk(glm::vec3 const min, glm::vec3 const max) -> glm::mat4x4
 {
     return glm::orthoLH_ZO(
         min.x
@@ -97,32 +76,24 @@ glm::mat4x4 geometry::projectionOrthoVk(
     );
 }
 
-glm::vec3 geometry::forwardFromEulers(glm::vec3 const eulerAngles)
+auto geometry::forwardFromEulers(glm::vec3 const eulerAngles) -> glm::vec3
 {
     return glm::orientate3(eulerAngles) * geometry::forward;
 }
 
-glm::mat4x4 geometry::transformVk(
-    glm::vec3 const position
-    , glm::vec3 const eulerAngles
-)
+auto geometry::transformVk(glm::vec3 const position, glm::vec3 const eulerAngles) -> glm::mat4x4
 {
     return glm::translate(position) * glm::orientate4(eulerAngles);
 }
 
-glm::mat4x4 geometry::viewVk(
-    glm::vec3 const position
-    , glm::vec3 const eulerAngles
-)
+auto geometry::viewVk(glm::vec3 const position, glm::vec3 const eulerAngles) -> glm::mat4x4
 {
     return glm::inverse(transformVk(position, eulerAngles));
 }
 
-glm::mat4x4 geometry::projectionOrthoAABBVk(
-    glm::mat4x4 const view
-    , glm::vec3 const geometryCenter
-    , glm::vec3 const geometryExtent
-)
+auto geometry::projectionOrthoAABBVk(
+    glm::mat4x4 const view, glm::vec3 const geometryCenter, glm::vec3 const geometryExtent
+) -> glm::mat4x4
 {
     // Project every vertex of the AABB supplied, to determine how large 
     // the projection matrix needs to be

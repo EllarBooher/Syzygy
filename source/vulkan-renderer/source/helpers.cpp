@@ -5,7 +5,7 @@
 #include <regex>
 #include <array>
 
-std::string MakeLogPrefix(std::source_location const location)
+auto MakeLogPrefix(std::source_location const location) -> std::string
 {
     std::string const relativePath{
         DebugUtils::getLoadedDebugUtils().makeRelativePath(
@@ -156,7 +156,7 @@ void DebugUtils::init()
     );
 }
 
-bool DebugUtils::validateRelativePath(std::filesystem::path const path)
+auto DebugUtils::validateRelativePath(std::filesystem::path const path) -> bool
 {
     if (!path.is_relative())
     {
@@ -172,16 +172,12 @@ bool DebugUtils::validateRelativePath(std::filesystem::path const path)
     return true;
 }
 
-std::filesystem::path DebugUtils::makeAbsolutePath(
-    std::filesystem::path const localPath
-) const
+auto DebugUtils::makeAbsolutePath(std::filesystem::path const localPath) const -> std::filesystem::path
 {
     return (m_sourcePath / localPath).lexically_normal();
 }
 
-std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(
-    std::filesystem::path const localPath
-) const
+auto DebugUtils::loadAssetPath(std::filesystem::path const localPath) const -> std::unique_ptr<std::filesystem::path>
 {
     if (!validateRelativePath(localPath))
     {
@@ -192,9 +188,7 @@ std::unique_ptr<std::filesystem::path> DebugUtils::loadAssetPath(
     );
 }
 
-std::filesystem::path DebugUtils::makeRelativePath(
-    std::filesystem::path const absolutePath
-) const
+auto DebugUtils::makeRelativePath(std::filesystem::path const absolutePath) const -> std::filesystem::path
 {
     assert(absolutePath.is_absolute());
 

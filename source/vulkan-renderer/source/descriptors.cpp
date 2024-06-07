@@ -1,13 +1,13 @@
 #include "descriptors.hpp"
 #include "helpers.hpp"
 
-DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
-	uint32_t const binding
-	, VkDescriptorType const type
-	, VkShaderStageFlags const stageMask
-	, uint32_t const count
-	, VkDescriptorBindingFlags const flags
-)
+auto DescriptorLayoutBuilder::addBinding(
+    uint32_t const binding,
+    VkDescriptorType const type,
+    VkShaderStageFlags const stageMask,
+    uint32_t const count,
+    VkDescriptorBindingFlags const flags
+) -> DescriptorLayoutBuilder &
 {
 	VkDescriptorSetLayoutBinding const newBinding{
 		.binding = binding,
@@ -27,13 +27,13 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	return *this;
 }
 
-DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
-	uint32_t const binding
-	, VkDescriptorType const type
-	, VkShaderStageFlags const stageMask
-	, std::span<VkSampler const> const samplers
-	, VkDescriptorBindingFlags const flags
-)
+auto DescriptorLayoutBuilder::addBinding(
+    uint32_t const binding,
+    VkDescriptorType const type,
+    VkShaderStageFlags const stageMask,
+    std::span<VkSampler const> const samplers,
+    VkDescriptorBindingFlags const flags
+) -> DescriptorLayoutBuilder &
 {
 	// We leave data uninitialized until layout creation time to avoid self 
 	// referencing.
@@ -56,13 +56,13 @@ DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
 	return *this;
 }
 
-DescriptorLayoutBuilder& DescriptorLayoutBuilder::addBinding(
-	uint32_t const binding
-	, VkDescriptorType const type
-	, VkShaderStageFlags const stageMask
-	, VkSampler const sampler
-	, VkDescriptorBindingFlags const flags
-)
+auto DescriptorLayoutBuilder::addBinding(
+    uint32_t const binding,
+    VkDescriptorType const type,
+    VkShaderStageFlags const stageMask,
+    VkSampler const sampler,
+    VkDescriptorBindingFlags const flags
+) -> DescriptorLayoutBuilder &
 {
 	std::array<VkSampler, 1> const samplers{ sampler };
 	return addBinding(
@@ -79,10 +79,8 @@ void DescriptorLayoutBuilder::clear()
 	m_bindings.clear();
 }
 
-std::optional<VkDescriptorSetLayout> DescriptorLayoutBuilder::build(
-	VkDevice const device
-	, VkDescriptorSetLayoutCreateFlags const layoutFlags
-) const
+auto DescriptorLayoutBuilder::build(VkDevice const device, VkDescriptorSetLayoutCreateFlags const layoutFlags) const
+    -> std::optional<VkDescriptorSetLayout>
 {
 	std::vector<VkDescriptorSetLayoutBinding> bindings{};
 	std::vector<VkDescriptorBindingFlags> bindingFlags{};
@@ -175,10 +173,7 @@ void DescriptorAllocator::destroyPool(VkDevice const device)
 	vkDestroyDescriptorPool(device, pool, nullptr);
 }
 
-VkDescriptorSet DescriptorAllocator::allocate(
-	VkDevice const device
-	, VkDescriptorSetLayout const layout
-)
+auto DescriptorAllocator::allocate(VkDevice const device, VkDescriptorSetLayout const layout) -> VkDescriptorSet
 {
 	VkDescriptorSetAllocateInfo const allocInfo{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,

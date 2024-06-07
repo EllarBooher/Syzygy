@@ -33,6 +33,15 @@ target_include_directories(
 
 add_compile_definitions(SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	# TODO: remove alongside exceptions in source
+	target_compile_options(
+		vulkan-renderer
+		PUBLIC
+		-Xclang -fcxx-exceptions
+	)
+endif()
+
 target_compile_definitions(
 	vulkan-renderer
 	PUBLIC

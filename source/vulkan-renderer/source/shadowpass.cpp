@@ -3,13 +3,13 @@
 #include "images.hpp"
 #include "initializers.hpp"
 
-std::optional<ShadowPassArray> ShadowPassArray::create(
-    VkDevice const device
-    , DescriptorAllocator& descriptorAllocator
-    , VmaAllocator const allocator
-    , uint32_t const shadowMapSize
-    , size_t const capacity
-)
+auto ShadowPassArray::create(
+    VkDevice const device,
+    DescriptorAllocator &descriptorAllocator,
+    VmaAllocator const allocator,
+    uint32_t const shadowMapSize,
+    size_t const capacity
+) -> std::optional<ShadowPassArray>
 {
     VkSamplerCreateInfo const samplerInfo{
         vkinit::samplerCreateInfo(

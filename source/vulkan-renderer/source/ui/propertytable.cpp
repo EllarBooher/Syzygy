@@ -14,10 +14,7 @@ void PropertyTable::nameColumn(std::string const name)
     ImGui::Text("%s", name.c_str());
 }
 
-bool PropertyTable::resetColumn(
-    std::string const name
-    , bool const visible
-)
+auto PropertyTable::resetColumn(std::string const name, bool const visible) -> bool
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
 
@@ -38,7 +35,7 @@ bool PropertyTable::resetColumn(
     return clicked;
 }
 
-PropertyTable PropertyTable::begin(std::string const name)
+auto PropertyTable::begin(std::string const name) -> PropertyTable
 {
     ImGui::BeginTable(
         name.c_str()
@@ -85,7 +82,7 @@ void PropertyTable::end()
     ImGui::EndTable();
 }
 
-PropertyTable& PropertyTable::childPropertyBegin()
+auto PropertyTable::childPropertyBegin() -> PropertyTable &
 {
     static std::unordered_map<ImGuiID, bool> collapseStatus{};
     bool constexpr COLLAPSED_DEFAULT{ true };
@@ -155,7 +152,7 @@ PropertyTable& PropertyTable::childPropertyBegin()
     return *this;
 }
 
-PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
+auto PropertyTable::rowChildPropertyBegin(std::string const &name) -> PropertyTable &
 {
     if (Self::rowBegin(name))
     {
@@ -165,7 +162,7 @@ PropertyTable& PropertyTable::rowChildPropertyBegin(std::string const& name)
     return childPropertyBegin();
 }
 
-PropertyTable& PropertyTable::childPropertyEnd()
+auto PropertyTable::childPropertyEnd() -> PropertyTable &
 {
     checkInvariant();
     assert(
@@ -187,7 +184,7 @@ PropertyTable& PropertyTable::childPropertyEnd()
     return *this;
 }
 
-bool PropertyTable::rowBegin(std::string const& name)
+auto PropertyTable::rowBegin(std::string const &name) -> bool
 {
     assert(!m_rowOpen && "Row opened without ending the previous one.");
 
@@ -216,12 +213,12 @@ void PropertyTable::rowEnd()
     ImGui::PopID(); // m_propertyCount
 }
 
-PropertyTable& PropertyTable::rowDropdown(
-    std::string const& name
-    , size_t& selectedIndex
-    , size_t const& defaultIndex
-    , std::span<std::string const> const displayValues
-)
+auto PropertyTable::rowDropdown(
+    std::string const &name,
+    size_t &selectedIndex,
+    size_t const &defaultIndex,
+    std::span<std::string const> const displayValues
+) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -275,11 +272,8 @@ PropertyTable& PropertyTable::rowDropdown(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowText(
-    std::string const& name
-    , std::string& value
-    , std::string const& resetValue
-)
+auto PropertyTable::rowText(std::string const &name, std::string &value, std::string const &resetValue)
+    -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -303,10 +297,7 @@ PropertyTable& PropertyTable::rowText(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyText(
-    std::string const& name
-    , std::string const& value
-)
+auto PropertyTable::rowReadOnlyText(std::string const &name, std::string const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -322,12 +313,9 @@ PropertyTable& PropertyTable::rowReadOnlyText(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowInteger(
-    std::string const& name
-    , int32_t& value
-    , int32_t const& resetValue
-    , PropertySliderBehavior const behavior
-)
+auto PropertyTable::rowInteger(
+    std::string const &name, int32_t &value, int32_t const &resetValue, PropertySliderBehavior const behavior
+) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -351,10 +339,7 @@ PropertyTable& PropertyTable::rowInteger(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyInteger(
-    std::string const& name
-    , int32_t const& value
-)
+auto PropertyTable::rowReadOnlyInteger(std::string const &name, int32_t const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -382,12 +367,9 @@ PropertyTable& PropertyTable::rowReadOnlyInteger(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowVec3(
-    std::string const& name
-    , glm::vec3& value
-    , glm::vec3 const& resetValue
-    , PropertySliderBehavior const behavior
-)
+auto PropertyTable::rowVec3(
+    std::string const &name, glm::vec3 &value, glm::vec3 const &resetValue, PropertySliderBehavior const behavior
+) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -423,10 +405,7 @@ PropertyTable& PropertyTable::rowVec3(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyVec3(
-    std::string const& name
-    , glm::vec3 const& value
-)
+auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -464,12 +443,9 @@ PropertyTable& PropertyTable::rowReadOnlyVec3(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowFloat(
-    std::string const& name
-    , float& value
-    , float const& resetValue
-    , PropertySliderBehavior const behavior
-)
+auto PropertyTable::rowFloat(
+    std::string const &name, float &value, float const &resetValue, PropertySliderBehavior const behavior
+) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -497,10 +473,7 @@ PropertyTable& PropertyTable::rowFloat(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyFloat(
-    std::string const& name
-    , float const& value
-)
+auto PropertyTable::rowReadOnlyFloat(std::string const &name, float const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -529,11 +502,7 @@ PropertyTable& PropertyTable::rowReadOnlyFloat(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowBoolean(
-    std::string const& name
-    , bool& value
-    , bool const& resetValue
-)
+auto PropertyTable::rowBoolean(std::string const &name, bool &value, bool const &resetValue) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {
@@ -553,10 +522,7 @@ PropertyTable& PropertyTable::rowBoolean(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyBoolean(
-    std::string const& name
-    , bool const& value
-)
+auto PropertyTable::rowReadOnlyBoolean(std::string const &name, bool const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
     {

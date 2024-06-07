@@ -83,7 +83,7 @@ void Engine::run()
     cleanup();
 }
 
-Engine* Engine::loadEngine()
+auto Engine::loadEngine() -> Engine *
 {
     if (m_loadedEngine == nullptr)
     {
@@ -567,7 +567,7 @@ void Engine::initDefaultMeshData()
     assert(m_testMeshes.size() > 2);
 }
 
-glm::quat randomQuat()
+auto randomQuat() -> glm::quat
 {
     // https://stackoverflow.com/a/56794499
 
@@ -968,10 +968,8 @@ void Engine::immediateSubmit(
     );
 }
 
-std::unique_ptr<GPUMeshBuffers> Engine::uploadMeshToGPU(
-    std::span<uint32_t const> const indices
-    , std::span<Vertex const> const vertices
-)
+auto Engine::uploadMeshToGPU(std::span<uint32_t const> const indices, std::span<Vertex const> const vertices)
+    -> std::unique_ptr<GPUMeshBuffers>
 {
     // Allocate buffer 
 
@@ -1150,7 +1148,7 @@ void Engine::mainLoop()
     }
 }
 
-bool Engine::renderUI(VkDevice const device)
+auto Engine::renderUI(VkDevice const device) -> bool
 {
     if (m_uiReloadRequested)
     {

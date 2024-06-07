@@ -1,14 +1,14 @@
 #include "buffers.hpp"
 #include "helpers.hpp"
 
-AllocatedBuffer AllocatedBuffer::allocate(
-    VkDevice const device
-    , VmaAllocator const allocator
-    , size_t const allocationSize
-    , VkBufferUsageFlags const bufferUsage
-    , VmaMemoryUsage const memoryUsage
-    , VmaAllocationCreateFlags const createFlags
-)
+auto AllocatedBuffer::allocate(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    size_t const allocationSize,
+    VkBufferUsageFlags const bufferUsage,
+    VmaMemoryUsage const memoryUsage,
+    VmaAllocationCreateFlags const createFlags
+) -> AllocatedBuffer
 {
     VkBufferCreateInfo const bufferInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -83,7 +83,7 @@ void StagedBuffer::recordCopyToDevice(
     m_deviceSizeBytes = m_stagedSizeBytes;
 }
 
-VkDeviceAddress StagedBuffer::deviceAddress() const
+auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
 {
     if (isDirty())
     {
@@ -142,12 +142,12 @@ void StagedBuffer::clearStagedAndDevice()
     m_deviceSizeBytes = 0;
 }
 
-StagedBuffer StagedBuffer::allocate(
-    VkDevice const device
-    , VmaAllocator const allocator
-    , VkDeviceSize const allocationSize
-    , VkBufferUsageFlags const bufferUsage
-)
+auto StagedBuffer::allocate(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkDeviceSize const allocationSize,
+    VkBufferUsageFlags const bufferUsage
+) -> StagedBuffer
 {
     AllocatedBuffer deviceBuffer{ 
         AllocatedBuffer::allocate(
