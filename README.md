@@ -4,7 +4,7 @@ The purpose of this renderer is to study concepts in rendering, engine architect
 
 ## Requirements
 
-This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with `msvc_x64`.
+This project was developed in Visual Studio Community 2022 on Windows 11, and compiled with both MSVC and Clang.
 
 Requires CMake 3.28 or higher, and probably a version of Visual Studio that has CMake support.
 
@@ -28,8 +28,6 @@ CMake is configured to use FetchContent to pull most of the following dependenci
 - [volk](https://github.com/zeux/volk.git), for dynamically linking to Vulkan
 - [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git), for quickly allocating memory via Vulkan
 
-CMake is configured with an optional `Shaders` target, for which building calls upon `glslangValidator` to compile all the shaders (with extensions `.frag`, `.vert`, `.comp`) in the [`shaders`](shaders) folders. The repo will include the most up-to-date versions of the compiled `.spv` files, so this step is only needed to aid development.
-
 ## Building
 
 First clone the repo:
@@ -41,16 +39,21 @@ git clone https://github.com/EllarBooher/VulkanRenderer.git
 To configure and compile:
 
 1. Open the root folder that git downloaded, directly with Visual Studio.
-2. Run CMake via `Project -> Configure Cache`. Visual Studio uses `CMakeSettings.json` to configure this step, such as output location.
-3. After CMake has finished running, you can build and run the generated `Renderer.exe` target.
+2. Select whichever build target you wish to use. By default, the repo includes configurations `x64-clang-Debug` and `x64-msvc-Debug`. Their definitions are located in `CMakeSettings.json`.
+3. Run CMake via `Project -> Configure Cache`. Swapping to the desired build configuration should trigger this process by default.
+4. After CMake has finished running, you can build and run the generated `Renderer.exe` target.
 
-Alternatively, you can always run cmake yourself. This is useful if you want to generate Visual Studio solutions. This also lets you potentially use other generators, but building has only been tested with the above process.
+Alternatively, you can always run cmake yourself. This is useful if you want to generate Visual Studio solutions. This also lets you potentially use other generators, but building has only been tested within Visual Studio.
 
 For example, run the following from a folder outside of the source:
 
 ```bash
 cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
 ```
+
+Some notes on building:
+- If you have [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) installed, there is a CMake cache variable `IWYU_ENABLE` to run it alongside compilation. You can specify a path via `IWYU_PATH`, or let CMake `find_program` get it.
+- `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` is configured to run with an optional build target, while `clang-tidy` has a CMake cache variable `CLANG_TIDY_ENABLE` to integrate it with compilation.
 
 ## Showcase
 
