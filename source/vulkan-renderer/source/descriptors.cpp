@@ -89,8 +89,8 @@ auto DescriptorLayoutBuilder::build(VkDevice const device, VkDescriptorSetLayout
 	{
 		VkDescriptorSetLayoutBinding binding{ inBinding.binding };
 
-		if (inBinding.immutableSamplers.size() > 0)
-		{
+                if (!inBinding.immutableSamplers.empty())
+                {
 			binding.descriptorCount = inBinding.immutableSamplers.size();
 			binding.pImmutableSamplers = inBinding.immutableSamplers.data();
 		}

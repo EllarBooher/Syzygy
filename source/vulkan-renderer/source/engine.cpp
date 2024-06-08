@@ -1555,10 +1555,7 @@ void Engine::draw()
             );
             m_atmosphereIndex = 0;
         }
-        if (
-            stagedAtmospheres.size() > 0 
-            && m_atmosphereIndex < stagedAtmospheres.size()
-        )
+        if (!stagedAtmospheres.empty() && m_atmosphereIndex < stagedAtmospheres.size())
         {
             stagedAtmospheres[m_atmosphereIndex] = 
                 m_atmosphereParameters.toDeviceEquivalent();

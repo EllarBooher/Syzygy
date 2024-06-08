@@ -496,7 +496,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     );
 
     { // Update lights
-        if (directionalLights.size() > 0)
+        if (!directionalLights.empty())
         {
             m_directionalLights->clearStaged();
             m_directionalLights->push(directionalLights);
@@ -512,7 +512,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             m_directionalLights->clearStagedAndDevice();
         }
 
-        if (spotLights.size() > 0)
+        if (!spotLights.empty())
         {
             m_spotLights->clearStaged();
             m_spotLights->push(spotLights);

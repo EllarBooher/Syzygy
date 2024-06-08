@@ -30,6 +30,7 @@ FormatStyle:        file
 Checks: >
   -*,
   modernize-use-trailing-return-type,
+  readability-container-size-empty,
 
 WarningsAsErrors: >
   *,
