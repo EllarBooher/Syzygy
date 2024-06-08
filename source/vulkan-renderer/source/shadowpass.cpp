@@ -100,9 +100,7 @@ auto ShadowPassArray::create(
                 return {};
             }
 
-            shadowPass.m_textures.push_back(
-                std::move(imageResult).value()
-            );
+            shadowPass.m_textures.push_back(imageResult.value());
         }
     }
 

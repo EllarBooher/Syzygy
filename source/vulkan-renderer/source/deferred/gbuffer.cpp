@@ -35,7 +35,7 @@ auto GBuffer::create(
             return {};
         }
 
-        buffer.diffuseColor = std::move(createDiffuseResult).value();
+        buffer.diffuseColor = createDiffuseResult.value();
     }
     { // Specular Color
         std::optional<AllocatedImage> createSpecularResult{
@@ -55,7 +55,7 @@ auto GBuffer::create(
             return {};
         }
 
-        buffer.specularColor = std::move(createSpecularResult).value();
+        buffer.specularColor = createSpecularResult.value();
     }
     { // Normals
         std::optional<AllocatedImage> createNormalResult{
@@ -75,7 +75,7 @@ auto GBuffer::create(
             return {};
         }
 
-        buffer.normal = std::move(createNormalResult).value();
+        buffer.normal = createNormalResult.value();
     }
     { // World Position
         std::optional<AllocatedImage> createWorldPositionResult{
@@ -95,7 +95,7 @@ auto GBuffer::create(
             return {};
         }
 
-        buffer.worldPosition = std::move(createWorldPositionResult).value();
+        buffer.worldPosition = createWorldPositionResult.value();
     }
 
     {

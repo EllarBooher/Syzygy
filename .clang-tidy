@@ -33,6 +33,7 @@ Checks: >
   readability-container-size-empty,
   bugprone-narrowing-conversions,
   readability-uppercase-literal-suffix,
+  performance-move-const-arg,
 
 WarningsAsErrors: >
   *,

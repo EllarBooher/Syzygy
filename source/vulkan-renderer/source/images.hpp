@@ -55,6 +55,7 @@ namespace vkutil {
     double aspectRatio(VkExtent2D extent);
 }
 
+// TODO: Fix up the interface to better model how images work. Make info fields const (since an image cannot be changed in any meaningful well), add tracking of layout, hide resource handles to avoid mutation of const AllocatedImages.
 struct AllocatedImage {
     VmaAllocation allocation{ VK_NULL_HANDLE };
     VkImage image{ VK_NULL_HANDLE };
