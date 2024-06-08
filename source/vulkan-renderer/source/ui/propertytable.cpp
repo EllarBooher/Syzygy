@@ -145,7 +145,7 @@ auto PropertyTable::childPropertyBegin() -> PropertyTable &
         }
     }
 
-    ImGui::PushID(m_childPropertyDepth);
+    ImGui::PushID(static_cast<int32_t>(m_childPropertyDepth));
     m_childPropertyDepth += 1;
     ImGui::Indent(ImGui::GetStyle().IndentSpacing);
 
@@ -196,7 +196,7 @@ auto PropertyTable::rowBegin(std::string const &name) -> bool
 
     m_rowOpen = true;
 
-    ImGui::PushID(m_propertyCount);
+    ImGui::PushID(static_cast<int32_t>(m_propertyCount));
     ImGui::PushID(name.c_str());
 
     ImGui::TableNextRow();
@@ -378,7 +378,7 @@ auto PropertyTable::rowVec3(
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
-    for (uint32_t component{ 0 }; component < 3; component++)
+    for (size_t component{ 0 }; component < 3; component++)
     {
         float const spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
         if (component > 0) ImGui::SameLine(0.0f, spacing);
@@ -417,7 +417,7 @@ auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &va
     ImGui::BeginDisabled();
 
     ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
-    for (uint32_t component{ 0 }; component < 3; component++)
+    for (size_t component{ 0 }; component < 3; component++)
     {
         float const interComponentSpacing{ 
             ImGui::GetStyle().ItemInnerSpacing.x 
@@ -596,11 +596,11 @@ void PropertyTable::demoWindow(bool& open)
             .childPropertyBegin()
                 .rowReadOnlyInteger(
                     "Text Size"
-                    , valueText.size()
+                    , static_cast<int32_t>(valueText.size())
                 )
                 .rowReadOnlyInteger(
                     "Text Capacity"
-                    , valueText.capacity()
+                    , static_cast<int32_t>(valueText.capacity())
                 )
             .childPropertyEnd()
             .rowReadOnlyText(

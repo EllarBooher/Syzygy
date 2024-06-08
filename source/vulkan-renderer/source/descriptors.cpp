@@ -141,7 +141,7 @@ void DescriptorAllocator::initPool(
 	for (PoolSizeRatio const& ratio : poolRatios)
 	{
 		auto const descriptorCount{
-			static_cast<uint32_t>(roundf(ratio.ratio * maxSets))
+			static_cast<uint32_t>(roundf(ratio.ratio * static_cast<float>(maxSets)))
 		};
 
 		poolSizes.push_back(

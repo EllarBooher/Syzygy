@@ -347,7 +347,7 @@ static void imguiPushStructureControl(
                                 , reinterpret_cast<void*>(
                                     const_cast<uint8_t*>(pData)
                                 )
-                                , rows
+                                , static_cast<int32_t>(rows)
                                 , nullptr
                                 , nullptr
                                 , imguiDataType == ImGuiDataType_Float 

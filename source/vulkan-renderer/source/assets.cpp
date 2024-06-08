@@ -215,7 +215,7 @@ auto loadAssetFile(std::string const &localPath, VkDevice const device) -> Asset
     std::vector<uint8_t> buffer(fileSizeBytes);
 
     file.seekg(0, std::ios::beg);
-    file.read(reinterpret_cast<char*>(buffer.data()), fileSizeBytes);
+    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(fileSizeBytes));
 
     file.close();
 

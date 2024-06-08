@@ -42,6 +42,10 @@ private:
     bool m_open{ false };
     bool m_rowOpen{ false };
 
+    // TODO: sizing and bounds issues: this should maybe be an int32. Depth 
+    // could conceivably be negative and cause negative indenting. 
+    // Also, ImGui IDs use an int32, so this should probably be int32 
+    // or uint16 alongside m_propertyCount.
     size_t m_childPropertyDepth{ 0 };
 
     // The depth at which we first collapsed. If no value is set, 
@@ -150,6 +154,7 @@ public:
     );
 
     // Adds a row that contains a read only integer.
+    // TODO: more generic row types for all integer widths and types
     PropertyTable& rowReadOnlyInteger(
         std::string const& name
         , int32_t const& value

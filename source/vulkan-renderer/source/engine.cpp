@@ -118,9 +118,10 @@ void Engine::initWindow()
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
     char const* const WINDOW_TITLE = "Renderer";
+
     m_window = glfwCreateWindow(
-        m_windowExtent.width
-        , m_windowExtent.height
+        static_cast<int32_t>(m_windowExtent.width)
+        , static_cast<int32_t>(m_windowExtent.height)
         , WINDOW_TITLE
         , nullptr
         , nullptr
@@ -138,9 +139,9 @@ void Engine::initWindow()
     m_windowExtent.height = static_cast<uint32_t>(height);
 
     m_uiPreferences.dpiScale = glm::round(
-        glm::min(
-            m_windowExtent.height / 1080.0
-            , m_windowExtent.width / 1920.0
+        glm::min<float>(
+            static_cast<float>(m_windowExtent.height) / 1080.0F
+            , static_cast<float>(m_windowExtent.width) / 1920.0F
         )
     );
 
@@ -1235,9 +1236,9 @@ auto Engine::renderUI(VkDevice const device) -> bool
 
             ImVec2 const uvMax{
                 static_cast<float>(m_sceneRect.extent.width)
-                    / m_sceneColorTexture.imageExtent.width
+                    / static_cast<float>(m_sceneColorTexture.imageExtent.width)
                 , static_cast<float>(m_sceneRect.extent.height) 
-                    / m_sceneColorTexture.imageExtent.height
+                    / static_cast<float>(m_sceneColorTexture.imageExtent.height)
             };
 
             ImGui::Image(
@@ -1384,9 +1385,9 @@ auto Engine::renderUI(VkDevice const device) -> bool
 
                 ImVec2 const uvMax{
                     static_cast<float>(m_sceneRect.extent.width)
-                        / m_sceneColorTexture.imageExtent.width
+                        / static_cast<float>(m_sceneColorTexture.imageExtent.width)
                     , static_cast<float>(m_sceneRect.extent.height)
-                        / m_sceneColorTexture.imageExtent.height
+                        / static_cast<float>(m_sceneColorTexture.imageExtent.height)
                 };
 
                 ImGui::Image(
@@ -1484,7 +1485,7 @@ void Engine::tickWorld(
             }
             else
             {
-                m_atmosphereParameters.sunEulerAngles.x += deltaTimeSeconds * atmosphereAnimation.animationSpeed;
+                m_atmosphereParameters.sunEulerAngles.x += static_cast<float>(deltaTimeSeconds) * atmosphereAnimation.animationSpeed;
             }
 
             m_atmosphereParameters.sunEulerAngles = glm::mod(
@@ -1526,7 +1527,7 @@ void Engine::draw()
     // Begin scene drawing
 
     { // Copy cameras to gpu
-        double const aspectRatio{ vkutil::aspectRatio(m_sceneRect.extent) };
+        float const aspectRatio{ static_cast<float>(vkutil::aspectRatio(m_sceneRect.extent)) };
 
         std::span<gputypes::Camera> cameras{ 
             m_camerasBuffer->mapValidStaged()

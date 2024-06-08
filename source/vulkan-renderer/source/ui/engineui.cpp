@@ -48,14 +48,14 @@ void imguiPerformanceWindow(
             );
 
             ImPlot::SetupAxesLimits(
-                0, fpsValues.size()
+                0, static_cast<double>(fpsValues.size())
                 , 0.0f, 320.0f
             );
             
             ImPlot::PlotLine(
                 "##fpsValues"
                 , fpsValues.data()
-                , fpsValues.size()
+                , static_cast<int32_t>(fpsValues.size())
             );
 
             ImPlot::PlotInfLines(
@@ -510,11 +510,15 @@ void imguiStructureControls<DebugLines>(
         )
         .rowReadOnlyInteger(
             "Indices on GPU"
-            , structure.indices.get() ? structure.indices->deviceSize() : 0
+            , static_cast<int32_t>(
+                structure.indices.get() ? structure.indices->deviceSize() : 0
+            )
         )
         .rowReadOnlyInteger(
             "Vertices on GPU"
-            , structure.vertices.get() ? structure.vertices->deviceSize() : 0
+            , static_cast<int32_t>(
+                structure.vertices.get() ? structure.vertices->deviceSize() : 0
+            )
         );
 
     if (!structure.pipeline || !structure.indices || !structure.vertices)
@@ -541,9 +545,9 @@ void imguiStructureControls<DebugLines>(
         };
 
         table.rowChildPropertyBegin("Draw Results")
-            .rowReadOnlyInteger("Draw Calls", drawResults.drawCalls)
-            .rowReadOnlyInteger("Vertices Drawn", drawResults.verticesDrawn)
-            .rowReadOnlyInteger("Indices Drawn", drawResults.indicesDrawn)
+            .rowReadOnlyInteger("Draw Calls", static_cast<int32_t>(drawResults.drawCalls))
+            .rowReadOnlyInteger("Vertices Drawn", static_cast<int32_t>(drawResults.verticesDrawn))
+            .rowReadOnlyInteger("Indices Drawn", static_cast<int32_t>(drawResults.indicesDrawn))
             .childPropertyEnd();
     }
 
