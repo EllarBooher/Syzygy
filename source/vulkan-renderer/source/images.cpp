@@ -200,7 +200,7 @@ auto vkutil::aspectRatio(VkExtent2D const extent) -> double
 
     float const rawAspectRatio = width / height;
 
-    return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0f;
+    return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
 }
 
 auto AllocatedImage::allocate(

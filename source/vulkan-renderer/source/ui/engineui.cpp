@@ -47,11 +47,8 @@ void imguiPerformanceWindow(
                 , ImPlotAxisFlags_LockMin
             );
 
-            ImPlot::SetupAxesLimits(
-                0, static_cast<double>(fpsValues.size())
-                , 0.0f, 320.0f
-            );
-            
+            ImPlot::SetupAxesLimits(0, static_cast<double>(fpsValues.size()), 0.0F, 320.0F);
+
             ImPlot::PlotLine(
                 "##fpsValues"
                 , fpsValues.data()
@@ -78,12 +75,7 @@ static void renderPreferences(
 {
     if (ImGui::Begin("Preferences", &open))
     {
-        ImGui::DragFloat(
-            "DPI Scale"
-            , &preferences.dpiScale
-            , 0.05f
-            , 0.5f, 4.0f
-        );
+        ImGui::DragFloat("DPI Scale", &preferences.dpiScale, 0.05F, 0.5F, 4.0F);
 
         ImGui::TextWrapped(
             "Some DPI Scale values will produce blurry fonts, "
@@ -130,9 +122,9 @@ auto renderHUD(UIPreferences &preferences) -> HUDState
         static bool showPreferences{ false };
         static bool showUIDemoWindow{ false };
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0F);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0F);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
 
         bool const backgroundWindow{
             ImGui::Begin("BackgroundWindow", nullptr, WINDOW_INVISIBLE_FLAGS)
@@ -351,82 +343,83 @@ void imguiStructureControls<AtmosphereParameters>(
     }
 
     PropertyTable::begin()
-        .rowBoolean(
-            "Animate Sun"
-            , atmosphere.animation.animateSun
-            , defaultValues.animation.animateSun)
+        .rowBoolean("Animate Sun", atmosphere.animation.animateSun, defaultValues.animation.animateSun)
         .rowFloat(
-            "Sun Animation Speed"
-            , atmosphere.animation.animationSpeed
-            , defaultValues.animation.animationSpeed
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ -20.0f, 20.0f },
-            })
-        .rowBoolean(
-            "Skip Night"
-            , atmosphere.animation.skipNight
-            , defaultValues.animation.skipNight)
+            "Sun Animation Speed",
+            atmosphere.animation.animationSpeed,
+            defaultValues.animation.animationSpeed,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{-20.0F, 20.0F},
+            }
+        )
+        .rowBoolean("Skip Night", atmosphere.animation.skipNight, defaultValues.animation.skipNight)
         .rowVec3(
-            "Sun Euler Angles"
-            , atmosphere.sunEulerAngles
-            , defaultValues.sunEulerAngles
-            , PropertySliderBehavior{
-                .speed = 0.1f,
-            })
-        .rowReadOnlyVec3(
-            "Direction to Sun"
-            , atmosphere.directionToSun())
+            "Sun Euler Angles",
+            atmosphere.sunEulerAngles,
+            defaultValues.sunEulerAngles,
+            PropertySliderBehavior{
+                .speed = 0.1F,
+            }
+        )
+        .rowReadOnlyVec3("Direction to Sun", atmosphere.directionToSun())
         .rowVec3(
-            "Ground Diffuse Color"
-            , atmosphere.groundColor
-            , defaultValues.groundColor
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ 0.0f, 1.0f },
-            })
+            "Ground Diffuse Color",
+            atmosphere.groundColor,
+            defaultValues.groundColor,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{0.0F, 1.0F},
+            }
+        )
         .rowFloat(
-            "Earth Radius"
-            , atmosphere.earthRadiusMeters
-            , defaultValues.earthRadiusMeters
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ 1.0f, atmosphere.atmosphereRadiusMeters },
-            })
+            "Earth Radius",
+            atmosphere.earthRadiusMeters,
+            defaultValues.earthRadiusMeters,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{1.0F, atmosphere.atmosphereRadiusMeters},
+            }
+        )
         .rowFloat(
-            "Atmosphere Radius"
-            , atmosphere.atmosphereRadiusMeters
-            , defaultValues.atmosphereRadiusMeters
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{atmosphere.earthRadiusMeters, 1'000'000'000.0f },
-            })
+            "Atmosphere Radius",
+            atmosphere.atmosphereRadiusMeters,
+            defaultValues.atmosphereRadiusMeters,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{atmosphere.earthRadiusMeters, 1'000'000'000.0F},
+            }
+        )
         .rowVec3(
-            "Rayleigh Scattering Coefficient"
-            , atmosphere.scatteringCoefficientRayleigh
-            , defaultValues.scatteringCoefficientRayleigh
-            , PropertySliderBehavior{
-                .speed = 0.001f,
-                .bounds = FloatBounds{ 0.0f, 1.0f },
-            })
+            "Rayleigh Scattering Coefficient",
+            atmosphere.scatteringCoefficientRayleigh,
+            defaultValues.scatteringCoefficientRayleigh,
+            PropertySliderBehavior{
+                .speed = 0.001F,
+                .bounds = FloatBounds{0.0F, 1.0F},
+            }
+        )
         .rowFloat(
-            "Rayleigh Altitude Decay"
-            , atmosphere.altitudeDecayRayleigh
-            , defaultValues.altitudeDecayRayleigh
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{0.0f, 1'000'000.0f},
-            })
+            "Rayleigh Altitude Decay",
+            atmosphere.altitudeDecayRayleigh,
+            defaultValues.altitudeDecayRayleigh,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{0.0F, 1'000'000.0F},
+            }
+        )
         .rowVec3(
-            "Mie Scattering Coefficient"
-            , atmosphere.scatteringCoefficientMie
-            , defaultValues.scatteringCoefficientMie
-            , PropertySliderBehavior{
-                .speed = 0.001f,
-                .bounds = FloatBounds{ 0.0f, 1.0f },
-            })
+            "Mie Scattering Coefficient",
+            atmosphere.scatteringCoefficientMie,
+            defaultValues.scatteringCoefficientMie,
+            PropertySliderBehavior{
+                .speed = 0.001F,
+                .bounds = FloatBounds{0.0F, 1.0F},
+            }
+        )
         .rowFloat(
-            "Mie Altitude Decay"
-            , atmosphere.altitudeDecayMie
-            , defaultValues.altitudeDecayMie
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{0.0f, 1'000'000.0f},
-            })
+            "Mie Altitude Decay",
+            atmosphere.altitudeDecayMie,
+            defaultValues.altitudeDecayMie,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{0.0F, 1'000'000.0F},
+            }
+        )
         .end();
 }
 
@@ -450,35 +443,45 @@ void imguiStructureControls<CameraParameters>(
 
     PropertyTable::begin()
         .rowVec3(
-            "Camera Position"
-            , structure.cameraPosition, defaultValues.cameraPosition
-            , PropertySliderBehavior{
-                .speed = 1.0f,
-            })
+            "Camera Position",
+            structure.cameraPosition,
+            defaultValues.cameraPosition,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+        )
         .rowVec3(
-            "Euler Angles"
-            , structure.eulerAngles, defaultValues.eulerAngles
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ -glm::pi<float>(), glm::pi<float>() },
-            })
+            "Euler Angles",
+            structure.eulerAngles,
+            defaultValues.eulerAngles,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{-glm::pi<float>(), glm::pi<float>()},
+            }
+        )
         .rowFloat(
-            "Field of View"
-            , structure.fov, defaultValues.fov
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ 0.01f, 179.99f },
-            })
+            "Field of View",
+            structure.fov,
+            defaultValues.fov,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{0.01F, 179.99F},
+            }
+        )
         .rowFloat(
-            "Near Plane"
-            , structure.near, std::min(structure.far, defaultValues.near)
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ 0.01f, structure.far },
-            })
+            "Near Plane",
+            structure.near,
+            std::min(structure.far, defaultValues.near),
+            PropertySliderBehavior{
+                .bounds = FloatBounds{0.01F, structure.far},
+            }
+        )
         .rowFloat(
-            "Far Plane"
-            , structure.far, std::max(structure.near, defaultValues.far)
-            , PropertySliderBehavior{
-                .bounds = FloatBounds{ structure.near + 0.01f, 1'000'000.0f },
-            })
+            "Far Plane",
+            structure.far,
+            std::max(structure.near, defaultValues.far),
+            PropertySliderBehavior{
+                .bounds = FloatBounds{structure.near + 0.01F, 1'000'000.0F},
+            }
+        )
         .end();
 }
 
@@ -531,11 +534,11 @@ void imguiStructureControls<DebugLines>(
     }
 
     table.rowFloat(
-        "Line Width"
-        , structure.lineWidth
-        , 1.0f
-        , PropertySliderBehavior{
-            .bounds{ 0.0f, 100.0f },
+        "Line Width",
+        structure.lineWidth,
+        1.0F,
+        PropertySliderBehavior{
+            .bounds{0.0F, 100.0F},
         }
     );
 
@@ -574,20 +577,22 @@ void imguiStructureControls<ShadowPassParameters>(
 
     PropertyTable::begin()
         .rowFloat(
-            "Depth Bias Constant"
-            , structure.depthBiasConstant, defaultValues.depthBiasConstant
-            , PropertySliderBehavior{
-                .speed = 0.01f,
-            })
-        .rowReadOnlyBoolean(
-            "Depth Bias Clamp"
-            , false)
+            "Depth Bias Constant",
+            structure.depthBiasConstant,
+            defaultValues.depthBiasConstant,
+            PropertySliderBehavior{
+                .speed = 0.01F,
+            }
+        )
+        .rowReadOnlyBoolean("Depth Bias Clamp", false)
         .rowFloat(
-            "Depth Bias Slope"
-            , structure.depthBiasSlope, defaultValues.depthBiasSlope
-            , PropertySliderBehavior{
-                .speed = 0.01f,
-            })
+            "Depth Bias Slope",
+            structure.depthBiasSlope,
+            defaultValues.depthBiasSlope,
+            PropertySliderBehavior{
+                .speed = 0.01F,
+            }
+        )
         .end();
 }
 
@@ -608,16 +613,20 @@ void imguiStructureControls<SceneBounds>(
 
     PropertyTable::begin()
         .rowVec3(
-            "Scene Center"
-            , structure.center, defaultValues.center
-            , PropertySliderBehavior{
-                .speed = 1.0f,
-            })
+            "Scene Center",
+            structure.center,
+            defaultValues.center,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+        )
         .rowVec3(
-            "Scene Extent"
-            , structure.extent, defaultValues.extent
-            , PropertySliderBehavior{
-                .speed = 1.0f,
-            })
+            "Scene Extent",
+            structure.extent,
+            defaultValues.extent,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+        )
         .end();
 }

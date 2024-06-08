@@ -82,15 +82,16 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
                 vertices.reserve(vertices.size() + positionAccessor.count);
 
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(
-                    gltf
-                    , positionAccessor
-                    , [&](glm::vec3 position, size_t index) {
+                    gltf,
+                    positionAccessor,
+                    [&](glm::vec3 position, size_t index)
+                    {
                         vertices.push_back(Vertex{
                             .position = position,
-                            .uv_x = 0.0f,
+                            .uv_x = 0.0F,
                             .normal = glm::vec3{1, 0, 0},
-                            .uv_y = 0.0f,
-                            .color = glm::vec4{1.0f},
+                            .uv_y = 0.0F,
+                            .color = glm::vec4{1.0F},
                         });
                     }
                 );
@@ -146,7 +147,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
         bool constexpr DEBUG_OVERRIDE_COLORS{ false };
         if (DEBUG_OVERRIDE_COLORS) {
             for (Vertex& vertex : vertices) {
-                vertex.color = glm::vec4(vertex.normal, 1.0f);
+                vertex.color = glm::vec4(vertex.normal, 1.0F);
             }
         }
 

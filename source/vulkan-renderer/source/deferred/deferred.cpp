@@ -407,8 +407,8 @@ void setRasterizationShaderObjectState(
         .y = static_cast<float>(drawRect.offset.y),
         .width = static_cast<float>(drawRect.extent.width),
         .height = static_cast<float>(drawRect.extent.height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
+        .minDepth = 0.0F,
+        .maxDepth = 1.0F,
     };
 
     vkCmdSetViewportWithCount(cmd, 1, &viewport);
@@ -581,17 +581,17 @@ void DeferredShadingPipeline::recordDrawCommands(
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
 
-            .imageView= depth.imageView,
-            .imageLayout= VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+            .imageView = depth.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-            .resolveMode=VK_RESOLVE_MODE_NONE,
-            .resolveImageView=VK_NULL_HANDLE,
-            .resolveImageLayout=VK_IMAGE_LAYOUT_UNDEFINED,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-            .loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp=VK_ATTACHMENT_STORE_OP_STORE,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 
-            .clearValue{ VkClearValue{.depthStencil{.depth = 0.0f}} },
+            .clearValue{VkClearValue{.depthStencil{.depth = 0.0F}}},
         };
 
         VkColorComponentFlags const colorComponentFlags{

@@ -153,16 +153,16 @@ auto vkinit::samplerCreateInfo(
         .addressModeV = addressMode,
         .addressModeW = addressMode,
 
-        .mipLodBias = 0.0f,
+        .mipLodBias = 0.0F,
 
         .anisotropyEnable = VK_FALSE,
-        .maxAnisotropy = 1.0f,
+        .maxAnisotropy = 1.0F,
 
         .compareEnable = VK_FALSE,
         .compareOp = VK_COMPARE_OP_NEVER,
 
-        .minLod = 0.0f,
-        .maxLod = 1.0f,
+        .minLod = 0.0F,
+        .maxLod = 1.0F,
 
         .borderColor = borderColor,
 

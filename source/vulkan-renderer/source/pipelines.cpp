@@ -158,8 +158,8 @@ void PipelineBuilder::setMultisamplingNone()
 {
 	m_multisampling.sampleShadingEnable = VK_FALSE;
 	m_multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	m_multisampling.minSampleShading = 1.0f;
-	m_multisampling.pSampleMask = nullptr;
+        m_multisampling.minSampleShading = 1.0F;
+        m_multisampling.pSampleMask = nullptr;
 	m_multisampling.alphaToCoverageEnable = VK_FALSE;
 	m_multisampling.alphaToOneEnable = VK_FALSE;
 }
@@ -183,19 +183,19 @@ void PipelineBuilder::enableDepthBias()
 
 void PipelineBuilder::disableDepthTest()
 {
-	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-		.pNext = nullptr,
+    m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext = nullptr,
 
-		.flags = 0,
-		.depthTestEnable = VK_FALSE,
-		.depthWriteEnable = VK_FALSE,
-		.depthCompareOp = VK_COMPARE_OP_NEVER,
-		.depthBoundsTestEnable = VK_FALSE,
-		.stencilTestEnable = VK_FALSE,
-		.minDepthBounds = 0.0f,
-		.maxDepthBounds = 1.0f,
-	};
+        .flags = 0,
+        .depthTestEnable = VK_FALSE,
+        .depthWriteEnable = VK_FALSE,
+        .depthCompareOp = VK_COMPARE_OP_NEVER,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0F,
+        .maxDepthBounds = 1.0F,
+    };
 }
 
 void PipelineBuilder::enableDepthTest(
@@ -203,19 +203,19 @@ void PipelineBuilder::enableDepthTest(
 	, VkCompareOp const compareOp
 )
 {
-	m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-		.pNext = nullptr,
+    m_depthStencil = VkPipelineDepthStencilStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext = nullptr,
 
-		.flags = 0,
-		.depthTestEnable = VK_TRUE,
-		.depthWriteEnable = depthWriteEnable ? VK_TRUE : VK_FALSE,
-		.depthCompareOp = compareOp,
-		.depthBoundsTestEnable = VK_FALSE,
-		.stencilTestEnable = VK_FALSE,
-		.minDepthBounds = 0.0f,
-		.maxDepthBounds = 1.0f,
-	};
+        .flags = 0,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = depthWriteEnable ? VK_TRUE : VK_FALSE,
+        .depthCompareOp = compareOp,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0F,
+        .maxDepthBounds = 1.0F,
+    };
 }
 
 ComputeCollectionPipeline::ComputeCollectionPipeline(
@@ -519,24 +519,24 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
 		? VK_ATTACHMENT_LOAD_OP_LOAD
 		: VK_ATTACHMENT_LOAD_OP_CLEAR
 	};
-	VkRenderingAttachmentInfo const depthAttachment{
-		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-		.pNext = nullptr,
+        VkRenderingAttachmentInfo const depthAttachment{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
 
-		.imageView = depth.imageView,
-		.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+            .imageView = depth.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-		.resolveMode = VK_RESOLVE_MODE_NONE,
-		.resolveImageView = VK_NULL_HANDLE,
-		.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-		.loadOp = depthLoadOp,
-		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .loadOp = depthLoadOp,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 
-		.clearValue = VkClearValue{.depthStencil{.depth = 0.0f}},
-	};
+            .clearValue = VkClearValue{.depthStencil{.depth = 0.0F}},
+        };
 
-	std::vector<VkRenderingAttachmentInfo> const colorAttachments{ 
+        std::vector<VkRenderingAttachmentInfo> const colorAttachments{ 
 		colorAttachment 
 	};
 	VkRenderingInfo const renderInfo{
@@ -569,16 +569,16 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
 	
 	vkCmdSetLineWidth(cmd, lineWidth);
 
-	VkViewport const viewport{
-		.x = static_cast<float>(drawRect.offset.x),
-		.y = static_cast<float>(drawRect.offset.y),
-		.width = static_cast<float>(drawRect.extent.width),
-		.height = static_cast<float>(drawRect.extent.height),
-		.minDepth = 0.0f,
-		.maxDepth = 1.0f,
-	};
+        VkViewport const viewport{
+            .x = static_cast<float>(drawRect.offset.x),
+            .y = static_cast<float>(drawRect.offset.y),
+            .width = static_cast<float>(drawRect.extent.width),
+            .height = static_cast<float>(drawRect.extent.height),
+            .minDepth = 0.0F,
+            .maxDepth = 1.0F,
+        };
 
-	vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
 
 	VkRect2D const scissor{ drawRect };
 
@@ -729,24 +729,24 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 		? VK_ATTACHMENT_LOAD_OP_LOAD
 		: VK_ATTACHMENT_LOAD_OP_CLEAR
 	};
-	VkRenderingAttachmentInfo const depthAttachment{
-		.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-		.pNext = nullptr,
+        VkRenderingAttachmentInfo const depthAttachment{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
 
-		.imageView = depth.imageView,
-		.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+            .imageView = depth.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
-		.resolveMode = VK_RESOLVE_MODE_NONE,
-		.resolveImageView = VK_NULL_HANDLE,
-		.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 
-		.loadOp = depthLoadOp,
-		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .loadOp = depthLoadOp,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 
-		.clearValue = VkClearValue{.depthStencil{.depth = 0.0f }},
-	};
+            .clearValue = VkClearValue{.depthStencil{.depth = 0.0F}},
+        };
 
-	VkExtent2D const drawExtent{
+        VkExtent2D const drawExtent{
 		.width = depth.imageExtent.width,
 		.height = depth.imageExtent.height,
 	};
@@ -767,16 +767,16 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 	);
 	vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
 
-	VkViewport const viewport{
-		.x = 0,
-		.y = 0,
-		.width = static_cast<float>(drawExtent.width),
-		.height = static_cast<float>(drawExtent.height),
-		.minDepth = 0.0f,
-		.maxDepth = 1.0f,
-	};
+        VkViewport const viewport{
+            .x = 0,
+            .y = 0,
+            .width = static_cast<float>(drawExtent.width),
+            .height = static_cast<float>(drawExtent.height),
+            .minDepth = 0.0F,
+            .maxDepth = 1.0F,
+        };
 
-	vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
 
 	VkRect2D const scissor{
 		.offset{

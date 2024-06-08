@@ -65,7 +65,7 @@ void DebugLines::pushRectangleOriented(
     , glm::vec2 const extents
 )
 {
-    glm::vec3 const scale{ extents.x, 1.0f, extents.y };
+    glm::vec3 const scale{extents.x, 1.0F, extents.y};
 
     glm::vec3 const right{ orientation * (scale * geometry::right) };
     glm::vec3 const forward{ orientation * (scale * geometry::forward) };

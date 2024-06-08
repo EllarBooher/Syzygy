@@ -43,15 +43,13 @@
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
-CameraParameters const Engine::m_defaultCameraParameters{
-    CameraParameters{
-        .cameraPosition = glm::vec3(0.0f,-8.0f,-8.0f),
-        .eulerAngles = glm::vec3(-0.3f,0.0f,0.0f),
-        .fov = 70.0f,
-        .near = 0.1f,
-        .far = 10000.0f,
-    }
-};
+CameraParameters const Engine::m_defaultCameraParameters{CameraParameters{
+    .cameraPosition = glm::vec3(0.0F, -8.0F, -8.0F),
+    .eulerAngles = glm::vec3(-0.3F, 0.0F, 0.0F),
+    .fov = 70.0F,
+    .near = 0.1F,
+    .far = 10000.0F,
+}};
 
 AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     AtmosphereParameters{
@@ -499,8 +497,7 @@ void Engine::initSyncStructures()
 void Engine::initDescriptors()
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f }
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
     };
 
     m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
@@ -572,8 +569,8 @@ auto randomQuat() -> glm::quat
 {
     // https://stackoverflow.com/a/56794499
 
-    glm::vec2 const xy{ glm::diskRand(1.0f) };
-    glm::vec2 const uv{ glm::diskRand(1.0f) };
+    glm::vec2 const xy{glm::diskRand(1.0F)};
+    glm::vec2 const uv{glm::diskRand(1.0F)};
 
     float const s{ 
         glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv)) 
@@ -621,9 +618,7 @@ void Engine::initWorld()
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
             {
                 m_meshInstances.originals.push_back(
-                    glm::translate(glm::vec3(x, -4.0, z))
-                    * glm::toMat4(randomQuat())
-                    * glm::scale(glm::vec3(0.2f))
+                    glm::translate(glm::vec3(x, -4.0, z)) * glm::toMat4(randomQuat()) * glm::scale(glm::vec3(0.2F))
                 );
             }
         }
@@ -1119,7 +1114,7 @@ void Engine::mainLoop()
 #endif
             previousTimeSeconds = glfwGetTime();
 
-            double const instantFPS{ 1.0f / deltaTimeSeconds };
+            double const instantFPS{1.0F / deltaTimeSeconds};
 
             m_fpsValues.write(instantFPS);
 
@@ -1156,7 +1151,7 @@ auto Engine::renderUI(VkDevice const device) -> bool
         // It is necessary to defer reloading to before each frame, since 
         // beginning an ImGui frame locks some resources we wish to modify.
 
-        float constexpr FONT_BASE_SIZE{ 13.0f };
+        float constexpr FONT_BASE_SIZE{13.0F};
 
         UIPreferences const currentPreferences{ m_uiPreferences };
 
@@ -1214,7 +1209,7 @@ auto Engine::renderUI(VkDevice const device) -> bool
             | ImGuiWindowFlags_NoBringToFrontOnFocus
         };
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
         if (ImGui::Begin(
             "SceneViewportMaximized"
             , nullptr
@@ -1242,14 +1237,13 @@ auto Engine::renderUI(VkDevice const device) -> bool
             };
 
             ImGui::Image(
-                (ImTextureID)m_imguiSceneTextureDescriptor
-                , ImGui::GetContentRegionAvail()
-                , ImVec2{ 0.0,0.0 }
-                , uvMax
-                , ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
-                , ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+                (ImTextureID)m_imguiSceneTextureDescriptor,
+                ImGui::GetContentRegionAvail(),
+                ImVec2{0.0, 0.0},
+                uvMax,
+                ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+                ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
             );
-
         }
         ImGui::End();
         ImGui::PopStyleVar();
@@ -1364,10 +1358,7 @@ auto Engine::renderUI(VkDevice const device) -> bool
                 ImGui::SetNextWindowDockID(dockingLayout.value().centerTop);
             }
 
-            ImGui::PushStyleVar(
-                ImGuiStyleVar_WindowPadding
-                , ImVec2(0.0f, 0.0f)
-            );
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
             if (ImGui::Begin("SceneViewport"))
             {
                 VkExtent2D const sceneContentExtent{
@@ -1391,14 +1382,13 @@ auto Engine::renderUI(VkDevice const device) -> bool
                 };
 
                 ImGui::Image(
-                    (ImTextureID)m_imguiSceneTextureDescriptor
-                    , ImGui::GetContentRegionAvail()
-                    , ImVec2{ 0.0,0.0 }
-                    , uvMax
-                    , ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f }
-                    , ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f }
+                    (ImTextureID)m_imguiSceneTextureDescriptor,
+                    ImGui::GetContentRegionAvail(),
+                    ImVec2{0.0, 0.0},
+                    uvMax,
+                    ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+                    ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
                 );
-
             }
             ImGui::End();
             ImGui::PopStyleVar();
@@ -1468,8 +1458,8 @@ void Engine::tickWorld(
                 glm::dot(geometry::up, m_atmosphereParameters.directionToSun())
             };
 
-            bool const isNight{ time < -0.11f };
-            float const sunriseAngle{ glm::asin(0.1f) };
+            bool const isNight{time < -0.11F};
+            float const sunriseAngle{glm::asin(0.1F)};
 
             if (isNight && atmosphereAnimation.skipNight)
             {
@@ -1617,11 +1607,9 @@ void Engine::draw()
                 { // Moonlight
                     float constexpr MOONRISE_LENGTH{ 0.08 };
                     float const moonlightStrength{
-                        0.1f * (
-                            sunCosine < SUNSET_COSINE - MOONRISE_LENGTH
-                            ? 1.0f
-                            : glm::abs(sunCosine - SUNSET_COSINE) / MOONRISE_LENGTH
-                        )
+                        0.1F * (sunCosine < SUNSET_COSINE - MOONRISE_LENGTH
+                                    ? 1.0F
+                                    : glm::abs(sunCosine - SUNSET_COSINE) / MOONRISE_LENGTH)
                     };
 
                     glm::vec4 constexpr MOONLIGHT_COLOR_RGBA{ 0.3, 0.4, 0.6, 1.0 };

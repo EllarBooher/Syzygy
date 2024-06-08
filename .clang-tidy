@@ -32,6 +32,7 @@ Checks: >
   modernize-use-trailing-return-type,
   readability-container-size-empty,
   bugprone-narrowing-conversions,
+  readability-uppercase-literal-suffix,
 
 WarningsAsErrors: >
   *,
