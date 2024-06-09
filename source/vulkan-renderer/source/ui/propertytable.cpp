@@ -18,7 +18,10 @@ auto PropertyTable::resetColumn(std::string const name, bool const visible) -> b
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
 
-    if (!visible) return false;
+    if (!visible)
+    {
+        return false;
+    }
 
     float const width{
         ImGui::GetColumnWidth(RESET_INDEX)
@@ -52,11 +55,14 @@ auto PropertyTable::begin(std::string const name) -> PropertyTable
     ImGui::TableSetupColumn(
         "Reset",
         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize,
-        ImGui::GetStyle().FramePadding.x * 2.0F + ImGui::CalcTextSize("<-").x
+        ImGui::GetStyle().FramePadding.x * 2 + ImGui::CalcTextSize("<-").x
     );
 
     ImGui::Indent(Self::collapseButtonWidth());
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{0.0F, 6.0F});
+
+    ImVec2 constexpr PROPERTY_TABLE_CELL_PADDING{ 0.0F, 6.0F };
+
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, PROPERTY_TABLE_CELL_PADDING);
 
     uint16_t const styleVariableCount{ 1 };
 
@@ -186,7 +192,10 @@ auto PropertyTable::rowBegin(std::string const &name) -> bool
 
     m_propertyCount += 1;
 
-    if (hideNextRow()) return false;
+    if (hideNextRow())
+    {
+        return false;
+    }
 
     m_rowOpen = true;
 
@@ -376,7 +385,9 @@ auto PropertyTable::rowVec3(
     {
         float const spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
         if (component > 0)
+        {
             ImGui::SameLine(0.0F, spacing);
+        }
 
         ImGui::DragFloat(
             fmt::format("##{}{}{}", name, m_propertyCount, component).c_str()
@@ -418,7 +429,9 @@ auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &va
             ImGui::GetStyle().ItemInnerSpacing.x 
         };
         if (component > 0)
+        {
             ImGui::SameLine(0.0F, interComponentSpacing);
+        }
 
         float componentValue{ value[component] };
         ImGui::DragFloat(
@@ -576,6 +589,8 @@ void PropertyTable::demoWindow(bool& open)
         })
     };
 
+    // Since this is demo code, values here are arbitrary, so we do not lint
+    // NOLINTBEGIN(readability-magic-numbers)
     PropertyTable::begin("Demo Table")
         .rowChildPropertyBegin("Available Fields")
         .rowDropdown("Dropdown", dropdownIndex, 0, dropdownLabels)
@@ -678,6 +693,7 @@ void PropertyTable::demoWindow(bool& open)
         .rowReadOnlyText("Some Child Property", "")
         .childPropertyEnd()
         .end();
+    // NOLINTEND(readability-magic-numbers)
 
     ImGui::End(); // End window
 }

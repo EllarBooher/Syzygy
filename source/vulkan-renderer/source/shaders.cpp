@@ -35,8 +35,8 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 		std::span<SpvReflectEntryPoint* const>(&module.entry_points, module.entry_point_count)
 	};
 
-	for (auto const pEntryPoint : enumeratedEntryPoints)
-	{
+        for (auto *const pEntryPoint : enumeratedEntryPoints)
+        {
 		SpvReflectEntryPoint const& entryPoint{ *pEntryPoint };
 
 		SpvReflectResult result;
@@ -95,24 +95,21 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 			// For early exit, if the type ends up being unsupported
 
 			ShaderReflectionData::Member const unsupportedMember{
-					.offsetBytes = offsetBytes,
-					.name = member.name,
-					.type = ShaderReflectionData::SizedType{
-						.typeData = ShaderReflectionData::UnsupportedType{},
+				.offsetBytes = offsetBytes,
+				.name = member.name,
+				.type = ShaderReflectionData::SizedType{
+					.typeData = ShaderReflectionData::UnsupportedType{},
 
-						.name = typeName,
-						.sizeBytes = member.size,
-						.paddedSizeBytes = member.padded_size,
-					},
+					.name = typeName,
+					.sizeBytes = member.size,
+					.paddedSizeBytes = member.padded_size,
+				},
 			};
 
 			SpvReflectTypeFlags const numericTypesMask{ 0x0000FFFF };
 
-			if (
-				typeDescription.type_flags 
-				& SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_REF
-			)
-			{
+            if ((typeDescription.type_flags & SpvReflectTypeFlagBits::SPV_REFLECT_TYPE_FLAG_REF) != 0U)
+            {
 				// SpirV-reflect should only add this flag 
 				// if the type is an OpTypePointer
 				processedMembers.push_back(ShaderReflectionData::Member{
@@ -125,8 +122,7 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 						.paddedSizeBytes = member.padded_size,
 					}
 				});
-			}
-			else if ((typeDescription.type_flags & (~numericTypesMask)) == 0)
+			} else if ((typeDescription.type_flags & (~numericTypesMask)) == 0U)
 			{
 				uint32_t const typeFlagComponentTypeMask{ 0x000000FF };
 				ShaderReflectionData::NumericType::ComponentType componentType;
@@ -205,8 +201,7 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 						.paddedSizeBytes = member.padded_size,
 					}
 				});
-			}
-			else
+			} else
 			{
 				Warning(
 					fmt::format(
@@ -252,7 +247,8 @@ auto ShaderReflectionData::Structure::logicallyCompatible(Structure const &other
 	uint32_t otherMemberIndex{ 0 };
 
 	size_t iterations{ 0 };
-	while (iterations < 100)
+	size_t constexpr MAX_ITERATIONS{ 100U };
+	while (iterations < MAX_ITERATIONS)
 	{
 		if (memberIndex >= members.size() 
 			|| otherMemberIndex >= other.members.size())

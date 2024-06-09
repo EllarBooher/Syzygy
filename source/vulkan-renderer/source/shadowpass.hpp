@@ -11,6 +11,8 @@
 class ShadowPassArray
 {
 public:
+    static size_t constexpr SHADOWPASS_CAMERA_CAPACITY{ 100 };
+
     static std::optional<ShadowPassArray> create(
         VkDevice device
         , DescriptorAllocator& descriptorAllocator

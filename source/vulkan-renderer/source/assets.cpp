@@ -100,7 +100,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
             // The rest of these parameters are optional.
 
             { // Normals
-                auto const normals{ primitive.findAttribute("NORMAL") };
+                auto const *const normals{primitive.findAttribute("NORMAL")};
                 if (normals != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec3>(
@@ -115,7 +115,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
             }
 
             { // UVs
-                auto const uvs{ primitive.findAttribute("TEXCOORD_0") };
+                auto const *const uvs{primitive.findAttribute("TEXCOORD_0")};
                 if (uvs != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec2>(
@@ -130,7 +130,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
             }
 
             { // Colors
-                auto const colors{ primitive.findAttribute("COLOR_0") };
+                auto const *const colors{primitive.findAttribute("COLOR_0")};
                 if (colors != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec4>(
@@ -189,7 +189,7 @@ auto loadAssetFile(std::string const &localPath, VkDevice const device) -> Asset
                 ),
         };
     }
-    std::filesystem::path const path = *pPath.get();
+    std::filesystem::path const path = *pPath;
 
     std::ifstream file(path, std::ios::ate | std::ios::binary);
 

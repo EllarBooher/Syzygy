@@ -25,6 +25,8 @@ struct overloaded : Ts...
     using Ts::operator()...;
 };
 
+// NOLINTBEGIN
+// TODO: refactor this awul, no good, function.
 template<typename T>
 static void imguiPushStructureControl(
     ShaderReflectionData::PushConstant const& pushConstant
@@ -44,8 +46,6 @@ static void imguiPushStructureControl(
         return;
     }
 
-    // TODO: This whole method is bad and should be refactored in a 
-    // way to not need this templating
     static_assert(
         std::is_same<T, uint8_t>::value 
         || std::is_same<T, uint8_t const>::value
@@ -365,6 +365,7 @@ static void imguiPushStructureControl(
         ImGui::EndTable();
     }
 }
+// NOLINTEND
 
 template<>
 void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
@@ -425,9 +426,6 @@ void imguiPipelineControls(DeferredShadingPipeline& pipeline)
 {
     imguiStructureControls(
         pipeline.m_parameters.shadowPassParameters
-        , ShadowPassParameters{
-            .depthBiasConstant = 2.0,
-            .depthBiasSlope = -5.0,
-        }
+        , ShadowPassParameters{}
     );
 }

@@ -64,6 +64,8 @@ struct HUDState
 {
     UIRectangle workArea{};
     UIRectangle sceneViewport{};
+
+    // The background window that acts as the parent of all the laid out windows
     ImGuiID dockspaceID{};
 
     bool maximizeSceneViewport{ false };
@@ -94,10 +96,7 @@ DockingLayout buildDefaultMultiWindowLayout(
 );
 
 template<typename T>
-void imguiStructureControls(
-    T& structure
-    , T const& defaultValues
-);
+void imguiStructureControls(T& structure, T const& defaultStructure);
 
 template<typename T>
 void imguiStructureControls(T& structure);

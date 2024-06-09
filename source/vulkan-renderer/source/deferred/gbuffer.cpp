@@ -228,10 +228,8 @@ auto GBuffer::create(
 }
 
 void GBuffer::recordTransitionImages(
-    VkCommandBuffer const cmd
-    , VkImageLayout const srcLayout
-    , VkImageLayout const dstLayout
-)
+    VkCommandBuffer const cmd, VkImageLayout const srcLayout, VkImageLayout const dstLayout
+) const
 {
     vkutil::transitionImage(
         cmd

@@ -15,9 +15,9 @@ auto geometry::projectPointOnPlane(glm::vec3 const planePoint, glm::vec3 const p
     return projection + point;
 }
 
-auto geometry::collectAABBVertices(glm::vec3 const center, glm::vec3 const extent) -> std::array<glm::vec3, 8>
+auto geometry::collectAABBVertices(glm::vec3 const center, glm::vec3 const extent) -> AABBVertices
 {
-    return std::array<glm::vec3, 8>{
+    return AABBVertices{
         center + glm::vec3(extent.x, extent.y, extent.z),
         center + glm::vec3(extent.x, extent.y, -extent.z),
         center + glm::vec3(extent.x, -extent.y, extent.z),
@@ -56,11 +56,14 @@ auto geometry::lookAtVkSafe(glm::vec3 const eye, glm::vec3 const center) -> glm:
 
 auto geometry::projectionVk(float const fov, float const aspectRatio, float const near, float const far) -> glm::mat4x4
 {
+    float const swappedNear{ far };
+    float const swappedFar{ near };
+
     return glm::perspectiveLH_ZO(
         glm::radians(fov)
         , aspectRatio
-        , far
-        , near
+        , swappedNear
+        , swappedFar
     );
 }
 

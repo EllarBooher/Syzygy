@@ -337,24 +337,25 @@ void ComputeCollectionPipeline::recordDrawCommands(
 			, pushConstant.end() 
 		};
 
-		if (pushConstant.size() >= 16)
+		struct DrawRectPushConstantPrefix
+		{
+			glm::vec2 drawOffset{};
+			glm::vec2 drawExtent{};
+		};
+
+		if (pushConstant.size() >= sizeof(DrawRectPushConstantPrefix))
 		{
 			// We assume the first two members of the push constant are 
 			// the offset and extent for rendering.
 			// Both should be type vec2 in glsl
-			struct DrawRectPushConstant
-			{
-				glm::vec2 drawOffset{};
-				glm::vec2 drawExtent{};
-			};
 
 			auto* const pData{
-				reinterpret_cast<DrawRectPushConstant*>(
+				reinterpret_cast<DrawRectPushConstantPrefix*>(
 					pushConstantBytes.data()
 				)
 			};
 
-			*pData = DrawRectPushConstant{
+			*pData = DrawRectPushConstantPrefix{
 				.drawOffset{ glm::vec2{0.0} },
 				.drawExtent{ glm::vec2{drawExtent.width, drawExtent.height} },
 			};
@@ -374,10 +375,12 @@ void ComputeCollectionPipeline::recordDrawCommands(
 		);
 	}
 
+	uint32_t constexpr WORKGROUP_SIZE{ 16 };
+
 	vkCmdDispatch(
 		cmd
-		, std::ceil(drawExtent.width / 16.0)
-		, std::ceil(drawExtent.height / 16.0)
+		, computeDispatchCount(drawExtent.width, WORKGROUP_SIZE)
+		, computeDispatchCount(drawExtent.height, WORKGROUP_SIZE)
 		, 1
 	);
 }

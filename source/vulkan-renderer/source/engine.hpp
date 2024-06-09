@@ -79,6 +79,7 @@ private:
     RingBuffer m_fpsValues{};
 
     uint32_t m_frameNumber{ 0 };
+
     bool m_bRender{ true };
 
     // TODO: Add validation for max window bounds, 16k probably
@@ -133,6 +134,9 @@ private:
     VkExtent2D m_swapchainExtent{};
 
     ImGuiStyle m_imguiStyleDefault{};
+
+    static VkExtent2D constexpr RESOLUTION_DEFAULT{ 1920, 1080 };
+
     static UIPreferences constexpr m_uiPreferencesDefault{
         .dpiScale = 1.0f,
     };
@@ -186,6 +190,8 @@ private:
 
     // Descriptor
 
+    static uint32_t constexpr DESCRIPTOR_SET_CAPACITY_DEFAULT{ 10 };
+
     DescriptorAllocator m_globalDescriptorAllocator{};
 
     VkDescriptorSetLayout m_sceneTextureDescriptorLayout{ VK_NULL_HANDLE };
@@ -193,6 +199,7 @@ private:
 
     // Pipelines
 
+    static uint32_t constexpr DEBUGLINES_CAPACITY{ 1000 };
     DebugLines m_debugLines{};
 
     RenderingPipelines m_activeRenderingPipeline{ 
@@ -225,10 +232,11 @@ private:
 
     // These scene bounds help inform shadow map generation
     // TODO: compute this from the scene
-    SceneBounds m_sceneBounds{
+    static SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
         .center = glm::vec3{ 0.0, -4.0, 0.0 },
         .extent = glm::vec3{ 40.0, 5.0, 40.0 },
     };
+    SceneBounds m_sceneBounds{ DEFAULT_SCENE_BOUNDS };
 
     bool m_useOrthographicProjection{ false };
     static CameraParameters const m_defaultCameraParameters;
@@ -240,7 +248,10 @@ private:
         m_defaultAtmosphereParameters 
     };
 
+    static uint32_t constexpr CAMERA_CAPACITY{ 20 };
     std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};
+
+    static uint32_t constexpr ATMOSPHERE_CAPACITY{ 1 };
     std::unique_ptr<TStagedBuffer<gputypes::Atmosphere>> m_atmospheresBuffer{};
 
     // End Vulkan

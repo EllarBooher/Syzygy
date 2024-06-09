@@ -23,12 +23,15 @@
 // is difficult, and this is just one difficulty that these helpers aid on.
 namespace geometry
 {
+    typedef std::array<glm::vec3, 8> AABBVertices;
+
     glm::vec3 projectPointOnPlane(
         glm::vec3 planePoint
         , glm::vec3 planeNormal
         , glm::vec3 point
     );
-    std::array<glm::vec3, 8> collectAABBVertices(
+    
+    AABBVertices collectAABBVertices(
         glm::vec3 center
         , glm::vec3 extent
     );

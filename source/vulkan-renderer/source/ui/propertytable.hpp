@@ -59,14 +59,9 @@ private:
         , m_open(true)
     {}
 
-    void nameColumn(
-        std::string name
-    );
+    static void nameColumn(std::string name);
 
-    bool resetColumn(
-        std::string name
-        , bool visible
-    );
+    static bool resetColumn(std::string name, bool visible);
 
     static float collapseButtonWidth()
     {

@@ -6,22 +6,23 @@
 
 struct DebugLines
 {
-    std::unique_ptr<DebugLineGraphicsPipeline> pipeline{};
-
+// TODO: Split this up into 3 segments: the pipeline, the line segment buffers, and the configuration.
+public:
     std::unique_ptr<TStagedBuffer<Vertex>> vertices{};
     std::unique_ptr<TStagedBuffer<uint32_t>> indices{};
 
+    std::unique_ptr<DebugLineGraphicsPipeline> pipeline{};
     DrawResultsGraphics lastFrameDrawResults{};
-
     bool enabled{ false };
     float lineWidth{ 1.0 };
 
-    void clear();
+public:
+    // NOLINTBEGIN(readability-make-member-function-const): Manual propagation of const-correctness
 
-    void push(
-        glm::vec3 start
-        , glm::vec3 end
-    );
+    void clear();
+    void push(glm::vec3 start, glm::vec3 end);
+
+    // NOLINTEND(readability-make-member-function-const)
 
     // Adds 4 line segmants defined by AB, BC, CD, DA. 
     // Winding does not matter since these are added as separate line segments.
@@ -53,10 +54,7 @@ struct DebugLines
         , glm::vec3 extents
     );
 
-    void recordCopy(
-        VkCommandBuffer cmd
-        , VmaAllocator allocator
-    );
+    void recordCopy(VkCommandBuffer cmd, VmaAllocator allocator) const;
 
     void cleanup(
         VkDevice device

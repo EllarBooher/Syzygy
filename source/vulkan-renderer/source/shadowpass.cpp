@@ -164,7 +164,7 @@ auto ShadowPassArray::create(
     }
 
     shadowPass.m_projViewMatrices = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-        TStagedBuffer<glm::mat4x4>::allocate(device, allocator, 100, 0)
+        TStagedBuffer<glm::mat4x4>::allocate(device, allocator, SHADOWPASS_CAMERA_CAPACITY, 0)
     );
     shadowPass.m_pipeline = std::make_unique<OffscreenPassGraphicsPipeline>(
         device

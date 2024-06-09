@@ -1,15 +1,14 @@
 #include "debuglines.hpp"
 
+// NOLINTBEGIN(readability-make-member-function-const)
+
 void DebugLines::clear()
 {
     vertices->clearStaged();
     indices->clearStaged();
 }
 
-void DebugLines::push(
-    glm::vec3 const start
-    , glm::vec3 const end
-)
+void DebugLines::push(glm::vec3 const start, glm::vec3 const end)
 {
     Vertex const startVertex{
         .position = start,
@@ -31,6 +30,8 @@ void DebugLines::push(
     vertices->push(std::initializer_list<Vertex>{ startVertex, endVertex });
     indices->push(std::initializer_list<uint32_t>{ index, index + 1 });
 }
+
+// NOLINTEND(readability-make-member-function-const)
 
 void DebugLines::pushQuad(
     glm::vec3 const a
@@ -93,10 +94,7 @@ void DebugLines::pushBox(
     pushRectangleAxes(center + forward, up, right);
 }
 
-void DebugLines::recordCopy(
-    VkCommandBuffer const cmd
-    , VmaAllocator const allocator
-)
+void DebugLines::recordCopy(VkCommandBuffer const cmd, VmaAllocator const allocator) const
 {
     vertices->recordCopyToDevice(cmd, allocator);
     indices->recordCopyToDevice(cmd, allocator);

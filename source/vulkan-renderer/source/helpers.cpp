@@ -36,7 +36,10 @@ void CheckVkResult(
     , std::source_location const location
 )
 {
-    if (result == VK_SUCCESS) return;
+    if (result == VK_SUCCESS)
+    {
+        return;
+    }
 
     std::string const message{
         fmt::format(
@@ -50,8 +53,11 @@ void CheckVkResult(
 
 void CheckVkResult_Imgui(VkResult const result)
 {
-    if (result == VK_SUCCESS) return;
-    
+    if (result == VK_SUCCESS)
+    {
+        return;
+    }
+
     std::string const message{
         fmt::format(
             "Detected Vulkan Error : {}"
@@ -67,7 +73,10 @@ void LogVkResult(
     , std::source_location const location
 )
 {
-    if (result == VK_SUCCESS) return;
+    if (result == VK_SUCCESS)
+    {
+        return;
+    }
 
     Error(
         fmt::format("{} error: {}", message, string_VkResult(result))
@@ -164,12 +173,7 @@ auto DebugUtils::validateRelativePath(std::filesystem::path const path) -> bool
     }
 
     std::string const firstDir{ (*path.lexically_normal().begin()).string()};
-    if (firstDir == "..")
-    {
-        return false;
-    }
-
-    return true;
+    return firstDir != "..";
 }
 
 auto DebugUtils::makeAbsolutePath(std::filesystem::path const localPath) const -> std::filesystem::path

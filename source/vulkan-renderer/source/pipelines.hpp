@@ -12,6 +12,25 @@
 #include "buffers.hpp"
 #include "images.hpp"
 
+namespace
+{
+    auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize) -> uint32_t
+    {
+        // When workgroups are larger than 1, but this value does not evenly divide the amount of 
+        // work needed, we need to dispatch extra to cover this.
+        // It is up to the shader to discard these extra invocations.
+
+        uint32_t const count{ invocations / workgroupSize };
+
+        if (invocations % workgroupSize == 0)
+        {
+            return count;
+        }
+
+        return count + 1;
+    }
+}
+
 struct DrawResultsGraphics
 {
     size_t drawCalls{ 0 };

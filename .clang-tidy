@@ -30,9 +30,9 @@ FormatStyle:        file
 Checks: >
   -*,
   modernize-use-trailing-return-type,
-  readability-container-size-empty,
   bugprone-narrowing-conversions,
-  readability-uppercase-literal-suffix,
+  readability*,
+  -readability-identifier-length,
   performance-move-const-arg,
 
 WarningsAsErrors: >

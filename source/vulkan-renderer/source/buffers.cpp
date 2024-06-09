@@ -36,7 +36,7 @@ auto AllocatedBuffer::allocate(
     );
 
     newBuffer.deviceAddress = 0;
-    if (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+    if ((bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0U)
     {
         VkBufferDeviceAddressInfo const addressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,

@@ -28,7 +28,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-#include <glm/gtx/quaternion.hpp>
 
 #include "initializers.hpp"
 #include "helpers.hpp"
@@ -138,8 +137,8 @@ void Engine::initWindow()
 
     m_uiPreferences.dpiScale = glm::round(
         glm::min<float>(
-            static_cast<float>(m_windowExtent.height) / 1080.0F
-            , static_cast<float>(m_windowExtent.width) / 1920.0F
+            static_cast<float>(m_windowExtent.height) / static_cast<float>(RESOLUTION_DEFAULT.height)
+            , static_cast<float>(m_windowExtent.width) / static_cast<float>(RESOLUTION_DEFAULT.width)
         )
     );
 
@@ -500,7 +499,7 @@ void Engine::initDescriptors()
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F}, {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
     };
 
-    m_globalDescriptorAllocator.initPool(m_device, 10, sizes, 0);
+    m_globalDescriptorAllocator.initPool(m_device, DESCRIPTOR_SET_CAPACITY_DEFAULT, sizes, (VkDescriptorPoolCreateFlags)0);
 
     { // Set up the image used by compute shaders.
         m_sceneTextureDescriptorLayout = DescriptorLayoutBuilder{}
@@ -604,9 +603,12 @@ void Engine::initWorld()
         {
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
             {
+                glm::vec3 const position{ static_cast<float>(x) * 20.0F, 1.0F, static_cast<float>(z) * 20.0F };
+                glm::vec3 const scale{ 10.0F, 2.0F, 10.0F };
+
                 m_meshInstances.originals.push_back(
-                    glm::translate(glm::vec3(x * 20.0, 1.0, z * 20.0))
-                    * glm::scale(glm::vec3(10.0, 2.0, 10.0))
+                    glm::translate(position) 
+                    * glm::scale(scale)
                 );
             }
         }
@@ -617,8 +619,12 @@ void Engine::initWorld()
         {
             for (int32_t z{ coordinateMin }; z <= coordinateMax; z++)
             {
+                glm::vec3 const position{ static_cast<float>(x), -4.0, static_cast<float>(z) };
+                glm::quat const orientation{ randomQuat() };
+                glm::vec3 const scale{ 0.2F };
+
                 m_meshInstances.originals.push_back(
-                    glm::translate(glm::vec3(x, -4.0, z)) * glm::toMat4(randomQuat()) * glm::scale(glm::vec3(0.2F))
+                    glm::translate(position) * glm::toMat4(orientation) * glm::scale(scale)
                 );
             }
         }
@@ -670,11 +676,12 @@ void Engine::initWorld()
     }
 
     { // Camera
+
         m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
             TStagedBuffer<gputypes::Camera>::allocate(
                 m_device
                 , m_allocator
-                , 20
+                , CAMERA_CAPACITY
                 , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
         );
@@ -688,7 +695,7 @@ void Engine::initWorld()
             TStagedBuffer<gputypes::Atmosphere>::allocate(
                 m_device
                 , m_allocator
-                , 1
+                , ATMOSPHERE_CAPACITY
                 , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
         );
@@ -717,7 +724,7 @@ void Engine::initDebug()
         TStagedBuffer<uint32_t>::allocate(
             m_device
             , m_allocator
-            , 1000
+            , DEBUGLINES_CAPACITY
             , VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         )
     );
@@ -725,7 +732,7 @@ void Engine::initDebug()
         TStagedBuffer<Vertex>::allocate(
             m_device
             , m_allocator
-            , 1000
+            , DEBUGLINES_CAPACITY
             , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         )
     );
@@ -834,6 +841,9 @@ void Engine::initImgui()
         }
         , &m_instance
     );
+
+    // This amount is recommended by ImGui to satisfy validation layers, even if a little wasteful
+    VkDeviceSize constexpr IMGUI_MIN_ALLOCATION_SIZE{ 1024ULL * 1024ULL };
     
     ImGui_ImplVulkan_InitInfo initInfo{
         .Instance = m_instance,
@@ -856,7 +866,7 @@ void Engine::initImgui()
         // Allocation/Debug
         .Allocator = nullptr,
         .CheckVkResultFn = CheckVkResult_Imgui,
-        .MinAllocationSize = 1024 * 1024,
+        .MinAllocationSize = IMGUI_MIN_ALLOCATION_SIZE,
     };
     m_imguiDescriptorPool = imguiDescriptorPool;
 
@@ -901,7 +911,8 @@ void Engine::resizeSwapchain()
     vkDeviceWaitIdle(m_device);
     cleanupSwapchain();
 
-    int32_t width{ 0 }, height{ 0 };
+    int32_t width{0};
+    int32_t height{0};
     glfwGetWindowSize(m_window, &width, &height);
     m_windowExtent.width = static_cast<uint32_t>(width);
     m_windowExtent.height = static_cast<uint32_t>(height);
@@ -953,15 +964,8 @@ void Engine::immediateSubmit(
 
     // 100 second timeout
     uint64_t constexpr SUBMIT_TIMEOUT_NANOSECONDS{ 100'000'000'000 };
-    CheckVkResult(
-        vkWaitForFences(
-            m_device
-            , 1
-            , &m_immFence
-            , true
-            , SUBMIT_TIMEOUT_NANOSECONDS
-        )
-    );
+    VkBool32 constexpr WAIT_ALL{ VK_TRUE };
+    CheckVkResult(vkWaitForFences(m_device, 1, &m_immFence, WAIT_ALL, SUBMIT_TIMEOUT_NANOSECONDS));
 }
 
 auto Engine::uploadMeshToGPU(std::span<uint32_t const> const indices, std::span<Vertex const> const vertices)
@@ -1084,18 +1088,11 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 
 void Engine::mainLoop()
 {
-    while (!glfwWindowShouldClose(m_window)) 
+    while (glfwWindowShouldClose(m_window) == 0)
     {
         glfwPollEvents();
 
-        if (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE)
-        {
-            m_bRender = false;
-        }
-        else
-        {
-            m_bRender = true;
-        }
+        m_bRender = glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) != GLFW_TRUE;
 
         static double previousTimeSeconds{ 0 };
 
@@ -1120,7 +1117,8 @@ void Engine::mainLoop()
 
             if (!m_bRender)
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                static std::chrono::milliseconds constexpr SLEEP_TIME{ 100 };
+                std::this_thread::sleep_for(SLEEP_TIME);
                 continue;
             }
 
@@ -1144,7 +1142,8 @@ void Engine::mainLoop()
     }
 }
 
-auto Engine::renderUI(VkDevice const device) -> bool
+// TODO: Break this method up to get rid of the NOLINT. It should be as pure as possible, with most of the UI implementation living outside of this source file. Considerations must be made for updating the scene drawing extents and all of engine's members.
+auto Engine::renderUI(VkDevice const device) -> bool // NOLINT(readability-function-cognitive-complexity)
 {
     if (m_uiReloadRequested)
     {
@@ -1275,13 +1274,7 @@ auto Engine::renderUI(VkDevice const device) -> bool
                 );
 
                 ImGui::Separator();
-                imguiStructureControls(
-                    m_sceneBounds
-                    , SceneBounds{
-                        .center{ glm::vec3(0.0, -4.0, 0.0) },
-                        .extent{ glm::vec3(40.0, 5.0, 40.0) }
-                    }
-                );
+                imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
 
                 ImGui::Separator();
                 ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
@@ -1480,7 +1473,7 @@ void Engine::tickWorld(
 
             m_atmosphereParameters.sunEulerAngles = glm::mod(
                 m_atmosphereParameters.sunEulerAngles
-                , glm::vec3(2.0 * glm::pi<float>())
+                , glm::vec3(glm::two_pi<float>())
             );
         }
     }
@@ -1519,6 +1512,8 @@ void Engine::draw()
     { // Copy cameras to gpu
         float const aspectRatio{ static_cast<float>(vkutil::aspectRatio(m_sceneRect.extent)) };
 
+        float const orthoDistanceFromCamera{ 5.0F };
+
         std::span<gputypes::Camera> cameras{ 
             m_camerasBuffer->mapValidStaged()
         };
@@ -1526,7 +1521,7 @@ void Engine::draw()
             m_useOrthographicProjection
             ? m_cameraParameters.toDeviceEquivalentOrthographic(
                 aspectRatio
-                , 5.0
+                , orthoDistanceFromCamera
             )
             : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
@@ -1591,10 +1586,12 @@ void Engine::draw()
                 };
                 if (sunCosine > 0.0)
                 { // Sunlight
+                    float constexpr SUNLIGHT_STRENGTH{ 0.5F };
+
                     directionalLights.push_back(
                         lights::makeDirectional(
                             glm::vec4(atmosphere.sunlightColor, 1.0)
-                            , 0.5
+                            , SUNLIGHT_STRENGTH
                             , m_atmosphereParameters.sunEulerAngles
                             , m_sceneBounds.center
                             , m_sceneBounds.extent
@@ -1603,27 +1600,23 @@ void Engine::draw()
                 }
 
                 float constexpr SUNSET_COSINE{ 0.06 };
+
                 if (sunCosine < SUNSET_COSINE)
                 { // Moonlight
                     float constexpr MOONRISE_LENGTH{ 0.08 };
+
                     float const moonlightStrength{
-                        0.1F * (sunCosine < SUNSET_COSINE - MOONRISE_LENGTH
-                                    ? 1.0F
-                                    : glm::abs(sunCosine - SUNSET_COSINE) / MOONRISE_LENGTH)
+                        0.1F * glm::clamp(0.0F, 1.0F, glm::abs(sunCosine - SUNSET_COSINE) / MOONRISE_LENGTH)
                     };
 
                     glm::vec4 constexpr MOONLIGHT_COLOR_RGBA{ 0.3, 0.4, 0.6, 1.0 };
-                    glm::vec3 constexpr MOONLIGHT_EULER_ANGLES{
-                        -1.5708
-                        , 0.0
-                        , 0.0
-                    };
+                    glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{ -glm::half_pi<float>(), 0.0F, 0.0F };
 
                     directionalLights.push_back(
                         lights::makeDirectional(
                             MOONLIGHT_COLOR_RGBA
                             , moonlightStrength
-                            , MOONLIGHT_EULER_ANGLES
+                            , STRAIGHT_DOWN_EULER_ANGLES
                             , m_sceneBounds.center
                             , m_sceneBounds.extent
                         )
@@ -1632,11 +1625,15 @@ void Engine::draw()
             }
             else
             {
+                glm::vec4 constexpr WHITE_RGBA{ 1.0F };
+                float constexpr STRENGTH{ 1.0F };
+                glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{ -glm::half_pi<float>(), 0.0F, 0.0F };
+
                 directionalLights.push_back(
                     lights::makeDirectional(
-                        glm::vec4(1.0)
-                        , 1.0
-                        , glm::vec3(-1.5708, 0.0, 0.0)
+                        WHITE_RGBA
+                        , STRENGTH
+                        , STRAIGHT_DOWN_EULER_ANGLES
                         , m_sceneBounds.center
                         , m_sceneBounds.extent
                     )

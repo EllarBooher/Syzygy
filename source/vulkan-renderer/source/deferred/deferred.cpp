@@ -67,10 +67,8 @@ static auto loadShader(
         validatePushConstant(loadResult.value(), expectedPushConstantSize);
         return loadResult.value();
     }
-    else
-    {
-        return ShaderObjectReflected::makeInvalid();
-    }
+
+    return ShaderObjectReflected::makeInvalid();
 }
 
 static auto loadShader(
@@ -98,10 +96,8 @@ static auto loadShader(
         validatePushConstant(loadResult.value(), rangeOverride.size);
         return loadResult.value();
     }
-    else
-    {
-        return ShaderObjectReflected::makeInvalid();
-    }
+
+    return ShaderObjectReflected::makeInvalid();
 }
 
 static auto createLayout(
@@ -284,13 +280,15 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         );
     }
 
-    size_t constexpr maxShadowMaps{ 10 };
+    uint32_t constexpr SHADOWMAP_SIZE{ 8192 };
+    size_t constexpr SHADOWMAP_COUNT{ 10 };
+
     m_shadowPassArray = ShadowPassArray::create(
         device
         , descriptorAllocator
         , allocator
-        , 8192
-        , maxShadowMaps
+        , SHADOWMAP_SIZE
+        , SHADOWMAP_COUNT
     ).value();
 
     { // GBuffer pipelines
@@ -844,10 +842,12 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_lightingPassPushConstant
         );
 
+        uint32_t constexpr COMPUTE_WORKGROUP_SIZE{ 16 };
+
         vkCmdDispatch(
             cmd
-            , std::ceil(drawRect.extent.width / 16.0)
-            , std::ceil(drawRect.extent.height / 16.0)
+            , computeDispatchCount(drawRect.extent.width, COMPUTE_WORKGROUP_SIZE)
+            , computeDispatchCount(drawRect.extent.height, COMPUTE_WORKGROUP_SIZE)
             , 1
         );
 
@@ -908,10 +908,12 @@ void DeferredShadingPipeline::recordDrawCommands(
             , &m_skyPassPushConstant
         );
 
+        uint32_t constexpr COMPUTE_WORKGROUP_SIZE{ 16 };
+
         vkCmdDispatch(
             cmd
-            , std::ceil(drawRect.extent.width / 16.0)
-            , std::ceil(drawRect.extent.height / 16.0)
+            , computeDispatchCount(drawRect.extent.width, COMPUTE_WORKGROUP_SIZE)
+            , computeDispatchCount(drawRect.extent.height, COMPUTE_WORKGROUP_SIZE)
             , 1
         );
 
