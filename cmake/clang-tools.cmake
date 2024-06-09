@@ -30,6 +30,7 @@ else()
 endif()
 
 set(CLANG_TIDY_PATH CACHE FILEPATH "The path of clang-tidy to use.")
+set(CLANG_TIDY_OPTIONS CACHE STRING "Additional options to pass to clang-tidy, i.e. -fix")
 
 if (CLANG_TIDY_ENABLE)
 	if (NOT CLANG_TIDY_PATH)
@@ -41,7 +42,7 @@ if (CLANG_TIDY_ENABLE)
 	endif()
 
 	if (CLANG_TIDY_PATH)
-		set(PATH_AND_OPTIONS ${CLANG_TIDY_PATH} -fix)
+		set(PATH_AND_OPTIONS ${CLANG_TIDY_PATH} ${CLANG_TIDY_OPTIONS})
 
 		message(STATUS "clang-tidy enabled - using ${PATH_AND_OPTIONS}")
 		set_property(
