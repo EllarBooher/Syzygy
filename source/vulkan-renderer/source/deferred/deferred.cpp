@@ -183,11 +183,13 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     { // Descriptor Sets
         m_drawImageLayout = DescriptorLayoutBuilder()
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , 1
-                , 0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , 1U
             )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE);
@@ -207,13 +209,15 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             m_drawImage = AllocatedImage::allocate(
                 allocator
                 , device
-                , drawImageExtent
-                , VK_FORMAT_R16G16B16A16_SFLOAT
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                | VK_IMAGE_USAGE_STORAGE_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                , AllocatedImage::AllocationParameters{
+                    .extent = drawImageExtent,
+                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                        | VK_IMAGE_USAGE_STORAGE_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                }
             ).value();
 
             VkDescriptorImageInfo const drawImageInfo{
@@ -265,11 +269,13 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         m_depthImageLayout = DescriptorLayoutBuilder()
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , m_depthImageImmutableSampler
-                , (VkDescriptorBindingFlags)0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , { m_depthImageImmutableSampler }
             )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE);
@@ -287,7 +293,11 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         device
         , descriptorAllocator
         , allocator
-        , SHADOWMAP_SIZE
+        , VkExtent3D{
+            .width = SHADOWMAP_SIZE,
+            .height = SHADOWMAP_SIZE,
+            .depth = 1,
+        }
         , SHADOWMAP_COUNT
     ).value();
 
@@ -393,61 +403,60 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     }
 }
 
-void setRasterizationShaderObjectState(
-    VkCommandBuffer const cmd
-    , VkRect2D const drawRect
-    , float const depthBias
-    , float const depthBiasSlope
-)
+namespace
 {
-    VkViewport const viewport{
-        .x = static_cast<float>(drawRect.offset.x),
-        .y = static_cast<float>(drawRect.offset.y),
-        .width = static_cast<float>(drawRect.extent.width),
-        .height = static_cast<float>(drawRect.extent.height),
-        .minDepth = 0.0F,
-        .maxDepth = 1.0F,
-    };
+    void setRasterizationShaderObjectState(
+        VkCommandBuffer const cmd
+        , VkRect2D const drawRect
+    )
+    {
+        VkViewport const viewport{
+            .x = static_cast<float>(drawRect.offset.x),
+            .y = static_cast<float>(drawRect.offset.y),
+            .width = static_cast<float>(drawRect.extent.width),
+            .height = static_cast<float>(drawRect.extent.height),
+            .minDepth = 0.0F,
+            .maxDepth = 1.0F,
+        };
 
-    vkCmdSetViewportWithCount(cmd, 1, &viewport);
+        vkCmdSetViewportWithCount(cmd, 1, &viewport);
 
-    VkRect2D const scissor{ drawRect };
+        VkRect2D const scissor{ drawRect };
 
-    vkCmdSetScissorWithCount(cmd, 1, &scissor);
+        vkCmdSetScissorWithCount(cmd, 1, &scissor);
 
-    vkCmdSetRasterizerDiscardEnable(cmd, VK_FALSE);
+        vkCmdSetRasterizerDiscardEnable(cmd, VK_FALSE);
 
-    VkColorBlendEquationEXT const colorBlendEquation{};
-    vkCmdSetColorBlendEquationEXT(cmd, 0, 1, &colorBlendEquation);
+        VkColorBlendEquationEXT const colorBlendEquation{};
+        vkCmdSetColorBlendEquationEXT(cmd, 0, 1, &colorBlendEquation);
 
-    // No vertex input state since we use buffer addresses
+        // No vertex input state since we use buffer addresses
 
-    vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_NONE);
+        vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_NONE);
 
-    vkCmdSetPrimitiveTopology(cmd, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    vkCmdSetPrimitiveRestartEnable(cmd, VK_FALSE);
-    vkCmdSetRasterizationSamplesEXT(cmd, VK_SAMPLE_COUNT_1_BIT);
+        vkCmdSetPrimitiveTopology(cmd, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        vkCmdSetPrimitiveRestartEnable(cmd, VK_FALSE);
+        vkCmdSetRasterizationSamplesEXT(cmd, VK_SAMPLE_COUNT_1_BIT);
 
-    VkSampleMask const sampleMask{ 0b1 };
-    vkCmdSetSampleMaskEXT(cmd, VK_SAMPLE_COUNT_1_BIT, &sampleMask);
+        VkSampleMask const sampleMask{ 0b1 };
+        vkCmdSetSampleMaskEXT(cmd, VK_SAMPLE_COUNT_1_BIT, &sampleMask);
 
-    vkCmdSetAlphaToCoverageEnableEXT(cmd, VK_FALSE);
+        vkCmdSetAlphaToCoverageEnableEXT(cmd, VK_FALSE);
 
-    vkCmdSetPolygonModeEXT(cmd, VK_POLYGON_MODE_FILL);
+        vkCmdSetPolygonModeEXT(cmd, VK_POLYGON_MODE_FILL);
 
-    vkCmdSetFrontFace(cmd, VK_FRONT_FACE_CLOCKWISE);
+        vkCmdSetFrontFace(cmd, VK_FRONT_FACE_CLOCKWISE);
 
-    vkCmdSetDepthWriteEnable(cmd, VK_TRUE);
+        vkCmdSetDepthWriteEnable(cmd, VK_TRUE);
 
-    vkCmdSetDepthTestEnable(cmd, VK_TRUE);
-    vkCmdSetDepthCompareOpEXT(cmd, VK_COMPARE_OP_GREATER);
+        vkCmdSetDepthTestEnable(cmd, VK_TRUE);
+        vkCmdSetDepthCompareOpEXT(cmd, VK_COMPARE_OP_GREATER);
 
-    vkCmdSetDepthBoundsTestEnable(cmd, VK_FALSE);
-    vkCmdSetDepthBiasEnableEXT(cmd, VK_FALSE);
+        vkCmdSetDepthBoundsTestEnable(cmd, VK_FALSE);
+        vkCmdSetDepthBiasEnableEXT(cmd, VK_FALSE);
 
-    //vkCmdSetDepthBias(cmd, depthBias, 0.0, depthBiasSlope);
-
-    vkCmdSetStencilTestEnable(cmd, VK_FALSE);
+        vkCmdSetStencilTestEnable(cmd, VK_FALSE);
+    }
 }
 
 void DeferredShadingPipeline::recordDrawCommands(
@@ -531,8 +540,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd
-            , m_parameters.shadowPassParameters.depthBiasConstant
-            , m_parameters.shadowPassParameters.depthBiasSlope
+            , m_parameters.shadowPassParameters
             , m_directionalLights->readValidStaged()
             , m_spotLights->readValidStaged()
         );
@@ -562,8 +570,6 @@ void DeferredShadingPipeline::recordDrawCommands(
         setRasterizationShaderObjectState(
             cmd
             , VkRect2D{ .extent{ drawRect.extent } }
-            , m_parameters.shadowPassParameters.depthBiasConstant
-            , m_parameters.shadowPassParameters.depthBiasSlope
         );
 
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);

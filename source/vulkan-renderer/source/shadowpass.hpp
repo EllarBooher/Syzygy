@@ -5,6 +5,11 @@
 #include "pipelines.hpp"
 #include "images.hpp"
 
+struct ShadowPassParameters
+{
+    float depthBiasConstant{ 2.00f };
+    float depthBiasSlope{ -1.75f };
+};
 
 // Handles the resources for an array of depth maps, 
 // which share a sampler and should be accessed via a descriptor array.
@@ -17,7 +22,7 @@ public:
         VkDevice device
         , DescriptorAllocator& descriptorAllocator
         , VmaAllocator allocator
-        , uint32_t shadowMapSize
+        , VkExtent3D shadowmapExtent
         , size_t capacity
     );
 
@@ -25,8 +30,7 @@ public:
     // Calling this twice overwrites the previous results.
     void recordInitialize(
         VkCommandBuffer cmd
-        , float depthBias
-        , float depthBiasSlope
+        , ShadowPassParameters parameters
         , std::span<gputypes::LightDirectional const> directionalLights
         , std::span<gputypes::LightSpot const> spotLights
     );

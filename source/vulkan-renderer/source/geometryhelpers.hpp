@@ -25,9 +25,14 @@ namespace geometry
 {
     typedef std::array<glm::vec3, 8> AABBVertices;
 
+    struct Plane
+    {
+        glm::vec3 point;
+        glm::vec3 normal;
+    };
+
     glm::vec3 projectPointOnPlane(
-        glm::vec3 planePoint
-        , glm::vec3 planeNormal
+        Plane plane
         , glm::vec3 point
     );
     
@@ -49,12 +54,15 @@ namespace geometry
         , glm::vec3 center
     );
 
-    glm::mat4x4 projectionVk(
-        float fov
-        , float aspectRatio
-        , float near
-        , float far
-    );
+    struct PerspectiveProjectionParameters
+    {
+        float fov_y;
+        float aspectRatio;
+        float near;
+        float far;
+    };
+
+    glm::mat4x4 projectionVk(PerspectiveProjectionParameters parameters);
 
     glm::mat4x4 projectionOrthoVk(
         glm::vec3 min

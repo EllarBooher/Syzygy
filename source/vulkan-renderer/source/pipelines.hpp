@@ -250,10 +250,15 @@ private:
 class DebugLineGraphicsPipeline
 {
 public:
+    struct ImageFormats
+    {
+        VkFormat color;
+        VkFormat depth;
+    };
+
     DebugLineGraphicsPipeline(
         VkDevice device
-        , VkFormat colorAttachmentFormat
-        , VkFormat depthAttachmentFormat
+        , ImageFormats formats
     );
 
     DrawResultsGraphics recordDrawCommands(

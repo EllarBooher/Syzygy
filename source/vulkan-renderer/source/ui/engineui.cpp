@@ -17,14 +17,13 @@
 #include "propertytable.hpp"
 
 void imguiPerformanceWindow(
-    std::span<double const> const fpsValues
-    , double const averageFPS
-    , size_t const currentFrame
-    , float& targetFPS)
+    PerformanceValues const values
+    , float& targetFPS
+)
 {
     if (ImGui::Begin("Performance Information"))
     {
-        ImGui::Text("%s", fmt::format("FPS: {:.1f}", averageFPS).c_str());
+        ImGui::Text("%s", fmt::format("FPS: {:.1f}", values.averageFPS).c_str());
         float const minFPS{ 10.0 };
         float const maxFPS{ 1000.0 };
         ImGui::DragScalar(
@@ -53,17 +52,17 @@ void imguiPerformanceWindow(
             double constexpr DISPLAYED_FPS_MIN{ 0.0 };
             double constexpr DISPLAYED_FPS_MAX{ 320.0 };
 
-            ImPlot::SetupAxesLimits(0, static_cast<double>(fpsValues.size()), DISPLAYED_FPS_MIN, DISPLAYED_FPS_MAX);
+            ImPlot::SetupAxesLimits(0, static_cast<double>(values.samplesFPS.size()), DISPLAYED_FPS_MIN, DISPLAYED_FPS_MAX);
 
             ImPlot::PlotLine(
                 "##fpsValues"
-                , fpsValues.data()
-                , static_cast<int32_t>(fpsValues.size())
+                , values.samplesFPS.data()
+                , static_cast<int32_t>(values.samplesFPS.size())
             );
 
             ImPlot::PlotInfLines(
                 "##current"
-                , &currentFrame
+                , &values.currentFrame
                 , 1
             );
             
@@ -216,13 +215,13 @@ auto renderHUD(UIPreferences &preferences) -> HUDState
     return hud;
 }
 
-auto buildDefaultMultiWindowLayout(ImVec2 const pos, ImVec2 const size, ImGuiID const parentNode) -> DockingLayout
+auto buildDefaultMultiWindowLayout(UIRectangle const workArea, ImGuiID const parentNode) -> DockingLayout
 {
     ImGui::DockBuilderAddNode(parentNode);
 
     // Set the size and position:
-    ImGui::DockBuilderSetNodeSize(parentNode, size);
-    ImGui::DockBuilderSetNodePos(parentNode, pos);
+    ImGui::DockBuilderSetNodeSize(parentNode, workArea.size());
+    ImGui::DockBuilderSetNodePos(parentNode, workArea.pos());
 
     ImGuiID parentID{ parentNode };
 

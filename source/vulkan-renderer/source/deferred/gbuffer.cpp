@@ -22,11 +22,13 @@ auto GBuffer::create(
             AllocatedImage::allocate(
                 allocator
                 , device
-                , extent
-                , VK_FORMAT_R16G16B16A16_SFLOAT
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , VK_IMAGE_USAGE_SAMPLED_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                , AllocatedImage::AllocationParameters{
+                    .extent = extent,
+                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                }
             )
         };
         if (!createDiffuseResult.has_value())
@@ -42,11 +44,13 @@ auto GBuffer::create(
             AllocatedImage::allocate(
                 allocator
                 , device
-                , extent
-                , VK_FORMAT_R16G16B16A16_SFLOAT
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , VK_IMAGE_USAGE_SAMPLED_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                , AllocatedImage::AllocationParameters{
+                    .extent = extent,
+                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT 
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                }
             )
         };
         if (!createSpecularResult.has_value())
@@ -62,11 +66,13 @@ auto GBuffer::create(
             AllocatedImage::allocate(
                 allocator
                 , device
-                , extent
-                , VK_FORMAT_R16G16B16A16_SFLOAT
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , VK_IMAGE_USAGE_SAMPLED_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                , AllocatedImage::AllocationParameters{
+                    .extent = extent,
+                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                }
             )
         };
         if (!createNormalResult.has_value())
@@ -82,11 +88,13 @@ auto GBuffer::create(
             AllocatedImage::allocate(
                 allocator
                 , device
-                , extent
-                , VK_FORMAT_R32G32B32A32_SFLOAT
-                , VK_IMAGE_ASPECT_COLOR_BIT
-                , VK_IMAGE_USAGE_SAMPLED_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                , AllocatedImage::AllocationParameters{
+                    .extent = extent,
+                    .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                }
             )
         };
         if (!createWorldPositionResult.has_value())
@@ -134,32 +142,40 @@ auto GBuffer::create(
     VkDescriptorSetLayout const descriptorLayout{
         DescriptorLayoutBuilder{}
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , diffuseColorSampler
-                , (VkDescriptorBindingFlags)0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , { diffuseColorSampler }
             )
             .addBinding(
-                1
-                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , specularColorSampler
-                , (VkDescriptorBindingFlags)0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 1,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , { specularColorSampler }
             )
             .addBinding(
-                2
-                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , normalSampler
-                , (VkDescriptorBindingFlags)0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 2,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , { normalSampler }
             )
             .addBinding(
-                3
-                , VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                , VK_SHADER_STAGE_COMPUTE_BIT
-                , worldPositionSampler
-                , (VkDescriptorBindingFlags)0
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 3,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
+                , { worldPositionSampler }
             )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE)

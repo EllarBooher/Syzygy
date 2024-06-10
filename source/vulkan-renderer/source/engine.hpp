@@ -51,10 +51,13 @@ private:
 
     void initVulkan();
 
-    void tickWorld(
-        double totalTime
-        , double deltaTimeSeconds
-    );
+    struct TickTiming
+    {
+        double timeElapsed;
+        double deltaTimeSeconds;
+    };
+
+    void tickWorld(TickTiming timing);
     
     bool renderUI(VkDevice device);
     void draw();

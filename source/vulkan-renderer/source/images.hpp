@@ -86,12 +86,17 @@ struct AllocatedImage {
         return vkutil::aspectRatio(extent2D());
     }
 
+    struct AllocationParameters
+    {
+        VkExtent3D extent;
+        VkFormat format;
+        VkImageUsageFlags usageFlags;
+        VkImageAspectFlags viewFlags;
+    };
+
     static std::optional<AllocatedImage> allocate(
         VmaAllocator allocator
         , VkDevice device
-        , VkExtent3D extent
-        , VkFormat format
-        , VkImageAspectFlags viewFlags
-        , VkImageUsageFlags usageMask
+        , AllocationParameters parameters
     );
 };

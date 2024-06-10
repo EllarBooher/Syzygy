@@ -206,10 +206,7 @@ auto vkutil::aspectRatio(VkExtent2D const extent) -> double
 auto AllocatedImage::allocate(
     VmaAllocator const allocator,
     VkDevice const device,
-    VkExtent3D const extent,
-    VkFormat const format,
-    VkImageAspectFlags const viewFlags,
-    VkImageUsageFlags const usageMask
+    AllocationParameters const parameters
 ) -> std::optional<AllocatedImage>
 {
     AllocatedImage image{
@@ -217,15 +214,15 @@ auto AllocatedImage::allocate(
         .image = VK_NULL_HANDLE,
         .imageView = VK_NULL_HANDLE,
 
-        .imageExtent = extent,
-        .imageFormat = format
+        .imageExtent = parameters.extent,
+        .imageFormat = parameters.format
     };
 
     VkImageCreateInfo const imageInfo{ 
         vkinit::imageCreateInfo(
             image.imageFormat
             , VK_IMAGE_LAYOUT_UNDEFINED
-            , usageMask
+            , parameters.usageFlags
             , image.imageExtent
         ) 
     };
@@ -255,7 +252,7 @@ auto AllocatedImage::allocate(
         vkinit::imageViewCreateInfo(
             image.imageFormat
             , image.image
-            , viewFlags
+            , parameters.viewFlags
         )
     };
 

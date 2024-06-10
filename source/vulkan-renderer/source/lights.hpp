@@ -53,7 +53,12 @@ namespace lights
         return gputypes::LightSpot{
             .color = color ,
             .forward = glm::vec4{ geometry::forwardFromEulers(eulerAngles), 0.0 },
-            .projection = geometry::projectionVk(verticalFOV, horizontalScale, near, far ),
+            .projection = geometry::projectionVk(geometry::PerspectiveProjectionParameters{
+                .fov_y = verticalFOV,
+                .aspectRatio = horizontalScale,
+                .near = near,
+                .far = far,
+            }),
             .view = geometry::viewVk(position, eulerAngles) ,
             .position = glm::vec4(position, 1.0) ,
             .strength = strength ,

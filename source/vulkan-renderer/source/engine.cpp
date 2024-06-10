@@ -325,40 +325,50 @@ void Engine::initDrawTargets()
 {
     // Initialize the image used for rendering outside of the swapchain.
 
+    VkExtent3D constexpr RESERVED_IMAGE_EXTENT{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 };
+    VkFormat constexpr COLOR_FORMAT{ VK_FORMAT_R16G16B16A16_SFLOAT };
+    VkImageAspectFlags constexpr COLOR_ASPECTS{ VK_IMAGE_ASPECT_COLOR_BIT };
+
     m_sceneColorTexture = AllocatedImage::allocate(
         m_allocator
         , m_device
-        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
-        , VK_FORMAT_R16G16B16A16_SFLOAT
-        , VK_IMAGE_ASPECT_COLOR_BIT
-        , VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-        | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g. ImGui
-        | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
-        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics passes
-        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy to from other render passes
+        , AllocatedImage::AllocationParameters{
+            .extent = RESERVED_IMAGE_EXTENT,
+            .format = COLOR_FORMAT,
+            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g. ImGui
+                | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
+                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics passes
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT, // copy to from other render passes
+            .viewFlags = COLOR_ASPECTS,
+        }
     ).value();
 
     m_drawImage = AllocatedImage::allocate(
         m_allocator
         , m_device
-        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
-        , VK_FORMAT_R16G16B16A16_SFLOAT
-        , VK_IMAGE_ASPECT_COLOR_BIT
-        , VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
-        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-        | VK_IMAGE_USAGE_STORAGE_BIT
-        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // during render passes
+        , AllocatedImage::AllocationParameters{
+            .extent = RESERVED_IMAGE_EXTENT,
+            .format = COLOR_FORMAT,
+            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_STORAGE_BIT
+                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render passes
+            .viewFlags = COLOR_ASPECTS,
+        }
     ).value(); //TODO: handle failed case
 
     m_sceneDepthTexture = AllocatedImage::allocate(
         m_allocator
         , m_device
-        , VkExtent3D{ MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1 }
-        , VK_FORMAT_D32_SFLOAT
-        , VK_IMAGE_ASPECT_DEPTH_BIT
-        , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-        | VK_IMAGE_USAGE_SAMPLED_BIT
-        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+        , AllocatedImage::AllocationParameters{
+            .extent = RESERVED_IMAGE_EXTENT,
+            .format = VK_FORMAT_D32_SFLOAT,
+            .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                | VK_IMAGE_USAGE_SAMPLED_BIT
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
+        }
     ).value();
 }
 
@@ -504,11 +514,13 @@ void Engine::initDescriptors()
     { // Set up the image used by compute shaders.
         m_sceneTextureDescriptorLayout = DescriptorLayoutBuilder{}
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-                , VK_SHADER_STAGE_COMPUTE_BIT
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
                 , 1
-                , (VkDescriptorBindingFlags)0
             )
             .build(m_device, 0)
             .value_or(VK_NULL_HANDLE); //TODO: handle
@@ -717,8 +729,10 @@ void Engine::initDebug()
 {
     m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
         m_device
-        , m_drawImage.imageFormat
-        , m_sceneDepthTexture.imageFormat
+        , DebugLineGraphicsPipeline::ImageFormats{
+            .color = m_sceneColorTexture.imageFormat,
+            .depth = m_sceneDepthTexture.imageFormat,
+        }
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
@@ -1099,19 +1113,22 @@ void Engine::mainLoop()
         if (glfwGetTime() >= previousTimeSeconds + 1.0 / m_targetFPS)
         {
             double const currentTimeSeconds{ glfwGetTime() };
-            double const deltaTimeSeconds{ 
-                currentTimeSeconds - previousTimeSeconds 
-            };
 
             m_debugLines.clear();
 
-            tickWorld(currentTimeSeconds, deltaTimeSeconds);
+            TickTiming const tickTiming{
+                .timeElapsed = currentTimeSeconds,
+                .deltaTimeSeconds = currentTimeSeconds - previousTimeSeconds,
+            };
+
+            tickWorld(tickTiming);
 #if VKRENDERER_COMPILE_WITH_TESTING
             testDebugLines(currentTimeSeconds, m_debugLines);
 #endif
+            // TODO: this is suspicious, should it be set to the current time? Do we want to skip time spent in tickWorld?
             previousTimeSeconds = glfwGetTime();
 
-            double const instantFPS{1.0F / deltaTimeSeconds};
+            double const instantFPS{1.0F / tickTiming.deltaTimeSeconds};
 
             m_fpsValues.write(instantFPS);
 
@@ -1252,8 +1269,7 @@ auto Engine::renderUI(VkDevice const device) -> bool // NOLINT(readability-funct
         if (hud.resetLayoutRequested && hud.dockspaceID != 0)
         {
             dockingLayout = buildDefaultMultiWindowLayout(
-                hud.workArea.pos()
-                , hud.workArea.size()
+                hud.workArea
                 , hud.dockspaceID
             );
             skipFrame = true;
@@ -1338,9 +1354,11 @@ auto Engine::renderUI(VkDevice const device) -> bool // NOLINT(readability-funct
             }
 
             imguiPerformanceWindow(
-                m_fpsValues.values()
-                , m_fpsValues.average()
-                , m_fpsValues.current()
+                PerformanceValues{
+                    .samplesFPS = m_fpsValues.values(),
+                    .averageFPS = m_fpsValues.average(),
+                    .currentFrame = m_fpsValues.current(),
+                }
                 , m_targetFPS
             );
         }
@@ -1392,10 +1410,7 @@ auto Engine::renderUI(VkDevice const device) -> bool // NOLINT(readability-funct
     return skipFrame;
 }
 
-void Engine::tickWorld(
-    double const totalTime
-    , double const deltaTimeSeconds
-)
+void Engine::tickWorld(TickTiming timing)
 {
     std::span<glm::mat4x4> const models{ 
         m_meshInstances.models->mapValidStaged() 
@@ -1423,7 +1438,7 @@ void Engine::tickWorld(
                 (position.x - (-10) + position.z - (-10)) / 3.1415
             };
             
-            double const y{ std::sin(totalTime + timeOffset) };
+            double const y{ std::sin(timing.timeElapsed + timeOffset) };
 
             glm::mat4x4 const translation{
                 glm::translate(glm::vec3(0.0, y, 0.0))
@@ -1468,7 +1483,7 @@ void Engine::tickWorld(
             }
             else
             {
-                m_atmosphereParameters.sunEulerAngles.x += static_cast<float>(deltaTimeSeconds) * atmosphereAnimation.animationSpeed;
+                m_atmosphereParameters.sunEulerAngles.x += static_cast<float>(timing.deltaTimeSeconds) * atmosphereAnimation.animationSpeed;
             }
 
             m_atmosphereParameters.sunEulerAngles = glm::mod(

@@ -90,8 +90,7 @@ struct DockingLayout
 // This also may break layouts, if windows have been moved or docked, 
 // since all new IDs are generated.
 DockingLayout buildDefaultMultiWindowLayout(
-    ImVec2 pos
-    , ImVec2 size
+    UIRectangle workArea
     , ImGuiID parentNode
 );
 
@@ -114,9 +113,16 @@ void imguiRenderingSelection(
     RenderingPipelines& currentActivePipeline
 );
 
+struct PerformanceValues
+{
+    std::span<double const> samplesFPS;
+    double averageFPS;
+
+    // Used to draw a vertical line indicating the current frame
+    size_t currentFrame;
+};
+
 void imguiPerformanceWindow(
-    std::span<double const> fpsValues
-    , double averageFPS
-    , size_t currentFrame
+    PerformanceValues values
     , float& targetFPS
 );

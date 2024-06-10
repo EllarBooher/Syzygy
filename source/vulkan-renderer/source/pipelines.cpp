@@ -399,8 +399,7 @@ void ComputeCollectionPipeline::cleanup(VkDevice const device)
 
 DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 	VkDevice const device
-	, VkFormat const colorAttachmentFormat
-	, VkFormat const depthAttachmentFormat
+	, ImageFormats const formats
 )
 {
 	ShaderModuleReflected const vertexShader{ 
@@ -481,8 +480,8 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 	pipelineBuilder.setMultisamplingNone();
 	pipelineBuilder.enableDepthTest(true, VK_COMPARE_OP_ALWAYS);
 
-	pipelineBuilder.setColorAttachment(colorAttachmentFormat);
-	pipelineBuilder.setDepthFormat(depthAttachmentFormat);
+	pipelineBuilder.setColorAttachment(formats.color);
+	pipelineBuilder.setDepthFormat(formats.depth);
 
 	m_vertexShader = vertexShader;
 	m_fragmentShader = fragmentShader;

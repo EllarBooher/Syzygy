@@ -5,28 +5,23 @@
 
 struct DescriptorLayoutBuilder
 {
+	struct AddBindingParameters {
+		uint32_t binding;
+		VkDescriptorType type;
+		VkShaderStageFlags stageMask;
+		VkDescriptorBindingFlags bindingFlags;
+	};
+
+	// Adds an additional binding that will be built.
 	DescriptorLayoutBuilder& addBinding(
-		uint32_t binding
-		, VkDescriptorType type
-		, VkShaderStageFlags stageMask
+		AddBindingParameters parameters
 		, uint32_t count
-		, VkDescriptorBindingFlags flags
 	);
 
+	// Adds an additional binding that will be built. Infers the count from the length of samplers.
 	DescriptorLayoutBuilder& addBinding(
-		uint32_t binding
-		, VkDescriptorType type
-		, VkShaderStageFlags stageMask
-		, std::span<VkSampler const> samplers
-		, VkDescriptorBindingFlags flags
-	);
-
-	DescriptorLayoutBuilder& addBinding(
-		uint32_t binding
-		, VkDescriptorType type
-		, VkShaderStageFlags stageMask
-		, VkSampler sampler
-		, VkDescriptorBindingFlags flags
+		AddBindingParameters parameters
+		, std::vector<VkSampler> samplers
 	);
 
 	void clear();

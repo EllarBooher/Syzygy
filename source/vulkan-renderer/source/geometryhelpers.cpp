@@ -6,11 +6,11 @@
 
 #include "geometrystatics.hpp"
 
-auto geometry::projectPointOnPlane(glm::vec3 const planePoint, glm::vec3 const planeNormal, glm::vec3 const point)
+auto geometry::projectPointOnPlane(Plane const plane, glm::vec3 const point)
     -> glm::vec3
 {
-    glm::vec3 const toPoint{ point - planePoint };
-    glm::vec3 const projection{ glm::dot(toPoint, planeNormal) * planeNormal };
+    glm::vec3 const toPoint{ point - plane.point };
+    glm::vec3 const projection{ glm::dot(toPoint, plane.normal) * plane.normal };
 
     return projection + point;
 }
@@ -54,14 +54,14 @@ auto geometry::lookAtVkSafe(glm::vec3 const eye, glm::vec3 const center) -> glm:
     );
 }
 
-auto geometry::projectionVk(float const fov, float const aspectRatio, float const near, float const far) -> glm::mat4x4
+auto geometry::projectionVk(PerspectiveProjectionParameters const parameters) -> glm::mat4x4
 {
-    float const swappedNear{ far };
-    float const swappedFar{ near };
+    float const swappedNear{ parameters.far };
+    float const swappedFar{ parameters.near };
 
     return glm::perspectiveLH_ZO(
-        glm::radians(fov)
-        , aspectRatio
+        glm::radians(parameters.fov_y)
+        , parameters.aspectRatio
         , swappedNear
         , swappedFar
     );
@@ -115,8 +115,10 @@ auto geometry::projectionOrthoAABBVk(
         glm::vec3 const vertexViewSpace{ view * glm::vec4(vertex,1.0) };
         glm::vec3 const projected{ 
             geometry::projectPointOnPlane(
-                centerViewSpace
-                , forwardViewSpace
+                Plane{
+                    .point = centerViewSpace,
+                    .normal = forwardViewSpace,
+                }
                 , vertexViewSpace
             )
         };

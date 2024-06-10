@@ -7,7 +7,7 @@ auto ShadowPassArray::create(
     VkDevice const device,
     DescriptorAllocator &descriptorAllocator,
     VmaAllocator const allocator,
-    uint32_t const shadowMapSize,
+    VkExtent3D const shadowmapExtent,
     size_t const capacity
 ) -> std::optional<ShadowPassArray>
 {
@@ -46,12 +46,14 @@ auto ShadowPassArray::create(
         std::optional<VkDescriptorSetLayout> buildResult{
             DescriptorLayoutBuilder{}
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_SAMPLER
-                , VK_SHADER_STAGE_FRAGMENT_BIT
-                | VK_SHADER_STAGE_COMPUTE_BIT
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
+                        | VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                }
                 , immutableSamplers
-                , 0
             )
             .build(device, 0)
         };
@@ -74,24 +76,20 @@ auto ShadowPassArray::create(
     }
 
     { // shadow map textures
-        VkExtent3D const shadowmapExtent{
-            .width = shadowMapSize ,
-            .height = shadowMapSize ,
-            .depth = 1,
-        };
-
         for (size_t i{ 0 }; i < capacity; i++)
         {
             std::optional<AllocatedImage> imageResult{
                 AllocatedImage::allocate(
                     allocator
                     , device
-                    , shadowmapExtent
-                    , VK_FORMAT_D32_SFLOAT
-                    , VK_IMAGE_ASPECT_DEPTH_BIT
-                    , VK_IMAGE_USAGE_SAMPLED_BIT
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                    | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    , AllocatedImage::AllocationParameters{
+                        .extent = shadowmapExtent,
+                        .format = VK_FORMAT_D32_SFLOAT,
+                        .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                            | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                        .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
+                    }
                 )
             };
             if (!imageResult.has_value())
@@ -108,12 +106,14 @@ auto ShadowPassArray::create(
         std::optional<VkDescriptorSetLayout> buildResult{
             DescriptorLayoutBuilder{}
             .addBinding(
-                0
-                , VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
-                , VK_SHADER_STAGE_FRAGMENT_BIT 
-                | VK_SHADER_STAGE_COMPUTE_BIT
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
+                        | VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+                }
                 , capacity
-                , VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
             )
             .build(device, 0)
         };
@@ -176,14 +176,13 @@ auto ShadowPassArray::create(
 
 void ShadowPassArray::recordInitialize(
     VkCommandBuffer const cmd
-    , float const depthBias
-    , float const depthBiasSlope
+    , ShadowPassParameters parameters
     , std::span<gputypes::LightDirectional const> const directionalLights
     , std::span<gputypes::LightSpot const> const spotLights
 )
 {
-    m_depthBias = depthBias;
-    m_depthBiasSlope = depthBiasSlope;
+    m_depthBias = parameters.depthBiasConstant;
+    m_depthBiasSlope = parameters.depthBiasSlope;
 
     { 
         // Copy the projection * view matrices that give 

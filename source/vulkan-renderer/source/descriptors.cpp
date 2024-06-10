@@ -2,25 +2,22 @@
 #include "helpers.hpp"
 
 auto DescriptorLayoutBuilder::addBinding(
-    uint32_t const binding,
-    VkDescriptorType const type,
-    VkShaderStageFlags const stageMask,
-    uint32_t const count,
-    VkDescriptorBindingFlags const flags
+    AddBindingParameters const parameters,
+    uint32_t const count
 ) -> DescriptorLayoutBuilder &
 {
 	VkDescriptorSetLayoutBinding const newBinding{
-		.binding = binding,
-		.descriptorType = type,
+		.binding = parameters.binding,
+		.descriptorType = parameters.type,
 		.descriptorCount = count,
-		.stageFlags = stageMask,
+		.stageFlags = parameters.stageMask,
 		.pImmutableSamplers = nullptr,
 	};
 
 	m_bindings.push_back(
 		Binding{
 			.binding = newBinding,
-			.flags = flags,
+			.flags = parameters.bindingFlags,
 		}
 	);
 
@@ -28,50 +25,30 @@ auto DescriptorLayoutBuilder::addBinding(
 }
 
 auto DescriptorLayoutBuilder::addBinding(
-    uint32_t const binding,
-    VkDescriptorType const type,
-    VkShaderStageFlags const stageMask,
-    std::span<VkSampler const> const samplers,
-    VkDescriptorBindingFlags const flags
+	AddBindingParameters const parameters,
+    std::vector<VkSampler> samplers
 ) -> DescriptorLayoutBuilder &
 {
-	// We leave data uninitialized until layout creation time to avoid self 
-	// referencing.
+	// We leave data uninitialized until layout creation time.
+	// This keeps the immutable samplers in alive in a managed container,
+	// while avoiding carrying self-referential pointers here.
 	VkDescriptorSetLayoutBinding const newBinding{
-		.binding = binding,
-		.descriptorType = type,
+		.binding = parameters.binding,
+		.descriptorType = parameters.type,
 		.descriptorCount = 0,
-		.stageFlags = stageMask,
+		.stageFlags = parameters.stageMask,
 		.pImmutableSamplers = nullptr,
 	};
 
 	m_bindings.push_back(
 		Binding{
-			.immutableSamplers = std::vector<VkSampler>{ samplers.begin(), samplers.end() },
+			.immutableSamplers = std::move(samplers),
 			.binding = newBinding,
-			.flags = flags,
+			.flags = parameters.bindingFlags,
 		}
 	);
 
 	return *this;
-}
-
-auto DescriptorLayoutBuilder::addBinding(
-    uint32_t const binding,
-    VkDescriptorType const type,
-    VkShaderStageFlags const stageMask,
-    VkSampler const sampler,
-    VkDescriptorBindingFlags const flags
-) -> DescriptorLayoutBuilder &
-{
-	std::array<VkSampler, 1> const samplers{ sampler };
-	return addBinding(
-		binding
-		, type
-		, stageMask
-		, samplers
-		, flags
-	);
 }
 
 void DescriptorLayoutBuilder::clear()
@@ -89,8 +66,8 @@ auto DescriptorLayoutBuilder::build(VkDevice const device, VkDescriptorSetLayout
 	{
 		VkDescriptorSetLayoutBinding binding{ inBinding.binding };
 
-                if (!inBinding.immutableSamplers.empty())
-                {
+        if (!inBinding.immutableSamplers.empty())
+        {
 			binding.descriptorCount = inBinding.immutableSamplers.size();
 			binding.pImmutableSamplers = inBinding.immutableSamplers.data();
 		}

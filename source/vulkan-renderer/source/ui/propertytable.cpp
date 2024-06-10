@@ -300,6 +300,8 @@ auto PropertyTable::rowText(std::string const &name, std::string &value, std::st
     return *this;
 }
 
+// NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix up the parameters, since name is first across all Property table row methods.
+
 auto PropertyTable::rowReadOnlyText(std::string const &name, std::string const &value) -> PropertyTable &
 {
     if (!Self::rowBegin(name))
@@ -315,6 +317,8 @@ auto PropertyTable::rowReadOnlyText(std::string const &name, std::string const &
 
     return *this;
 }
+
+// NOLINTEND(bugprone-easily-swappable-parameters)
 
 auto PropertyTable::rowInteger(
     std::string const &name, int32_t &value, int32_t const &resetValue, PropertySliderBehavior const behavior

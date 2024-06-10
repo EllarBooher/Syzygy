@@ -233,7 +233,14 @@ struct CameraParameters {
     // Projects from camera space to clip space
     glm::mat4 projection(float const aspectRatio) const
     {
-        return geometry::projectionVk(fov, aspectRatio, near, far);
+        return geometry::projectionVk(
+            geometry::PerspectiveProjectionParameters{
+                .fov_y = fov,
+                .aspectRatio = aspectRatio,
+                .near = near,
+                .far = far,
+            }
+        );
     }
 
     // Projects from camera space to clip space
@@ -262,10 +269,4 @@ struct CameraParameters {
     {
         return projection(aspectRatio) * view();
     }
-};
-
-struct ShadowPassParameters
-{
-    float depthBiasConstant{ 2.00f };
-    float depthBiasSlope{ -1.75f };
 };
