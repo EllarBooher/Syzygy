@@ -177,10 +177,10 @@ auto StagedBuffer::allocate(
     // We assume the allocation went correctly.
     // TODO: verify where these buffers allocated, and handle if they fail
 
-    return StagedBuffer(
+    return {
         std::move(deviceBuffer)
         , std::move(stagingBuffer)
-    );
+    };
 }
 
 void StagedBuffer::recordTotalCopyBarrier(

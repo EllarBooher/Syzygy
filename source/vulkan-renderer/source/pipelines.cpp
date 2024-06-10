@@ -256,18 +256,16 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
 			// to simplify the offset math.
 			// Host side, we write to a subset of this buffer, then only copy 
 			// the necessary range to the device.
-			m_shaderPushConstants.push_back(
-				std::vector<uint8_t>(pushConstant.type.paddedSizeBytes, 0)
-			);
+                        m_shaderPushConstants.emplace_back(pushConstant.type.paddedSizeBytes, 0);
 
-			ranges.push_back(
+                        ranges.push_back(
 				pushConstant.totalRange(VK_SHADER_STAGE_COMPUTE_BIT)
 			);
 		}
 		else
 		{
-			m_shaderPushConstants.push_back({});
-		}
+                    m_shaderPushConstants.emplace_back();
+                }
 
 		m_shaders.push_back(
 			shader

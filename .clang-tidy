@@ -31,7 +31,7 @@ Checks: >
   -*,
   bugprone-*,
   clang-analyzer-*,
-  modernize-use-trailing-return-type,
+  modernize-*,
   performance-*,
   readability*,
   -readability-identifier-length,

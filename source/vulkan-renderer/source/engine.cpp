@@ -585,12 +585,7 @@ auto randomQuat() -> glm::quat
         glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv)) 
     };
 
-    return glm::quat(
-        s * uv.y
-        , xy.x
-        , xy.y
-        , s * uv.x
-    );
+    return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
 void Engine::initWorld()
