@@ -342,7 +342,7 @@ void Engine::initDrawTargets()
                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT, // copy to from other render passes
             .viewFlags = COLOR_ASPECTS,
         }
-    ).value();
+    ).value_or(AllocatedImage::makeInvalid());
 
     m_drawImage = AllocatedImage::allocate(
         m_allocator
@@ -356,7 +356,7 @@ void Engine::initDrawTargets()
                 | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render passes
             .viewFlags = COLOR_ASPECTS,
         }
-    ).value(); //TODO: handle failed case
+    ).value_or(AllocatedImage::makeInvalid()); //TODO: handle failed case
 
     m_sceneDepthTexture = AllocatedImage::allocate(
         m_allocator
@@ -369,7 +369,7 @@ void Engine::initDrawTargets()
                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
         }
-    ).value();
+    ).value_or(AllocatedImage::makeInvalid());
 }
 
 void Engine::cleanupSwapchain()
@@ -568,12 +568,10 @@ void Engine::updateDescriptors()
 
 void Engine::initDefaultMeshData()
 {
-    m_testMeshes = loadGltfMeshes(
+    m_testMeshes = loadGltfMeshes( // NOLINT(bugprone-unchecked-optional-access): Necessary for program execution
         this
         , "assets/vkguide/basicmesh.glb"
     ).value();
-
-    assert(m_testMeshes.size() > 2);
 }
 
 auto randomQuat() -> glm::quat

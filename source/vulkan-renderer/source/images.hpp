@@ -63,6 +63,11 @@ struct AllocatedImage {
     VkExtent3D imageExtent{};
     VkFormat imageFormat{ VK_FORMAT_UNDEFINED };
 
+    static auto makeInvalid() -> AllocatedImage
+    {
+        return {};
+    }
+
     void cleanup(
         VkDevice device
         , VmaAllocator allocator

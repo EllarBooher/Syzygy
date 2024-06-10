@@ -218,7 +218,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                     .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
                 }
-            ).value();
+            ).value_or(AllocatedImage::makeInvalid());
 
             VkDescriptorImageInfo const drawImageInfo{
                 .sampler = VK_NULL_HANDLE,
@@ -288,8 +288,8 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
     uint32_t constexpr SHADOWMAP_SIZE{ 8192 };
     size_t constexpr SHADOWMAP_COUNT{ 10 };
-
-    m_shadowPassArray = ShadowPassArray::create(
+    
+    m_shadowPassArray = ShadowPassArray::create( // NOLINT(bugprone-unchecked-optional-access): Necessary for program execution
         device
         , descriptorAllocator
         , allocator

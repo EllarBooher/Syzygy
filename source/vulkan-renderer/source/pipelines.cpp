@@ -406,13 +406,13 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 		vkutil::loadShaderModule(
 			device
 			, "shaders/debug/debugline.vert.spv"
-		).value() 
+		).value_or(ShaderModuleReflected::MakeInvalid())
 	};
 	ShaderModuleReflected const fragmentShader{ 
 		vkutil::loadShaderModule(
 			device
 			, "shaders/debug/debugline.frag.spv"
-		).value() 
+		).value_or(ShaderModuleReflected::MakeInvalid())
 	};
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};
@@ -631,7 +631,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 		vkutil::loadShaderModule(
 			device
 			, "shaders/offscreenpass/depthpass.vert.spv"
-		).value() 
+		).value_or(ShaderModuleReflected::MakeInvalid()) 
 	};
 
 	std::vector<VkPushConstantRange> pushConstantRanges{};

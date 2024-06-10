@@ -30,8 +30,7 @@ FormatStyle:        file
 Checks: >
   -*,
   modernize-use-trailing-return-type,
-  bugprone-narrowing-conversions,
-  bugprone-easily-swappable-parameters,
+  bugprone-*,
   readability*,
   -readability-identifier-length,
   performance-move-const-arg,

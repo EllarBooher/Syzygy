@@ -198,7 +198,7 @@ public:
 	);
 	static ShaderModuleReflected MakeInvalid()
 	{
-		return ShaderModuleReflected("", {}, VK_NULL_HANDLE);
+		return ShaderModuleReflected("invalid_shader_module", {}, VK_NULL_HANDLE);
 	}
 
 	VkShaderModule shaderModule() const 
@@ -248,7 +248,7 @@ public:
 
 	static ShaderObjectReflected makeInvalid()
 	{
-		return ShaderObjectReflected("", {}, VK_NULL_HANDLE);
+		return ShaderObjectReflected("invalid_shader_object", {}, VK_NULL_HANDLE);
 	}
 
 	VkShaderEXT shaderObject() const 
