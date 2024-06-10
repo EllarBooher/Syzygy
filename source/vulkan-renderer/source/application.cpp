@@ -21,6 +21,6 @@ void Application::run()
         m_engine->run();
     }
     catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << e.what() << '\n';
     }
 }

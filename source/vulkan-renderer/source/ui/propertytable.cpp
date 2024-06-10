@@ -8,13 +8,13 @@
 
 #include "../helpers.hpp"
 
-void PropertyTable::nameColumn(std::string const name)
+void PropertyTable::nameColumn(std::string const &name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
     ImGui::Text("%s", name.c_str());
 }
 
-auto PropertyTable::resetColumn(std::string const name, bool const visible) -> bool
+auto PropertyTable::resetColumn(std::string const &name, bool const visible) -> bool
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
 
@@ -33,7 +33,7 @@ auto PropertyTable::resetColumn(std::string const name, bool const visible) -> b
     return clicked;
 }
 
-auto PropertyTable::begin(std::string const name) -> PropertyTable
+auto PropertyTable::begin(std::string const &name) -> PropertyTable
 {
     ImGui::BeginTable(
         name.c_str()

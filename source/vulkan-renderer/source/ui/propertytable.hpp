@@ -59,9 +59,9 @@ private:
         , m_open(true)
     {}
 
-    static void nameColumn(std::string name);
+    static void nameColumn(const std::string &name);
 
-    static bool resetColumn(std::string name, bool visible);
+    static bool resetColumn(const std::string &name, bool visible);
 
     static float collapseButtonWidth()
     {
@@ -98,7 +98,7 @@ public:
 
     // Using the default name synchronizes many of the table's properties
     // across the window.
-    static PropertyTable begin(std::string name = "PropertyTable");
+    static PropertyTable begin(const std::string &name = "PropertyTable");
 
     void end();
 

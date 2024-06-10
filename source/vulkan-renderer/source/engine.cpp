@@ -662,7 +662,8 @@ void Engine::initWorld()
         );
 
         std::vector<glm::mat4x4> modelInverseTransposes{};
-        for (glm::mat4x4 const& model : m_meshInstances.originals)
+        modelInverseTransposes.reserve(m_meshInstances.originals.size());
+        for (glm::mat4x4 const &model : m_meshInstances.originals)
         {
             modelInverseTransposes.push_back(glm::inverseTranspose(model));
         }

@@ -274,7 +274,7 @@ void imguiMeshInstanceControls(
 )
 {
     std::vector<std::string> meshNames{};
-    for (std::shared_ptr<MeshAsset> asset : meshes)
+    for (const std::shared_ptr<MeshAsset> &asset : meshes)
     {
         MeshAsset const& mesh{ *asset };
 

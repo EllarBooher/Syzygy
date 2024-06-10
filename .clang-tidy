@@ -31,8 +31,8 @@ Checks: >
   -*,
   modernize-use-trailing-return-type,
   bugprone-*,
+  performance-*,
   readability*,
   -readability-identifier-length,
-  performance-move-const-arg,
 
 WarningsAsErrors: '*'

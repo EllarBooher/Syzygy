@@ -36,27 +36,21 @@ public:
     // - As an std::filesystem::path, it is relative.
     // - Appending it to an absolute path does not escape the directory 
     // defined by that absolute path.
-    static bool validateRelativePath(std::filesystem::path path);
+    static bool validateRelativePath(const std::filesystem::path &path);
 
     // Returns the absolute path to a file on disk specified by the path 
     // relative to the project's root. 
     // Asserts that the path is valid as defined by validateRelativePath.
-    std::filesystem::path makeAbsolutePath(
-        std::filesystem::path localPath
-    ) const;
+    std::filesystem::path makeAbsolutePath(const std::filesystem::path &localPath) const;
 
     // Returns the absolute path to an (assumed) source relative path.
     // The absolute path to the file when it exists, nullptr otherwise.
-    std::unique_ptr<std::filesystem::path> loadAssetPath(
-        std::filesystem::path localPath
-    ) const;
+    std::unique_ptr<std::filesystem::path> loadAssetPath(const std::filesystem::path &localPath) const;
 
     // Given an absolute path on disk, returns the portion relative 
     // to the project's root.
     // Asserts that the path is valid as defined by validateRelativePath.
-    std::filesystem::path makeRelativePath(
-        std::filesystem::path absolutePath
-    ) const;
+    std::filesystem::path makeRelativePath(const std::filesystem::path &absolutePath) const;
 };
 
 // Makes a pretty prefix to prepend to log messages.
@@ -73,9 +67,7 @@ void CheckVkResult_Imgui(VkResult result);
 
 // Logs a VkResult without throwing, only if it is not VK_SUCCESS.
 void LogVkResult(
-    VkResult result
-    , std::string message
-    , std::source_location location = std::source_location::current()
+    VkResult result, const std::string &message, std::source_location location = std::source_location::current()
 );
 
 // Returns the value inside a vkb::Result if it is a success 
@@ -102,21 +94,12 @@ inline T UnwrapVkbResult(
 
 // Logs the message in grey, 
 // alongside a prefix that indicates the code location.
-void Log(
-    std::string message
-    , std::source_location location = std::source_location::current()
-);
+void Log(const std::string &message, std::source_location location = std::source_location::current());
 
 // Logs the message in grey, 
 // alongside a prefix that indicates the code location.
-void Warning(
-    std::string message
-    , std::source_location location = std::source_location::current()
-);
+void Warning(const std::string &message, std::source_location location = std::source_location::current());
 
 // Logs the message in red, 
 // alongside a prefix that indicates the code location.
-void Error(
-    std::string message
-    , std::source_location location = std::source_location::current()
-);
+void Error(const std::string &message, std::source_location location = std::source_location::current());

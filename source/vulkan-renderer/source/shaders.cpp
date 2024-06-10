@@ -346,7 +346,7 @@ auto ShaderReflectionData::Matrix::operator==(Matrix const &other) const -> bool
 
 auto ShaderObjectReflected::fromBytecode(
     VkDevice const device,
-    std::string const name,
+    std::string const &name,
     std::span<uint8_t const> const spirvBytecode,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
@@ -390,7 +390,7 @@ auto ShaderObjectReflected::fromBytecode(
 
 auto ShaderObjectReflected::fromBytecodeReflected(
     VkDevice const device,
-    std::string const name,
+    std::string const &name,
     std::span<uint8_t const> const spirvBytecode,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
@@ -442,7 +442,7 @@ auto ShaderObjectReflected::fromBytecodeReflected(
 }
 
 auto ShaderModuleReflected::FromBytecode(
-    VkDevice const device, std::string const name, std::span<uint8_t const> const spirvBytecode
+    VkDevice const device, std::string const &name, std::span<uint8_t const> const spirvBytecode
 ) -> std::optional<ShaderModuleReflected>
 {
 	vkutil::ShaderResult<VkShaderModule> const compilationResult{
@@ -539,7 +539,7 @@ auto vkutil::compileShaderObject(
 
 auto vkutil::loadShaderObject(
     VkDevice const device,
-    std::string const path,
+    std::string const &path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const layouts,
@@ -580,7 +580,7 @@ auto vkutil::loadShaderObject(
 
 auto vkutil::loadShaderObject(
     VkDevice const device,
-    std::string const path,
+    std::string const &path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const layouts,
@@ -646,7 +646,7 @@ auto vkutil::compileShaderModule(VkDevice const device, std::span<uint8_t const>
 	};
 }
 
-auto vkutil::loadShaderModule(VkDevice const device, std::string const path) -> std::optional<ShaderModuleReflected>
+auto vkutil::loadShaderModule(VkDevice const device, std::string const &path) -> std::optional<ShaderModuleReflected>
 {
 	AssetLoadingResult const fileLoadingResult{ loadAssetFile(path, device) };
 

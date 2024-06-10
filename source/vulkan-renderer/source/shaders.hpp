@@ -191,14 +191,11 @@ private:
 	{}
 
 public:
-	static std::optional<ShaderModuleReflected> FromBytecode(
-		VkDevice device
-		, std::string name
-		, std::span<uint8_t const> spirvBytecode
-	);
-	static ShaderModuleReflected MakeInvalid()
-	{
-		return ShaderModuleReflected("invalid_shader_module", {}, VK_NULL_HANDLE);
+    static std::optional<ShaderModuleReflected>
+    FromBytecode(VkDevice device, const std::string &name, std::span<uint8_t const> spirvBytecode);
+    static ShaderModuleReflected MakeInvalid()
+    {
+        return ShaderModuleReflected("invalid_shader_module", {}, VK_NULL_HANDLE);
 	}
 
 	VkShaderModule shaderModule() const 
@@ -223,32 +220,32 @@ private:
 	{}
 
 public:
-	static std::optional<ShaderObjectReflected> fromBytecode(
-		VkDevice device
-		, std::string name
-		, std::span<uint8_t const> spirvBytecode
-		, VkShaderStageFlagBits stage
-		, VkShaderStageFlags nextStage
-		, std::span<VkDescriptorSetLayout const> layouts
-		, std::span<VkPushConstantRange const> pushConstantRanges
-		, VkSpecializationInfo specializationInfo
-	);
+    static std::optional<ShaderObjectReflected> fromBytecode(
+        VkDevice device,
+        const std::string &name,
+        std::span<uint8_t const> spirvBytecode,
+        VkShaderStageFlagBits stage,
+        VkShaderStageFlags nextStage,
+        std::span<VkDescriptorSetLayout const> layouts,
+        std::span<VkPushConstantRange const> pushConstantRanges,
+        VkSpecializationInfo specializationInfo
+    );
 
-	// Compiles a shader object, 
-	// but derives push constant data from reflection
-	static std::optional<ShaderObjectReflected> fromBytecodeReflected(
-		VkDevice device
-		, std::string name
-		, std::span<uint8_t const> spirvBytecode
-		, VkShaderStageFlagBits stage
-		, VkShaderStageFlags nextStage
-		, std::span<VkDescriptorSetLayout const> layouts
-		, VkSpecializationInfo specializationInfo
-	);
+    // Compiles a shader object,
+    // but derives push constant data from reflection
+    static std::optional<ShaderObjectReflected> fromBytecodeReflected(
+        VkDevice device,
+        const std::string &name,
+        std::span<uint8_t const> spirvBytecode,
+        VkShaderStageFlagBits stage,
+        VkShaderStageFlags nextStage,
+        std::span<VkDescriptorSetLayout const> layouts,
+        VkSpecializationInfo specializationInfo
+    );
 
-	static ShaderObjectReflected makeInvalid()
-	{
-		return ShaderObjectReflected("invalid_shader_object", {}, VK_NULL_HANDLE);
+    static ShaderObjectReflected makeInvalid()
+    {
+        return ShaderObjectReflected("invalid_shader_object", {}, VK_NULL_HANDLE);
 	}
 
 	VkShaderEXT shaderObject() const 
@@ -281,28 +278,25 @@ namespace vkutil
 		, std::span<uint8_t const> spirvBytecode
 	);
 
-	std::optional<ShaderObjectReflected> loadShaderObject(
-		VkDevice device
-		, std::string path
-		, VkShaderStageFlagBits stage
-		, VkShaderStageFlags nextStage
-		, std::span<VkDescriptorSetLayout const> layouts
-		, VkSpecializationInfo specializationInfo
-	);
-	std::optional<ShaderObjectReflected> loadShaderObject(
-		VkDevice device
-		, std::string path
-		, VkShaderStageFlagBits stage
-		, VkShaderStageFlags nextStage
-		, std::span<VkDescriptorSetLayout const> layouts
-		, VkPushConstantRange rangeOverride
-		, VkSpecializationInfo specializationInfo
-	);
+        std::optional<ShaderObjectReflected> loadShaderObject(
+            VkDevice device,
+            const std::string &path,
+            VkShaderStageFlagBits stage,
+            VkShaderStageFlags nextStage,
+            std::span<VkDescriptorSetLayout const> layouts,
+            VkSpecializationInfo specializationInfo
+        );
+        std::optional<ShaderObjectReflected> loadShaderObject(
+            VkDevice device,
+            const std::string &path,
+            VkShaderStageFlagBits stage,
+            VkShaderStageFlags nextStage,
+            std::span<VkDescriptorSetLayout const> layouts,
+            VkPushConstantRange rangeOverride,
+            VkSpecializationInfo specializationInfo
+        );
 
-	std::optional<ShaderModuleReflected> loadShaderModule(
-		VkDevice device
-		, std::string path
-	);
+        std::optional<ShaderModuleReflected> loadShaderModule(VkDevice device, const std::string &path);
 }
 
 struct ComputeShaderWrapper

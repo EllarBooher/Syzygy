@@ -133,7 +133,8 @@ auto ShadowPassArray::create(
         );
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
-        for (AllocatedImage const& texture : shadowPass.m_textures)
+        mapInfos.reserve(shadowPass.m_textures.size());
+        for (AllocatedImage const &texture : shadowPass.m_textures)
         {
             mapInfos.push_back(VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE, // sampled images

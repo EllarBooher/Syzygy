@@ -19,10 +19,7 @@ auto MakeLogPrefix(std::source_location const location) -> std::string
     );
 }
 
-static void PrintLine(
-    std::string const message
-    , fmt::color const foregroundColor
-)
+static void PrintLine(std::string const &message, fmt::color const foregroundColor)
 {
     fmt::print(
         fg(foregroundColor)
@@ -67,11 +64,7 @@ void CheckVkResult_Imgui(VkResult const result)
     PrintLine(message, fmt::color::red);
 }
 
-void LogVkResult(
-    VkResult const result
-    , std::string const message
-    , std::source_location const location
-)
+void LogVkResult(VkResult const result, std::string const &message, std::source_location const location)
 {
     if (result == VK_SUCCESS)
     {
@@ -84,11 +77,7 @@ void LogVkResult(
     );
 }
 
-void LogBase(
-    std::string const message
-    , std::source_location const location
-    , fmt::color const color
-)
+void LogBase(std::string const &message, std::source_location const location, fmt::color const color)
 {
     PrintLine(
         fmt::format(
@@ -100,10 +89,7 @@ void LogBase(
     );
 }
 
-void Log(
-    std::string const message
-    , std::source_location const location
-)
+void Log(std::string const &message, std::source_location const location)
 {
     LogBase(
         message
@@ -112,10 +98,7 @@ void Log(
     );
 }
 
-void Warning(
-    std::string const message
-    , std::source_location const location
-)
+void Warning(std::string const &message, std::source_location const location)
 {
     LogBase(
         message
@@ -124,10 +107,7 @@ void Warning(
     );
 }
 
-void Error(
-    std::string const message
-    , std::source_location const location
-)
+void Error(std::string const &message, std::source_location const location)
 {
     LogBase(
         message
@@ -165,7 +145,7 @@ void DebugUtils::init()
     );
 }
 
-auto DebugUtils::validateRelativePath(std::filesystem::path const path) -> bool
+auto DebugUtils::validateRelativePath(std::filesystem::path const &path) -> bool
 {
     if (!path.is_relative())
     {
@@ -176,12 +156,12 @@ auto DebugUtils::validateRelativePath(std::filesystem::path const path) -> bool
     return firstDir != "..";
 }
 
-auto DebugUtils::makeAbsolutePath(std::filesystem::path const localPath) const -> std::filesystem::path
+auto DebugUtils::makeAbsolutePath(std::filesystem::path const &localPath) const -> std::filesystem::path
 {
     return (m_sourcePath / localPath).lexically_normal();
 }
 
-auto DebugUtils::loadAssetPath(std::filesystem::path const localPath) const -> std::unique_ptr<std::filesystem::path>
+auto DebugUtils::loadAssetPath(std::filesystem::path const &localPath) const -> std::unique_ptr<std::filesystem::path>
 {
     if (!validateRelativePath(localPath))
     {
@@ -192,7 +172,7 @@ auto DebugUtils::loadAssetPath(std::filesystem::path const localPath) const -> s
     );
 }
 
-auto DebugUtils::makeRelativePath(std::filesystem::path const absolutePath) const -> std::filesystem::path
+auto DebugUtils::makeRelativePath(std::filesystem::path const &absolutePath) const -> std::filesystem::path
 {
     assert(absolutePath.is_absolute());
 

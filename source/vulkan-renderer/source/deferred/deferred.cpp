@@ -44,7 +44,7 @@ static void validatePushConstant(
 
 static auto loadShader(
     VkDevice const device,
-    std::string const path,
+    std::string const &path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
@@ -73,7 +73,7 @@ static auto loadShader(
 
 static auto loadShader(
     VkDevice const device,
-    std::string const path,
+    std::string const &path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
