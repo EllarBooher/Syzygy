@@ -1013,15 +1013,6 @@ auto Engine::uploadMeshToGPU(std::span<uint32_t const> const indices, std::span<
             , 0 
         ) 
     };
-    VkBufferDeviceAddressInfo const addressInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-        .pNext = nullptr,
-
-        .buffer = vertexBuffer.buffer,
-    };
-    VkDeviceAddress const vertexBufferAddress{ 
-        vkGetBufferDeviceAddress(m_device, &addressInfo) 
-    };
 
     // Copy data into buffer
 

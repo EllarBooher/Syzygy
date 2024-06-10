@@ -127,8 +127,6 @@ auto geometry::projectionOrthoAABBVk(
         viewMin = glm::min(projected, viewMin);
     }
 
-    float const viewExtentX = viewMax.x - viewMin.x;
-
     glm::mat4x4 const projection{
         geometry::projectionOrthoVk(viewMin, viewMax)
     };

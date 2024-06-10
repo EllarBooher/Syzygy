@@ -29,8 +29,9 @@
 FormatStyle:        file
 Checks: >
   -*,
-  modernize-use-trailing-return-type,
   bugprone-*,
+  clang-analyzer-deadcode*,
+  modernize-use-trailing-return-type,
   performance-*,
   readability*,
   -readability-identifier-length,

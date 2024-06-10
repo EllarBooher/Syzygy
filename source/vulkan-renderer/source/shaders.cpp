@@ -7,11 +7,22 @@
 auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecode) -> ShaderReflectionData
 {
 	SpvReflectShaderModule module;
-	SpvReflectResult const result = spvReflectCreateShaderModule(
-		spirv_bytecode.size_bytes(),
-		spirv_bytecode.data(),
-		&module
-	);
+	{
+		SpvReflectResult const reflectionModuleCreationResult = spvReflectCreateShaderModule(
+			spirv_bytecode.size_bytes(),
+			spirv_bytecode.data(),
+			&module
+		);
+		if (reflectionModuleCreationResult != SPV_REFLECT_RESULT_SUCCESS)
+		{
+			Warning(std::format(
+				"spvReflectCreateShaderModule failed. SpvReflectResult: {}"
+				, static_cast<int32_t>(reflectionModuleCreationResult)
+			));
+			// TODO: error propagation
+			return {};
+		}
+	}
 
 	uint32_t pushConstantCounts;
 	spvReflectEnumeratePushConstantBlocks(
@@ -89,8 +100,6 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 				? "" 
 				: typeDescription.type_name 
 			};
-
-			uint32_t const bitWidth = member.numeric.scalar.width;
 
 			// For early exit, if the type ends up being unsupported
 
