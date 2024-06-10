@@ -30,7 +30,7 @@ FormatStyle:        file
 Checks: >
   -*,
   bugprone-*,
-  clang-analyzer-deadcode*,
+  clang-analyzer-*,
   modernize-use-trailing-return-type,
   performance-*,
   readability*,

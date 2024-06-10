@@ -1030,6 +1030,13 @@ auto Engine::uploadMeshToGPU(std::span<uint32_t const> const indices, std::span<
     uint8_t* const data{ 
         reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData()) 
     };
+
+    if (data == nullptr)
+    {
+        Warning("Mesh upload failed: Pointer to staging buffer was nullptr.");
+        return nullptr;
+    }
+
     memcpy(data, vertices.data(), vertexBufferSize);
     memcpy(data + vertexBufferSize, indices.data(), indexBufferSize);
 
