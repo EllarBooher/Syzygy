@@ -72,42 +72,45 @@ void imguiPerformanceWindow(
     ImGui::End();
 }
 
-static void renderPreferences(
-    bool& open
-    , UIPreferences& preferences
-    , HUDState& hud
-)
+namespace
 {
-    if (ImGui::Begin("Preferences", &open))
+    void renderPreferences(
+        bool& open
+        , UIPreferences& preferences
+        , HUDState& hud
+    )
     {
-        float constexpr DPI_SPEED{ 0.05F };
-        float constexpr DPI_MIN{ 0.5F };
-        float constexpr DPI_MAX{ 4.0F };
-
-        ImGui::DragFloat("DPI Scale", &preferences.dpiScale, DPI_SPEED, DPI_MIN, DPI_MAX);
-
-        ImGui::TextWrapped(
-            "Some DPI Scale values will produce blurry fonts, "
-            "so consider using an integer value."
-        );
-
-        if (ImGui::Button("Apply"))
+        if (ImGui::Begin("Preferences", &open))
         {
-            hud.applyPreferencesRequested = true;
+            float constexpr DPI_SPEED{ 0.05F };
+            float constexpr DPI_MIN{ 0.5F };
+            float constexpr DPI_MAX{ 4.0F };
+
+            ImGui::DragFloat("DPI Scale", &preferences.dpiScale, DPI_SPEED, DPI_MIN, DPI_MAX);
+
+            ImGui::TextWrapped(
+                "Some DPI Scale values will produce blurry fonts, "
+                "so consider using an integer value."
+            );
+
+            if (ImGui::Button("Apply"))
+            {
+                hud.applyPreferencesRequested = true;
+            }
+            if (ImGui::Button("Reset"))
+            {
+                hud.resetPreferencesRequested = true;
+            }
         }
-        if (ImGui::Button("Reset"))
-        {
-            hud.resetPreferencesRequested = true;
-        }
+        ImGui::End();
     }
-    ImGui::End();
 }
 
 auto renderHUD(UIPreferences &preferences) -> HUDState
 {
     HUDState hud{};
 
-    ImGuiViewport& viewport{ *ImGui::GetMainViewport() };
+    ImGuiViewport const &viewport{*ImGui::GetMainViewport()};
     { // Create background windw, as a target for docking
 
         ImGuiWindowFlags constexpr WINDOW_INVISIBLE_FLAGS{

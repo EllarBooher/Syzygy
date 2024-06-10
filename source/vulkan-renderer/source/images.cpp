@@ -3,13 +3,16 @@
 #include "helpers.hpp"
 #include "initializers.hpp"
 
-static auto extentToOffset(VkExtent3D const extent) -> VkOffset3D
+namespace
 {
-    auto const x = static_cast<int32_t>(extent.width);
-    auto const y = static_cast<int32_t>(extent.height);
-    auto const z = static_cast<int32_t>(extent.depth);
+    auto extentToOffset(VkExtent3D const extent) -> VkOffset3D
+    {
+        auto const x = static_cast<int32_t>(extent.width);
+        auto const y = static_cast<int32_t>(extent.height);
+        auto const z = static_cast<int32_t>(extent.depth);
 
-    return { x, y, z };
+        return { x, y, z };
+    }
 }
 
 void vkutil::transitionImage(

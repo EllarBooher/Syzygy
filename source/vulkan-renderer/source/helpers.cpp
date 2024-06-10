@@ -19,13 +19,16 @@ auto MakeLogPrefix(std::source_location const location) -> std::string
     );
 }
 
-static void PrintLine(std::string const &message, fmt::color const foregroundColor)
+namespace
 {
-    fmt::print(
-        fg(foregroundColor)
-        , "{}\n"
-        , message
-    );
+    void PrintLine(std::string const& message, fmt::color const foregroundColor)
+    {
+        fmt::print(
+            fg(foregroundColor)
+            , "{}\n"
+            , message
+        );
+    }
 }
 
 void CheckVkResult(

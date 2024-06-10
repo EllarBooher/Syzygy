@@ -84,7 +84,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(
                     gltf,
                     positionAccessor,
-                    [&](glm::vec3 position, size_t index)
+                    [&](glm::vec3 position, size_t /*index*/)
                     {
                         vertices.push_back(Vertex{
                             .position = position,
@@ -173,7 +173,7 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
     return newMeshes;
 }
 
-auto loadAssetFile(std::string const &localPath, VkDevice const device) -> AssetLoadingResult
+auto loadAssetFile(std::string const &localPath, VkDevice const /*device*/) -> AssetLoadingResult
 {
     std::unique_ptr<std::filesystem::path> const pPath{
         DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(localPath))

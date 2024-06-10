@@ -249,9 +249,9 @@ void Engine::initInstanceSurfaceDevices()
         UnwrapVkbResult(physicalDeviceBuildResult)
     };
 
-    vkb::DeviceBuilder deviceBuilder{ vkbPhysicalDevice };
-    vkb::Result<vkb::Device> deviceBuildResult = deviceBuilder.build();
-    vkb::Device vkbDevice = UnwrapVkbResult(deviceBuildResult);
+    vkb::DeviceBuilder const deviceBuilder{vkbPhysicalDevice};
+    vkb::Result<vkb::Device> const deviceBuildResult = deviceBuilder.build();
+    vkb::Device const vkbDevice = UnwrapVkbResult(deviceBuildResult);
 
     volkLoadDevice(vkbDevice.device);
 
@@ -1521,9 +1521,7 @@ void Engine::draw()
 
         float const orthoDistanceFromCamera{ 5.0F };
 
-        std::span<gputypes::Camera> cameras{ 
-            m_camerasBuffer->mapValidStaged()
-        };
+        std::span<gputypes::Camera> const cameras{m_camerasBuffer->mapValidStaged()};
         cameras[m_cameraIndexMain] = {
             m_useOrthographicProjection
             ? m_cameraParameters.toDeviceEquivalentOrthographic(

@@ -229,7 +229,7 @@ void ShadowPassArray::recordInitialize(
 
         for (size_t i{ 0 }; i < m_projViewMatrices->deviceSize(); i++)
         {
-            AllocatedImage& texture{ m_textures[i] };
+            AllocatedImage const &texture{m_textures[i]};
 
             VkClearDepthStencilValue const clearValue{
                 .depth = 0.0,
@@ -264,7 +264,7 @@ void ShadowPassArray::recordDrawCommands(
 {
     for (size_t i{ 0 }; i < m_projViewMatrices->deviceSize(); i++)
     {
-        AllocatedImage& texture{ m_textures[i] };
+        AllocatedImage const &texture{m_textures[i]};
         m_pipeline->recordDrawCommands(
             cmd
             , false
@@ -286,7 +286,7 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
 {
     for (size_t i{ 0 }; i < m_projViewMatrices->deviceSize(); i++)
     {
-        AllocatedImage& texture{ m_textures[i] };
+        AllocatedImage const &texture{m_textures[i]};
         vkutil::transitionImage(
             cmd
             , texture.image

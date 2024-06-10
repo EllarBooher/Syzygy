@@ -247,7 +247,7 @@ auto PropertyTable::rowDropdown(
         size_t index{ 0 };
         for (std::string const& displayValue : displayValues)
         {
-            bool isSelected{ index == selectedIndex };
+            bool const isSelected{index == selectedIndex};
             if (ImGui::Selectable(displayValue.c_str(), isSelected))
             {
                 selectedIndex = index;
@@ -340,6 +340,11 @@ auto PropertyTable::rowInteger(
         , "%i"
         , behavior.flags
     );
+
+    if (Self::resetColumn(name, value != resetValue))
+    {
+        value = resetValue;
+    }
 
     Self::rowEnd();
 
@@ -574,7 +579,7 @@ void PropertyTable::demoWindow(bool& open)
     static int32_t valueUnboundedInteger{ 0 };
     static float valueUnboundedFloat{0.0F};
 
-    static float valueUnboundedFloat2{0.0F};
+    static float const valueUnboundedFloat2{0.0F};
     static float valueUnboundedFloat3{0.0F};
 
     static float minimumBound{-1.0F};

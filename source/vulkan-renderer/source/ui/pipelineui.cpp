@@ -9,14 +9,17 @@
 
 #include "propertytable.hpp"
 
-static void TypeLabel(std::string const& label)
+namespace
 {
-    ImVec2 const textSize{ ImGui::CalcTextSize(label.c_str(), nullptr, true) };
+    void TypeLabel(std::string const& label)
+    {
+        ImVec2 const textSize{ ImGui::CalcTextSize(label.c_str(), nullptr, true) };
 
-    float const buttonWidth{textSize.x + 10.0F};
+        float const buttonWidth{ textSize.x + 10.0F };
 
-    ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
-    ImGui::Text("%s", label.c_str());
+        ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
+        ImGui::Text("%s", label.c_str());
+    }
 }
 
 template<class... Ts>

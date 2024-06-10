@@ -240,9 +240,9 @@ auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecod
 		});
 	}
 
-	std::string defaultEntryPoint{ module.entry_point_name };
+        std::string const defaultEntryPoint{module.entry_point_name};
 
-	spvReflectDestroyShaderModule(&module);
+        spvReflectDestroyShaderModule(&module);
 
 	return ShaderReflectionData{
 		.pushConstantsByEntryPoint = pushConstantsByEntryPoint,
@@ -255,8 +255,8 @@ auto ShaderReflectionData::Structure::logicallyCompatible(Structure const &other
 	uint32_t memberIndex{ 0 };
 	uint32_t otherMemberIndex{ 0 };
 
-	size_t iterations{ 0 };
-	size_t constexpr MAX_ITERATIONS{ 100U };
+        size_t const iterations{0};
+        size_t constexpr MAX_ITERATIONS{ 100U };
 	while (iterations < MAX_ITERATIONS)
 	{
 		if (memberIndex >= members.size() 

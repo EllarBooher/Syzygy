@@ -1,134 +1,137 @@
 #include "deferred.hpp"
 #include "../initializers.hpp"
 
-static void validatePushConstant(
-    ShaderObjectReflected const& shaderObject
-    , size_t const expectedSize
-)
+namespace
 {
-    if (shaderObject.reflectionData().defaultEntryPointHasPushConstant())
+    void validatePushConstant(
+        ShaderObjectReflected const& shaderObject
+        , size_t const expectedSize
+    )
     {
-        ShaderReflectionData::PushConstant const& pushConstant{
-            shaderObject.reflectionData().defaultPushConstant()
-        };
+        if (shaderObject.reflectionData().defaultEntryPointHasPushConstant())
+        {
+            ShaderReflectionData::PushConstant const& pushConstant{
+                shaderObject.reflectionData().defaultPushConstant()
+            };
 
-        size_t const loadedPushConstantSize{ 
-            pushConstant.type.paddedSizeBytes 
-        };
+            size_t const loadedPushConstantSize{
+                pushConstant.type.paddedSizeBytes
+            };
 
-        if (loadedPushConstantSize != expectedSize)
+            if (loadedPushConstantSize != expectedSize)
+            {
+                Warning(
+                    fmt::format(
+                        "Loaded Shader \"{}\" had a push constant of size {}, "
+                        "while implementation expects {}."
+                        , shaderObject.name()
+                        , loadedPushConstantSize
+                        , expectedSize
+                    )
+                );
+            }
+        }
+        else if (expectedSize > 0)
         {
             Warning(
                 fmt::format(
-                    "Loaded Shader \"{}\" had a push constant of size {}, "
-                    "while implementation expects {}."
+                    "Loaded Shader \"{}\" had no push constant, "
+                    "while implementation expects one of size {}."
                     , shaderObject.name()
-                    , loadedPushConstantSize
                     , expectedSize
                 )
             );
         }
     }
-    else if (expectedSize > 0)
+
+    auto loadShader(
+        VkDevice const device,
+        std::string const& path,
+        VkShaderStageFlagBits const stage,
+        VkShaderStageFlags const nextStage,
+        std::span<VkDescriptorSetLayout const> const descriptorSets,
+        size_t const expectedPushConstantSize
+    ) -> ShaderObjectReflected
     {
-        Warning(
-            fmt::format(
-                "Loaded Shader \"{}\" had no push constant, "
-                "while implementation expects one of size {}."
-                , shaderObject.name()
-                , expectedSize
+        std::optional<ShaderObjectReflected> const loadResult{
+            vkutil::loadShaderObject(
+                device
+                , path
+                , stage
+                , nextStage
+                , descriptorSets
+                , {}
             )
-        );
+        };
+
+        if (loadResult.has_value())
+        {
+            validatePushConstant(loadResult.value(), expectedPushConstantSize);
+            return loadResult.value();
+        }
+
+        return ShaderObjectReflected::makeInvalid();
     }
-}
 
-static auto loadShader(
-    VkDevice const device,
-    std::string const &path,
-    VkShaderStageFlagBits const stage,
-    VkShaderStageFlags const nextStage,
-    std::span<VkDescriptorSetLayout const> const descriptorSets,
-    size_t const expectedPushConstantSize
-) -> ShaderObjectReflected
-{
-    std::optional<ShaderObjectReflected> const loadResult{
-        vkutil::loadShaderObject(
-            device
-            , path
-            , stage
-            , nextStage
-            , descriptorSets
-            , {}
-        )
-    };
-
-    if (loadResult.has_value())
+    auto loadShader(
+        VkDevice const device,
+        std::string const& path,
+        VkShaderStageFlagBits const stage,
+        VkShaderStageFlags const nextStage,
+        std::span<VkDescriptorSetLayout const> const descriptorSets,
+        VkPushConstantRange const rangeOverride
+    ) -> ShaderObjectReflected
     {
-        validatePushConstant(loadResult.value(), expectedPushConstantSize);
-        return loadResult.value();
+        std::optional<ShaderObjectReflected> loadResult{
+            vkutil::loadShaderObject(
+                device
+                , path
+                , stage
+                , nextStage
+                , descriptorSets
+                , rangeOverride
+                , {}
+            )
+        };
+        if (loadResult.has_value())
+        {
+            validatePushConstant(loadResult.value(), rangeOverride.size);
+            return loadResult.value();
+        }
+
+        return ShaderObjectReflected::makeInvalid();
     }
 
-    return ShaderObjectReflected::makeInvalid();
-}
-
-static auto loadShader(
-    VkDevice const device,
-    std::string const &path,
-    VkShaderStageFlagBits const stage,
-    VkShaderStageFlags const nextStage,
-    std::span<VkDescriptorSetLayout const> const descriptorSets,
-    VkPushConstantRange const rangeOverride
-) -> ShaderObjectReflected
-{
-    std::optional<ShaderObjectReflected> loadResult{
-        vkutil::loadShaderObject(
-            device
-            , path
-            , stage
-            , nextStage
-            , descriptorSets
-            , rangeOverride
-            , {}
-        )
-    };
-    if (loadResult.has_value())
+    auto createLayout(
+        VkDevice const device,
+        std::span<VkDescriptorSetLayout const> const setLayouts,
+        std::span<VkPushConstantRange const> const ranges
+    ) -> VkPipelineLayout
     {
-        validatePushConstant(loadResult.value(), rangeOverride.size);
-        return loadResult.value();
+        VkPipelineLayoutCreateInfo const layoutCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+
+            .flags = 0,
+
+            .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+            .pSetLayouts = setLayouts.data(),
+
+            .pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
+            .pPushConstantRanges = ranges.data(),
+        };
+
+        VkPipelineLayout layout{ VK_NULL_HANDLE };
+        VkResult const result{
+            vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout)
+        };
+        if (result != VK_SUCCESS)
+        {
+            LogVkResult(result, "Creating shader object pipeline layout");
+            return VK_NULL_HANDLE;
+        }
+        return layout;
     }
-
-    return ShaderObjectReflected::makeInvalid();
-}
-
-static auto createLayout(
-    VkDevice const device,
-    std::span<VkDescriptorSetLayout const> const setLayouts,
-    std::span<VkPushConstantRange const> const ranges
-) -> VkPipelineLayout
-{
-    VkPipelineLayoutCreateInfo const layoutCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pNext = nullptr,
-
-        .flags = 0,
-
-        .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
-        .pSetLayouts = setLayouts.data(),
-
-        .pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
-        .pPushConstantRanges = ranges.data(),
-    };
-
-    VkPipelineLayout layout{ VK_NULL_HANDLE };
-    VkResult const result{ 
-        vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout) 
-    };
-    if (result != VK_SUCCESS)
-    {
-        LogVkResult(result, "Creating shader object pipeline layout");
-        return VK_NULL_HANDLE;
-    }
-    return layout;
 }
 
 DeferredShadingPipeline::DeferredShadingPipeline(
@@ -460,21 +463,22 @@ namespace
 }
 
 void DeferredShadingPipeline::recordDrawCommands(
-    VkCommandBuffer const cmd
-    , VkRect2D const drawRect
-    , VkImageLayout const colorLayout
-    , AllocatedImage const& color
-    , AllocatedImage const& depth
-    , std::span<gputypes::LightDirectional const> const directionalLights
-    , std::span<gputypes::LightSpot const> const spotLights
-    , uint32_t const viewCameraIndex
-    , TStagedBuffer<gputypes::Camera> const& cameras
-    , uint32_t const atmosphereIndex
-    , TStagedBuffer<gputypes::Atmosphere> const& atmospheres
-    , SceneBounds const& sceneBounds
-    , bool const renderMesh
-    , MeshAsset const& sceneMesh
-    , MeshInstances const& sceneGeometry
+    VkCommandBuffer const cmd,
+    VkRect2D const drawRect,
+    VkImageLayout const colorLayout,
+    AllocatedImage const &color,
+    AllocatedImage const &depth,
+    std::span<gputypes::LightDirectional const> const directionalLights,
+    std::span<gputypes::LightSpot const> const spotLights,
+    uint32_t const viewCameraIndex,
+    TStagedBuffer<gputypes::Camera> const &cameras,
+    uint32_t const atmosphereIndex,
+    TStagedBuffer<gputypes::Atmosphere> const &atmospheres,
+    SceneBounds const & /*sceneBounds*/
+    ,
+    bool const renderMesh,
+    MeshAsset const &sceneMesh,
+    MeshInstances const &sceneGeometry
 )
 {
     VkPipelineStageFlags2 const bufferStages{ 

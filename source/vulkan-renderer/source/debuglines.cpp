@@ -101,8 +101,7 @@ void DebugLines::recordCopy(VkCommandBuffer const cmd, VmaAllocator const alloca
 }
 
 void DebugLines::cleanup(
-    VkDevice const device
-    , VmaAllocator const allocator
+    VkDevice const device, VmaAllocator const /*allocator*/
 )
 {
     pipeline->cleanup(device);
