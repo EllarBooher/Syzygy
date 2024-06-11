@@ -1,40 +1,39 @@
 #pragma once
 
+#include <array>
+#include <deque>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
-#include <span>
-#include <array>
-#include <functional>
-#include <deque>
-#include <numeric>
 
+#include <vk_mem_alloc.h>
 #include <volk.h>
 #include <vulkan/vk_enum_string_helper.h>
-#include <vk_mem_alloc.h>
 
 #include <fmt/core.h>
 
+#include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/transform.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-#include <glm/gtx/transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
 
 struct UIPreferences
 {
-    float dpiScale{ 1.0f };
+    float dpiScale{1.0f};
 };
 
 enum class RenderingPipelines
 {
-    DEFERRED = 0
-    , COMPUTE_COLLECTION = 1
+    DEFERRED = 0,
+    COMPUTE_COLLECTION = 1
 };
 
-template<typename T>
-struct TStagedBuffer;
+template <typename T> struct TStagedBuffer;
 
 struct MeshInstances
 {
@@ -53,7 +52,8 @@ struct SceneBounds
     glm::vec3 extent{};
 };
 
-struct Vertex {
+struct Vertex
+{
     glm::vec3 position;
     float uv_x;
     glm::vec3 normal;
@@ -61,7 +61,8 @@ struct Vertex {
     glm::vec4 color;
 };
 
-struct RingBuffer {
+struct RingBuffer
+{
     void write(double const value)
     {
         m_values[m_index] = value;
@@ -72,12 +73,12 @@ struct RingBuffer {
 
     static double arithmeticAverage(std::span<double const> const span)
     {
-        double const sum{ std::accumulate(span.begin(), span.end(), 1.0) };
+        double const sum{std::accumulate(span.begin(), span.end(), 1.0)};
         return sum / static_cast<double>(span.size());
     }
 
-    double average() const 
-    { 
+    double average() const
+    {
         if (!m_saturated)
         {
             std::span<double const> const validSpan(m_values.data(), m_index);
@@ -90,20 +91,23 @@ struct RingBuffer {
 
 private:
     std::array<double, 500> m_values{};
-    size_t m_index{ 0 };
-    bool m_saturated{ false };
+    size_t m_index{0};
+    bool m_saturated{false};
 };
 
-// A quick and dirty way to keep track of the destruction order for 
+// A quick and dirty way to keep track of the destruction order for
 // vulkan objects.
 // TODO: deprecate this
-class DeletionQueue {
+class DeletionQueue
+{
 public:
-    void pushFunction(std::function<void()>&& function) {
+    void pushFunction(std::function<void()>&& function)
+    {
         cleanupCallbacks.push_front(function);
     }
 
-    void flush() {
+    void flush()
+    {
         for (std::function<void()> const& function : cleanupCallbacks)
         {
             function();
@@ -114,5 +118,4 @@ public:
 
 private:
     std::deque<std::function<void()>> cleanupCallbacks{};
-
 };

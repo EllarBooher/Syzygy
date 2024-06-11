@@ -1,10 +1,10 @@
 #pragma once
 
-#include "enginetypes.hpp"
-#include <optional>
-#include <filesystem>
-#include <variant>
 #include "buffers.hpp"
+#include "enginetypes.hpp"
+#include <filesystem>
+#include <optional>
+#include <variant>
 
 /** An interval of indices from an index buffer. */
 struct GeometrySurface
@@ -13,7 +13,8 @@ struct GeometrySurface
     uint32_t indexCount;
 };
 
-struct MeshAsset {
+struct MeshAsset
+{
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
     std::unique_ptr<GPUMeshBuffers> meshBuffers{};
@@ -21,10 +22,8 @@ struct MeshAsset {
 
 class Engine;
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
-    Engine* engine
-    , std::string const& localPath
-);
+std::optional<std::vector<std::shared_ptr<MeshAsset>>>
+loadGltfMeshes(Engine* engine, std::string const& localPath);
 
 struct AssetFile
 {
@@ -39,7 +38,4 @@ struct AssetLoadingError
 
 using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
 
-AssetLoadingResult loadAssetFile(
-    std::string const& localPath
-    , VkDevice device
-);
+AssetLoadingResult loadAssetFile(std::string const& localPath);

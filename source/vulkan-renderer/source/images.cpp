@@ -5,22 +5,22 @@
 
 namespace
 {
-    auto extentToOffset(VkExtent3D const extent) -> VkOffset3D
-    {
-        auto const x = static_cast<int32_t>(extent.width);
-        auto const y = static_cast<int32_t>(extent.height);
-        auto const z = static_cast<int32_t>(extent.depth);
+auto extentToOffset(VkExtent3D const extent) -> VkOffset3D
+{
+    auto const x = static_cast<int32_t>(extent.width);
+    auto const y = static_cast<int32_t>(extent.height);
+    auto const z = static_cast<int32_t>(extent.depth);
 
-        return { x, y, z };
-    }
-    } // namespace
+    return {x, y, z};
+}
+} // namespace
 
 void vkutil::transitionImage(
-    VkCommandBuffer const cmd
-    , VkImage const image
-    , VkImageLayout const oldLayout
-    , VkImageLayout const newLayout
-    , VkImageAspectFlags const aspects
+    VkCommandBuffer const cmd,
+    VkImage const image,
+    VkImageLayout const oldLayout,
+    VkImageLayout const newLayout,
+    VkImageAspectFlags const aspects
 )
 {
     VkImageMemoryBarrier2 const imageBarrier{
@@ -31,9 +31,7 @@ void vkutil::transitionImage(
         .srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
         .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
         .dstAccessMask =
-            VK_ACCESS_2_MEMORY_WRITE_BIT
-            | VK_ACCESS_2_MEMORY_READ_BIT
-        ,
+            VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT,
 
         .oldLayout = oldLayout,
         .newLayout = newLayout,
@@ -53,26 +51,30 @@ void vkutil::transitionImage(
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer const cmd
-    , VkImage const source
-    , VkImage const destination
-    , VkExtent3D const srcSize
-    , VkExtent3D const dstSize
+    VkCommandBuffer const cmd,
+    VkImage const source,
+    VkImage const destination,
+    VkExtent3D const srcSize,
+    VkExtent3D const dstSize
 )
 {
     VkImageBlit2 const blitRegion{
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
-        .srcSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0), 
-        .srcOffsets = {
-            VkOffset3D{},
-            extentToOffset(srcSize),
-        },
-        .dstSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0), 
-        .dstOffsets = {
-            VkOffset3D{},
-            extentToOffset(dstSize),
-        },
+        .srcSubresource =
+            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .srcOffsets =
+            {
+                VkOffset3D{},
+                extentToOffset(srcSize),
+            },
+        .dstSubresource =
+            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .dstOffsets =
+            {
+                VkOffset3D{},
+                extentToOffset(dstSize),
+            },
     };
 
     VkBlitImageInfo2 const blitInfo{
@@ -91,28 +93,32 @@ void vkutil::recordCopyImageToImage(
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer const cmd
-    , VkImage const source
-    , VkImage const destination
-    , VkOffset3D const srcMin
-    , VkOffset3D const srcMax
-    , VkOffset3D const dstMin
-    , VkOffset3D const dstMax
+    VkCommandBuffer const cmd,
+    VkImage const source,
+    VkImage const destination,
+    VkOffset3D const srcMin,
+    VkOffset3D const srcMax,
+    VkOffset3D const dstMin,
+    VkOffset3D const dstMax
 )
 {
     VkImageBlit2 const blitRegion{
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
-        .srcSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
-        .srcOffsets = {
-            srcMin,
-            srcMax,
-        },
-        .dstSubresource = vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
-        .dstOffsets = {
-            dstMin,
-            dstMax,
-        },
+        .srcSubresource =
+            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .srcOffsets =
+            {
+                srcMin,
+                srcMax,
+            },
+        .dstSubresource =
+            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .dstOffsets =
+            {
+                dstMin,
+                dstMax,
+            },
     };
 
     VkBlitImageInfo2 const blitInfo{
@@ -131,11 +137,11 @@ void vkutil::recordCopyImageToImage(
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer const cmd
-    , VkImage const source
-    , VkImage const destination
-    , VkExtent2D const srcSize
-    , VkExtent2D const dstSize
+    VkCommandBuffer const cmd,
+    VkImage const source,
+    VkImage const destination,
+    VkExtent2D const srcSize,
+    VkExtent2D const dstSize
 )
 {
     VkExtent3D const srcExtent{
@@ -150,20 +156,16 @@ void vkutil::recordCopyImageToImage(
     };
 
     vkutil::recordCopyImageToImage(
-        cmd
-        , source
-        , destination
-        , srcExtent
-        , dstExtent
+        cmd, source, destination, srcExtent, dstExtent
     );
 }
 
 void vkutil::recordCopyImageToImage(
-    VkCommandBuffer const cmd
-    , VkImage const source
-    , VkImage const destination
-    , VkRect2D const srcSize
-    , VkRect2D const dstSize
+    VkCommandBuffer const cmd,
+    VkImage const source,
+    VkImage const destination,
+    VkRect2D const srcSize,
+    VkRect2D const dstSize
 )
 {
     VkOffset3D const srcMin{
@@ -188,18 +190,14 @@ void vkutil::recordCopyImageToImage(
     };
 
     vkutil::recordCopyImageToImage(
-        cmd
-        , source
-        , destination
-        , srcMin, srcMax
-        , dstMin, dstMax
+        cmd, source, destination, srcMin, srcMax, dstMin, dstMax
     );
 }
 
 auto vkutil::aspectRatio(VkExtent2D const extent) -> double
 {
-    auto const width{ static_cast<float>(extent.width) };
-    auto const height{ static_cast<float>(extent.height) };
+    auto const width{static_cast<float>(extent.width)};
+    auto const height{static_cast<float>(extent.height)};
 
     float const rawAspectRatio = width / height;
 
@@ -221,43 +219,35 @@ auto AllocatedImage::allocate(
         .imageFormat = parameters.format
     };
 
-    VkImageCreateInfo const imageInfo{ 
-        vkinit::imageCreateInfo(
-            image.imageFormat
-            , VK_IMAGE_LAYOUT_UNDEFINED
-            , parameters.usageFlags
-            , image.imageExtent
-        ) 
-    };
+    VkImageCreateInfo const imageInfo{vkinit::imageCreateInfo(
+        image.imageFormat,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        parameters.usageFlags,
+        image.imageExtent
+    )};
 
     VmaAllocationCreateInfo const imageAllocInfo{
         .usage = VMA_MEMORY_USAGE_GPU_ONLY,
         .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     };
 
-    VkResult const createImageResult{
-        vmaCreateImage(
-            allocator
-            , &imageInfo
-            , &imageAllocInfo
-            , &image.image
-            , &image.allocation
-            , nullptr
-        )
-    };
+    VkResult const createImageResult{vmaCreateImage(
+        allocator,
+        &imageInfo,
+        &imageAllocInfo,
+        &image.image,
+        &image.allocation,
+        nullptr
+    )};
     if (createImageResult != VK_SUCCESS)
     {
         LogVkResult(createImageResult, "VMA Allocation failed");
         return {};
     }
 
-    VkImageViewCreateInfo const imageViewInfo{
-        vkinit::imageViewCreateInfo(
-            image.imageFormat
-            , image.image
-            , parameters.viewFlags
-        )
-    };
+    VkImageViewCreateInfo const imageViewInfo{vkinit::imageViewCreateInfo(
+        image.imageFormat, image.image, parameters.viewFlags
+    )};
 
     VkResult const createViewResult{
         vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView)

@@ -13,11 +13,11 @@
 
 #include "helpers.hpp"
 
-auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
+auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
     -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
-    std::filesystem::path const assetPath{ 
-        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath) 
+    std::filesystem::path const assetPath{
+        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath)
     };
 
     Log(fmt::format("Loading glTF: {}", assetPath.string()));
@@ -32,20 +32,21 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
 
     fastgltf::Parser parser{};
 
-    fastgltf::Expected<fastgltf::Asset> load{ 
-        parser.loadGltfBinary(&data, assetPath.parent_path(), GLTF_OPTIONS) 
+    fastgltf::Expected<fastgltf::Asset> load{
+        parser.loadGltfBinary(&data, assetPath.parent_path(), GLTF_OPTIONS)
     };
-    if (!load) {
+    if (!load)
+    {
         Error(fmt::format(
-            "Failed to load glTF: {}"
-            , fastgltf::to_underlying(load.error()))
-        );
+            "Failed to load glTF: {}", fastgltf::to_underlying(load.error())
+        ));
         return {};
     }
-    fastgltf::Asset const gltf{ std::move(load.get()) };
+    fastgltf::Asset const gltf{std::move(load.get())};
 
     std::vector<std::shared_ptr<MeshAsset>> newMeshes{};
-    for (fastgltf::Mesh const& mesh : gltf.meshes) {
+    for (fastgltf::Mesh const& mesh : gltf.meshes)
+    {
         std::vector<uint32_t> indices{};
         std::vector<Vertex> vertices{};
 
@@ -56,27 +57,30 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
         {
             surfaces.push_back(GeometrySurface{
                 .firstIndex = static_cast<uint32_t>(indices.size()),
-                .indexCount = static_cast<uint32_t>(gltf.accessors[primitive.indicesAccessor.value()].count),
+                .indexCount = static_cast<uint32_t>(
+                    gltf.accessors[primitive.indicesAccessor.value()].count
+                ),
             });
 
-            size_t const initialVertexIndex{ vertices.size() };
+            size_t const initialVertexIndex{vertices.size()};
 
             { // Indices, not optional
-                fastgltf::Accessor const& indexAccessor{ 
-                    gltf.accessors[primitive.indicesAccessor.value()] 
+                fastgltf::Accessor const& indexAccessor{
+                    gltf.accessors[primitive.indicesAccessor.value()]
                 };
                 indices.reserve(indices.size() + indexAccessor.count);
 
-                fastgltf::iterateAccessor<std::uint32_t>(gltf, indexAccessor,
-                    [&](std::uint32_t index) {
-                        indices.push_back(index + initialVertexIndex);
-                    }
+                fastgltf::iterateAccessor<std::uint32_t>(
+                    gltf,
+                    indexAccessor,
+                    [&](std::uint32_t index)
+                    { indices.push_back(index + initialVertexIndex); }
                 );
             }
 
             { // Positions, not optional
-                fastgltf::Accessor const& positionAccessor{ 
-                    gltf.accessors[primitive.findAttribute("POSITION")->second] 
+                fastgltf::Accessor const& positionAccessor{
+                    gltf.accessors[primitive.findAttribute("POSITION")->second]
                 };
 
                 vertices.reserve(vertices.size() + positionAccessor.count);
@@ -100,93 +104,97 @@ auto loadGltfMeshes(Engine *const engine, std::string const &localPath)
             // The rest of these parameters are optional.
 
             { // Normals
-                auto const *const normals{primitive.findAttribute("NORMAL")};
+                auto const* const normals{primitive.findAttribute("NORMAL")};
                 if (normals != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec3>(
-                        gltf
-                        , gltf.accessors[(*normals).second]
-                        , [&](glm::vec3 normal, size_t index) 
-                        {
-                            vertices[initialVertexIndex + index].normal = normal;
+                        gltf,
+                        gltf.accessors[(*normals).second],
+                        [&](glm::vec3 normal, size_t index) {
+                            vertices[initialVertexIndex + index].normal =
+                                normal;
                         }
                     );
                 }
             }
 
             { // UVs
-                auto const *const uvs{primitive.findAttribute("TEXCOORD_0")};
+                auto const* const uvs{primitive.findAttribute("TEXCOORD_0")};
                 if (uvs != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec2>(
-                        gltf
-                        , gltf.accessors[(*uvs).second]
-                        , [&](glm::vec2 texcoord, size_t index) {
-                            vertices[initialVertexIndex + index].uv_x = texcoord.x;
-                            vertices[initialVertexIndex + index].uv_y = texcoord.y;
+                        gltf,
+                        gltf.accessors[(*uvs).second],
+                        [&](glm::vec2 texcoord, size_t index)
+                        {
+                            vertices[initialVertexIndex + index].uv_x =
+                                texcoord.x;
+                            vertices[initialVertexIndex + index].uv_y =
+                                texcoord.y;
                         }
                     );
                 }
             }
 
             { // Colors
-                auto const *const colors{primitive.findAttribute("COLOR_0")};
+                auto const* const colors{primitive.findAttribute("COLOR_0")};
                 if (colors != primitive.attributes.end())
                 {
                     fastgltf::iterateAccessorWithIndex<glm::vec4>(
-                        gltf
-                        , gltf.accessors[(*colors).second]
-                        , [&](glm::vec4 color, size_t index) {
-                            vertices[initialVertexIndex + index].color = color;
-                        }
+                        gltf,
+                        gltf.accessors[(*colors).second],
+                        [&](glm::vec4 color, size_t index)
+                        { vertices[initialVertexIndex + index].color = color; }
                     );
                 }
             }
         }
 
-        bool constexpr DEBUG_OVERRIDE_COLORS{ false };
-        if (DEBUG_OVERRIDE_COLORS) {
-            for (Vertex& vertex : vertices) {
+        bool constexpr DEBUG_OVERRIDE_COLORS{false};
+        if (DEBUG_OVERRIDE_COLORS)
+        {
+            for (Vertex& vertex : vertices)
+            {
                 vertex.color = glm::vec4(vertex.normal, 1.0F);
             }
         }
 
-        bool constexpr FLIP_Y{ true };
-        if (FLIP_Y) {
-            for (Vertex& vertex : vertices) {
+        bool constexpr FLIP_Y{true};
+        if (FLIP_Y)
+        {
+            for (Vertex& vertex : vertices)
+            {
                 vertex.normal.y *= -1;
                 vertex.position.y *= -1;
             }
         }
 
-        newMeshes.push_back(
-            std::make_shared<MeshAsset>(
-                MeshAsset{
-                    .name = std::string{ mesh.name },
-                    .surfaces = surfaces,
-                    .meshBuffers = engine->uploadMeshToGPU(indices, vertices),
-                }
-            )
-        );
+        newMeshes.push_back(std::make_shared<MeshAsset>(MeshAsset{
+            .name = std::string{mesh.name},
+            .surfaces = surfaces,
+            .meshBuffers = engine->uploadMeshToGPU(indices, vertices),
+        }));
     }
 
     return newMeshes;
 }
 
-auto loadAssetFile(std::string const &localPath, VkDevice const /*device*/) -> AssetLoadingResult
+auto loadAssetFile(std::string const& localPath)
+    -> AssetLoadingResult
 {
     std::unique_ptr<std::filesystem::path> const pPath{
-        DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(localPath))
+        DebugUtils::getLoadedDebugUtils().loadAssetPath(
+            std::filesystem::path(localPath)
+        )
     };
     if (pPath == nullptr)
     {
         return AssetLoadingError{
-            .message =
-                fmt::format(
-                    "Unable to parse path at \"{}\", this indicates the asset "
-                    "does not exist or the path is malformed"
-                    , localPath
-                ),
+            .message = fmt::format(
+                "Unable to parse path at \"{}\", this indicates the asset "
+                "does not exist or the path is malformed",
+                localPath
+            ),
         };
     }
     std::filesystem::path const path = *pPath;
@@ -196,11 +204,10 @@ auto loadAssetFile(std::string const &localPath, VkDevice const /*device*/) -> A
     if (!file.is_open())
     {
         return AssetLoadingError{
-            .message =
-                fmt::format(
-                    "Unable to parse path at \"{}\", this indicates the asset "
-                    "does not exist or the path is malformed"
-                    , localPath
+            .message = fmt::format(
+                "Unable to parse path at \"{}\", this indicates the asset "
+                "does not exist or the path is malformed",
+                localPath
             ),
         };
     }
@@ -216,7 +223,10 @@ auto loadAssetFile(std::string const &localPath, VkDevice const /*device*/) -> A
     std::vector<uint8_t> buffer(fileSizeBytes);
 
     file.seekg(0, std::ios::beg);
-    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(fileSizeBytes));
+    file.read(
+        reinterpret_cast<char*>(buffer.data()),
+        static_cast<std::streamsize>(fileSizeBytes)
+    );
 
     file.close();
 

@@ -11,46 +11,41 @@ class DeferredShadingPipeline
 {
 public:
     DeferredShadingPipeline(
-        VkDevice device
-        , VmaAllocator allocator
-        , DescriptorAllocator& descriptorAllocator
-        , VkExtent2D dimensionCapacity
+        VkDevice device,
+        VmaAllocator allocator,
+        DescriptorAllocator& descriptorAllocator,
+        VkExtent2D dimensionCapacity
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd
-        , VkRect2D drawRect
-        , VkImageLayout colorLayout
-        , AllocatedImage const& color
-        , AllocatedImage const& depth
-        , std::span<gputypes::LightDirectional const> directionalLights
-        , std::span<gputypes::LightSpot const> spotLights
-        , uint32_t viewCameraIndex
-        , TStagedBuffer<gputypes::Camera> const& cameras
-        , uint32_t atmosphereIndex
-        , TStagedBuffer<gputypes::Atmosphere> const& atmospheres
-        , SceneBounds const& sceneBounds
-        , bool renderMesh
-        , MeshAsset const& sceneMesh
-        , MeshInstances const& sceneGeometry
+        VkCommandBuffer cmd,
+        VkRect2D drawRect,
+        VkImageLayout colorLayout,
+        AllocatedImage const& color,
+        AllocatedImage const& depth,
+        std::span<gputypes::LightDirectional const> directionalLights,
+        std::span<gputypes::LightSpot const> spotLights,
+        uint32_t viewCameraIndex,
+        TStagedBuffer<gputypes::Camera> const& cameras,
+        uint32_t atmosphereIndex,
+        TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
+        bool renderMesh,
+        MeshAsset const& sceneMesh,
+        MeshInstances const& sceneGeometry
     );
 
     void updateRenderTargetDescriptors(
-        VkDevice device
-        , AllocatedImage const& depthImage
+        VkDevice device, AllocatedImage const& depthImage
     );
-    
-    void cleanup(
-        VkDevice device
-        , VmaAllocator allocator
-    );
+
+    void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:
     ShadowPassArray m_shadowPassArray{};
 
     AllocatedImage m_drawImage{};
 
-    VmaAllocator m_allocator{ VK_NULL_HANDLE };
+    VmaAllocator m_allocator{VK_NULL_HANDLE};
 
     typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
@@ -58,15 +53,15 @@ private:
     typedef TStagedBuffer<gputypes::LightSpot> LightSpotBuffer;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
-    VkDescriptorSet m_drawImageSet{ VK_NULL_HANDLE };
+    VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};
     // Used by compute shaders to output final image
-    VkDescriptorSetLayout m_drawImageLayout{ VK_NULL_HANDLE }; 
+    VkDescriptorSetLayout m_drawImageLayout{VK_NULL_HANDLE};
 
-    VkDescriptorSet m_depthImageSet{ VK_NULL_HANDLE };
+    VkDescriptorSet m_depthImageSet{VK_NULL_HANDLE};
     // Used by compute shaders to read scene depth
-    VkDescriptorSetLayout m_depthImageLayout{ VK_NULL_HANDLE }; 
+    VkDescriptorSetLayout m_depthImageLayout{VK_NULL_HANDLE};
 
-    VkSampler m_depthImageImmutableSampler{ VK_NULL_HANDLE };
+    VkSampler m_depthImageImmutableSampler{VK_NULL_HANDLE};
 
     GBuffer m_gBuffer{};
 
@@ -78,20 +73,20 @@ private:
         VkDeviceAddress modelInverseTransposeBuffer{};
         VkDeviceAddress cameraBuffer{};
 
-        uint32_t cameraIndex{ 0 };
+        uint32_t cameraIndex{0};
         uint8_t padding0[12]{};
     };
 
     GBufferVertexPushConstant /* mutable */ m_gBufferVertexPushConstant{};
-    ShaderObjectReflected m_gBufferVertexShader{ 
-        ShaderObjectReflected::makeInvalid() 
+    ShaderObjectReflected m_gBufferVertexShader{
+        ShaderObjectReflected::makeInvalid()
     };
-    ShaderObjectReflected m_gBufferFragmentShader{ 
-        ShaderObjectReflected::makeInvalid() 
+    ShaderObjectReflected m_gBufferFragmentShader{
+        ShaderObjectReflected::makeInvalid()
     };
 
     // TODO: initialize these layouts
-    VkPipelineLayout m_gBufferLayout{ VK_NULL_HANDLE };
+    VkPipelineLayout m_gBufferLayout{VK_NULL_HANDLE};
 
     struct LightingPassComputePushConstant
     {
@@ -103,29 +98,29 @@ private:
 
         uint32_t directionalLightCount{};
         uint32_t spotLightCount{};
-        uint32_t atmosphereIndex{ 0 };
-        uint32_t cameraIndex{ 0 };
+        uint32_t atmosphereIndex{0};
+        uint32_t cameraIndex{0};
 
         glm::vec2 gbufferOffset{};
         glm::vec2 gbufferExtent{};
     };
 
     LightingPassComputePushConstant /* mutable */ m_lightingPassPushConstant{};
-    
-    ShaderObjectReflected m_lightingPassComputeShader{ 
-        ShaderObjectReflected::makeInvalid() 
+
+    ShaderObjectReflected m_lightingPassComputeShader{
+        ShaderObjectReflected::makeInvalid()
     };
-    
-    VkPipelineLayout m_lightingPassLayout{ VK_NULL_HANDLE };
+
+    VkPipelineLayout m_lightingPassLayout{VK_NULL_HANDLE};
 
     struct SkyPassComputePushConstant
     {
         VkDeviceAddress atmosphereBuffer{};
         VkDeviceAddress cameraBuffer{};
 
-        uint32_t atmosphereIndex{ 0 };
-        uint32_t cameraIndex{ 0 };
-        
+        uint32_t atmosphereIndex{0};
+        uint32_t cameraIndex{0};
+
         glm::vec2 drawOffset{};
         glm::vec2 drawExtent{};
 
@@ -133,12 +128,12 @@ private:
     };
 
     SkyPassComputePushConstant /* mutable */ m_skyPassPushConstant{};
-    
-    ShaderObjectReflected m_skyPassComputeShader{ 
-        ShaderObjectReflected::makeInvalid() 
+
+    ShaderObjectReflected m_skyPassComputeShader{
+        ShaderObjectReflected::makeInvalid()
     };
-    
-    VkPipelineLayout m_skyPassLayout{ VK_NULL_HANDLE };
+
+    VkPipelineLayout m_skyPassLayout{VK_NULL_HANDLE};
 
 public:
     struct Parameters

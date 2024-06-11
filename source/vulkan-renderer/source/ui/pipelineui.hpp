@@ -1,4 +1,3 @@
 #pragma once
 
-template<class T>
-void imguiPipelineControls(T& pipeline);
+template <class T> void imguiPipelineControls(T& pipeline);

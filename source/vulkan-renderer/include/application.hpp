@@ -16,5 +16,5 @@ public:
     bool loadedSuccessfully() const { return m_engine != nullptr; };
 
 private:
-    Engine* m_engine{ nullptr };
+    Engine* m_engine{nullptr};
 };

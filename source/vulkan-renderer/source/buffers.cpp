@@ -24,16 +24,14 @@ auto AllocatedBuffer::allocate(
     };
 
     AllocatedBuffer newBuffer{};
-    CheckVkResult(
-        vmaCreateBuffer(
-            allocator
-            , &bufferInfo
-            , &vmaAllocInfo
-            , &newBuffer.buffer
-            , &newBuffer.allocation
-            , &newBuffer.info
-        )
-    );
+    CheckVkResult(vmaCreateBuffer(
+        allocator,
+        &bufferInfo,
+        &vmaAllocInfo,
+        &newBuffer.buffer,
+        &newBuffer.allocation,
+        &newBuffer.info
+    ));
 
     newBuffer.deviceAddress = 0;
     if ((bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0U)
@@ -44,7 +42,8 @@ auto AllocatedBuffer::allocate(
 
             .buffer = newBuffer.buffer,
         };
-        newBuffer.deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
+        newBuffer.deviceAddress =
+            vkGetBufferDeviceAddress(device, &addressInfo);
     }
 
     newBuffer.allocator = allocator;
@@ -53,18 +52,12 @@ auto AllocatedBuffer::allocate(
 }
 
 void StagedBuffer::recordCopyToDevice(
-    VkCommandBuffer const cmd
-    , VmaAllocator const allocator
+    VkCommandBuffer const cmd, VmaAllocator const allocator
 )
 {
-    CheckVkResult(
-        vmaFlushAllocation(
-            allocator
-            , m_stagingBuffer.allocation
-            , 0
-            , VK_WHOLE_SIZE
-        )
-    );
+    CheckVkResult(vmaFlushAllocation(
+        allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE
+    ));
 
     markDirty(false);
 
@@ -74,10 +67,7 @@ void StagedBuffer::recordCopyToDevice(
         .size = m_stagedSizeBytes,
     };
     vkCmdCopyBuffer(
-        cmd
-        , m_stagingBuffer.buffer
-        , m_deviceBuffer.buffer
-        , 1, &copyInfo
+        cmd, m_stagingBuffer.buffer, m_deviceBuffer.buffer, 1, &copyInfo
     );
 
     m_deviceSizeBytes = m_stagedSizeBytes;
@@ -87,10 +77,8 @@ auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
 {
     if (isDirty())
     {
-        Warning(
-            "Dirty buffer's device address was accessed, "
-            "the buffer may have unexpected values at command execution."
-        );
+        Warning("Dirty buffer's device address was accessed, "
+                "the buffer may have unexpected values at command execution.");
     }
 
     return m_deviceBuffer.deviceAddress;
@@ -108,9 +96,9 @@ void StagedBuffer::pushStagedBytes(std::span<uint8_t const> const data)
     assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
 
     markDirty(true);
-    uint8_t* const start{ 
-        reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData) 
-        + m_stagedSizeBytes 
+    uint8_t* const start{
+        reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData)
+        + m_stagedSizeBytes
     };
     memcpy(start, data.data(), data.size_bytes());
     m_stagedSizeBytes += data.size_bytes();
@@ -149,44 +137,36 @@ auto StagedBuffer::allocate(
     VkBufferUsageFlags const bufferUsage
 ) -> StagedBuffer
 {
-    AllocatedBuffer deviceBuffer{ 
-        AllocatedBuffer::allocate(
-            device
-            , allocator
-            , allocationSize
-            , bufferUsage
-            | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-            , VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-            , 0
-        ) 
-    };
+    AllocatedBuffer deviceBuffer{AllocatedBuffer::allocate(
+        device,
+        allocator,
+        allocationSize,
+        bufferUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+        0
+    )};
 
-    AllocatedBuffer stagingBuffer{ 
-        AllocatedBuffer::allocate(
-            device
-            , allocator
-            , allocationSize
-            , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-            , VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-            , VMA_ALLOCATION_CREATE_MAPPED_BIT
+    AllocatedBuffer stagingBuffer{AllocatedBuffer::allocate(
+        device,
+        allocator,
+        allocationSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+        VMA_ALLOCATION_CREATE_MAPPED_BIT
             | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
-        ) 
-    };
+    )};
 
     // We assume the allocation went correctly.
     // TODO: verify where these buffers allocated, and handle if they fail
 
-    return {
-        std::move(deviceBuffer)
-        , std::move(stagingBuffer)
-    };
+    return {std::move(deviceBuffer), std::move(stagingBuffer)};
 }
 
 void StagedBuffer::recordTotalCopyBarrier(
-    VkCommandBuffer const cmd
-    , VkPipelineStageFlags2 const destinationStage
-    , VkAccessFlags2 const destinationAccessFlags
+    VkCommandBuffer const cmd,
+    VkPipelineStageFlags2 const destinationStage,
+    VkAccessFlags2 const destinationAccessFlags
 ) const
 {
     VkBufferMemoryBarrier2 const bufferMemoryBarrier{

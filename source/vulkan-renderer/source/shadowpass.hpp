@@ -1,73 +1,63 @@
 #pragma once
 
-#include "enginetypes.hpp"
 #include "descriptors.hpp"
-#include "pipelines.hpp"
+#include "enginetypes.hpp"
 #include "images.hpp"
+#include "pipelines.hpp"
 
 struct ShadowPassParameters
 {
-    float depthBiasConstant{ 2.00f };
-    float depthBiasSlope{ -1.75f };
+    float depthBiasConstant{2.00f};
+    float depthBiasSlope{-1.75f};
 };
 
-// Handles the resources for an array of depth maps, 
+// Handles the resources for an array of depth maps,
 // which share a sampler and should be accessed via a descriptor array.
 class ShadowPassArray
 {
 public:
-    static size_t constexpr SHADOWPASS_CAMERA_CAPACITY{ 100 };
+    static size_t constexpr SHADOWPASS_CAMERA_CAPACITY{100};
 
     static std::optional<ShadowPassArray> create(
-        VkDevice device
-        , DescriptorAllocator& descriptorAllocator
-        , VmaAllocator allocator
-        , VkExtent3D shadowmapExtent
-        , size_t capacity
+        VkDevice device,
+        DescriptorAllocator& descriptorAllocator,
+        VmaAllocator allocator,
+        VkExtent3D shadowmapExtent,
+        size_t capacity
     );
 
-    // Prepares shadow maps for a specified number of lights. 
+    // Prepares shadow maps for a specified number of lights.
     // Calling this twice overwrites the previous results.
     void recordInitialize(
-        VkCommandBuffer cmd
-        , ShadowPassParameters parameters
-        , std::span<gputypes::LightDirectional const> directionalLights
-        , std::span<gputypes::LightSpot const> spotLights
+        VkCommandBuffer cmd,
+        ShadowPassParameters parameters,
+        std::span<gputypes::LightDirectional const> directionalLights,
+        std::span<gputypes::LightSpot const> spotLights
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd
-        , MeshAsset const& mesh
-        , TStagedBuffer<glm::mat4x4> const& models
+        VkCommandBuffer cmd,
+        MeshAsset const& mesh,
+        TStagedBuffer<glm::mat4x4> const& models
     );
 
     // Transitions all the shadow map VkImages, with a total memory barrier.
     void recordTransitionActiveShadowMaps(
-        VkCommandBuffer cmd
-        , VkImageLayout dstLayout
+        VkCommandBuffer cmd, VkImageLayout dstLayout
     );
 
-    VkDescriptorSetLayout samplerSetLayout() const 
-    { 
-        return m_samplerSetLayout; 
+    VkDescriptorSetLayout samplerSetLayout() const
+    {
+        return m_samplerSetLayout;
     };
-    VkDescriptorSetLayout texturesSetLayout() const 
-    { 
-        return m_texturesSetLayout; 
+    VkDescriptorSetLayout texturesSetLayout() const
+    {
+        return m_texturesSetLayout;
     };
-    VkDescriptorSet samplerSet() const 
-    { 
-        return m_samplerSet; 
-    };
-    VkDescriptorSet textureSet() const 
-    { 
-        return m_texturesSet; 
-    };
+    VkDescriptorSet samplerSet() const { return m_samplerSet; };
+    VkDescriptorSet textureSet() const { return m_texturesSet; };
 
-    void cleanup(
-        VkDevice const device
-        , VmaAllocator const allocator
-    )
+    void cleanup(VkDevice const device, VmaAllocator const allocator)
     {
         for (auto& image : m_textures)
         {
@@ -97,25 +87,25 @@ public:
     }
 
 private:
-    float m_depthBias{ 0 };
-    float m_depthBiasSlope{ 0 };
-    // Each of these staged values represents 
+    float m_depthBias{0};
+    float m_depthBiasSlope{0};
+    // Each of these staged values represents
     // a shadow map we are going to write
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_projViewMatrices{};
-    // The current layout of the textures, 
+    // The current layout of the textures,
     // as recorded by this class.
-    VkImageLayout m_texturesCurrentLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
+    VkImageLayout m_texturesCurrentLayout{VK_IMAGE_LAYOUT_UNDEFINED};
 
-    VmaAllocator m_allocator{ VK_NULL_HANDLE };
+    VmaAllocator m_allocator{VK_NULL_HANDLE};
 
-    VkSampler m_sampler{ VK_NULL_HANDLE };
-    VkDescriptorSetLayout m_samplerSetLayout{ VK_NULL_HANDLE };
-    VkDescriptorSet m_samplerSet{ VK_NULL_HANDLE };
+    VkSampler m_sampler{VK_NULL_HANDLE};
+    VkDescriptorSetLayout m_samplerSetLayout{VK_NULL_HANDLE};
+    VkDescriptorSet m_samplerSet{VK_NULL_HANDLE};
 
     std::vector<AllocatedImage> m_textures{};
-    
-    VkDescriptorSetLayout m_texturesSetLayout{ VK_NULL_HANDLE };
-    VkDescriptorSet m_texturesSet{ VK_NULL_HANDLE };
-    
+
+    VkDescriptorSetLayout m_texturesSetLayout{VK_NULL_HANDLE};
+    VkDescriptorSet m_texturesSet{VK_NULL_HANDLE};
+
     std::unique_ptr<OffscreenPassGraphicsPipeline> m_pipeline{};
 };

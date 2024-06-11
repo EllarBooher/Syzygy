@@ -8,13 +8,14 @@
 
 #include "../helpers.hpp"
 
-void PropertyTable::nameColumn(std::string const &name)
+void PropertyTable::nameColumn(std::string const& name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
     ImGui::Text("%s", name.c_str());
 }
 
-auto PropertyTable::resetColumn(std::string const &name, bool const visible) -> bool
+auto PropertyTable::resetColumn(std::string const& name, bool const visible)
+    -> bool
 {
     ImGui::TableSetColumnIndex(RESET_INDEX);
 
@@ -23,34 +24,29 @@ auto PropertyTable::resetColumn(std::string const &name, bool const visible) -> 
         return false;
     }
 
-    float const width{
-        ImGui::GetColumnWidth(RESET_INDEX)
-    };
+    float const width{ImGui::GetColumnWidth(RESET_INDEX)};
     ImGui::SetNextItemWidth(width);
 
-    bool const clicked{ImGui::Button(fmt::format("<-##{}reset", name).c_str(), ImVec2{-1.0F, 0.0F})};
+    bool const clicked{ImGui::Button(
+        fmt::format("<-##{}reset", name).c_str(), ImVec2{-1.0F, 0.0F}
+    )};
 
     return clicked;
 }
 
-auto PropertyTable::begin(std::string const &name) -> PropertyTable
+auto PropertyTable::begin(std::string const& name) -> PropertyTable
 {
     ImGui::BeginTable(
-        name.c_str()
-        , 3
-        , ImGuiTableFlags_None
-        | ImGuiTableFlags_BordersInner
-        | ImGuiTableFlags_Resizable
+        name.c_str(),
+        3,
+        ImGuiTableFlags_None | ImGuiTableFlags_BordersInner
+            | ImGuiTableFlags_Resizable
     );
 
+    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
     ImGui::TableSetupColumn(
-        "Property"
-        , ImGuiTableColumnFlags_WidthFixed
-    );
-    ImGui::TableSetupColumn(
-        "Value"
-        , ImGuiTableColumnFlags_WidthStretch 
-        | ImGuiTableColumnFlags_NoResize
+        "Value",
+        ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize
     );
     ImGui::TableSetupColumn(
         "Reset",
@@ -60,11 +56,11 @@ auto PropertyTable::begin(std::string const &name) -> PropertyTable
 
     ImGui::Indent(Self::collapseButtonWidth());
 
-    ImVec2 constexpr PROPERTY_TABLE_CELL_PADDING{ 0.0F, 6.0F };
+    ImVec2 constexpr PROPERTY_TABLE_CELL_PADDING{0.0F, 6.0F};
 
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, PROPERTY_TABLE_CELL_PADDING);
 
-    uint16_t const styleVariableCount{ 1 };
+    uint16_t const styleVariableCount{1};
 
     return PropertyTable(styleVariableCount);
 }
@@ -82,14 +78,14 @@ void PropertyTable::end()
     ImGui::EndTable();
 }
 
-auto PropertyTable::childPropertyBegin() -> PropertyTable &
+auto PropertyTable::childPropertyBegin() -> PropertyTable&
 {
     static std::unordered_map<ImGuiID, bool> collapseStatus{};
-    bool constexpr COLLAPSED_DEFAULT{ true };
+    bool constexpr COLLAPSED_DEFAULT{true};
 
     checkInvariant();
 
-    bool const hideRow{ hideNextRow() };
+    bool const hideRow{hideNextRow()};
     if (!hideRow)
     {
         ImGui::TableSetColumnIndex(PROPERTY_INDEX);
@@ -97,42 +93,31 @@ auto PropertyTable::childPropertyBegin() -> PropertyTable &
         std::string const arrowButtonName{
             fmt::format("##arrowButton{}", m_propertyCount)
         };
-        ImGuiID const arrowButtonID{
-            ImGui::GetID(arrowButtonName.c_str())
-        };
+        ImGuiID const arrowButtonID{ImGui::GetID(arrowButtonName.c_str())};
 
         if (!collapseStatus.contains(arrowButtonID))
         {
-            collapseStatus.insert({ arrowButtonID, COLLAPSED_DEFAULT });
+            collapseStatus.insert({arrowButtonID, COLLAPSED_DEFAULT});
         }
 
-        bool& collapsed{ collapseStatus.at(arrowButtonID) };
-        ImGuiDir const direction{
-            collapsed
-            ? ImGuiDir_Right
-            : ImGuiDir_Down
-        };
+        bool& collapsed{collapseStatus.at(arrowButtonID)};
+        ImGuiDir const direction{collapsed ? ImGuiDir_Right : ImGuiDir_Down};
 
-        // We find the beginning of the previous column WITHOUT indents, 
-        // by passing a minimal float. Passing 0.0 to SameLine puts the button 
+        // We find the beginning of the previous column WITHOUT indents,
+        // by passing a minimal float. Passing 0.0 to SameLine puts the button
         // after the column's text, which is not what we want.
-        // There might be a better way to do this. 
-        auto const maxX{ ImGui::GetContentRegionMax().x };
-        auto const columnWidth{ ImGui::GetColumnWidth() };
-        auto const buttonWidth{ Self::collapseButtonWidth() };
+        // There might be a better way to do this.
+        auto const maxX{ImGui::GetContentRegionMax().x};
+        auto const columnWidth{ImGui::GetColumnWidth()};
+        auto const buttonWidth{Self::collapseButtonWidth()};
 
-        // We must precompute the above values since 
+        // We must precompute the above values since
         // this line would modify them.
         ImGui::SameLine(FLT_MIN);
 
-        auto const cursorX{ ImGui::GetCursorPosX() };
+        auto const cursorX{ImGui::GetCursorPosX()};
 
-        ImGui::SetCursorPosX(
-            maxX
-            - cursorX
-            - columnWidth
-            - buttonWidth
-        );
+        ImGui::SetCursorPosX(maxX - cursorX - columnWidth - buttonWidth);
 
         if (ImGui::ArrowButton(arrowButtonName.c_str(), direction))
         {
@@ -152,7 +137,8 @@ auto PropertyTable::childPropertyBegin() -> PropertyTable &
     return *this;
 }
 
-auto PropertyTable::rowChildPropertyBegin(std::string const &name) -> PropertyTable &
+auto PropertyTable::rowChildPropertyBegin(std::string const& name)
+    -> PropertyTable&
 {
     if (Self::rowBegin(name))
     {
@@ -162,13 +148,13 @@ auto PropertyTable::rowChildPropertyBegin(std::string const &name) -> PropertyTa
     return childPropertyBegin();
 }
 
-auto PropertyTable::childPropertyEnd() -> PropertyTable &
+auto PropertyTable::childPropertyEnd() -> PropertyTable&
 {
     checkInvariant();
     assert(
         m_childPropertyDepth > 0
         && "(rowChildPropertyEnd() called on PropertyTable with not enough"
-        "matching rowChildPropertyBegin())"
+           "matching rowChildPropertyBegin())"
     );
 
     ImGui::Unindent(ImGui::GetStyle().IndentSpacing);
@@ -184,7 +170,7 @@ auto PropertyTable::childPropertyEnd() -> PropertyTable &
     return *this;
 }
 
-auto PropertyTable::rowBegin(std::string const &name) -> bool
+auto PropertyTable::rowBegin(std::string const& name) -> bool
 {
     assert(!m_rowOpen && "Row opened without ending the previous one.");
 
@@ -217,11 +203,11 @@ void PropertyTable::rowEnd()
 }
 
 auto PropertyTable::rowDropdown(
-    std::string const &name,
-    size_t &selectedIndex,
-    size_t const &defaultIndex,
+    std::string const& name,
+    size_t& selectedIndex,
+    size_t const& defaultIndex,
     std::span<std::string const> const displayValues
-) -> PropertyTable &
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -233,10 +219,9 @@ auto PropertyTable::rowDropdown(
         selectedIndex = 0;
     }
 
-    std::string const& previewValue{ 
-        displayValues.empty() 
-        ? "No Possible Values." 
-        : displayValues[selectedIndex] 
+    std::string const& previewValue{
+        displayValues.empty() ? "No Possible Values."
+                              : displayValues[selectedIndex]
     };
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
@@ -244,7 +229,7 @@ auto PropertyTable::rowDropdown(
     ImGui::BeginDisabled(displayValues.empty());
     if (ImGui::BeginCombo("##combo", previewValue.c_str()))
     {
-        size_t index{ 0 };
+        size_t index{0};
         for (std::string const& displayValue : displayValues)
         {
             bool const isSelected{index == selectedIndex};
@@ -275,8 +260,9 @@ auto PropertyTable::rowDropdown(
     return *this;
 }
 
-auto PropertyTable::rowText(std::string const &name, std::string &value, std::string const &resetValue)
-    -> PropertyTable &
+auto PropertyTable::rowText(
+    std::string const& name, std::string& value, std::string const& resetValue
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -284,10 +270,9 @@ auto PropertyTable::rowText(std::string const &name, std::string &value, std::st
     }
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
-    
+
     ImGui::InputText(
-        fmt::format("##{}{}", name, m_propertyCount).c_str()
-        , &value
+        fmt::format("##{}{}", name, m_propertyCount).c_str(), &value
     );
 
     if (Self::resetColumn(name, value != resetValue))
@@ -300,9 +285,12 @@ auto PropertyTable::rowText(std::string const &name, std::string &value, std::st
     return *this;
 }
 
-// NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix up the parameters, since name is first across all Property table row methods.
+// NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
+// up the parameters, since name is first across all Property table row methods.
 
-auto PropertyTable::rowReadOnlyText(std::string const &name, std::string const &value) -> PropertyTable &
+auto PropertyTable::rowReadOnlyText(
+    std::string const& name, std::string const& value
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -321,8 +309,11 @@ auto PropertyTable::rowReadOnlyText(std::string const &name, std::string const &
 // NOLINTEND(bugprone-easily-swappable-parameters)
 
 auto PropertyTable::rowInteger(
-    std::string const &name, int32_t &value, int32_t const &resetValue, PropertySliderBehavior const behavior
-) -> PropertyTable &
+    std::string const& name,
+    int32_t& value,
+    int32_t const& resetValue,
+    PropertySliderBehavior const behavior
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -332,13 +323,13 @@ auto PropertyTable::rowInteger(
     ImGui::TableSetColumnIndex(VALUE_INDEX);
 
     ImGui::DragInt(
-        fmt::format("##{}{}", name, m_propertyCount).c_str()
-        , &value
-        , behavior.speed
-        , std::ceil(behavior.bounds.min)
-        , std::floor(behavior.bounds.max)
-        , "%i"
-        , behavior.flags
+        fmt::format("##{}{}", name, m_propertyCount).c_str(),
+        &value,
+        behavior.speed,
+        std::ceil(behavior.bounds.min),
+        std::floor(behavior.bounds.max),
+        "%i",
+        behavior.flags
     );
 
     if (Self::resetColumn(name, value != resetValue))
@@ -351,7 +342,9 @@ auto PropertyTable::rowInteger(
     return *this;
 }
 
-auto PropertyTable::rowReadOnlyInteger(std::string const &name, int32_t const &value) -> PropertyTable &
+auto PropertyTable::rowReadOnlyInteger(
+    std::string const& name, int32_t const& value
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -361,15 +354,15 @@ auto PropertyTable::rowReadOnlyInteger(std::string const &name, int32_t const &v
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::BeginDisabled();
 
-    int32_t valueCopy{ value };
+    int32_t valueCopy{value};
     ImGui::DragInt(
-        fmt::format("##{}{}", name, m_propertyCount).c_str()
-        , &valueCopy
-        , 0
-        , 0
-        , 0
-        , "%i"
-        , ImGuiSliderFlags_None
+        fmt::format("##{}{}", name, m_propertyCount).c_str(),
+        &valueCopy,
+        0,
+        0,
+        0,
+        "%i",
+        ImGuiSliderFlags_None
     );
 
     ImGui::EndDisabled();
@@ -380,8 +373,11 @@ auto PropertyTable::rowReadOnlyInteger(std::string const &name, int32_t const &v
 }
 
 auto PropertyTable::rowVec3(
-    std::string const &name, glm::vec3 &value, glm::vec3 const &resetValue, PropertySliderBehavior const behavior
-) -> PropertyTable &
+    std::string const& name,
+    glm::vec3& value,
+    glm::vec3 const& resetValue,
+    PropertySliderBehavior const behavior
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -390,22 +386,22 @@ auto PropertyTable::rowVec3(
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
-    for (size_t component{ 0 }; component < 3; component++)
+    for (size_t component{0}; component < 3; component++)
     {
-        float const spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+        float const spacing{ImGui::GetStyle().ItemInnerSpacing.x};
         if (component > 0)
         {
             ImGui::SameLine(0.0F, spacing);
         }
 
         ImGui::DragFloat(
-            fmt::format("##{}{}{}", name, m_propertyCount, component).c_str()
-            , &value[component]
-            , behavior.speed
-            , behavior.bounds.min
-            , behavior.bounds.max
-            , "%.6f"
-            , behavior.flags
+            fmt::format("##{}{}{}", name, m_propertyCount, component).c_str(),
+            &value[component],
+            behavior.speed,
+            behavior.bounds.min,
+            behavior.bounds.max,
+            "%.6f",
+            behavior.flags
         );
         ImGui::PopItemWidth();
     }
@@ -420,7 +416,9 @@ auto PropertyTable::rowVec3(
     return *this;
 }
 
-auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &value) -> PropertyTable &
+auto PropertyTable::rowReadOnlyVec3(
+    std::string const& name, glm::vec3 const& value
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -432,17 +430,15 @@ auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &va
     ImGui::BeginDisabled();
 
     ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
-    for (size_t component{ 0 }; component < 3; component++)
+    for (size_t component{0}; component < 3; component++)
     {
-        float const interComponentSpacing{ 
-            ImGui::GetStyle().ItemInnerSpacing.x 
-        };
+        float const interComponentSpacing{ImGui::GetStyle().ItemInnerSpacing.x};
         if (component > 0)
         {
             ImGui::SameLine(0.0F, interComponentSpacing);
         }
 
-        float componentValue{ value[component] };
+        float componentValue{value[component]};
         ImGui::DragFloat(
             fmt::format("##{}{}{}", name, m_propertyCount, component).c_str(),
             &componentValue,
@@ -462,8 +458,11 @@ auto PropertyTable::rowReadOnlyVec3(std::string const &name, glm::vec3 const &va
 }
 
 auto PropertyTable::rowFloat(
-    std::string const &name, float &value, float const &resetValue, PropertySliderBehavior const behavior
-) -> PropertyTable &
+    std::string const& name,
+    float& value,
+    float const& resetValue,
+    PropertySliderBehavior const behavior
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -472,13 +471,13 @@ auto PropertyTable::rowFloat(
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::DragFloat(
-        fmt::format("##{}", name).c_str()
-        , &value
-        , behavior.speed
-        , behavior.bounds.min
-        , behavior.bounds.max
-        , "%.6f"
-        , behavior.flags
+        fmt::format("##{}", name).c_str(),
+        &value,
+        behavior.speed,
+        behavior.bounds.min,
+        behavior.bounds.max,
+        "%.6f",
+        behavior.flags
     );
 
     if (Self::resetColumn(name, value != resetValue))
@@ -491,7 +490,9 @@ auto PropertyTable::rowFloat(
     return *this;
 }
 
-auto PropertyTable::rowReadOnlyFloat(std::string const &name, float const &value) -> PropertyTable &
+auto PropertyTable::rowReadOnlyFloat(
+    std::string const& name, float const& value
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -502,15 +503,15 @@ auto PropertyTable::rowReadOnlyFloat(std::string const &name, float const &value
 
     ImGui::BeginDisabled();
 
-    float valueCopy{ value };
+    float valueCopy{value};
     ImGui::DragFloat(
-        fmt::format("##{}", name).c_str()
-        , &valueCopy
-        , 0.0
-        , 0.0
-        , 0.0
-        , "%.6f"
-        , ImGuiSliderFlags_None
+        fmt::format("##{}", name).c_str(),
+        &valueCopy,
+        0.0,
+        0.0,
+        0.0,
+        "%.6f",
+        ImGuiSliderFlags_None
     );
 
     ImGui::EndDisabled();
@@ -520,7 +521,9 @@ auto PropertyTable::rowReadOnlyFloat(std::string const &name, float const &value
     return *this;
 }
 
-auto PropertyTable::rowBoolean(std::string const &name, bool &value, bool const &resetValue) -> PropertyTable &
+auto PropertyTable::rowBoolean(
+    std::string const& name, bool& value, bool const& resetValue
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -540,7 +543,9 @@ auto PropertyTable::rowBoolean(std::string const &name, bool &value, bool const 
     return *this;
 }
 
-auto PropertyTable::rowReadOnlyBoolean(std::string const &name, bool const &value) -> PropertyTable &
+auto PropertyTable::rowReadOnlyBoolean(
+    std::string const& name, bool const& value
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -551,7 +556,7 @@ auto PropertyTable::rowReadOnlyBoolean(std::string const &name, bool const &valu
 
     ImGui::BeginDisabled();
 
-    bool valueCopy{ value };
+    bool valueCopy{value};
     ImGui::Checkbox(fmt::format("##{}", name).c_str(), &valueCopy);
 
     ImGui::EndDisabled();
@@ -569,14 +574,14 @@ void PropertyTable::demoWindow(bool& open)
         return;
     }
 
-    static bool valueBoolean{ false };
+    static bool valueBoolean{false};
 
-    static int32_t valueBoundedInteger{ 0 };
+    static int32_t valueBoundedInteger{0};
     static float valueBoundedFloat{0.0F};
     static glm::vec3 valueBoundedVec3{0.0F};
 
     static glm::vec3 valueUnboundedVec3{0.0F};
-    static int32_t valueUnboundedInteger{ 0 };
+    static int32_t valueUnboundedInteger{0};
     static float valueUnboundedFloat{0.0F};
 
     static float const valueUnboundedFloat2{0.0F};
@@ -587,15 +592,9 @@ void PropertyTable::demoWindow(bool& open)
 
     static std::string valueText{"Default Text Value"};
 
-    static size_t dropdownIndex{ 0 };
+    static size_t dropdownIndex{0};
     auto const dropdownLabels{
-        std::to_array<std::string>(
-        {
-            "First!"
-            , "Second!"
-            , "Third!"
-            , "Fourth!"
-        })
+        std::to_array<std::string>({"First!", "Second!", "Third!", "Fourth!"})
     };
 
     // Since this is demo code, values here are arbitrary, so we do not lint
@@ -606,7 +605,9 @@ void PropertyTable::demoWindow(bool& open)
         .rowText("Text", valueText, "Default Text Value")
         .childPropertyBegin()
         .rowReadOnlyInteger("Text Size", static_cast<int32_t>(valueText.size()))
-        .rowReadOnlyInteger("Text Capacity", static_cast<int32_t>(valueText.capacity()))
+        .rowReadOnlyInteger(
+            "Text Capacity", static_cast<int32_t>(valueText.capacity())
+        )
         .childPropertyEnd()
         .rowReadOnlyText("Read-Only Text", "Hello!")
         .rowBoolean("Boolean", valueBoolean, false)
@@ -679,7 +680,10 @@ void PropertyTable::demoWindow(bool& open)
         .rowReadOnlyVec3("Read-Only Vec3", glm::vec3{1.0F})
         .rowReadOnlyInteger("Read-Only Integer", 592181)
         .childPropertyEnd() // Available Fields
-        .rowReadOnlyText("Child Properties", "Child Properties remember their collapse status.")
+        .rowReadOnlyText(
+            "Child Properties",
+            "Child Properties remember their collapse status."
+        )
         .childPropertyBegin()
         .rowChildPropertyBegin("Child")
         .rowChildPropertyBegin("Child")

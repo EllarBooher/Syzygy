@@ -2,88 +2,76 @@
 
 #include <vector>
 
-#include <volk.h>
-#include <string>
-#include <span>
 #include <optional>
+#include <span>
+#include <string>
+#include <volk.h>
 
-// Shorthand factory methods for data-holding Vulkan structs, with reasonable defaults.
-namespace vkinit 
+// Shorthand factory methods for data-holding Vulkan structs, with reasonable
+// defaults.
+namespace vkinit
 {
-    VkFenceCreateInfo fenceCreateInfo(
-        VkFenceCreateFlags flags = 0
-    );
-    VkSemaphoreCreateInfo semaphoreCreateInfo(
-        VkSemaphoreCreateFlags flags = 0
-    );
-    VkCommandBufferBeginInfo commandBufferBeginInfo(
-        VkCommandBufferUsageFlags flags = 0
-    );
-    
-    VkImageSubresourceRange imageSubresourceRange(
-        VkImageAspectFlags aspectMask
-    );
-    VkImageSubresourceLayers imageSubresourceLayers(
-        VkImageAspectFlags aspectMask
-        , uint32_t mipLevel
-        , uint32_t baseArrayLayer = 0
-        , uint32_t baseArrayCount = 1
-    );
+VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
+VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
+VkCommandBufferBeginInfo
+commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
 
-    VkSemaphoreSubmitInfo semaphoreSubmitInfo(
-        VkPipelineStageFlags2 stageMask
-        , VkSemaphore semaphore
-    );
-    VkCommandBufferSubmitInfo commandBufferSubmitInfo(
-        VkCommandBuffer cmd
-    );
-    VkSubmitInfo2 submitInfo(
-        std::vector<VkCommandBufferSubmitInfo> const& cmdInfo
-        , std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo
-        , std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
-    );
+VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
+VkImageSubresourceLayers imageSubresourceLayers(
+    VkImageAspectFlags aspectMask,
+    uint32_t mipLevel,
+    uint32_t baseArrayLayer = 0,
+    uint32_t baseArrayCount = 1
+);
 
-    VkImageCreateInfo imageCreateInfo(
-        VkFormat format
-        , VkImageLayout initialLayout
-        , VkImageUsageFlags usageMask
-        , VkExtent3D extent
-    );
+VkSemaphoreSubmitInfo
+semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
+VkCommandBufferSubmitInfo commandBufferSubmitInfo(VkCommandBuffer cmd);
+VkSubmitInfo2 submitInfo(
+    std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
+    std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
+    std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
+);
 
-    VkSamplerCreateInfo samplerCreateInfo(
-        VkSamplerCreateFlags flags
-        , VkBorderColor borderColor
-        , VkFilter filter
-        , VkSamplerAddressMode addressMode
-    );
+VkImageCreateInfo imageCreateInfo(
+    VkFormat format,
+    VkImageLayout initialLayout,
+    VkImageUsageFlags usageMask,
+    VkExtent3D extent
+);
 
-    VkImageViewCreateInfo imageViewCreateInfo(
-        VkFormat format
-        , VkImage image
-        , VkImageAspectFlags aspectFlags
-    );
+VkSamplerCreateInfo samplerCreateInfo(
+    VkSamplerCreateFlags flags,
+    VkBorderColor borderColor,
+    VkFilter filter,
+    VkSamplerAddressMode addressMode
+);
 
-    VkRenderingAttachmentInfo renderingAttachmentInfo(
-        VkImageView view
-        , VkImageLayout layout
-        , std::optional<VkClearValue> clearValue = {}
-    );
+VkImageViewCreateInfo imageViewCreateInfo(
+    VkFormat format, VkImage image, VkImageAspectFlags aspectFlags
+);
 
-    VkRenderingInfo renderingInfo(
-        VkRect2D drawRect
-        , std::span<VkRenderingAttachmentInfo const> colorAttachments
-        , VkRenderingAttachmentInfo const* pDepthAttachment
-    );
+VkRenderingAttachmentInfo renderingAttachmentInfo(
+    VkImageView view,
+    VkImageLayout layout,
+    std::optional<VkClearValue> clearValue = {}
+);
 
-    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
-        VkShaderStageFlagBits stage
-        , VkShaderModule module
-        , std::string const& entryPoint
-    );
+VkRenderingInfo renderingInfo(
+    VkRect2D drawRect,
+    std::span<VkRenderingAttachmentInfo const> colorAttachments,
+    VkRenderingAttachmentInfo const* pDepthAttachment
+);
 
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
-        VkPipelineLayoutCreateFlags flags
-        , std::span<VkDescriptorSetLayout const> layouts
-        , std::span<VkPushConstantRange const> ranges
-    );
-}
+VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
+    VkShaderStageFlagBits stage,
+    VkShaderModule module,
+    std::string const& entryPoint
+);
+
+VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
+    VkPipelineLayoutCreateFlags flags,
+    std::span<VkDescriptorSetLayout const> layouts,
+    std::span<VkPushConstantRange const> ranges
+);
+} // namespace vkinit

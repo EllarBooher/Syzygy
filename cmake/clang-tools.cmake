@@ -6,6 +6,9 @@ if (NOT CLANG_FORMAT_PATH)
 		CLANG_FORMAT_PATH 
 		"clang-format"
 	)
+	if (NOT CLANG_FORMAT_PATH)
+		message(STATUS "clang-format searched for - did not find")
+	endif()
 endif()
 
 if (CLANG_FORMAT_PATH)
@@ -25,6 +28,7 @@ if (CLANG_FORMAT_PATH)
 		COMMAND ${CLANG_FORMAT_PATH} -i -style=file ${ALL_CXX_SOURCE_FILES}
 		DEPENDS ${ALL_CXX_SOURCE_FILES}
 	)
+	set_target_properties(clang-format PROPERTIES EXCLUDE_FROM_ALL true)
 else()
 	message(STATUS "clang-format not found")
 endif()
