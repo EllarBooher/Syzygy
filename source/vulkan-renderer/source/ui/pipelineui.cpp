@@ -1,11 +1,11 @@
 #include "pipelineui.hpp"
 #include "engineui.hpp"
 
-#include <imgui.h>
 #include <fmt/format.h>
+#include <imgui.h>
 
-#include "../pipelines.hpp"
 #include "../deferred/deferred.hpp"
+#include "../pipelines.hpp"
 
 #include "propertytable.hpp"
 
@@ -20,7 +20,7 @@ namespace
         ImGui::SameLine(ImGui::GetWindowWidth() - buttonWidth, 0.0);
         ImGui::Text("%s", label.c_str());
     }
-}
+    } // namespace
 
 template<class... Ts>
 struct overloaded : Ts...

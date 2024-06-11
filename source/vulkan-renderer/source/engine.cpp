@@ -20,19 +20,19 @@
 
 #include <implot.h>
 
-#include <glm/gtx/transform.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/random.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include <glm/gtx/string_cast.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-#include "initializers.hpp"
+#include "descriptors.hpp"
 #include "helpers.hpp"
 #include "images.hpp"
-#include "descriptors.hpp"
+#include "initializers.hpp"
 #include "pipelines.hpp"
 
 #include "lights.hpp"

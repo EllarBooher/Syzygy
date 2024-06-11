@@ -13,7 +13,7 @@ namespace
 
         return { x, y, z };
     }
-}
+    } // namespace
 
 void vkutil::transitionImage(
     VkCommandBuffer const cmd

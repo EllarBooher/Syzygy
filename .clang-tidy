@@ -1,16 +1,4 @@
-﻿# 
-# List to work towards:
-# bugprone-*,
-# clang-analyzer-*,
-# llvm-*,
-# misc-*,
-# -misc-include-cleaner,
-# -misc-misplaced-const,
-# modernize-*,
-# performance-*,
-# readability*,
-# -readability-identifier-length,
-#
+﻿#
 # Justification for removals:
 #
 # misc-include-cleaner
@@ -22,15 +10,13 @@
 # readability-identifier-length
 # Does not seem to impact readability all that much.
 #
-# bugprone-easily-swappable-parameters
-# Noisy and not that useful.
-#
 
 FormatStyle:        file
 Checks: >
   -*,
   bugprone-*,
   clang-analyzer-*,
+  llvm-*,
   misc-*,
   -misc-include-cleaner,
   -misc-misplaced-const,

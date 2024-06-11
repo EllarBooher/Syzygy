@@ -1,20 +1,15 @@
 #include "engineui.hpp"
-
-#include <implot.h>
-#include <fmt/format.h>
-#include <array>
-
-#include "pipelineui.hpp"
-
-#include "../debuglines.hpp"
 #include "../assets.hpp"
-#include "../shaders.hpp"
+#include "../debuglines.hpp"
 #include "../engineparams.hpp"
+#include "../shaders.hpp"
 #include "../shadowpass.hpp"
-
 #include "imgui_internal.h"
-
+#include "pipelineui.hpp"
 #include "propertytable.hpp"
+#include <array>
+#include <fmt/format.h>
+#include <implot.h>
 
 void imguiPerformanceWindow(
     PerformanceValues const values
@@ -104,7 +99,7 @@ namespace
         }
         ImGui::End();
     }
-}
+    } // namespace
 
 auto renderHUD(UIPreferences &preferences) -> HUDState
 {

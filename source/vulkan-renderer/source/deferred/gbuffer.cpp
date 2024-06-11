@@ -1,7 +1,7 @@
 #include "gbuffer.hpp"
 
-#include "../initializers.hpp"
 #include "../helpers.hpp"
+#include "../initializers.hpp"
 
 auto GBuffer::create(
     VkDevice const device,

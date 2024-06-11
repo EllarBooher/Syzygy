@@ -1,7 +1,7 @@
 #include "shaders.hpp"
 
-#include "helpers.hpp"
 #include "assets.hpp"
+#include "helpers.hpp"
 #include <spirv_reflect.h>
 
 auto vkutil::generateReflectionData(std::span<uint8_t const> const spirv_bytecode) -> ShaderReflectionData

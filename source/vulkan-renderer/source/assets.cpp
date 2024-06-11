@@ -5,8 +5,8 @@
 
 #include <glm/gtx/quaternion.hpp>
 
-#include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/core.hpp>
+#include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 
 #include <fstream>

@@ -1,9 +1,9 @@
 #include "pipelines.hpp"
 
-#include <fstream>
 #include "helpers.hpp"
 #include "initializers.hpp"
 #include "shaders.hpp"
+#include <fstream>
 
 #include <glm/gtx/intersect.hpp>
 

@@ -1,4 +1,5 @@
 #include "deferred.hpp"
+
 #include "../initializers.hpp"
 
 namespace
@@ -132,7 +133,7 @@ namespace
         }
         return layout;
     }
-}
+    } // namespace
 
 DeferredShadingPipeline::DeferredShadingPipeline(
     VkDevice const device
@@ -460,7 +461,7 @@ namespace
 
         vkCmdSetStencilTestEnable(cmd, VK_FALSE);
     }
-}
+    } // namespace
 
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,

@@ -1,9 +1,9 @@
 #include "helpers.hpp"
 
-#include <iostream>
 #include <algorithm>
-#include <regex>
 #include <array>
+#include <iostream>
+#include <regex>
 
 auto MakeLogPrefix(std::source_location const location) -> std::string
 {
@@ -29,7 +29,7 @@ namespace
             , message
         );
     }
-}
+    } // namespace
 
 void CheckVkResult(
     VkResult const result
