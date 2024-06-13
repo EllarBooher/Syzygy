@@ -1,5 +1,5 @@
-add_subdirectory("vulkan-renderer")
+add_subdirectory("syzygy")
 
-add_executable(Renderer main.cpp)
+add_executable(Syzygy main.cpp)
 
-target_link_libraries(Renderer vulkan-renderer)
+target_link_libraries(Syzygy syzygy)

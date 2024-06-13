@@ -1,4 +1,4 @@
-#include "application.hpp"
+#include "syzygy.hpp"
 
 #include <cstdlib>
 

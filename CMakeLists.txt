@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(VulkanRenderer)
+project(Syzygy)
 
 include(cmake/dependencies.cmake)
 

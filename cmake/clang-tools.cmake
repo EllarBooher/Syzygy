@@ -50,7 +50,7 @@ if (CLANG_TIDY_ENABLE)
 
 		message(STATUS "clang-tidy enabled - using ${PATH_AND_OPTIONS}")
 		set_property(
-			TARGET vulkan-renderer
+			TARGET syzygy
 			PROPERTY CXX_CLANG_TIDY ${PATH_AND_OPTIONS}
 		)
 	else()

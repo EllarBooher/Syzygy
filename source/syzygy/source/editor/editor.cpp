@@ -99,7 +99,7 @@ auto Editor::createWindow(glm::u16vec2 const extent)
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
-    char const* const WINDOW_TITLE = "Vulkan Renderer";
+    char const* const WINDOW_TITLE = "Syzygy";
 
     GLFWwindow* const handle{glfwCreateWindow(
         static_cast<int32_t>(extent.x),

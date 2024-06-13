@@ -16,7 +16,7 @@ endif()
 if (IWYU_PATH)
 	message(STATUS "iwyu enabled - using ${IWYU_PATH}")
 	set_property(
-		TARGET vulkan-renderer 
+		TARGET syzygy
 		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH}
 	)
 else()

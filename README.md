@@ -1,4 +1,6 @@
-# VulkanRenderer
+# Syzygy
+
+(Rename in Progress)
 
 The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan. In order to aid learning and demonstration, the engine is designed with a focus in configurability and exposing the internals of the rendering.
 
@@ -78,7 +80,6 @@ Some notes on building:
 
 ## Planned Features
 
-- Come up with a cool name to differentiate the project
 - Serialization for UI and saving
 - Dynamic scenes with controllable transformations
 - Logging with categories, saving to file, and quality of life features such as deduplication

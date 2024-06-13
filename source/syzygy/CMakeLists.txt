@@ -1,8 +1,9 @@
-message(STATUS "vulkan-renderer - begin")
+message(STATUS "syzygy - begin")
 
 add_library(
-	vulkan-renderer
+	syzygy
 	STATIC 
+	"source/syzygy.cpp"
 	"Source/engine.cpp"
 	"Source/initializers.cpp"
 	"Source/images.cpp"
@@ -10,7 +11,6 @@ add_library(
 	"source/descriptors.cpp"
 	"source/pipelines.cpp"
 	"source/shaders.cpp"
-	"source/application.cpp"
 	"source/assets.cpp"
 	"source/buffers.cpp"
 	"source/ui/engineui.cpp"
@@ -25,10 +25,10 @@ add_library(
 	"source/editor/window.cpp" 
 )
 
-add_dependencies(vulkan-renderer Shaders)
+add_dependencies(syzygy Shaders)
 
 target_include_directories(
-	vulkan-renderer
+	syzygy
 	PUBLIC 
 	"${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -38,14 +38,14 @@ add_compile_definitions(SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	# TODO: remove alongside exceptions in source
 	target_compile_options(
-		vulkan-renderer
+		syzygy
 		PUBLIC
 		-Xclang -fcxx-exceptions
 	)
 endif()
 
 target_compile_definitions(
-	vulkan-renderer
+	syzygy
 	PUBLIC
     GLFW_INCLUDE_VULKAN
     GLM_ENABLE_EXPERIMENTAL
@@ -148,7 +148,7 @@ add_library(spirv-reflect
 target_include_directories(spirv-reflect PUBLIC ${SPIRV-REFLECT_SOURCE_DIR})
 
 target_link_libraries(
-	vulkan-renderer 
+	syzygy
 	PUBLIC
 	spirv-reflect
 	glm
