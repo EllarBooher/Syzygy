@@ -1,22 +1,22 @@
 #include "application.hpp"
 
-#include "engine.hpp"
+#include "editor/editor.hpp"
 
-#include <iostream>
-
-Application::Application() { m_engine = Engine::loadEngine(); }
-
-Application::~Application() { delete m_engine; }
-
-void Application::run()
+auto Application::run() -> ApplicationResult
 {
-    try
+    std::optional<Editor> editor{Editor::create()};
+
+    if (!editor.has_value())
     {
-        Log("Running Engine.");
-        m_engine->run();
+        return ApplicationResult::FAILURE;
     }
-    catch (std::exception const& e)
+
+    EditorResult const runResult{editor.value().run()};
+
+    if (runResult != EditorResult::SUCCESS)
     {
-        std::cerr << e.what() << '\n';
+        return ApplicationResult::FAILURE;
     }
+
+    return ApplicationResult::SUCCESS;
 }

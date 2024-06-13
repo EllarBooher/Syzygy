@@ -5,6 +5,7 @@
 #include "debuglines.hpp"
 #include "deferred/deferred.hpp"
 #include "descriptors.hpp"
+#include "editor/window.hpp"
 #include "engineparams.hpp"
 #include "enginetypes.hpp"
 #include "imgui.h"
@@ -37,19 +38,24 @@ size_t constexpr FRAMES_IN_FLIGHT = 2;
 class Engine
 {
 private:
-    Engine();
+    Engine(PlatformWindow const& window);
 
 public:
-    void run();
+    static Engine* loadEngine(PlatformWindow const& window);
 
-    static Engine* loadEngine();
+    void mainLoop(
+        double elapsedTimeSeconds,
+        double deltaTimeSeconds,
+        bool shouldRender,
+        glm::u16vec2 windowExtent
+    );
+
+    void cleanup();
 
 private:
-    void init();
+    void init(PlatformWindow const& window);
 
-    void initWindow();
-
-    void initVulkan();
+    void initVulkan(PlatformWindow const& window);
 
     struct TickTiming
     {
@@ -69,9 +75,6 @@ private:
         TStagedBuffer<gputypes::Camera> const& camerasBuffer
     );
 
-    void mainLoop();
-
-    void cleanup();
 
     bool m_initialized{false};
     inline static Engine* m_loadedEngine{nullptr};
@@ -82,17 +85,12 @@ private:
 
     bool m_bRender{true};
 
-    // TODO: Add validation for max window bounds, 16k probably
-    VkExtent2D m_windowExtent{1920, 1080};
-
-    GLFWwindow* m_window{nullptr};
-
     // Begin Vulkan
 
 private:
-    void initInstanceSurfaceDevices();
+    void initInstanceSurfaceDevices(GLFWwindow* const window);
     void initAllocator();
-    void initSwapchain();
+    void initSwapchain(glm::u16vec2 extent);
     void initDrawTargets();
 
     void cleanupSwapchain();
@@ -111,7 +109,7 @@ private:
 
     void initGenericComputePipelines();
 
-    void initImgui();
+    void initImgui(GLFWwindow* const window);
 
     VkInstance m_instance{VK_NULL_HANDLE};
     VkDebugUtilsMessengerEXT m_debugMessenger{VK_NULL_HANDLE};
@@ -145,7 +143,7 @@ private:
     bool m_uiReloadRequested{false};
 
     bool m_resizeRequested{false};
-    void resizeSwapchain();
+    void resizeSwapchain(glm::u16vec2 extent);
 
     // Draw Resources
 
@@ -211,6 +209,8 @@ public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(
         std::span<uint32_t const> indices, std::span<Vertex const> vertices
     );
+
+    float targetFPS() const { return m_targetFPS; }
 
 private:
     // Meshes

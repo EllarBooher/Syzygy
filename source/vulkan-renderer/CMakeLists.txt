@@ -21,6 +21,8 @@ add_library(
 	"source/deferred/deferred.cpp"
 	"source/deferred/gbuffer.cpp"
 	"source/debuglines.cpp"
+	"source/editor/editor.cpp"
+	"source/editor/window.cpp" 
 )
 
 add_dependencies(vulkan-renderer Shaders)

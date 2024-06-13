@@ -68,20 +68,14 @@ AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     }
 };
 
-Engine::Engine() { init(); }
+Engine::Engine(PlatformWindow const& window) { init(window); }
 
-void Engine::run()
-{
-    mainLoop();
-    cleanup();
-}
-
-auto Engine::loadEngine() -> Engine*
+auto Engine::loadEngine(PlatformWindow const& window) -> Engine*
 {
     if (m_loadedEngine == nullptr)
     {
         Log("Loading Engine.");
-        m_loadedEngine = new Engine();
+        m_loadedEngine = new Engine(window);
     }
     else
     {
@@ -92,65 +86,35 @@ auto Engine::loadEngine() -> Engine*
     return m_loadedEngine;
 }
 
-void Engine::init()
+void Engine::init(PlatformWindow const& window)
 {
-    initWindow();
-    initVulkan();
+    m_uiPreferences.dpiScale = glm::round(glm::min<float>(
+        static_cast<float>(window.extent().y)
+            / static_cast<float>(RESOLUTION_DEFAULT.height),
+        static_cast<float>(window.extent().x)
+            / static_cast<float>(RESOLUTION_DEFAULT.width)
+    ));
+
+    initVulkan(window);
 
     m_initialized = true;
 
     Log("Engine Initialized.");
 }
 
-void Engine::initWindow()
-{
-    Log("Initializing Window...");
-
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-
-    char const* const WINDOW_TITLE = "Renderer";
-
-    m_window = glfwCreateWindow(
-        static_cast<int32_t>(m_windowExtent.width),
-        static_cast<int32_t>(m_windowExtent.height),
-        WINDOW_TITLE,
-        nullptr,
-        nullptr
-    );
-
-    int width{};
-    int height{};
-    glfwGetWindowSize(m_window, &width, &height);
-
-    m_windowExtent.width = static_cast<uint32_t>(width);
-    m_windowExtent.height = static_cast<uint32_t>(height);
-
-    m_uiPreferences.dpiScale = glm::round(glm::min<float>(
-        static_cast<float>(m_windowExtent.height)
-            / static_cast<float>(RESOLUTION_DEFAULT.height),
-        static_cast<float>(m_windowExtent.width)
-            / static_cast<float>(RESOLUTION_DEFAULT.width)
-    ));
-
-    Log("Window Initialized.");
-}
-
-void Engine::initVulkan()
+void Engine::initVulkan(PlatformWindow const& window)
 {
     Log("Initializing Vulkan...");
 
     volkInitialize();
 
-    initInstanceSurfaceDevices();
+    initInstanceSurfaceDevices(window.handle);
 
     volkLoadDevice(m_device);
 
     initAllocator();
 
-    initSwapchain();
+    initSwapchain(window.extent());
     initDrawTargets();
 
     initCommands();
@@ -166,12 +130,12 @@ void Engine::initVulkan()
 
     initDeferredShadingPipeline();
 
-    initImgui();
+    initImgui(window.handle);
 
     Log("Vulkan Initialized.");
 }
 
-void Engine::initInstanceSurfaceDevices()
+void Engine::initInstanceSurfaceDevices(GLFWwindow* const window)
 {
     // create VkInstance and VkDebugUtilsMessengerEXT
 
@@ -192,7 +156,7 @@ void Engine::initInstanceSurfaceDevices()
 
     // create VkSurfaceKHR
 
-    glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface);
+    glfwCreateWindowSurface(m_instance, window, nullptr, &m_surface);
 
     // create VkPhysicalDevice and VkDevice
 
@@ -269,7 +233,7 @@ void Engine::initAllocator()
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
 }
 
-void Engine::initSwapchain()
+void Engine::initSwapchain(glm::u16vec2 extent)
 {
     m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
@@ -278,8 +242,8 @@ void Engine::initSwapchain()
         .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
     };
 
-    uint32_t const width{m_windowExtent.width};
-    uint32_t const height{m_windowExtent.height};
+    uint32_t const width{extent.x};
+    uint32_t const height{extent.y};
 
     vkb::Result<vkb::Swapchain> const swapchainResult{
         vkb::SwapchainBuilder{m_physicalDevice, m_device, m_surface}
@@ -728,7 +692,7 @@ void Engine::initGenericComputePipelines()
     );
 }
 
-void Engine::initImgui()
+void Engine::initImgui(GLFWwindow* const window)
 {
     Log("Initializing ImGui...");
 
@@ -778,7 +742,7 @@ void Engine::initImgui()
     };
 
     ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForVulkan(m_window, true);
+    ImGui_ImplGlfw_InitForVulkan(window, true);
 
     // Load functions since we are using volk,
     // and not the built-in vulkan loader
@@ -852,18 +816,11 @@ void Engine::initImgui()
     Log("ImGui initialized.");
 }
 
-void Engine::resizeSwapchain()
+void Engine::resizeSwapchain(glm::u16vec2 extent)
 {
     vkDeviceWaitIdle(m_device);
     cleanupSwapchain();
-
-    int32_t width{0};
-    int32_t height{0};
-    glfwGetWindowSize(m_window, &width, &height);
-    m_windowExtent.width = static_cast<uint32_t>(width);
-    m_windowExtent.height = static_cast<uint32_t>(height);
-
-    initSwapchain();
+    initSwapchain(extent);
 
     m_resizeRequested = false;
 }
@@ -1011,64 +968,49 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Engine::mainLoop()
+void Engine::mainLoop(
+    double const elapsedTimeSeconds,
+    double const deltaTimeSeconds,
+    bool shouldRender,
+    glm::u16vec2 windowExtent
+)
 {
-    while (glfwWindowShouldClose(m_window) == 0)
-    {
-        glfwPollEvents();
+    m_debugLines.clear();
 
-        m_bRender = glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) != GLFW_TRUE;
+    TickTiming const tickTiming{
+        .timeElapsed = elapsedTimeSeconds,
+        .deltaTimeSeconds = deltaTimeSeconds,
+    };
 
-        static double previousTimeSeconds{0};
-
-        if (glfwGetTime() >= previousTimeSeconds + 1.0 / m_targetFPS)
-        {
-            double const currentTimeSeconds{glfwGetTime()};
-
-            m_debugLines.clear();
-
-            TickTiming const tickTiming{
-                .timeElapsed = currentTimeSeconds,
-                .deltaTimeSeconds = currentTimeSeconds - previousTimeSeconds,
-            };
-
-            tickWorld(tickTiming);
+    tickWorld(tickTiming);
 #if VKRENDERER_COMPILE_WITH_TESTING
-            testDebugLines(currentTimeSeconds, m_debugLines);
+    testDebugLines(currentTimeSeconds, m_debugLines);
 #endif
-            // TODO: this is suspicious, should it be set to the current time?
-            // Do we want to skip time spent in tickWorld?
-            previousTimeSeconds = glfwGetTime();
+    double const instantFPS{1.0F / tickTiming.deltaTimeSeconds};
 
-            double const instantFPS{1.0F / tickTiming.deltaTimeSeconds};
+    m_fpsValues.write(instantFPS);
 
-            m_fpsValues.write(instantFPS);
-
-            if (!m_bRender)
-            {
-                static std::chrono::milliseconds constexpr SLEEP_TIME{100};
-                std::this_thread::sleep_for(SLEEP_TIME);
-                continue;
-            }
-
-            if (m_resizeRequested)
-            {
-                Log("Resizing swapchain.");
-                resizeSwapchain();
-            }
-
-            if (renderUI(m_device))
-            {
-                // TODO: fix
-                // For some reason, ImGui gives visual artifacts for two frames
-                // when resetting certain docking states. We force updating to
-                // flush these through.
-                renderUI(m_device);
-                renderUI(m_device);
-            }
-            draw();
-        }
+    if (!shouldRender)
+    {
+        return;
     }
+
+    if (m_resizeRequested)
+    {
+        Log("Resizing swapchain.");
+        resizeSwapchain(windowExtent);
+    }
+
+    if (renderUI(m_device))
+    {
+        // TODO: fix
+        // For some reason, ImGui gives visual artifacts for two frames
+        // when resetting certain docking states. We force updating to
+        // flush these through.
+        renderUI(m_device);
+        renderUI(m_device);
+    }
+    draw();
 }
 
 // TODO: Break this method up to get rid of the NOLINT. It should be as pure as
@@ -1905,9 +1847,6 @@ void Engine::cleanup()
 
     vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
     vkDestroyInstance(m_instance, nullptr);
-
-    glfwTerminate();
-    glfwDestroyWindow(m_window);
 
     m_initialized = false;
 }

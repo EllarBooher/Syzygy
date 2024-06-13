@@ -1,17 +1,15 @@
 #include "application.hpp"
 
-#include <stdlib.h>
+#include <cstdlib>
 
-int main()
+auto main() -> int
 {
-    Application application{};
+    ApplicationResult const runResult{ Application::run() };
 
-    if (!application.loadedSuccessfully())
+    if (runResult != ApplicationResult::SUCCESS)
     {
         return EXIT_FAILURE;
     }
-
-    application.run();
 
     return EXIT_SUCCESS;
 }
