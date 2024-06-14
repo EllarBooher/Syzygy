@@ -5,3 +5,7 @@
 # CMake build folder
 
 build/
+
+# Local build configurations
+
+CMakeUserPresets.json

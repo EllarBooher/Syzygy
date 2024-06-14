@@ -1,0 +1,67 @@
+﻿{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "description": "Base configuration.",
+      "hidden": true,
+      "cacheVariables": {},
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "windows-ninja-base",
+      "description": "Base configurations for Windows SDK.",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "windows-ninja-msvc-base",
+      "description": "Base Ninja configuration for MSVC on Windows.",
+      "hidden": true,
+      "inherits": "windows-ninja-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "windows-ninja-msvc",
+      "displayName": "Windows Ninja MSVC",
+      "inherits": "windows-ninja-msvc-base"
+    },
+    {
+      "name": "windows-ninja-clang-base",
+      "description": "Base Ninja configuration for Clang on Windows.",
+      "hidden": true,
+      "inherits": "windows-ninja-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "windows-ninja-clang",
+      "displayName": "Windows Ninja Clang",
+      "inherits": "windows-ninja-clang-base"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-ninja-msvc-debug",
+      "displayName": "x64-Debug Ninja/MSVC",
+      "configurePreset": "windows-ninja-msvc",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-ninja-clang-debug",
+      "displayName": "x64-Debug Ninja/Clang",
+      "configurePreset": "windows-ninja-clang",
+      "configuration": "Debug"
+    }
+  ]
+}

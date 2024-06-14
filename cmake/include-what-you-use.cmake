@@ -5,20 +5,17 @@ if (NOT IWYU_ENABLE)
 	return()
 endif()
 
-if (NOT IWYU_PATH)
-	unset(IWYU_PATH CACHE)
-	find_program(
-		IWYU_PATH 
-		NAMES include-what-you-use iwyu
-	)
-endif()
+find_program(
+	IWYU 
+	NAMES include-what-you-use iwyu
+)
 
-if (IWYU_PATH)
-	message(STATUS "iwyu enabled - using ${IWYU_PATH}")
+if (IWYU)
+	message(STATUS "iwyu enabled - using ${IWYU}")
 	set_property(
 		TARGET syzygy
-		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH}
+		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU}
 	)
 else()
-	message(WARNING "iwyu enabled - unable to find program, and no path is specified")
+	message(WARNING "iwyu enabled - NOT found")
 endif()
