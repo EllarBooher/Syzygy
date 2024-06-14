@@ -6,11 +6,11 @@ The purpose of this renderer is to study concepts in rendering, engine architect
 
 ## Requirements
 
-This project was developed in Visual Studio Community 2022 on Windows 11. It has been compiled with both MSVC and Clang (specifically `clang-cl`) via VS integration.
+This project was developed in Visual Studio Community 2022 on Windows 11. It has been compiled with both MSVC (`cl.exe`) and Clang (`clang-cl.exe`) via VS integration.
 
 For now, only Windows is known to be supported.
 
-Requires CMake 3.28 or higher, and probably a version of Visual Studio that has CMake support.
+Requires CMake 3.28 or higher.
 
 Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extensions such as `VK_EXT_shader_object` and others. Note, this fact seems to stop RenderDoc from working. NSight complains about the newer extensions, but seems to still mostly work.
 
@@ -40,16 +40,14 @@ First clone the repo:
 git clone https://github.com/EllarBooher/VulkanRenderer.git
 ```
 
-To configure and compile:
+To configure and build:
 
 1. Open the root folder that git downloaded, directly with Visual Studio.
-2. Select whichever build target you wish to use. By default, the repo includes configurations `x64-clang-Debug` and `x64-msvc-Debug`. Their definitions are located in `CMakeSettings.json`.
-3. Run CMake via `Project -> Configure Cache`. Swapping to the desired build configuration should trigger this process by default.
-4. After CMake has finished running, you can build and run the generated `Renderer.exe` target.
+2. Select a build configuration. In order to see their definitions, read [`CMakePresets.json`](CMakePresets.json). To add your own local configurations, create [`CMakeUserPresets.json`](CMakeUserPresets.json). See the official CMake documentation on [`cmake-presets`](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) for more information.
+3. Run CMake via `Project -> Configure Cache`. Swapping to the desired build configuration should trigger this process by default. This step may take a while, as CMake needs to download the dependencies.
+4. After CMake has finished running, you can build and run `Syzygy.exe`.
 
-Alternatively, you can always run cmake yourself. This is useful if you want to generate Visual Studio solutions. This also lets you potentially use other generators, but building has only been tested within Visual Studio.
-
-For example, run the following from a folder outside of the source:
+Alternatively, you can always run cmake yourself. For example, run the following from a folder outside of the source:
 
 ```bash
 cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
@@ -58,6 +56,7 @@ cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
 Some notes on building:
 - If you have [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) installed, there is a CMake cache variable `IWYU_ENABLE` to run it alongside compilation. You can specify a path via `IWYU_PATH`, or let CMake `find_program` get it.
 - `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` is configured to run with an optional build target, while `clang-tidy` has a CMake cache variable `CLANG_TIDY_ENABLE` to integrate it with compilation.
+- Due to how heavily they impact compilation time, these options are disabled by default.
 
 ## Showcase
 
