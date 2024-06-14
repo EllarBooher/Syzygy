@@ -1,7 +1,5 @@
 # Syzygy
 
-(Rename in Progress)
-
 The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan. In order to aid learning and demonstration, the engine is designed with a focus in configurability and exposing the internals of the rendering.
 
 ## Requirements
@@ -37,7 +35,7 @@ CMake is configured to use FetchContent to pull most of the following dependenci
 First clone the repo:
 
 ```bash
-git clone https://github.com/EllarBooher/VulkanRenderer.git
+git clone https://github.com/EllarBooher/Syzygy.git
 ```
 
 To configure and build:
@@ -50,7 +48,7 @@ To configure and build:
 Alternatively, you can always run cmake yourself. For example, run the following from a folder outside of the source:
 
 ```bash
-cmake path/including/VulkanRenderer -G "Visual Studio 17 2022"
+cmake path/including/Syzygy -G "Visual Studio 17 2022"
 ```
 
 Some notes on building:
