@@ -1,0 +1,28 @@
+﻿#
+# Justification for removals:
+#
+# misc-include-cleaner
+# IWYU is set up for the project, so this is redundant.
+#
+# misc-misplaced-const
+# Too noisy, since Vulkan contains many typedef'd pointers i.e. VkDevice is VkDevice_T*
+#
+# readability-identifier-length
+# Does not seem to impact readability all that much.
+#
+
+FormatStyle:        file
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  llvm-*,
+  misc-*,
+  -misc-include-cleaner,
+  -misc-misplaced-const,
+  modernize-*,
+  performance-*,
+  readability*,
+  -readability-identifier-length,
+
+WarningsAsErrors: '*'

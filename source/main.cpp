@@ -1,15 +1,15 @@
-#include "application.hpp"
+#include "syzygy.hpp"
 
-int main()
+#include <cstdlib>
+
+auto main() -> int
 {
-    Application application{};
+    ApplicationResult const runResult{ Application::run() };
 
-    if (!application.loadedSuccessfully())
+    if (runResult != ApplicationResult::SUCCESS)
     {
         return EXIT_FAILURE;
     }
-
-    application.run();
 
     return EXIT_SUCCESS;
 }

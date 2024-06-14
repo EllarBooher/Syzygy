@@ -1,6 +1,10 @@
+message(STATUS "Fetching dependencies")
+
 include(FetchContent)
+
 # Disquiet to see git clone progress
 set(FETCHCONTENT_QUIET ON)
+message(STATUS "Fetching dependencies - FetchContent quieting is ${FETCHCONTENT_QUIET}")
 
 FetchContent_Declare(
 	fmt
@@ -8,6 +12,7 @@ FetchContent_Declare(
 	GIT_TAG 10.2.1
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -19,6 +24,7 @@ FetchContent_Declare(
 	GIT_TAG 3.4
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -27,6 +33,7 @@ FetchContent_Declare(
 	GIT_TAG v0.7.1
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -35,6 +42,7 @@ FetchContent_Declare(
 	GIT_TAG 1.0.1
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -43,6 +51,7 @@ FetchContent_Declare(
 	GIT_TAG v1.90.6-docking
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -53,6 +62,7 @@ FetchContent_Declare(
 	GIT_PROGRESS ON
 	CONFIGURE_COMMAND ""
 	BUILD_COMMAND ""
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -61,6 +71,7 @@ FetchContent_Declare(
 	GIT_TAG v1.3.280
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -69,6 +80,7 @@ FetchContent_Declare(
 	GIT_TAG v3.0.1
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
 
 FetchContent_Declare(
@@ -77,4 +89,5 @@ FetchContent_Declare(
 	GIT_TAG 1.3.270
 	GIT_SHALLOW ON
 	GIT_PROGRESS ON
+	SYSTEM
 )
