@@ -1,8 +1,6 @@
 #pragma once
 
 #include <array>
-#include <deque>
-#include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -92,29 +90,4 @@ private:
     std::array<double, 500> m_values{};
     size_t m_index{0};
     bool m_saturated{false};
-};
-
-// A quick and dirty way to keep track of the destruction order for
-// vulkan objects.
-// TODO: deprecate this
-class DeletionQueue
-{
-public:
-    void pushFunction(std::function<void()>&& function)
-    {
-        cleanupCallbacks.push_front(function);
-    }
-
-    void flush()
-    {
-        for (std::function<void()> const& function : cleanupCallbacks)
-        {
-            function();
-        }
-
-        cleanupCallbacks.clear();
-    }
-
-private:
-    std::deque<std::function<void()>> cleanupCallbacks{};
 };

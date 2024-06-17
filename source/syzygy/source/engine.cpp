@@ -1362,8 +1362,6 @@ void Engine::draw()
         FRAME_WAIT_TIMEOUT_NANOSECONDS
     ));
 
-    currentFrame.deletionQueue.flush();
-
     CheckVkResult(vkResetFences(m_device, 1, &currentFrame.renderFence));
 
     VkCommandBuffer const& cmd = currentFrame.mainCommandBuffer;

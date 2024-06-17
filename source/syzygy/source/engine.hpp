@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "debuglines.hpp"
@@ -29,8 +31,6 @@ struct FrameData
 
     // The fence that the CPU waits on to ensure the frame is not in use.
     VkFence renderFence{VK_NULL_HANDLE};
-
-    DeletionQueue deletionQueue{};
 };
 
 size_t constexpr FRAMES_IN_FLIGHT = 2;
@@ -74,7 +74,6 @@ private:
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& camerasBuffer
     );
-
 
     bool m_initialized{false};
     inline static Engine* m_loadedEngine{nullptr};
