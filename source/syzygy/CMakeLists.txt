@@ -23,6 +23,7 @@ add_library(
 	"source/debuglines.cpp"
 	"source/editor/editor.cpp"
 	"source/editor/window.cpp" 
+	"source/vulkanusage.cpp"
 )
 
 add_dependencies(syzygy Shaders)

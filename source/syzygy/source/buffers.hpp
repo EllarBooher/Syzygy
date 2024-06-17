@@ -4,7 +4,7 @@
 
 #include "helpers.hpp"
 
-#include <vk_mem_alloc.h>
+#include "vulkanusage.hpp"
 
 // A single VkBuffer alongside all of its allocation information.
 struct AllocatedBuffer

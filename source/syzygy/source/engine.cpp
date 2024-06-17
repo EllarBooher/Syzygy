@@ -1,10 +1,6 @@
 #include "engine.hpp"
 
-#define VOLK_IMPLEMENTATION
-#include <volk.h>
-
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
+#include "vulkanusage.hpp"
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
@@ -900,7 +896,7 @@ auto Engine::uploadMeshToGPU(
     )};
 
     uint8_t* const data{
-        reinterpret_cast<uint8_t*>(stagingBuffer.allocation->GetMappedData())
+        reinterpret_cast<uint8_t*>(stagingBuffer.info.pMappedData)
     };
 
     if (data == nullptr)

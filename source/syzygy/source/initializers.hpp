@@ -5,7 +5,7 @@
 #include <optional>
 #include <span>
 #include <string>
-#include <volk.h>
+#include "vulkanusage.hpp"
 
 // Shorthand factory methods for data-holding Vulkan structs, with reasonable
 // defaults.

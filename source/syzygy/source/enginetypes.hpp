@@ -10,8 +10,7 @@
 #include <string>
 #include <vector>
 
-#include <vk_mem_alloc.h>
-#include <volk.h>
+#include "vulkanusage.hpp"
 #include <vulkan/vk_enum_string_helper.h>
 
 #include <fmt/core.h>
