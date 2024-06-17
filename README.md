@@ -17,7 +17,7 @@ You must download the following, or figure out a way to provide the required fil
 
 - [Vulkan SDK](https://vulkan.lunarg.com/), at least 1.3.280, for `vulkan.h`, `glslangValidator.exe`, and a few debug utilities
 
-CMake is configured to use FetchContent to pull most of the following dependencies from Github. See [`cmake/dependencies.cmake`](cmake/dependencies.cmake) for the versions in use.
+CMake is configured to use FetchContent to pull all of the following dependencies from Github. See [`cmake/dependencies.cmake`](cmake/dependencies.cmake) for the versions in use.
 
 - [fastgltf](https://github.com/spnda/fastgltf.git), for loading 3D models and scenes
 - [fmt](https://github.com/fmtlib/fmt.git), for formatting strings
