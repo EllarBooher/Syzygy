@@ -1,57 +1,11 @@
 #include "graphicscontext.hpp"
 
 #include "../core/deletionqueue.hpp"
+#include "../core/result.hpp"
+
 #include "../helpers.hpp"
 #include <GLFW/glfw3.h>
 #include <optional>
-
-template <typename T> struct Result
-{
-public:
-    [[nodiscard]] auto value() const -> T const&
-    {
-        assert(has_value());
-        return m_value.value(); // NOLINT(bugprone-unchecked-optional-access)
-    }
-
-    [[nodiscard]] auto has_value() const -> bool { return m_value.has_value(); }
-
-    [[nodiscard]] auto vk_result() const -> VkResult { return m_result; }
-
-private:
-    Result(T const& value, VkResult result)
-        : m_value(value)
-        , m_result(result)
-    {
-    }
-    Result(T&& value, VkResult result)
-        : m_value(std::move(value))
-        , m_result(result)
-    {
-    }
-
-    Result(VkResult result)
-        : m_value(std::nullopt)
-        , m_result(result)
-    {
-    }
-
-public:
-    static auto make_value(T const& value, VkResult result) -> Result
-    {
-        return Result{value, result};
-    }
-    static auto make_value(T&& value, VkResult result) -> Result
-    {
-        return Result{std::move(value), result};
-    }
-
-    static auto make_empty(VkResult result) -> Result { return Result{result}; }
-
-private:
-    std::optional<T> m_value;
-    VkResult m_result;
-};
 
 namespace
 {
@@ -66,7 +20,7 @@ auto buildInstance() -> vkb::Result<vkb::Instance>
 }
 
 auto createSurface(VkInstance const instance, GLFWwindow* const window)
-    -> Result<VkSurfaceKHR>
+    -> VulkanResult<VkSurfaceKHR>
 {
     VkSurfaceKHR surface{};
     VkResult const surfaceBuildResult{
@@ -74,10 +28,10 @@ auto createSurface(VkInstance const instance, GLFWwindow* const window)
     };
     if (surfaceBuildResult != VK_SUCCESS)
     {
-        return Result<VkSurfaceKHR>::make_empty(surfaceBuildResult);
+        return VulkanResult<VkSurfaceKHR>::make_empty(surfaceBuildResult);
     }
 
-    return Result<VkSurfaceKHR>::make_value(surface, surfaceBuildResult);
+    return VulkanResult<VkSurfaceKHR>::make_value(surface, surfaceBuildResult);
 }
 
 auto selectPhysicalDevice(
@@ -124,7 +78,7 @@ auto createAllocator(
     VkPhysicalDevice const physicalDevice,
     VkDevice const device,
     VkInstance const instance
-) -> Result<VmaAllocator>
+) -> VulkanResult<VmaAllocator>
 {
     VmaAllocator allocator{};
     VmaAllocatorCreateInfo const allocatorInfo{
@@ -137,10 +91,10 @@ auto createAllocator(
 
     if (createResult != VK_SUCCESS)
     {
-        return Result<VmaAllocator>::make_empty(createResult);
+        return VulkanResult<VmaAllocator>::make_empty(createResult);
     }
 
-    return Result<VmaAllocator>::make_value(allocator, createResult);
+    return VulkanResult<VmaAllocator>::make_value(allocator, createResult);
 }
 } // namespace
 
@@ -160,7 +114,7 @@ auto VulkanContext::create(GLFWwindow* window) -> std::optional<VulkanContext>
     vkb::Instance const instance{instanceBuildResult.value()};
     cleanupCallbacks.pushFunction([&]() { vkb::destroy_instance(instance); });
 
-    Result<VkSurfaceKHR> const surfaceResult{
+    VulkanResult<VkSurfaceKHR> const surfaceResult{
         createSurface(instance.instance, window)
     };
     if (!surfaceResult.has_value())
@@ -263,7 +217,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     volkLoadInstance(vulkanContext.instance);
     volkLoadDevice(vulkanContext.device);
 
-    Result<VmaAllocator> const allocatorResult{createAllocator(
+    VulkanResult<VmaAllocator> const allocatorResult{createAllocator(
         vulkanContext.physicalDevice,
         vulkanContext.device,
         vulkanContext.instance
