@@ -17,30 +17,10 @@
 
 struct GLFWwindow;
 
-struct FrameData
+struct TickTiming
 {
-    VkCommandPool commandPool{VK_NULL_HANDLE};
-    VkCommandBuffer mainCommandBuffer{VK_NULL_HANDLE};
-
-    // The semaphore that the swapchain signals when its
-    // image is ready to be written to.
-    VkSemaphore swapchainSemaphore{VK_NULL_HANDLE};
-
-    // The semaphore that the swapchain waits on before presenting.
-    VkSemaphore renderSemaphore{VK_NULL_HANDLE};
-
-    // The fence that the CPU waits on to ensure the frame is not in use.
-    VkFence renderFence{VK_NULL_HANDLE};
-};
-
-size_t constexpr FRAMES_IN_FLIGHT = 2;
-
-enum class EngineLoopResult
-{
-    RENDERED,
-    SUCCESS = RENDERED,
-    SKIPPED_RENDERING,
-    REBUILD_REQUESTED,
+    double timeElapsedSeconds;
+    double deltaTimeSeconds;
 };
 
 class Engine
@@ -67,20 +47,11 @@ public:
         uint32_t const generalQueueFamilyIndex
     );
 
-    auto mainLoop(
-        VkDevice,
-        VmaAllocator,
-        VkQueue,
-        VkSwapchainKHR,
-        std::span<VkImage> swapchainImages,
-        std::span<VkImageView> swapchainImageViews,
-        VkExtent2D swapchainExtent,
-        double elapsedTimeSeconds,
-        double deltaTimeSeconds,
-        bool shouldRender
-    ) -> EngineLoopResult;
-
-    bool swapchainRebuildRequested() const { return m_resizeRequested; };
+    void tickWorld(TickTiming);
+    auto
+    mainLoop(VkDevice, VmaAllocator, VkCommandBuffer, double deltaTimeSeconds)
+        -> VkRect2D;
+    auto drawImage() -> AllocatedImage& { return m_drawImage; }
 
     void cleanup(VkDevice, VmaAllocator);
 
@@ -95,24 +66,9 @@ private:
         uint32_t const generalQueueFamilyIndex
     );
 
-    struct TickTiming
-    {
-        double timeElapsed;
-        double deltaTimeSeconds;
-    };
-
-    void tickWorld(TickTiming timing);
-
+private:
     bool renderUI(VkDevice);
-    void draw(
-        VkDevice,
-        VmaAllocator,
-        VkQueue,
-        VkSwapchainKHR,
-        std::span<VkImage> swapchainImages,
-        std::span<VkImageView> swapchainImageViews,
-        VkExtent2D swapchainExtent
-    );
+    void draw(VmaAllocator, VkCommandBuffer);
 
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(
@@ -126,8 +82,6 @@ private:
     inline static Engine* m_loadedEngine{nullptr};
 
     RingBuffer m_fpsValues{};
-
-    uint32_t m_frameNumber{0};
 
     bool m_bRender{true};
 
@@ -201,12 +155,6 @@ private:
 
     // The final image output, blitted to the swapchain
     AllocatedImage m_drawImage{};
-
-    std::array<FrameData, FRAMES_IN_FLIGHT> m_frames{};
-    FrameData& getCurrentFrame()
-    {
-        return m_frames[m_frameNumber % m_frames.size()];
-    }
 
     // Immediate submit structures
 

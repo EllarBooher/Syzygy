@@ -73,6 +73,27 @@ void LogVkResult(
     std::source_location location = std::source_location::current()
 );
 
+// Logs the message in grey,
+// alongside a prefix that indicates the code location.
+void Log(
+    std::string const& message,
+    std::source_location location = std::source_location::current()
+);
+
+// Logs the message in grey,
+// alongside a prefix that indicates the code location.
+void Warning(
+    std::string const& message,
+    std::source_location location = std::source_location::current()
+);
+
+// Logs the message in red,
+// alongside a prefix that indicates the code location.
+void Error(
+    std::string const& message,
+    std::source_location location = std::source_location::current()
+);
+
 template <typename T>
 inline void
 LogVkbError(vkb::Result<T> const& result, std::string const& message)
@@ -108,24 +129,3 @@ inline T UnwrapVkbResult(
     );
     throw std::runtime_error(MakeLogPrefix(location) + message);
 }
-
-// Logs the message in grey,
-// alongside a prefix that indicates the code location.
-void Log(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);
-
-// Logs the message in grey,
-// alongside a prefix that indicates the code location.
-void Warning(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);
-
-// Logs the message in red,
-// alongside a prefix that indicates the code location.
-void Error(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);

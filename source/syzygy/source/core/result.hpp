@@ -6,7 +6,6 @@ template <typename T> struct VulkanResult
 public:
     [[nodiscard]] auto value() const -> T const&
     {
-        assert(has_value());
         return m_value.value(); // NOLINT(bugprone-unchecked-optional-access)
     }
 
@@ -14,7 +13,7 @@ public:
 
     [[nodiscard]] auto vk_result() const -> VkResult { return m_result; }
 
-private:
+public:
     VulkanResult(T const& value, VkResult result)
         : m_value(value)
         , m_result(result)

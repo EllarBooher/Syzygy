@@ -255,25 +255,6 @@ void Engine::initCommands(
         .queueFamilyIndex = queueFamilyIndex,
     };
 
-    for (FrameData& frameData : m_frames)
-    {
-        CheckVkResult(vkCreateCommandPool(
-            device, &commandPoolInfo, nullptr, &frameData.commandPool
-        ));
-
-        VkCommandBufferAllocateInfo const cmdAllocInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = nullptr,
-            .commandPool = frameData.commandPool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
-        };
-
-        CheckVkResult(vkAllocateCommandBuffers(
-            device, &cmdAllocInfo, &frameData.mainCommandBuffer
-        ));
-    }
-
     // Immediate command structures
 
     CheckVkResult(vkCreateCommandPool(
@@ -298,21 +279,6 @@ void Engine::initSyncStructures(VkDevice const device)
     VkFenceCreateInfo const fenceCreateInfo{
         vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
     };
-    VkSemaphoreCreateInfo const semaphoreCreateInfo{vkinit::semaphoreCreateInfo(
-    )};
-
-    for (FrameData& frameData : m_frames)
-    {
-        CheckVkResult(vkCreateFence(
-            device, &fenceCreateInfo, nullptr, &frameData.renderFence
-        ));
-        CheckVkResult(vkCreateSemaphore(
-            device, &semaphoreCreateInfo, nullptr, &frameData.swapchainSemaphore
-        ));
-        CheckVkResult(vkCreateSemaphore(
-            device, &semaphoreCreateInfo, nullptr, &frameData.renderSemaphore
-        ));
-    }
 
     // Immediate sync structures
 
@@ -885,35 +851,15 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 auto Engine::mainLoop(
     VkDevice const device,
     VmaAllocator const allocator,
-    VkQueue const queue,
-    VkSwapchainKHR const swapchain,
-    std::span<VkImage> const swapchainImages,
-    std::span<VkImageView> const swapchainImageViews,
-    VkExtent2D const swapchainExtent,
-    double const elapsedTimeSeconds,
-    double const deltaTimeSeconds,
-    bool const shouldRender
-) -> EngineLoopResult
+    VkCommandBuffer const cmd,
+    double const deltaTimeSeconds
+) -> VkRect2D
 {
     m_debugLines.clear();
 
-    TickTiming const tickTiming{
-        .timeElapsed = elapsedTimeSeconds,
-        .deltaTimeSeconds = deltaTimeSeconds,
-    };
-
-    tickWorld(tickTiming);
-#if VKRENDERER_COMPILE_WITH_TESTING
-    testDebugLines(currentTimeSeconds, m_debugLines);
-#endif
-    double const instantFPS{1.0F / tickTiming.deltaTimeSeconds};
+    double const instantFPS{1.0F / deltaTimeSeconds};
 
     m_fpsValues.write(instantFPS);
-
-    if (!shouldRender)
-    {
-        return EngineLoopResult::SKIPPED_RENDERING;
-    }
 
     if (renderUI(device))
     {
@@ -924,23 +870,9 @@ auto Engine::mainLoop(
         renderUI(device);
         renderUI(device);
     }
-    draw(
-        device,
-        allocator,
-        queue,
-        swapchain,
-        swapchainImages,
-        swapchainImageViews,
-        swapchainExtent
-    );
+    draw(allocator, cmd);
 
-    if (m_resizeRequested)
-    {
-        m_resizeRequested = false;
-        return EngineLoopResult::REBUILD_REQUESTED;
-    }
-
-    return EngineLoopResult::RENDERED;
+    return m_drawRect;
 }
 
 // TODO: Break this method up to get rid of the NOLINT. It should be as pure as
@@ -1197,7 +1129,7 @@ auto Engine::renderUI(VkDevice const device) -> bool
     return skipFrame;
 }
 
-void Engine::tickWorld(TickTiming timing)
+void Engine::tickWorld(TickTiming const timing)
 {
     std::span<glm::mat4x4> const models{m_meshInstances.models->mapValidStaged()
     };
@@ -1224,7 +1156,7 @@ void Engine::tickWorld(TickTiming timing)
                 (position.x - (-10) + position.z - (-10)) / 3.1415
             };
 
-            double const y{std::sin(timing.timeElapsed + timeOffset)};
+            double const y{std::sin(timing.timeElapsedSeconds + timeOffset)};
 
             glm::mat4x4 const translation{glm::translate(glm::vec3(0.0, y, 0.0))
             };
@@ -1283,37 +1215,8 @@ void Engine::tickWorld(TickTiming timing)
     }
 }
 
-void Engine::draw(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const queue,
-    VkSwapchainKHR const swapchain,
-    std::span<VkImage> const swapchainImages,
-    std::span<VkImageView> const swapchainImageViews,
-    VkExtent2D const swapchainExtent
-)
+void Engine::draw(VmaAllocator const allocator, VkCommandBuffer const cmd)
 {
-    FrameData const& currentFrame = getCurrentFrame();
-
-    uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
-    CheckVkResult(vkWaitForFences(
-        device,
-        1,
-        &currentFrame.renderFence,
-        VK_TRUE,
-        FRAME_WAIT_TIMEOUT_NANOSECONDS
-    ));
-
-    CheckVkResult(vkResetFences(device, 1, &currentFrame.renderFence));
-
-    VkCommandBuffer const& cmd = currentFrame.mainCommandBuffer;
-    CheckVkResult(vkResetCommandBuffer(cmd, 0));
-
-    VkCommandBufferBeginInfo const cmdBeginInfo{vkinit::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
-    CheckVkResult(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
     // Begin scene drawing
 
     { // Copy cameras to gpu
@@ -1551,113 +1454,6 @@ void Engine::draw(
     );
 
     // End ImGui Drawing
-
-    // Copy image to swapchain
-
-    uint32_t swapchainImageIndex;
-    VkResult const acquireResult{vkAcquireNextImageKHR(
-        device,
-        swapchain,
-        FRAME_WAIT_TIMEOUT_NANOSECONDS,
-        currentFrame.swapchainSemaphore,
-        VK_NULL_HANDLE // No Fence to signal
-        ,
-        &swapchainImageIndex
-    )};
-    if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        m_resizeRequested = true;
-        CheckVkResult(vkEndCommandBuffer(cmd));
-        return;
-    }
-    CheckVkResult(acquireResult);
-
-    VkImage const& swapchainImage{swapchainImages[swapchainImageIndex]};
-    VkImageView const& swapchainImageView{
-        swapchainImageViews[swapchainImageIndex]
-    };
-
-    vkutil::transitionImage(
-        cmd,
-        m_drawImage.image,
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
-    vkutil::transitionImage(
-        cmd,
-        swapchainImage,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
-
-    vkutil::recordCopyImageToImage(
-        cmd,
-        m_drawImage.image,
-        swapchainImage,
-        m_drawRect,
-        VkRect2D{.extent{swapchainExtent}}
-    );
-
-    vkutil::transitionImage(
-        cmd,
-        swapchainImage,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
-
-    CheckVkResult(vkEndCommandBuffer(cmd));
-
-    // Submit commands
-
-    VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        vkinit::commandBufferSubmitInfo(cmd)
-    };
-    VkSemaphoreSubmitInfo const waitInfo{vkinit::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-        currentFrame.swapchainSemaphore
-    )};
-    VkSemaphoreSubmitInfo const signalInfo{vkinit::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, currentFrame.renderSemaphore
-    )};
-
-    std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
-    std::vector<VkSemaphoreSubmitInfo> const waitInfos{waitInfo};
-    std::vector<VkSemaphoreSubmitInfo> const signalInfos{signalInfo};
-    VkSubmitInfo2 const submitInfo =
-        vkinit::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
-
-    CheckVkResult(
-        vkQueueSubmit2(queue, 1, &submitInfo, currentFrame.renderFence)
-    );
-
-    VkPresentInfoKHR const presentInfo = {
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext = nullptr,
-
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &currentFrame.renderSemaphore,
-
-        .swapchainCount = 1,
-        .pSwapchains = &swapchain,
-
-        .pImageIndices = &swapchainImageIndex,
-        .pResults = nullptr, // Only one swapchain
-    };
-
-    VkResult const presentResult{vkQueuePresentKHR(queue, &presentInfo)};
-    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        m_resizeRequested = true;
-    }
-    else
-    {
-        CheckVkResult(presentResult);
-    }
-
-    m_frameNumber++;
 }
 
 void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
@@ -1760,15 +1556,6 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
     vkDestroyDescriptorSetLayout(
         device, m_sceneTextureDescriptorLayout, nullptr
     );
-
-    for (FrameData const& frameData : m_frames)
-    {
-        vkDestroyCommandPool(device, frameData.commandPool, nullptr);
-
-        vkDestroyFence(device, frameData.renderFence, nullptr);
-        vkDestroySemaphore(device, frameData.renderSemaphore, nullptr);
-        vkDestroySemaphore(device, frameData.swapchainSemaphore, nullptr);
-    }
 
     vkDestroyFence(device, m_immFence, nullptr);
     vkDestroyCommandPool(device, m_immCommandPool, nullptr);

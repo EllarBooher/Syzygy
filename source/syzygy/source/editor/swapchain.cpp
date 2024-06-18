@@ -56,24 +56,23 @@ auto Swapchain::create(
         LogVkbError(viewsResult, "Failed to get swapchain image views.");
         return std::nullopt;
     }
-    std::vector<VkImageView> const views{viewsResult.value()};
     cleanupCallbacks.pushFunction([&]()
-    { swapchain.destroy_image_views(views); });
+    { swapchain.destroy_image_views(viewsResult.value()); });
 
     return Swapchain{
-        .swapchain = swapchain.swapchain,
-        .imageFormat = SWAPCHAIN_IMAGE_FORMAT,
-        .images = imagesResult.value(),
-        .imageViews = views,
-        .extent = swapchain.extent,
+        swapchain.swapchain,
+        SWAPCHAIN_IMAGE_FORMAT,
+        std::move(imagesResult).value(),
+        std::move(viewsResult).value(),
+        swapchain.extent,
     };
 }
 
 void Swapchain::destroy(VkDevice const device)
 {
-    vkDestroySwapchainKHR(device, swapchain, nullptr);
+    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
 
-    for (VkImageView const view : imageViews)
+    for (VkImageView const view : m_imageViews)
     {
         vkDestroyImageView(device, view, nullptr);
     }
