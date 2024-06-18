@@ -2,10 +2,10 @@
 
 #include <vector>
 
+#include "vulkanusage.hpp"
 #include <optional>
 #include <span>
 #include <string>
-#include "vulkanusage.hpp"
 
 // Shorthand factory methods for data-holding Vulkan structs, with reasonable
 // defaults.

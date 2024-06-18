@@ -592,12 +592,12 @@ void Engine::initWorld()
 
         immediateSubmit(
             [&](VkCommandBuffer cmd)
-            {
-                m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
-                m_meshInstances.modelInverseTransposes->recordCopyToDevice(
-                    cmd, m_allocator
-                );
-            }
+        {
+            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(
+                cmd, m_allocator
+            );
+        }
         );
     }
 
@@ -631,10 +631,8 @@ void Engine::initWorld()
         };
         m_atmospheresBuffer->stage(atmospheres);
 
-        immediateSubmit(
-            [&](VkCommandBuffer cmd)
-            { m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator); }
-        );
+        immediateSubmit([&](VkCommandBuffer cmd)
+        { m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator); });
     }
 }
 
@@ -744,11 +742,11 @@ void Engine::initImgui(GLFWwindow* const window)
     // and not the built-in vulkan loader
     ImGui_ImplVulkan_LoadFunctions(
         [](char const* functionName, void* vkInstance)
-        {
-            return vkGetInstanceProcAddr(
-                *(reinterpret_cast<VkInstance*>(vkInstance)), functionName
-            );
-        },
+    {
+        return vkGetInstanceProcAddr(
+            *(reinterpret_cast<VkInstance*>(vkInstance)), functionName
+        );
+    },
         &m_instance
     );
 
@@ -910,25 +908,25 @@ auto Engine::uploadMeshToGPU(
 
     immediateSubmit(
         [&](VkCommandBuffer cmd)
-        {
-            VkBufferCopy const vertexCopy{
-                .srcOffset = 0,
-                .dstOffset = 0,
-                .size = vertexBufferSize,
-            };
-            vkCmdCopyBuffer(
-                cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy
-            );
+    {
+        VkBufferCopy const vertexCopy{
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = vertexBufferSize,
+        };
+        vkCmdCopyBuffer(
+            cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy
+        );
 
-            VkBufferCopy const indexCopy{
-                .srcOffset = vertexBufferSize,
-                .dstOffset = 0,
-                .size = indexBufferSize,
-            };
-            vkCmdCopyBuffer(
-                cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy
-            );
-        }
+        VkBufferCopy const indexCopy{
+            .srcOffset = vertexBufferSize,
+            .dstOffset = 0,
+            .size = indexBufferSize,
+        };
+        vkCmdCopyBuffer(
+            cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy
+        );
+    }
     );
 
     return std::make_unique<GPUMeshBuffers>(

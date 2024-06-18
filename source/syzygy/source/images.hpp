@@ -1,8 +1,8 @@
 #pragma once
 
 #include "enginetypes.hpp"
-#include <optional>
 #include "vulkanusage.hpp"
+#include <optional>
 
 namespace vkutil
 {

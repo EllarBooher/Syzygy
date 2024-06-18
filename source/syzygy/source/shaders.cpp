@@ -269,18 +269,15 @@ auto ShaderReflectionData::Structure::logicallyCompatible(Structure const& other
             uint32_t endUnpaddedByte{0};
             uint32_t endPaddedByte{0};
         };
-        auto const getByteRange{
-            [&](Member const& member)
-            {
-                return ByteRange{
-                    .startByte = member.offsetBytes,
-                    .endUnpaddedByte =
-                        member.offsetBytes + member.type.sizeBytes,
-                    .endPaddedByte =
-                        member.offsetBytes + member.type.paddedSizeBytes,
-                };
-            }
-        };
+        auto const getByteRange{[&](Member const& member)
+        {
+            return ByteRange{
+                .startByte = member.offsetBytes,
+                .endUnpaddedByte = member.offsetBytes + member.type.sizeBytes,
+                .endPaddedByte =
+                    member.offsetBytes + member.type.paddedSizeBytes,
+            };
+        }};
 
         Member const& member{members[memberIndex]};
         Member const& otherMember{other.members[otherMemberIndex]};
@@ -480,9 +477,9 @@ void ShaderReflectedBase::cleanup(VkDevice const device)
     std::visit(
         overloaded{
             [&](VkShaderModule module)
-            { vkDestroyShaderModule(device, module, nullptr); },
+    { vkDestroyShaderModule(device, module, nullptr); },
             [&](VkShaderEXT object)
-            { vkDestroyShaderEXT(device, object, nullptr); }
+    { vkDestroyShaderEXT(device, object, nullptr); }
         },
         m_shaderHandle
     );
@@ -548,26 +545,25 @@ auto vkutil::loadShaderObject(
     return std::visit(
         overloaded{
             [&](AssetFile const& file)
-            {
-                return std::optional<ShaderObjectReflected>{
-                    ShaderObjectReflected::fromBytecodeReflected(
-                        device,
-                        file.fileName,
-                        file.fileBytes,
-                        stage,
-                        nextStage,
-                        layouts,
-                        specializationInfo
-                    )
-                };
-            },
+    {
+        return std::optional<ShaderObjectReflected>{
+            ShaderObjectReflected::fromBytecodeReflected(
+                device,
+                file.fileName,
+                file.fileBytes,
+                stage,
+                nextStage,
+                layouts,
+                specializationInfo
+            )
+        };
+    },
             [&](AssetLoadingError const& error)
-            {
-                Error(fmt::format(
-                    "Failed to load asset for shader: {}", error.message
-                ));
-                return std::optional<ShaderObjectReflected>{};
-            }
+    {
+        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        );
+        return std::optional<ShaderObjectReflected>{};
+    }
         },
         fileLoadingResult
     );
@@ -589,27 +585,26 @@ auto vkutil::loadShaderObject(
     return std::visit(
         overloaded{
             [&](AssetFile const& file)
-            {
-                return std::optional<ShaderObjectReflected>{
-                    ShaderObjectReflected::fromBytecode(
-                        device,
-                        file.fileName,
-                        file.fileBytes,
-                        stage,
-                        nextStage,
-                        layouts,
-                        rangeOverrides,
-                        specializationInfo
-                    )
-                };
-            },
+    {
+        return std::optional<ShaderObjectReflected>{
+            ShaderObjectReflected::fromBytecode(
+                device,
+                file.fileName,
+                file.fileBytes,
+                stage,
+                nextStage,
+                layouts,
+                rangeOverrides,
+                specializationInfo
+            )
+        };
+    },
             [&](AssetLoadingError const& error)
-            {
-                Error(fmt::format(
-                    "Failed to load asset for shader: {}", error.message
-                ));
-                return std::optional<ShaderObjectReflected>{};
-            }
+    {
+        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        );
+        return std::optional<ShaderObjectReflected>{};
+    }
         },
         fileLoadingResult
     );
@@ -648,20 +643,19 @@ auto vkutil::loadShaderModule(VkDevice const device, std::string const& path)
     return std::visit(
         overloaded{
             [&](AssetFile const& file)
-            {
-                return std::optional<ShaderModuleReflected>{
-                    ShaderModuleReflected::FromBytecode(
-                        device, file.fileName, file.fileBytes
-                    )
-                };
-            },
+    {
+        return std::optional<ShaderModuleReflected>{
+            ShaderModuleReflected::FromBytecode(
+                device, file.fileName, file.fileBytes
+            )
+        };
+    },
             [&](AssetLoadingError const& error)
-            {
-                Error(fmt::format(
-                    "Failed to load asset for shader: {}", error.message
-                ));
-                return std::optional<ShaderModuleReflected>{};
-            }
+    {
+        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        );
+        return std::optional<ShaderModuleReflected>{};
+    }
         },
         fileLoadingResult
     );

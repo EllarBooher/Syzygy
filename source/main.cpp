@@ -4,7 +4,7 @@
 
 auto main() -> int
 {
-    ApplicationResult const runResult{ Application::run() };
+    ApplicationResult const runResult{Application::run()};
 
     if (runResult != ApplicationResult::SUCCESS)
     {

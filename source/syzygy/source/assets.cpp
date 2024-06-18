@@ -74,7 +74,7 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
                     gltf,
                     indexAccessor,
                     [&](std::uint32_t index)
-                    { indices.push_back(index + initialVertexIndex); }
+                { indices.push_back(index + initialVertexIndex); }
                 );
             }
 
@@ -89,15 +89,15 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
                     gltf,
                     positionAccessor,
                     [&](glm::vec3 position, size_t /*index*/)
-                    {
-                        vertices.push_back(Vertex{
-                            .position = position,
-                            .uv_x = 0.0F,
-                            .normal = glm::vec3{1, 0, 0},
-                            .uv_y = 0.0F,
-                            .color = glm::vec4{1.0F},
-                        });
-                    }
+                {
+                    vertices.push_back(Vertex{
+                        .position = position,
+                        .uv_x = 0.0F,
+                        .normal = glm::vec3{1, 0, 0},
+                        .uv_y = 0.0F,
+                        .color = glm::vec4{1.0F},
+                    });
+                }
                 );
             }
 
@@ -110,10 +110,8 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
                     fastgltf::iterateAccessorWithIndex<glm::vec3>(
                         gltf,
                         gltf.accessors[(*normals).second],
-                        [&](glm::vec3 normal, size_t index) {
-                            vertices[initialVertexIndex + index].normal =
-                                normal;
-                        }
+                        [&](glm::vec3 normal, size_t index)
+                    { vertices[initialVertexIndex + index].normal = normal; }
                     );
                 }
             }
@@ -126,12 +124,10 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
                         gltf,
                         gltf.accessors[(*uvs).second],
                         [&](glm::vec2 texcoord, size_t index)
-                        {
-                            vertices[initialVertexIndex + index].uv_x =
-                                texcoord.x;
-                            vertices[initialVertexIndex + index].uv_y =
-                                texcoord.y;
-                        }
+                    {
+                        vertices[initialVertexIndex + index].uv_x = texcoord.x;
+                        vertices[initialVertexIndex + index].uv_y = texcoord.y;
+                    }
                     );
                 }
             }
@@ -144,7 +140,7 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
                         gltf,
                         gltf.accessors[(*colors).second],
                         [&](glm::vec4 color, size_t index)
-                        { vertices[initialVertexIndex + index].color = color; }
+                    { vertices[initialVertexIndex + index].color = color; }
                     );
                 }
             }
@@ -179,8 +175,7 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
     return newMeshes;
 }
 
-auto loadAssetFile(std::string const& localPath)
-    -> AssetLoadingResult
+auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
 {
     std::unique_ptr<std::filesystem::path> const pPath{
         DebugUtils::getLoadedDebugUtils().loadAssetPath(

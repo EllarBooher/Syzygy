@@ -6,8 +6,8 @@ struct GLFWwindow;
 
 struct PlatformWindow
 {
-    GLFWwindow* handle{ nullptr };
+    GLFWwindow* handle{nullptr};
 
-    auto extent() const->glm::u16vec2;
+    auto extent() const -> glm::u16vec2;
     void destroy();
 };

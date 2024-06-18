@@ -18,3 +18,5 @@ BinPackParameters: false
 
 PointerAlignment: Left
 QualifierAlignment: Right
+
+LambdaBodyIndentation: OuterScope

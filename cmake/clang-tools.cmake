@@ -19,7 +19,7 @@ if (CLANG_FORMAT)
 	
 	add_custom_target(
 		clang-format
-		COMMAND ${CLANG_FORMAT_PATH} -i -style=file ${ALL_CXX_SOURCE_FILES}
+		COMMAND ${CLANG_FORMAT} -i -style=file ${ALL_CXX_SOURCE_FILES}
 		DEPENDS ${ALL_CXX_SOURCE_FILES}
 	)
 	set_target_properties(clang-format PROPERTIES EXCLUDE_FROM_ALL true)
