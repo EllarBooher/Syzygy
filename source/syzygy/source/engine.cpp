@@ -64,14 +64,49 @@ AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     }
 };
 
-Engine::Engine(PlatformWindow const& window) { init(window); }
+Engine::Engine(
+    PlatformWindow const& window,
+    VkInstance const instance,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const generalQueue,
+    uint32_t const generalQueueFamilyIndex
+)
+{
+    init(
+        window,
+        instance,
+        physicalDevice,
+        device,
+        allocator,
+        generalQueue,
+        generalQueueFamilyIndex
+    );
+}
 
-auto Engine::loadEngine(PlatformWindow const& window) -> Engine*
+auto Engine::loadEngine(
+    PlatformWindow const& window,
+    VkInstance const instance,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const generalQueue,
+    uint32_t const generalQueueFamilyIndex
+) -> Engine*
 {
     if (m_loadedEngine == nullptr)
     {
         Log("Loading Engine.");
-        m_loadedEngine = new Engine(window);
+        m_loadedEngine = new Engine(
+            window,
+            instance,
+            physicalDevice,
+            device,
+            allocator,
+            generalQueue,
+            generalQueueFamilyIndex
+        );
     }
     else
     {
@@ -82,8 +117,18 @@ auto Engine::loadEngine(PlatformWindow const& window) -> Engine*
     return m_loadedEngine;
 }
 
-void Engine::init(PlatformWindow const& window)
+void Engine::init(
+    PlatformWindow const& window,
+    VkInstance const instance,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const generalQueue,
+    uint32_t const generalQueueFamilyIndex
+)
 {
+    Log("Initializing Engine...");
+
     m_uiPreferences.dpiScale = glm::round(glm::min<float>(
         static_cast<float>(window.extent().y)
             / static_cast<float>(RESOLUTION_DEFAULT.height),
@@ -91,180 +136,40 @@ void Engine::init(PlatformWindow const& window)
             / static_cast<float>(RESOLUTION_DEFAULT.width)
     ));
 
-    initVulkan(window);
+    initDrawTargets(device, allocator);
+
+    initCommands(device, generalQueueFamilyIndex);
+    initSyncStructures(device);
+    initDescriptors(device);
+
+    updateDescriptors(device);
+
+    initDefaultMeshData(device, allocator, generalQueue);
+    initWorld(device, allocator, generalQueue);
+    initDebug(device, allocator);
+    initGenericComputePipelines(device);
+
+    initDeferredShadingPipeline(device, allocator);
+
+    initImgui(
+        instance,
+        physicalDevice,
+        device,
+        generalQueueFamilyIndex,
+        generalQueue,
+        window.handle
+    );
+
+    Log("Vulkan Initialized.");
 
     m_initialized = true;
 
     Log("Engine Initialized.");
 }
 
-void Engine::initVulkan(PlatformWindow const& window)
-{
-    Log("Initializing Vulkan...");
-
-    volkInitialize();
-
-    initInstanceSurfaceDevices(window.handle);
-
-    volkLoadDevice(m_device);
-
-    initAllocator();
-
-    initSwapchain(window.extent());
-    initDrawTargets();
-
-    initCommands();
-    initSyncStructures();
-    initDescriptors();
-
-    updateDescriptors();
-
-    initDefaultMeshData();
-    initWorld();
-    initDebug();
-    initGenericComputePipelines();
-
-    initDeferredShadingPipeline();
-
-    initImgui(window.handle);
-
-    Log("Vulkan Initialized.");
-}
-
-void Engine::initInstanceSurfaceDevices(GLFWwindow* const window)
-{
-    // create VkInstance and VkDebugUtilsMessengerEXT
-
-    vkb::InstanceBuilder instanceBuilder;
-    vkb::Result<vkb::Instance> const instanceBuildResult{
-        instanceBuilder.set_app_name("Renderer")
-            .request_validation_layers()
-            .use_default_debug_messenger()
-            .require_api_version(1, 3, 0)
-            .build()
-    };
-    vkb::Instance const vkbInstance{UnwrapVkbResult(instanceBuildResult)};
-
-    volkLoadInstance(vkbInstance.instance);
-
-    m_instance = vkbInstance.instance;
-    m_debugMessenger = vkbInstance.debug_messenger;
-
-    // create VkSurfaceKHR
-
-    glfwCreateWindowSurface(m_instance, window, nullptr, &m_surface);
-
-    // create VkPhysicalDevice and VkDevice
-
-    VkPhysicalDeviceVulkan13Features const features13{
-        .synchronization2 = VK_TRUE,
-        .dynamicRendering = VK_TRUE,
-    };
-
-    VkPhysicalDeviceVulkan12Features const features12{
-        .descriptorIndexing = VK_TRUE,
-
-        .descriptorBindingPartiallyBound = VK_TRUE,
-        .runtimeDescriptorArray = VK_TRUE,
-
-        .bufferDeviceAddress = VK_TRUE,
-    };
-
-    VkPhysicalDeviceFeatures const features{
-        .wideLines = VK_TRUE,
-    };
-
-    VkPhysicalDeviceShaderObjectFeaturesEXT const shaderObjectFeature{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
-        .pNext = nullptr,
-
-        .shaderObject = VK_TRUE,
-    };
-
-    vkb::Result<vkb::PhysicalDevice> const physicalDeviceBuildResult{
-        vkb::PhysicalDeviceSelector{vkbInstance}
-            .set_minimum_version(1, 3)
-            .set_required_features_13(features13)
-            .set_required_features_12(features12)
-            .set_required_features(features)
-            .add_required_extension_features(shaderObjectFeature)
-            .add_required_extension(VK_EXT_SHADER_OBJECT_EXTENSION_NAME)
-            .set_surface(m_surface)
-            .select()
-    };
-    vkb::PhysicalDevice const vkbPhysicalDevice{
-        UnwrapVkbResult(physicalDeviceBuildResult)
-    };
-
-    vkb::DeviceBuilder const deviceBuilder{vkbPhysicalDevice};
-    vkb::Result<vkb::Device> const deviceBuildResult = deviceBuilder.build();
-    vkb::Device const vkbDevice = UnwrapVkbResult(deviceBuildResult);
-
-    volkLoadDevice(vkbDevice.device);
-
-    m_device = vkbDevice.device;
-    m_physicalDevice = vkbDevice.physical_device;
-
-    // queues
-
-    vkb::Result<VkQueue> const graphicsQueueResult{
-        vkbDevice.get_queue(vkb::QueueType::graphics)
-    };
-    vkb::Result<uint32_t> const graphicsQueueFamilyResult{
-        vkbDevice.get_queue_index(vkb::QueueType::graphics)
-    };
-
-    m_graphicsQueue = UnwrapVkbResult(graphicsQueueResult);
-    m_graphicsQueueFamily = UnwrapVkbResult(graphicsQueueFamilyResult);
-}
-
-void Engine::initAllocator()
-{
-    VmaAllocatorCreateInfo const allocatorInfo{
-        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-        .physicalDevice = m_physicalDevice,
-        .device = m_device,
-        .instance = m_instance,
-    };
-    vmaCreateAllocator(&allocatorInfo, &m_allocator);
-}
-
-void Engine::initSwapchain(glm::u16vec2 extent)
-{
-    m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
-
-    VkSurfaceFormatKHR const surfaceFormat{
-        .format = m_swapchainImageFormat,
-        .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-    };
-
-    uint32_t const width{extent.x};
-    uint32_t const height{extent.y};
-
-    vkb::Result<vkb::Swapchain> const swapchainResult{
-        vkb::SwapchainBuilder{m_physicalDevice, m_device, m_surface}
-            .set_desired_format(surfaceFormat)
-            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-            .set_desired_extent(width, height)
-            .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-            .build()
-    };
-    vkb::Swapchain vkbSwapchain = UnwrapVkbResult(swapchainResult);
-
-    m_swapchainExtent = {
-        .width = vkbSwapchain.extent.width,
-        .height = vkbSwapchain.extent.height,
-    };
-    m_swapchain = vkbSwapchain.swapchain;
-    m_swapchainImages = vkbSwapchain.get_images().value();
-    m_swapchainImageViews = vkbSwapchain.get_image_views().value();
-
-    m_sceneRect = VkRect2D{
-        .extent{m_swapchainExtent},
-    };
-}
-
-void Engine::initDrawTargets()
+void Engine::initDrawTargets(
+    VkDevice const device, VmaAllocator const allocator
+)
 {
     // Initialize the image used for rendering outside of the swapchain.
 
@@ -276,8 +181,8 @@ void Engine::initDrawTargets()
 
     m_sceneColorTexture =
         AllocatedImage::allocate(
-            m_allocator,
-            m_device,
+            allocator,
+            device,
             AllocatedImage::AllocationParameters{
                 .extent = RESERVED_IMAGE_EXTENT,
                 .format = COLOR_FORMAT,
@@ -287,9 +192,9 @@ void Engine::initDrawTargets()
                                                  // ImGui
                     | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
                     | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics
-                                                          // passes
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT,    // copy to from other
-                                                          // render passes
+                    // passes
+                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT, // copy to from other
+                // render passes
                 .viewFlags = COLOR_ASPECTS,
             }
         )
@@ -297,8 +202,8 @@ void Engine::initDrawTargets()
 
     m_drawImage =
         AllocatedImage::allocate(
-            m_allocator,
-            m_device,
+            allocator,
+            device,
             AllocatedImage::AllocationParameters{
                 .extent = RESERVED_IMAGE_EXTENT,
                 .format = COLOR_FORMAT,
@@ -316,8 +221,8 @@ void Engine::initDrawTargets()
 
     m_sceneDepthTexture =
         AllocatedImage::allocate(
-            m_allocator,
-            m_device,
+            allocator,
+            device,
             AllocatedImage::AllocationParameters{
                 .extent = RESERVED_IMAGE_EXTENT,
                 .format = VK_FORMAT_D32_SFLOAT,
@@ -330,36 +235,30 @@ void Engine::initDrawTargets()
             .value_or(AllocatedImage::makeInvalid());
 }
 
-void Engine::cleanupSwapchain()
+void Engine::cleanupDrawTargets(
+    VkDevice const device, VmaAllocator const allocator
+)
 {
-    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-
-    for (VkImageView const& imageView : m_swapchainImageViews)
-    {
-        vkDestroyImageView(m_device, imageView, nullptr);
-    }
+    m_sceneColorTexture.cleanup(device, allocator);
+    m_drawImage.cleanup(device, allocator);
+    m_sceneDepthTexture.cleanup(device, allocator);
 }
 
-void Engine::cleanupDrawTargets()
-{
-    m_sceneColorTexture.cleanup(m_device, m_allocator);
-    m_drawImage.cleanup(m_device, m_allocator);
-    m_sceneDepthTexture.cleanup(m_device, m_allocator);
-}
-
-void Engine::initCommands()
+void Engine::initCommands(
+    VkDevice const device, uint32_t const queueFamilyIndex
+)
 {
     VkCommandPoolCreateInfo const commandPoolInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = m_graphicsQueueFamily,
+        .queueFamilyIndex = queueFamilyIndex,
     };
 
     for (FrameData& frameData : m_frames)
     {
         CheckVkResult(vkCreateCommandPool(
-            m_device, &commandPoolInfo, nullptr, &frameData.commandPool
+            device, &commandPoolInfo, nullptr, &frameData.commandPool
         ));
 
         VkCommandBufferAllocateInfo const cmdAllocInfo{
@@ -371,14 +270,14 @@ void Engine::initCommands()
         };
 
         CheckVkResult(vkAllocateCommandBuffers(
-            m_device, &cmdAllocInfo, &frameData.mainCommandBuffer
+            device, &cmdAllocInfo, &frameData.mainCommandBuffer
         ));
     }
 
     // Immediate command structures
 
     CheckVkResult(vkCreateCommandPool(
-        m_device, &commandPoolInfo, nullptr, &m_immCommandPool
+        device, &commandPoolInfo, nullptr, &m_immCommandPool
     ));
     VkCommandBufferAllocateInfo const immCmdAllocInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -388,12 +287,12 @@ void Engine::initCommands()
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
-    CheckVkResult(vkAllocateCommandBuffers(
-        m_device, &immCmdAllocInfo, &m_immCommandBuffer
-    ));
+    CheckVkResult(
+        vkAllocateCommandBuffers(device, &immCmdAllocInfo, &m_immCommandBuffer)
+    );
 }
 
-void Engine::initSyncStructures()
+void Engine::initSyncStructures(VkDevice const device)
 {
     // Signaled so first frame can occur
     VkFenceCreateInfo const fenceCreateInfo{
@@ -405,27 +304,23 @@ void Engine::initSyncStructures()
     for (FrameData& frameData : m_frames)
     {
         CheckVkResult(vkCreateFence(
-            m_device, &fenceCreateInfo, nullptr, &frameData.renderFence
+            device, &fenceCreateInfo, nullptr, &frameData.renderFence
         ));
         CheckVkResult(vkCreateSemaphore(
-            m_device,
-            &semaphoreCreateInfo,
-            nullptr,
-            &frameData.swapchainSemaphore
+            device, &semaphoreCreateInfo, nullptr, &frameData.swapchainSemaphore
         ));
         CheckVkResult(vkCreateSemaphore(
-            m_device, &semaphoreCreateInfo, nullptr, &frameData.renderSemaphore
+            device, &semaphoreCreateInfo, nullptr, &frameData.renderSemaphore
         ));
     }
 
     // Immediate sync structures
 
-    CheckVkResult(
-        vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_immFence)
+    CheckVkResult(vkCreateFence(device, &fenceCreateInfo, nullptr, &m_immFence)
     );
 }
 
-void Engine::initDescriptors()
+void Engine::initDescriptors(VkDevice const device)
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
@@ -433,7 +328,7 @@ void Engine::initDescriptors()
     };
 
     m_globalDescriptorAllocator.initPool(
-        m_device,
+        device,
         DESCRIPTOR_SET_CAPACITY_DEFAULT,
         sizes,
         (VkDescriptorPoolCreateFlags)0
@@ -451,16 +346,16 @@ void Engine::initDescriptors()
                     },
                     1
                 )
-                .build(m_device, 0)
+                .build(device, 0)
                 .value_or(VK_NULL_HANDLE); // TODO: handle
 
         m_sceneTextureDescriptors = m_globalDescriptorAllocator.allocate(
-            m_device, m_sceneTextureDescriptorLayout
+            device, m_sceneTextureDescriptorLayout
         );
     }
 }
 
-void Engine::updateDescriptors()
+void Engine::updateDescriptors(VkDevice const device)
 {
     VkDescriptorImageInfo const sceneTextureInfo{
         .sampler = VK_NULL_HANDLE,
@@ -485,14 +380,21 @@ void Engine::updateDescriptors()
 
     std::vector<VkWriteDescriptorSet> const writes{sceneTextureWrite};
 
-    vkUpdateDescriptorSets(m_device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
+    vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
 }
 
-void Engine::initDefaultMeshData()
+void Engine::initDefaultMeshData(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue
+)
 {
     m_testMeshes =
         loadGltfMeshes( // NOLINT(bugprone-unchecked-optional-access):
                         // Necessary for program execution
+            device,
+            allocator,
+            transferQueue,
             this,
             "assets/vkguide/basicmesh.glb"
         )
@@ -511,7 +413,11 @@ auto randomQuat() -> glm::quat
     return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
-void Engine::initWorld()
+void Engine::initWorld(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue
+)
 {
     int32_t const coordinateMin{-40};
     int32_t const coordinateMax{40};
@@ -564,8 +470,8 @@ void Engine::initWorld()
         VkDeviceSize const maxInstanceCount{m_meshInstances.originals.size()};
         m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
             TStagedBuffer<glm::mat4x4>::allocate(
-                m_device,
-                m_allocator,
+                device,
+                allocator,
                 maxInstanceCount,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
@@ -573,8 +479,8 @@ void Engine::initWorld()
         m_meshInstances.modelInverseTransposes =
             std::make_unique<TStagedBuffer<glm::mat4x4>>(
                 TStagedBuffer<glm::mat4x4>::allocate(
-                    m_device,
-                    m_allocator,
+                    device,
+                    allocator,
                     maxInstanceCount,
                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 )
@@ -591,11 +497,13 @@ void Engine::initWorld()
         m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
 
         immediateSubmit(
+            device,
+            transferQueue,
             [&](VkCommandBuffer cmd)
         {
-            m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+            m_meshInstances.models->recordCopyToDevice(cmd, allocator);
             m_meshInstances.modelInverseTransposes->recordCopyToDevice(
-                cmd, m_allocator
+                cmd, allocator
             );
         }
         );
@@ -605,8 +513,8 @@ void Engine::initWorld()
 
         m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
             TStagedBuffer<gputypes::Camera>::allocate(
-                m_device,
-                m_allocator,
+                device,
+                allocator,
                 CAMERA_CAPACITY,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             )
@@ -620,8 +528,8 @@ void Engine::initWorld()
         m_atmospheresBuffer =
             std::make_unique<TStagedBuffer<gputypes::Atmosphere>>(
                 TStagedBuffer<gputypes::Atmosphere>::allocate(
-                    m_device,
-                    m_allocator,
+                    device,
+                    allocator,
                     ATMOSPHERE_CAPACITY,
                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 )
@@ -631,15 +539,19 @@ void Engine::initWorld()
         };
         m_atmospheresBuffer->stage(atmospheres);
 
-        immediateSubmit([&](VkCommandBuffer cmd)
-        { m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator); });
+        immediateSubmit(
+            device,
+            transferQueue,
+            [&](VkCommandBuffer cmd)
+        { m_atmospheresBuffer->recordCopyToDevice(cmd, allocator); }
+        );
     }
 }
 
-void Engine::initDebug()
+void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
 {
     m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
-        m_device,
+        device,
         DebugLineGraphicsPipeline::ImageFormats{
             .color = m_sceneColorTexture.imageFormat,
             .depth = m_sceneDepthTexture.imageFormat,
@@ -647,33 +559,35 @@ void Engine::initDebug()
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
-            m_device,
-            m_allocator,
+            device,
+            allocator,
             DEBUGLINES_CAPACITY,
             VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         )
     );
     m_debugLines.vertices =
         std::make_unique<TStagedBuffer<Vertex>>(TStagedBuffer<Vertex>::allocate(
-            m_device,
-            m_allocator,
+            device,
+            allocator,
             DEBUGLINES_CAPACITY,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         ));
 }
 
-void Engine::initDeferredShadingPipeline()
+void Engine::initDeferredShadingPipeline(
+    VkDevice const device, VmaAllocator const allocator
+)
 {
     m_deferredShadingPipeline = std::make_unique<DeferredShadingPipeline>(
-        m_device, m_allocator, m_globalDescriptorAllocator, MAX_DRAW_EXTENTS
+        device, allocator, m_globalDescriptorAllocator, MAX_DRAW_EXTENTS
     );
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
-        m_device, m_sceneDepthTexture
+        device, m_sceneDepthTexture
     );
 }
 
-void Engine::initGenericComputePipelines()
+void Engine::initGenericComputePipelines(VkDevice const device)
 {
     std::vector<std::string> const shaderPaths{
         "shaders/booleanpush.comp.spv",
@@ -682,11 +596,18 @@ void Engine::initGenericComputePipelines()
         "shaders/matrix_color.comp.spv"
     };
     m_genericComputePipeline = std::make_unique<ComputeCollectionPipeline>(
-        m_device, m_sceneTextureDescriptorLayout, shaderPaths
+        device, m_sceneTextureDescriptorLayout, shaderPaths
     );
 }
 
-void Engine::initImgui(GLFWwindow* const window)
+void Engine::initImgui(
+    VkInstance const instance,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    uint32_t graphicsQueueFamily,
+    VkQueue graphicsQueue,
+    GLFWwindow* const window
+)
 {
     Log("Initializing ImGui...");
 
@@ -714,9 +635,9 @@ void Engine::initImgui(GLFWwindow* const window)
     };
 
     VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
-    CheckVkResult(vkCreateDescriptorPool(
-        m_device, &poolInfo, nullptr, &imguiDescriptorPool
-    ));
+    CheckVkResult(
+        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiDescriptorPool)
+    );
 
     ImGui::CreateContext();
     ImPlot::CreateContext();
@@ -747,7 +668,7 @@ void Engine::initImgui(GLFWwindow* const window)
             *(reinterpret_cast<VkInstance*>(vkInstance)), functionName
         );
     },
-        &m_instance
+        const_cast<VkInstance*>(&instance)
     );
 
     // This amount is recommended by ImGui to satisfy validation layers, even if
@@ -755,12 +676,12 @@ void Engine::initImgui(GLFWwindow* const window)
     VkDeviceSize constexpr IMGUI_MIN_ALLOCATION_SIZE{1024ULL * 1024ULL};
 
     ImGui_ImplVulkan_InitInfo initInfo{
-        .Instance = m_instance,
-        .PhysicalDevice = m_physicalDevice,
-        .Device = m_device,
+        .Instance = instance,
+        .PhysicalDevice = physicalDevice,
+        .Device = device,
 
-        .QueueFamily = m_graphicsQueueFamily,
-        .Queue = m_graphicsQueue,
+        .QueueFamily = graphicsQueueFamily,
+        .Queue = graphicsQueue,
 
         .DescriptorPool = imguiDescriptorPool,
 
@@ -791,7 +712,7 @@ void Engine::initImgui(GLFWwindow* const window)
 
         assert(m_imguiSceneTextureSampler == VK_NULL_HANDLE);
         vkCreateSampler(
-            m_device, &samplerInfo, nullptr, &m_imguiSceneTextureSampler
+            device, &samplerInfo, nullptr, &m_imguiSceneTextureSampler
         );
 
         m_imguiSceneTextureDescriptor = ImGui_ImplVulkan_AddTexture(
@@ -810,19 +731,13 @@ void Engine::initImgui(GLFWwindow* const window)
     Log("ImGui initialized.");
 }
 
-void Engine::resizeSwapchain(glm::u16vec2 extent)
-{
-    vkDeviceWaitIdle(m_device);
-    cleanupSwapchain();
-    initSwapchain(extent);
-
-    m_resizeRequested = false;
-}
-
-void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
+void Engine::immediateSubmit(
+    VkDevice const device,
+    VkQueue const queue,
+    std::function<void(VkCommandBuffer cmd)>&& function
 )
 {
-    CheckVkResult(vkResetFences(m_device, 1, &m_immFence));
+    CheckVkResult(vkResetFences(device, 1, &m_immFence));
     CheckVkResult(vkResetCommandBuffer(m_immCommandBuffer, 0));
 
     VkCommandBuffer const& cmd = m_immCommandBuffer;
@@ -843,17 +758,20 @@ void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
     VkSubmitInfo2 const submitInfo{vkinit::submitInfo(cmdSubmitInfos, {}, {})};
 
-    CheckVkResult(vkQueueSubmit2(m_graphicsQueue, 1, &submitInfo, m_immFence));
+    CheckVkResult(vkQueueSubmit2(queue, 1, &submitInfo, m_immFence));
 
     // 100 second timeout
     uint64_t constexpr SUBMIT_TIMEOUT_NANOSECONDS{100'000'000'000};
     VkBool32 constexpr WAIT_ALL{VK_TRUE};
     CheckVkResult(vkWaitForFences(
-        m_device, 1, &m_immFence, WAIT_ALL, SUBMIT_TIMEOUT_NANOSECONDS
+        device, 1, &m_immFence, WAIT_ALL, SUBMIT_TIMEOUT_NANOSECONDS
     ));
 }
 
 auto Engine::uploadMeshToGPU(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
     std::span<uint32_t const> const indices,
     std::span<Vertex const> const vertices
 ) -> std::unique_ptr<GPUMeshBuffers>
@@ -864,8 +782,8 @@ auto Engine::uploadMeshToGPU(
     size_t const vertexBufferSize{vertices.size_bytes()};
 
     AllocatedBuffer indexBuffer{AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
+        device,
+        allocator,
         indexBufferSize,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY,
@@ -873,8 +791,8 @@ auto Engine::uploadMeshToGPU(
     )};
 
     AllocatedBuffer vertexBuffer{AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
+        device,
+        allocator,
         vertexBufferSize,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
             | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
@@ -885,8 +803,8 @@ auto Engine::uploadMeshToGPU(
     // Copy data into buffer
 
     AllocatedBuffer stagingBuffer{AllocatedBuffer::allocate(
-        m_device,
-        m_allocator,
+        device,
+        allocator,
         vertexBufferSize + indexBufferSize,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VMA_MEMORY_USAGE_CPU_ONLY,
@@ -907,6 +825,8 @@ auto Engine::uploadMeshToGPU(
     memcpy(data + vertexBufferSize, indices.data(), indexBufferSize);
 
     immediateSubmit(
+        device,
+        transferQueue,
         [&](VkCommandBuffer cmd)
     {
         VkBufferCopy const vertexCopy{
@@ -962,12 +882,18 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Engine::mainLoop(
+auto Engine::mainLoop(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const queue,
+    VkSwapchainKHR const swapchain,
+    std::span<VkImage> const swapchainImages,
+    std::span<VkImageView> const swapchainImageViews,
+    VkExtent2D const swapchainExtent,
     double const elapsedTimeSeconds,
     double const deltaTimeSeconds,
-    bool shouldRender,
-    glm::u16vec2 windowExtent
-)
+    bool const shouldRender
+) -> EngineLoopResult
 {
     m_debugLines.clear();
 
@@ -986,25 +912,35 @@ void Engine::mainLoop(
 
     if (!shouldRender)
     {
-        return;
+        return EngineLoopResult::SKIPPED_RENDERING;
     }
 
-    if (m_resizeRequested)
-    {
-        Log("Resizing swapchain.");
-        resizeSwapchain(windowExtent);
-    }
-
-    if (renderUI(m_device))
+    if (renderUI(device))
     {
         // TODO: fix
         // For some reason, ImGui gives visual artifacts for two frames
         // when resetting certain docking states. We force updating to
         // flush these through.
-        renderUI(m_device);
-        renderUI(m_device);
+        renderUI(device);
+        renderUI(device);
     }
-    draw();
+    draw(
+        device,
+        allocator,
+        queue,
+        swapchain,
+        swapchainImages,
+        swapchainImageViews,
+        swapchainExtent
+    );
+
+    if (m_resizeRequested)
+    {
+        m_resizeRequested = false;
+        return EngineLoopResult::REBUILD_REQUESTED;
+    }
+
+    return EngineLoopResult::RENDERED;
 }
 
 // TODO: Break this method up to get rid of the NOLINT. It should be as pure as
@@ -1347,20 +1283,28 @@ void Engine::tickWorld(TickTiming timing)
     }
 }
 
-void Engine::draw()
+void Engine::draw(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const queue,
+    VkSwapchainKHR const swapchain,
+    std::span<VkImage> const swapchainImages,
+    std::span<VkImageView> const swapchainImageViews,
+    VkExtent2D const swapchainExtent
+)
 {
-    FrameData& currentFrame = getCurrentFrame();
+    FrameData const& currentFrame = getCurrentFrame();
 
     uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
     CheckVkResult(vkWaitForFences(
-        m_device,
+        device,
         1,
         &currentFrame.renderFence,
         VK_TRUE,
         FRAME_WAIT_TIMEOUT_NANOSECONDS
     ));
 
-    CheckVkResult(vkResetFences(m_device, 1, &currentFrame.renderFence));
+    CheckVkResult(vkResetFences(device, 1, &currentFrame.renderFence));
 
     VkCommandBuffer const& cmd = currentFrame.mainCommandBuffer;
     CheckVkResult(vkResetCommandBuffer(cmd, 0));
@@ -1390,7 +1334,7 @@ void Engine::draw()
                 : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
 
-        m_camerasBuffer->recordCopyToDevice(cmd, m_allocator);
+        m_camerasBuffer->recordCopyToDevice(cmd, allocator);
     }
 
     { // Copy atmospheres to gpu
@@ -1410,13 +1354,13 @@ void Engine::draw()
                 m_atmosphereParameters.toDeviceEquivalent();
         }
 
-        m_atmospheresBuffer->recordCopyToDevice(cmd, m_allocator);
+        m_atmospheresBuffer->recordCopyToDevice(cmd, allocator);
     }
 
     { // Copy models to gpu
-        m_meshInstances.models->recordCopyToDevice(cmd, m_allocator);
+        m_meshInstances.models->recordCopyToDevice(cmd, allocator);
         m_meshInstances.modelInverseTransposes->recordCopyToDevice(
-            cmd, m_allocator
+            cmd, allocator
         );
     }
 
@@ -1559,7 +1503,9 @@ void Engine::draw()
                 glm::quat_identity<float, glm::qualifier::defaultp>(),
                 m_sceneBounds.extent
             );
-            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+            recordDrawDebugLines(
+                allocator, cmd, m_cameraIndexMain, *m_camerasBuffer
+            );
 
             break;
         }
@@ -1610,8 +1556,8 @@ void Engine::draw()
 
     uint32_t swapchainImageIndex;
     VkResult const acquireResult{vkAcquireNextImageKHR(
-        m_device,
-        m_swapchain,
+        device,
+        swapchain,
         FRAME_WAIT_TIMEOUT_NANOSECONDS,
         currentFrame.swapchainSemaphore,
         VK_NULL_HANDLE // No Fence to signal
@@ -1626,9 +1572,9 @@ void Engine::draw()
     }
     CheckVkResult(acquireResult);
 
-    VkImage const& swapchainImage{m_swapchainImages[swapchainImageIndex]};
+    VkImage const& swapchainImage{swapchainImages[swapchainImageIndex]};
     VkImageView const& swapchainImageView{
-        m_swapchainImageViews[swapchainImageIndex]
+        swapchainImageViews[swapchainImageIndex]
     };
 
     vkutil::transitionImage(
@@ -1651,7 +1597,7 @@ void Engine::draw()
         m_drawImage.image,
         swapchainImage,
         m_drawRect,
-        VkRect2D{.extent{m_swapchainExtent}}
+        VkRect2D{.extent{swapchainExtent}}
     );
 
     vkutil::transitionImage(
@@ -1683,9 +1629,9 @@ void Engine::draw()
     VkSubmitInfo2 const submitInfo =
         vkinit::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
 
-    CheckVkResult(vkQueueSubmit2(
-        m_graphicsQueue, 1, &submitInfo, currentFrame.renderFence
-    ));
+    CheckVkResult(
+        vkQueueSubmit2(queue, 1, &submitInfo, currentFrame.renderFence)
+    );
 
     VkPresentInfoKHR const presentInfo = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -1695,15 +1641,13 @@ void Engine::draw()
         .pWaitSemaphores = &currentFrame.renderSemaphore,
 
         .swapchainCount = 1,
-        .pSwapchains = &m_swapchain,
+        .pSwapchains = &swapchain,
 
         .pImageIndices = &swapchainImageIndex,
         .pResults = nullptr, // Only one swapchain
     };
 
-    VkResult const presentResult{
-        vkQueuePresentKHR(m_graphicsQueue, &presentInfo)
-    };
+    VkResult const presentResult{vkQueuePresentKHR(queue, &presentInfo)};
     if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
     {
         m_resizeRequested = true;
@@ -1718,18 +1662,6 @@ void Engine::draw()
 
 void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
 {
-    VkRenderingAttachmentInfo const colorAttachmentInfo{
-        vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
-    };
-
-    std::vector<VkRenderingAttachmentInfo> const colorAttachments{
-        colorAttachmentInfo
-    };
-    VkRenderingInfo const renderingInfo{vkinit::renderingInfo(
-        VkRect2D{.extent{m_swapchainExtent}}, colorAttachments, nullptr
-    )};
-
-    vkCmdBeginRendering(cmd, &renderingInfo);
 
     ImDrawData* const drawData{ImGui::GetDrawData()};
 
@@ -1744,12 +1676,24 @@ void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
         }},
     };
 
+    VkRenderingAttachmentInfo const colorAttachmentInfo{
+        vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
+    };
+    std::vector<VkRenderingAttachmentInfo> const colorAttachments{
+        colorAttachmentInfo
+    };
+    VkRenderingInfo const renderingInfo{
+        vkinit::renderingInfo(m_drawRect, colorAttachments, nullptr)
+    };
+    vkCmdBeginRendering(cmd, &renderingInfo);
+
     ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
 
     vkCmdEndRendering(cmd);
 }
 
 void Engine::recordDrawDebugLines(
+    VmaAllocator const allocator,
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
     TStagedBuffer<gputypes::Camera> const& camerasBuffer
@@ -1759,7 +1703,7 @@ void Engine::recordDrawDebugLines(
 
     if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0)
     {
-        m_debugLines.recordCopy(cmd, m_allocator);
+        m_debugLines.recordCopy(cmd, allocator);
 
         DrawResultsGraphics const drawResults{
             m_debugLines.pipeline->recordDrawCommands(
@@ -1780,7 +1724,7 @@ void Engine::recordDrawDebugLines(
     }
 }
 
-void Engine::cleanup()
+void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
 {
     if (!m_initialized)
     {
@@ -1789,18 +1733,18 @@ void Engine::cleanup()
 
     Log("Engine cleaning up.");
 
-    CheckVkResult(vkDeviceWaitIdle(m_device));
+    CheckVkResult(vkDeviceWaitIdle(device));
 
     ImPlot::DestroyContext();
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(m_device, m_imguiDescriptorPool, nullptr);
-    vkDestroySampler(m_device, m_imguiSceneTextureSampler, nullptr);
+    vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
+    vkDestroySampler(device, m_imguiSceneTextureSampler, nullptr);
 
-    m_genericComputePipeline->cleanup(m_device);
-    m_deferredShadingPipeline->cleanup(m_device, m_allocator);
+    m_genericComputePipeline->cleanup(device);
+    m_deferredShadingPipeline->cleanup(device, allocator);
 
     m_meshInstances.models.reset();
     m_meshInstances.modelInverseTransposes.reset();
@@ -1809,36 +1753,29 @@ void Engine::cleanup()
     m_camerasBuffer.reset();
 
     m_testMeshes.clear();
-    m_debugLines.cleanup(m_device, m_allocator);
+    m_debugLines.cleanup(device, allocator);
 
-    m_globalDescriptorAllocator.destroyPool(m_device);
+    m_globalDescriptorAllocator.destroyPool(device);
 
     vkDestroyDescriptorSetLayout(
-        m_device, m_sceneTextureDescriptorLayout, nullptr
+        device, m_sceneTextureDescriptorLayout, nullptr
     );
 
     for (FrameData const& frameData : m_frames)
     {
-        vkDestroyCommandPool(m_device, frameData.commandPool, nullptr);
+        vkDestroyCommandPool(device, frameData.commandPool, nullptr);
 
-        vkDestroyFence(m_device, frameData.renderFence, nullptr);
-        vkDestroySemaphore(m_device, frameData.renderSemaphore, nullptr);
-        vkDestroySemaphore(m_device, frameData.swapchainSemaphore, nullptr);
+        vkDestroyFence(device, frameData.renderFence, nullptr);
+        vkDestroySemaphore(device, frameData.renderSemaphore, nullptr);
+        vkDestroySemaphore(device, frameData.swapchainSemaphore, nullptr);
     }
 
-    vkDestroyFence(m_device, m_immFence, nullptr);
-    vkDestroyCommandPool(m_device, m_immCommandPool, nullptr);
+    vkDestroyFence(device, m_immFence, nullptr);
+    vkDestroyCommandPool(device, m_immCommandPool, nullptr);
 
-    cleanupDrawTargets();
-    cleanupSwapchain();
-
-    vmaDestroyAllocator(m_allocator);
-
-    vkDestroyDevice(m_device, nullptr);
-    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-
-    vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-    vkDestroyInstance(m_instance, nullptr);
+    cleanupDrawTargets(device, allocator);
 
     m_initialized = false;
+
+    Log("Engine cleaned up.");
 }

@@ -35,27 +35,65 @@ struct FrameData
 
 size_t constexpr FRAMES_IN_FLIGHT = 2;
 
+enum class EngineLoopResult
+{
+    RENDERED,
+    SUCCESS = RENDERED,
+    SKIPPED_RENDERING,
+    REBUILD_REQUESTED,
+};
+
 class Engine
 {
 private:
-    Engine(PlatformWindow const& window);
-
-public:
-    static Engine* loadEngine(PlatformWindow const& window);
-
-    void mainLoop(
-        double elapsedTimeSeconds,
-        double deltaTimeSeconds,
-        bool shouldRender,
-        glm::u16vec2 windowExtent
+    Engine(
+        PlatformWindow const& window,
+        VkInstance const instance,
+        VkPhysicalDevice const physicalDevice,
+        VkDevice const device,
+        VmaAllocator const allocator,
+        VkQueue const generalQueue,
+        uint32_t const generalQueueFamilyIndex
     );
 
-    void cleanup();
+public:
+    static Engine* loadEngine(
+        PlatformWindow const& window,
+        VkInstance const instance,
+        VkPhysicalDevice const physicalDevice,
+        VkDevice const device,
+        VmaAllocator const allocator,
+        VkQueue const generalQueue,
+        uint32_t const generalQueueFamilyIndex
+    );
+
+    auto mainLoop(
+        VkDevice,
+        VmaAllocator,
+        VkQueue,
+        VkSwapchainKHR,
+        std::span<VkImage> swapchainImages,
+        std::span<VkImageView> swapchainImageViews,
+        VkExtent2D swapchainExtent,
+        double elapsedTimeSeconds,
+        double deltaTimeSeconds,
+        bool shouldRender
+    ) -> EngineLoopResult;
+
+    bool swapchainRebuildRequested() const { return m_resizeRequested; };
+
+    void cleanup(VkDevice, VmaAllocator);
 
 private:
-    void init(PlatformWindow const& window);
-
-    void initVulkan(PlatformWindow const& window);
+    void init(
+        PlatformWindow const& window,
+        VkInstance,
+        VkPhysicalDevice,
+        VkDevice,
+        VmaAllocator,
+        VkQueue generalQueue,
+        uint32_t const generalQueueFamilyIndex
+    );
 
     struct TickTiming
     {
@@ -65,11 +103,20 @@ private:
 
     void tickWorld(TickTiming timing);
 
-    bool renderUI(VkDevice device);
-    void draw();
+    bool renderUI(VkDevice);
+    void draw(
+        VkDevice,
+        VmaAllocator,
+        VkQueue,
+        VkSwapchainKHR,
+        std::span<VkImage> swapchainImages,
+        std::span<VkImageView> swapchainImageViews,
+        VkExtent2D swapchainExtent
+    );
 
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(
+        VmaAllocator,
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& camerasBuffer
@@ -87,48 +134,34 @@ private:
     // Begin Vulkan
 
 private:
-    void initInstanceSurfaceDevices(GLFWwindow* const window);
-    void initAllocator();
-    void initSwapchain(glm::u16vec2 extent);
-    void initDrawTargets();
+    void initDrawTargets(VkDevice, VmaAllocator);
+    void cleanupDrawTargets(VkDevice, VmaAllocator);
 
-    void cleanupSwapchain();
-    void cleanupDrawTargets();
+    // queueFamilyIndex must support all operations: graphics, compute, present,
+    // and transfer.
+    void initCommands(VkDevice, uint32_t queueFamilyIndex);
+    void initSyncStructures(VkDevice);
+    void initDescriptors(VkDevice);
 
-    void initCommands();
-    void initSyncStructures();
-    void initDescriptors();
+    void updateDescriptors(VkDevice);
 
-    void updateDescriptors();
+    void initDefaultMeshData(VkDevice, VmaAllocator, VkQueue transferQueue);
+    void initWorld(VkDevice, VmaAllocator, VkQueue transferQueue);
+    void initDebug(VkDevice, VmaAllocator);
+    void initDeferredShadingPipeline(VkDevice, VmaAllocator);
 
-    void initDefaultMeshData();
-    void initWorld();
-    void initDebug();
-    void initDeferredShadingPipeline();
+    void initGenericComputePipelines(VkDevice);
 
-    void initGenericComputePipelines();
-
-    void initImgui(GLFWwindow* const window);
-
-    VkInstance m_instance{VK_NULL_HANDLE};
-    VkDebugUtilsMessengerEXT m_debugMessenger{VK_NULL_HANDLE};
-    VkPhysicalDevice m_physicalDevice{VK_NULL_HANDLE};
-    VkDevice m_device{VK_NULL_HANDLE};
-    VkSurfaceKHR m_surface{VK_NULL_HANDLE};
-
-    VkQueue m_graphicsQueue{VK_NULL_HANDLE};
-    uint32_t m_graphicsQueueFamily{0};
-
-    VmaAllocator m_allocator{VK_NULL_HANDLE};
+    void initImgui(
+        VkInstance,
+        VkPhysicalDevice,
+        VkDevice,
+        uint32_t graphicsQueueFamily,
+        VkQueue graphicsQueue,
+        GLFWwindow* const window
+    );
 
     // Swapchain Resources
-
-    VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
-    VkFormat m_swapchainImageFormat{VK_FORMAT_UNDEFINED};
-
-    std::vector<VkImage> m_swapchainImages{};
-    std::vector<VkImageView> m_swapchainImageViews{};
-    VkExtent2D m_swapchainExtent{};
 
     ImGuiStyle m_imguiStyleDefault{};
 
@@ -142,7 +175,6 @@ private:
     bool m_uiReloadRequested{false};
 
     bool m_resizeRequested{false};
-    void resizeSwapchain(glm::u16vec2 extent);
 
     // Draw Resources
 
@@ -184,7 +216,9 @@ private:
 
     // Immediately opens and submits a command buffer. Use for one-off things
     // outside the render loop or when hangs are okay.
-    void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+    void immediateSubmit(
+        VkDevice, VkQueue, std::function<void(VkCommandBuffer cmd)>&& function
+    );
 
     // Descriptor
 
@@ -206,7 +240,11 @@ private:
 
 public:
     std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(
-        std::span<uint32_t const> indices, std::span<Vertex const> vertices
+        VkDevice,
+        VmaAllocator,
+        VkQueue transferQueue,
+        std::span<uint32_t const> indices,
+        std::span<Vertex const> vertices
     );
 
     float targetFPS() const { return m_targetFPS; }

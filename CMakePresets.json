@@ -67,6 +67,12 @@
       "displayName": "x64-Debug Ninja/Clang",
       "configurePreset": "windows-ninja-clang",
       "configuration": "Debug"
+    },
+    {
+      "name": "windows-ninja-clang-release",
+      "displayName": "x64-Release Ninja/Clang",
+      "configurePreset": "windows-ninja-clang",
+      "configuration": "Release"
     }
   ]
 }

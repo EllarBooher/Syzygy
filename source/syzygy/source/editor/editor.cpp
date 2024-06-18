@@ -31,8 +31,30 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Window created.");
 
-    Engine* const renderer{Engine::loadEngine(window)};
+    Log("Creating Graphics Context...");
 
+    std::optional<GraphicsContext> const graphicsResult{
+        GraphicsContext::create(window)
+    };
+    if (!graphicsResult.has_value())
+    {
+        Error("Failed to create graphics context.");
+        return std::nullopt;
+    }
+    GraphicsContext graphics{graphicsResult.value()};
+
+    Log("Created Graphics Context.");
+
+    VulkanContext const& vulkanContext{graphics.vulkanContext()};
+    Engine* const renderer{Engine::loadEngine(
+        window,
+        vulkanContext.instance,
+        vulkanContext.physicalDevice,
+        vulkanContext.device,
+        graphics.allocator(),
+        vulkanContext.graphicsQueue,
+        vulkanContext.graphicsQueueFamily
+    )};
     if (renderer == nullptr)
     {
         Error("Failed to load renderer.");
@@ -41,7 +63,7 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Created Editor instance.");
 
-    return std::make_optional<Editor>(window, renderer);
+    return std::make_optional<Editor>(window, graphics, renderer);
 }
 
 auto Editor::run() -> EditorResult
@@ -75,14 +97,52 @@ auto Editor::run() -> EditorResult
 
         previousTimeSeconds = currentTimeSeconds;
 
-        if (deltaTimeSeconds >= 1.0 / targetFPS)
+        EngineLoopResult const loopResult{m_renderer->mainLoop(
+            m_graphics.vulkanContext().device,
+            m_graphics.allocator(),
+            m_graphics.vulkanContext().graphicsQueue,
+            m_graphics.swapchain().swapchain,
+            m_graphics.swapchain().images,
+            m_graphics.swapchain().imageViews,
+            m_graphics.swapchain().extent,
+            currentTimeSeconds,
+            deltaTimeSeconds,
+            shouldRender
+        )};
+
+        if (loopResult == EngineLoopResult::REBUILD_REQUESTED)
         {
-            m_renderer->mainLoop(
-                currentTimeSeconds,
-                deltaTimeSeconds,
-                shouldRender,
-                m_window.extent()
-            );
+            glm::u16vec2 const newExtent{m_window.extent()};
+
+            VkExtent2D const oldExtent{m_graphics.swapchain().extent};
+
+            Log(fmt::format(
+                "Resizing swapchain: ({},{}) -> ({},{})",
+                oldExtent.width,
+                oldExtent.height,
+                newExtent.x,
+                newExtent.y
+            ));
+
+            m_graphics.swapchain().destroy(m_graphics.vulkanContext().device);
+
+            std::optional<Swapchain> newSwapchain{Swapchain::create(
+                newExtent,
+                m_graphics.vulkanContext().physicalDevice,
+                m_graphics.vulkanContext().device,
+                m_graphics.vulkanContext().surface
+            )};
+
+            if (!newSwapchain.has_value())
+            {
+                Error(fmt::format(
+                    "Failed to create new swapchain for resizing",
+                    glm::to_string(newExtent)
+                ));
+                return EditorResult::ERROR_EDITOR;
+            }
+
+            m_graphics.swapchain() = std::move(newSwapchain).value();
         }
     }
 
@@ -91,7 +151,14 @@ auto Editor::run() -> EditorResult
 
 Editor::~Editor() noexcept
 {
-    m_renderer->cleanup();
+    if (nullptr != m_renderer)
+    {
+        m_renderer->cleanup(
+            m_graphics.vulkanContext().device, m_graphics.allocator()
+        );
+    }
+
+    m_graphics.destroy();
 
     glfwTerminate();
     m_window.destroy();

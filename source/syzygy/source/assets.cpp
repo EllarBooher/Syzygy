@@ -13,8 +13,13 @@
 
 #include "helpers.hpp"
 
-auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
-    -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
+auto loadGltfMeshes(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    Engine* const engine,
+    std::string const& localPath
+) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
     std::filesystem::path const assetPath{
         DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath)
@@ -168,7 +173,9 @@ auto loadGltfMeshes(Engine* const engine, std::string const& localPath)
         newMeshes.push_back(std::make_shared<MeshAsset>(MeshAsset{
             .name = std::string{mesh.name},
             .surfaces = surfaces,
-            .meshBuffers = engine->uploadMeshToGPU(indices, vertices),
+            .meshBuffers = engine->uploadMeshToGPU(
+                device, allocator, transferQueue, indices, vertices
+            ),
         }));
     }
 

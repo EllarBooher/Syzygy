@@ -73,6 +73,20 @@ void LogVkResult(
     std::source_location location = std::source_location::current()
 );
 
+template <typename T>
+inline void
+LogVkbError(vkb::Result<T> const& result, std::string const& message)
+{
+    assert(!result.has_value());
+
+    Error(fmt::format(
+        "{}. Error: {}. VkResult: {}.",
+        message,
+        result.error().message(),
+        string_VkResult(result.vk_result())
+    ));
+}
+
 // Returns the value inside a vkb::Result if it is a success
 // and throws a runtime error if not.
 template <typename T>

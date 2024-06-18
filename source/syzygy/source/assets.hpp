@@ -22,8 +22,13 @@ struct MeshAsset
 
 class Engine;
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>>
-loadGltfMeshes(Engine* engine, std::string const& localPath);
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
+    VkDevice,
+    VmaAllocator,
+    VkQueue transferQueue,
+    Engine* engine,
+    std::string const& localPath
+);
 
 struct AssetFile
 {

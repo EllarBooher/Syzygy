@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphicscontext.hpp"
 #include "window.hpp"
 #include <glm/vec2.hpp>
 #include <optional>
@@ -18,6 +19,7 @@ class Editor
 {
 private:
     PlatformWindow m_window{};
+    GraphicsContext m_graphics{};
     Engine* m_renderer{nullptr};
 
 public:
@@ -28,13 +30,20 @@ public:
     Editor(Editor&& other)
         : m_window(other.m_window)
         , m_renderer(other.m_renderer)
+        , m_graphics(other.m_graphics)
     {
         other.m_window = {};
         other.m_renderer = nullptr;
+        other.m_graphics = {};
     };
 
-    explicit Editor(PlatformWindow window, Engine* renderer)
+    explicit Editor(
+        PlatformWindow const& window,
+        GraphicsContext const& graphics,
+        Engine* const renderer
+    )
         : m_window{window}
+        , m_graphics{graphics}
         , m_renderer{renderer}
     {
     }
