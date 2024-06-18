@@ -68,6 +68,11 @@ auto Editor::run() -> EditorResult
 
         double const targetFPS{m_renderer->targetFPS()};
 
+        if (deltaTimeSeconds < 1.0 / targetFPS)
+        {
+            continue;
+        }
+
         previousTimeSeconds = currentTimeSeconds;
 
         if (deltaTimeSeconds >= 1.0 / targetFPS)
