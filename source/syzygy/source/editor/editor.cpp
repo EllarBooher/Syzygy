@@ -42,10 +42,28 @@ auto Editor::create() -> std::optional<Editor>
         return std::nullopt;
     }
     GraphicsContext graphics{graphicsResult.value()};
+    VulkanContext const& vulkanContext{graphics.vulkanContext()};
 
     Log("Created Graphics Context.");
 
-    VulkanContext const& vulkanContext{graphics.vulkanContext()};
+    Log("Creating Swapchain...");
+
+    std::optional<Swapchain> swapchainResult{Swapchain::create(
+        window.extent(),
+        vulkanContext.physicalDevice,
+        vulkanContext.device,
+        vulkanContext.surface,
+        std::optional<VkSwapchainKHR>{}
+    )};
+    if (!swapchainResult.has_value())
+    {
+        Error("Failed to create swapchain.");
+        return std::nullopt;
+    }
+    Swapchain swapchain{swapchainResult.value()};
+
+    Log("Created Swapchain.");
+
     Engine* const renderer{Engine::loadEngine(
         window,
         vulkanContext.instance,
@@ -63,8 +81,36 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Created Editor instance.");
 
-    return std::make_optional<Editor>(window, graphics, renderer);
+    return std::make_optional<Editor>(window, graphics, swapchain, renderer);
 }
+
+namespace
+{
+auto rebuildSwapchain(
+    Swapchain& old,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    VkSurfaceKHR const surface,
+    glm::u16vec2 const newExtent
+) -> std::optional<Swapchain>
+{
+    Log(fmt::format(
+        "Resizing swapchain: ({},{}) -> ({},{})",
+        old.extent.width,
+        old.extent.height,
+        newExtent.x,
+        newExtent.y
+    ));
+
+    std::optional<Swapchain> newSwapchain{Swapchain::create(
+        newExtent, physicalDevice, device, surface, old.swapchain
+    )};
+
+    old.destroy(device);
+
+    return newSwapchain;
+}
+} // namespace
 
 auto Editor::run() -> EditorResult
 {
@@ -101,10 +147,10 @@ auto Editor::run() -> EditorResult
             m_graphics.vulkanContext().device,
             m_graphics.allocator(),
             m_graphics.vulkanContext().graphicsQueue,
-            m_graphics.swapchain().swapchain,
-            m_graphics.swapchain().images,
-            m_graphics.swapchain().imageViews,
-            m_graphics.swapchain().extent,
+            m_swapchain.swapchain,
+            m_swapchain.images,
+            m_swapchain.imageViews,
+            m_swapchain.extent,
             currentTimeSeconds,
             deltaTimeSeconds,
             shouldRender
@@ -112,37 +158,13 @@ auto Editor::run() -> EditorResult
 
         if (loopResult == EngineLoopResult::REBUILD_REQUESTED)
         {
-            glm::u16vec2 const newExtent{m_window.extent()};
-
-            VkExtent2D const oldExtent{m_graphics.swapchain().extent};
-
-            Log(fmt::format(
-                "Resizing swapchain: ({},{}) -> ({},{})",
-                oldExtent.width,
-                oldExtent.height,
-                newExtent.x,
-                newExtent.y
-            ));
-
-            m_graphics.swapchain().destroy(m_graphics.vulkanContext().device);
-
-            std::optional<Swapchain> newSwapchain{Swapchain::create(
-                newExtent,
-                m_graphics.vulkanContext().physicalDevice,
-                m_graphics.vulkanContext().device,
-                m_graphics.vulkanContext().surface
-            )};
-
+            std::optional<Swapchain> newSwapchain{};
             if (!newSwapchain.has_value())
             {
-                Error(fmt::format(
-                    "Failed to create new swapchain for resizing",
-                    glm::to_string(newExtent)
-                ));
+                Error("Failed to create new swapchain for resizing");
                 return EditorResult::ERROR_EDITOR;
             }
-
-            m_graphics.swapchain() = std::move(newSwapchain).value();
+            m_swapchain = std::move(newSwapchain).value();
         }
     }
 
@@ -151,13 +173,19 @@ auto Editor::run() -> EditorResult
 
 Editor::~Editor() noexcept
 {
-    if (nullptr != m_renderer)
+    VkDevice const device{m_graphics.vulkanContext().device};
+    if (VK_NULL_HANDLE == device)
     {
-        m_renderer->cleanup(
-            m_graphics.vulkanContext().device, m_graphics.allocator()
-        );
+        Warning("At destruction time, Vulkan device was null.");
+        return;
     }
 
+    if (nullptr != m_renderer)
+    {
+        m_renderer->cleanup(device, m_graphics.allocator());
+    }
+
+    m_swapchain.destroy(device);
     m_graphics.destroy();
 
     glfwTerminate();

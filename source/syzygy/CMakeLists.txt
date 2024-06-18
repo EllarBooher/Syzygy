@@ -25,6 +25,7 @@ add_library(
 	"source/editor/window.cpp" 
 	"source/editor/graphicscontext.cpp"
 	"source/vulkanusage.cpp"
+	"source/editor/swapchain.cpp"
 )
 
 add_dependencies(syzygy Shaders)
