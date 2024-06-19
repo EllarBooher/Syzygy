@@ -26,27 +26,38 @@ struct VulkanContext
 struct GraphicsContext
 {
 public:
+    GraphicsContext() = default;
+
+    GraphicsContext(GraphicsContext&& other) { *this = std::move(other); }
+
+    GraphicsContext& operator=(GraphicsContext&& other)
+    {
+        m_vulkan = std::exchange(other.m_vulkan, VulkanContext{});
+        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+
+        return *this;
+    }
+
+    GraphicsContext(GraphicsContext const& other) = delete;
+    GraphicsContext& operator=(GraphicsContext const& other) = delete;
+
+    static auto create(PlatformWindow const& window)
+        -> std::optional<GraphicsContext>;
+
+    void destroy();
+
+    auto vulkanContext() const -> VulkanContext const&;
+    auto allocator() const -> VmaAllocator const&;
+
+private:
     explicit GraphicsContext(
-        VulkanContext const& vulkan, VmaAllocator const& allocator
+        VulkanContext const& vulkan, VmaAllocator allocator
     )
         : m_vulkan(vulkan)
         , m_allocator(allocator)
     {
     }
-    GraphicsContext() = default;
 
-private:
     VulkanContext m_vulkan{};
-
     VmaAllocator m_allocator{VK_NULL_HANDLE};
-
-public:
-    static auto create(PlatformWindow const& window)
-        -> std::optional<GraphicsContext>;
-
-    auto vulkanContext() -> VulkanContext& { return m_vulkan; }
-
-    auto allocator() -> VmaAllocator& { return m_allocator; }
-
-    void destroy();
 };

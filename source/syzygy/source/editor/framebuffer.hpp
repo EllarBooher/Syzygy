@@ -19,6 +19,8 @@ struct Frame
 
     // The fence that the CPU waits on to ensure the frame is not in use.
     VkFence renderFence{VK_NULL_HANDLE};
+
+    void destroy(VkDevice);
 };
 
 class FrameBuffer
@@ -26,22 +28,36 @@ class FrameBuffer
 public:
     FrameBuffer() = default;
 
+    FrameBuffer(FrameBuffer&& other) { *this = std::move(other); }
+
+    FrameBuffer& operator=(FrameBuffer&& other)
+    {
+        m_frames = std::move(other.m_frames);
+        m_frameNumber = std::exchange(other.m_frameNumber, 0);
+
+        return *this;
+    }
+
+    FrameBuffer(FrameBuffer const& other) = delete;
+    FrameBuffer& operator=(FrameBuffer const& other) = delete;
+
+    // QueueFamilyIndex should be capable of graphics/compute/transfer/present.
+    static auto create(VkDevice, uint32_t const queueFamilyIndex)
+        -> VulkanResult<FrameBuffer>;
+
+    void destroy(VkDevice device);
+
+    auto currentFrame() const -> Frame const&;
+    auto frameNumber() const -> size_t;
+
+    void increment();
+
 private:
-    explicit FrameBuffer(size_t framesInFlight)
-        : m_frames{framesInFlight}
+    explicit FrameBuffer(std::vector<Frame>&& frames)
+        : m_frames{std::move(frames)}
     {
     }
 
     std::vector<Frame> m_frames{};
     size_t m_frameNumber{0};
-
-public:
-    // QueueFamilyIndex should be capable of graphics/compute/transfer/present.
-    static auto create(VkDevice, uint32_t const queueFamilyIndex)
-        -> VulkanResult<FrameBuffer>;
-
-    auto currentFrame() -> Frame&;
-    auto frameNumber() const -> size_t;
-    void increment();
-    void destroy(VkDevice device);
 };

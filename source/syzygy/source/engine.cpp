@@ -157,7 +157,7 @@ void Engine::init(
         device,
         generalQueueFamilyIndex,
         generalQueue,
-        window.handle
+        window.handle()
     );
 
     Log("Vulkan Initialized.");

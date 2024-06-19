@@ -4,9 +4,16 @@
 template <typename T> struct VulkanResult
 {
 public:
-    [[nodiscard]] auto value() const -> T const&
+    [[nodiscard]] auto value() const& -> T const&
     {
-        return m_value.value(); // NOLINT(bugprone-unchecked-optional-access)
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        return m_value.value();
+    }
+
+    [[nodiscard]] auto value() && -> T&&
+    {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        return std::move(m_value).value();
     }
 
     [[nodiscard]] auto has_value() const -> bool { return m_value.has_value(); }
@@ -30,6 +37,8 @@ public:
         , m_result(result)
     {
     }
+
+    VulkanResult() = delete;
 
 public:
     static auto make_value(T const& value, VkResult result) -> VulkanResult

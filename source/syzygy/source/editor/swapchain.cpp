@@ -76,4 +76,17 @@ void Swapchain::destroy(VkDevice const device)
     {
         vkDestroyImageView(device, view, nullptr);
     }
+
+    *this = Swapchain{};
 }
+
+auto Swapchain::swapchain() const -> VkSwapchainKHR { return m_swapchain; }
+
+auto Swapchain::images() const -> std::span<VkImage const> { return m_images; }
+
+auto Swapchain::imageViews() const -> std::span<VkImageView const>
+{
+    return m_imageViews;
+}
+
+auto Swapchain::extent() const -> VkExtent2D { return m_extent; }

@@ -19,8 +19,8 @@ auto Editor::create() -> std::optional<Editor>
 
     glm::u16vec2 constexpr DEFAULT_WINDOW_EXTENT{1920, 1080};
 
-    std::optional<PlatformWindow> const windowResult{
-        createWindow(DEFAULT_WINDOW_EXTENT)
+    std::optional<PlatformWindow> windowResult{
+        PlatformWindow::create(DEFAULT_WINDOW_EXTENT)
     };
     if (!windowResult.has_value())
     {
@@ -28,29 +28,26 @@ auto Editor::create() -> std::optional<Editor>
         return std::nullopt;
     }
 
-    PlatformWindow const window{windowResult.value()};
-
     Log("Window created.");
 
     Log("Creating Graphics Context...");
 
-    std::optional<GraphicsContext> const graphicsResult{
-        GraphicsContext::create(window)
+    std::optional<GraphicsContext> graphicsResult{
+        GraphicsContext::create(windowResult.value())
     };
     if (!graphicsResult.has_value())
     {
         Error("Failed to create graphics context.");
         return std::nullopt;
     }
-    GraphicsContext graphics{graphicsResult.value()};
-    VulkanContext const& vulkanContext{graphics.vulkanContext()};
+    VulkanContext const& vulkanContext{graphicsResult.value().vulkanContext()};
 
     Log("Created Graphics Context.");
 
     Log("Creating Swapchain...");
 
     std::optional<Swapchain> swapchainResult{Swapchain::create(
-        window.extent(),
+        windowResult.value().extent(),
         vulkanContext.physicalDevice,
         vulkanContext.device,
         vulkanContext.surface,
@@ -66,7 +63,7 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Creating Frame Buffer...");
 
-    VulkanResult<FrameBuffer> const frameBufferResult{FrameBuffer::create(
+    VulkanResult<FrameBuffer> frameBufferResult{FrameBuffer::create(
         vulkanContext.device, vulkanContext.graphicsQueueFamily
     )};
     if (!frameBufferResult.has_value())
@@ -75,16 +72,15 @@ auto Editor::create() -> std::optional<Editor>
             frameBufferResult.vk_result(), "Failed to create frame buffer."
         );
     }
-    FrameBuffer frameBuffer{frameBufferResult.value()};
 
     Log("Created Frame Buffer.");
 
     Engine* const renderer{Engine::loadEngine(
-        window,
+        windowResult.value(),
         vulkanContext.instance,
         vulkanContext.physicalDevice,
         vulkanContext.device,
-        graphics.allocator(),
+        graphicsResult.value().allocator(),
         vulkanContext.graphicsQueue,
         vulkanContext.graphicsQueueFamily
     )};
@@ -96,13 +92,13 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Created Editor instance.");
 
-    return std::make_optional<Editor>(
-        window,
-        graphics,
+    return std::make_optional<Editor>(Editor{
+        std::move(windowResult).value(),
+        std::move(graphicsResult).value(),
         std::move(swapchainResult).value(),
-        frameBuffer,
+        std::move(frameBufferResult).value(),
         renderer
-    );
+    });
 }
 
 namespace
@@ -131,7 +127,7 @@ auto rebuildSwapchain(
 
     return newSwapchain;
 }
-auto beginFrame(Frame& currentFrame, VkDevice const device) -> VkResult
+auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
 {
     uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
     if (VkResult const waitResult{vkWaitForFences(
@@ -178,7 +174,7 @@ auto beginFrame(Frame& currentFrame, VkDevice const device) -> VkResult
     return VK_SUCCESS;
 }
 auto endFrame(
-    Frame& currentFrame,
+    Frame const& currentFrame,
     Swapchain& swapchain,
     VkDevice const device,
     VkQueue const submissionQueue,
@@ -315,12 +311,12 @@ auto Editor::run() -> EditorResult
         return EditorResult::ERROR_NO_RENDERER;
     }
 
-    while (glfwWindowShouldClose(m_window.handle) == GLFW_FALSE)
+    while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
         glfwPollEvents();
 
         bool const iconified{
-            glfwGetWindowAttrib(m_window.handle, GLFW_ICONIFIED) == GLFW_TRUE
+            glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE
         };
 
         if (iconified)
@@ -344,7 +340,7 @@ auto Editor::run() -> EditorResult
 
         m_frameBuffer.increment();
 
-        Frame& currentFrame{m_frameBuffer.currentFrame()};
+        Frame const& currentFrame{m_frameBuffer.currentFrame()};
         VulkanContext const& vulkanContext{m_graphics.vulkanContext()};
 
         if (VkResult const beginFrameResult{
@@ -409,6 +405,11 @@ auto Editor::run() -> EditorResult
 
 Editor::~Editor() noexcept
 {
+    if (!m_initialized)
+    {
+        return;
+    }
+
     VkDevice const device{m_graphics.vulkanContext().device};
     if (VK_NULL_HANDLE == device)
     {
@@ -427,30 +428,4 @@ Editor::~Editor() noexcept
 
     glfwTerminate();
     m_window.destroy();
-}
-
-auto Editor::createWindow(glm::u16vec2 const extent)
-    -> std::optional<PlatformWindow>
-{
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-
-    char const* const WINDOW_TITLE = "Syzygy";
-
-    GLFWwindow* const handle{glfwCreateWindow(
-        static_cast<int32_t>(extent.x),
-        static_cast<int32_t>(extent.y),
-        WINDOW_TITLE,
-        nullptr,
-        nullptr
-    )};
-
-    if (handle == nullptr)
-    {
-        // TODO: figure out where GLFW reports errors
-        return std::nullopt;
-    }
-
-    return PlatformWindow{handle};
 }

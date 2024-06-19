@@ -203,7 +203,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     volkInitialize();
 
     std::optional<VulkanContext> const vulkanResult{
-        VulkanContext::create(window.handle)
+        VulkanContext::create(window.handle())
     };
     if (!vulkanResult.has_value())
     {
@@ -237,12 +237,20 @@ auto GraphicsContext::create(PlatformWindow const& window)
     return GraphicsContext{vulkanContext, allocator};
 }
 
+auto GraphicsContext::vulkanContext() const -> VulkanContext const&
+{
+    return m_vulkan;
+}
+
+auto GraphicsContext::allocator() const -> VmaAllocator const&
+{
+    return m_allocator;
+}
+
 void GraphicsContext::destroy()
 {
-    Log("Cleaning up graphics context...");
-
     vmaDestroyAllocator(m_allocator);
     m_vulkan.destroy();
 
-    Log("Graphics context cleaned up.");
+    *this = GraphicsContext{};
 }

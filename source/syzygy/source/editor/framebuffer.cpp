@@ -4,137 +4,160 @@
 #include "../helpers.hpp"
 #include "../initializers.hpp"
 
+namespace
+{
+auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
+    -> VulkanResult<Frame>
+{
+    DeletionQueue cleanupCallbacks{};
+
+    VkSemaphoreCreateInfo const semaphoreCreateInfo{vkinit::semaphoreCreateInfo(
+    )};
+
+    Frame frame{};
+
+    {
+        VkCommandPoolCreateInfo const commandPoolInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = queueFamilyIndex,
+        };
+
+        VkResult const commandPoolResult{vkCreateCommandPool(
+            device, &commandPoolInfo, nullptr, &frame.commandPool
+        )};
+        if (VK_SUCCESS != commandPoolResult)
+        {
+            LogVkResult(
+                commandPoolResult, "Failed to allocate frame command buffer."
+            );
+            cleanupCallbacks.flush();
+            return commandPoolResult;
+        }
+        cleanupCallbacks.pushFunction([&]
+        { vkDestroyCommandPool(device, frame.commandPool, nullptr); });
+    }
+
+    {
+        VkCommandBufferAllocateInfo const cmdAllocInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = frame.commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+
+        VkResult const commandBufferResult{vkAllocateCommandBuffers(
+            device, &cmdAllocInfo, &frame.mainCommandBuffer
+        )};
+        if (VK_SUCCESS != commandBufferResult)
+        {
+            LogVkResult(
+                commandBufferResult, "Failed to allocate frame command buffer."
+            );
+            cleanupCallbacks.flush();
+            return commandBufferResult;
+        }
+    }
+
+    {
+        // Frames start signaled so they can be initially used
+        VkFenceCreateInfo const fenceCreateInfo{
+            vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
+        };
+
+        VkResult const fenceResult{
+            vkCreateFence(device, &fenceCreateInfo, nullptr, &frame.renderFence)
+        };
+        if (VK_SUCCESS != fenceResult)
+        {
+            LogVkResult(fenceResult, "Failed to allocate frame in-use fence.");
+            cleanupCallbacks.flush();
+            return fenceResult;
+        }
+        cleanupCallbacks.pushFunction([&]
+        { vkDestroyFence(device, frame.renderFence, nullptr); });
+    }
+
+    {
+
+        VkResult const swapchainSemaphoreResult{vkCreateSemaphore(
+            device, &semaphoreCreateInfo, nullptr, &frame.swapchainSemaphore
+        )};
+        if (VK_SUCCESS != swapchainSemaphoreResult)
+        {
+            LogVkResult(
+                swapchainSemaphoreResult,
+                "Failed to allocate frame swapchain semaphore."
+            );
+            cleanupCallbacks.flush();
+            return swapchainSemaphoreResult;
+        }
+        cleanupCallbacks.pushFunction([&]
+        { vkDestroySemaphore(device, frame.swapchainSemaphore, nullptr); });
+    }
+
+    {
+        VkResult const renderSemaphoreResult{vkCreateSemaphore(
+            device, &semaphoreCreateInfo, nullptr, &frame.renderSemaphore
+        )};
+        if (VK_SUCCESS != renderSemaphoreResult)
+        {
+            LogVkResult(
+                renderSemaphoreResult,
+                "Failed to allocate frame render semaphore."
+            );
+            cleanupCallbacks.flush();
+            return renderSemaphoreResult;
+        }
+        cleanupCallbacks.pushFunction([&]
+        { vkDestroySemaphore(device, frame.renderSemaphore, nullptr); });
+    }
+
+    return {frame, VK_SUCCESS};
+}
+} // namespace
+
 auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
     -> VulkanResult<FrameBuffer>
 {
     DeletionQueue cleanupCallbacks{};
 
-    VkCommandPoolCreateInfo const commandPoolInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queueFamilyIndex,
-    };
-
-    // Frames start signaled so they can be initially used
-    VkFenceCreateInfo const fenceCreateInfo{
-        vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
-    };
-    VkSemaphoreCreateInfo const semaphoreCreateInfo{vkinit::semaphoreCreateInfo(
-    )};
-
     size_t constexpr FRAMES_IN_FLIGHT{2};
-    FrameBuffer buffer{FRAMES_IN_FLIGHT};
+    std::vector<Frame> frames{};
 
-    for (Frame& frameData : buffer.m_frames)
+    // TODO: investigate how to get clang-format to do lambdas nicer, with this
+    // as an example
+    cleanupCallbacks.pushFunction(
+        [&]
     {
+        for (Frame& frame : frames)
         {
-            VkResult const commandPoolResult{vkCreateCommandPool(
-                device, &commandPoolInfo, nullptr, &frameData.commandPool
-            )};
-            if (VK_SUCCESS != commandPoolResult)
-            {
-                LogVkResult(
-                    commandPoolResult,
-                    "Failed to allocate frame command buffer."
-                );
-                cleanupCallbacks.flush();
-                return commandPoolResult;
-            }
-            cleanupCallbacks.pushFunction([&]
-            { vkDestroyCommandPool(device, frameData.commandPool, nullptr); });
-        }
-
-        {
-            VkCommandBufferAllocateInfo const cmdAllocInfo{
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                .pNext = nullptr,
-                .commandPool = frameData.commandPool,
-                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                .commandBufferCount = 1,
-            };
-
-            VkResult const commandBufferResult{vkAllocateCommandBuffers(
-                device, &cmdAllocInfo, &frameData.mainCommandBuffer
-            )};
-            if (VK_SUCCESS != commandBufferResult)
-            {
-                LogVkResult(
-                    commandBufferResult,
-                    "Failed to allocate frame command buffer."
-                );
-                cleanupCallbacks.flush();
-                return commandBufferResult;
-            }
-        }
-
-        {
-            VkResult const fenceResult{vkCreateFence(
-                device, &fenceCreateInfo, nullptr, &frameData.renderFence
-            )};
-            if (VK_SUCCESS != fenceResult)
-            {
-                LogVkResult(
-                    fenceResult, "Failed to allocate frame in-use fence."
-                );
-                cleanupCallbacks.flush();
-                return fenceResult;
-            }
-            cleanupCallbacks.pushFunction([&]
-            { vkDestroyFence(device, frameData.renderFence, nullptr); });
-        }
-
-        {
-            VkResult const swapchainSemaphoreResult{vkCreateSemaphore(
-                device,
-                &semaphoreCreateInfo,
-                nullptr,
-                &frameData.swapchainSemaphore
-            )};
-            if (VK_SUCCESS != swapchainSemaphoreResult)
-            {
-                LogVkResult(
-                    swapchainSemaphoreResult,
-                    "Failed to allocate frame swapchain semaphore."
-                );
-                cleanupCallbacks.flush();
-                return swapchainSemaphoreResult;
-            }
-            cleanupCallbacks.pushFunction(
-                [&] {
-                vkDestroySemaphore(
-                    device, frameData.swapchainSemaphore, nullptr
-                );
-            }
-            );
-        }
-
-        {
-            VkResult const renderSemaphoreResult{vkCreateSemaphore(
-                device,
-                &semaphoreCreateInfo,
-                nullptr,
-                &frameData.renderSemaphore
-            )};
-            if (VK_SUCCESS != renderSemaphoreResult)
-            {
-                LogVkResult(
-                    renderSemaphoreResult,
-                    "Failed to allocate frame render semaphore."
-                );
-                cleanupCallbacks.flush();
-                return renderSemaphoreResult;
-            }
-            cleanupCallbacks.pushFunction([&]
-            { vkDestroySemaphore(device, frameData.renderSemaphore, nullptr); }
-            );
+            frame.destroy(device);
         }
     }
+    );
 
-    return {buffer, VK_SUCCESS};
+    for (size_t i{0}; i < FRAMES_IN_FLIGHT; i++)
+    {
+        VulkanResult<Frame> const frameResult{
+            createFrame(device, queueFamilyIndex)
+        };
+        if (!frameResult.has_value())
+        {
+            VkResult const result{frameResult.vk_result()};
+            LogVkResult(result, "Failed to allocate frame for framebuffer.");
+            cleanupCallbacks.flush();
+            return result;
+        }
+        frames.push_back(frameResult.value());
+    }
+
+    return {FrameBuffer{std::move(frames)}, VK_SUCCESS};
 }
 
-auto FrameBuffer::currentFrame() -> Frame&
+auto FrameBuffer::currentFrame() const -> Frame const&
 {
     size_t const index{m_frameNumber % m_frames.size()};
     return m_frames[index];
@@ -146,12 +169,21 @@ void FrameBuffer::increment() { m_frameNumber += 1; }
 
 void FrameBuffer::destroy(VkDevice device)
 {
-    for (Frame const& frame : m_frames)
+    for (Frame& frame : m_frames)
     {
-        vkDestroyCommandPool(device, frame.commandPool, nullptr);
-
-        vkDestroyFence(device, frame.renderFence, nullptr);
-        vkDestroySemaphore(device, frame.renderSemaphore, nullptr);
-        vkDestroySemaphore(device, frame.swapchainSemaphore, nullptr);
+        frame.destroy(device);
     }
+
+    *this = FrameBuffer{};
+}
+
+void Frame::destroy(VkDevice const device)
+{
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
+    vkDestroyFence(device, renderFence, nullptr);
+    vkDestroySemaphore(device, renderSemaphore, nullptr);
+    vkDestroySemaphore(device, swapchainSemaphore, nullptr);
+
+    *this = Frame{};
 }

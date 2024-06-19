@@ -19,43 +19,54 @@ enum class EditorResult
 
 class Editor
 {
+public:
+    Editor(Editor&& other) { *this = std::move(other); }
+
+    Editor& operator=(Editor&& other)
+    {
+        m_window = std::move(other.m_window);
+        m_graphics = std::move(other.m_graphics);
+        m_swapchain = std::move(other.m_swapchain);
+        m_frameBuffer = std::move(other.m_frameBuffer);
+        m_renderer = std::exchange(other.m_renderer, nullptr);
+        m_initialized = std::exchange(other.m_initialized, false);
+
+        return *this;
+    }
+
+    Editor(Editor const&) = delete;
+    Editor& operator=(Editor const&) = delete;
+
+    static auto create() -> std::optional<Editor>;
+
+    ~Editor() noexcept;
+
+    auto run() -> EditorResult;
+
 private:
+    Editor() = default;
+
+    explicit Editor(
+        PlatformWindow&& window,
+        GraphicsContext&& graphics,
+        Swapchain&& swapchain,
+        FrameBuffer&& frameBuffer,
+        Engine* const renderer
+    )
+        : m_window{std::move(window)}
+        , m_graphics{std::move(graphics)}
+        , m_swapchain{std::move(swapchain)}
+        , m_frameBuffer{std::move(frameBuffer)}
+        , m_renderer{renderer}
+        , m_initialized{true}
+    {
+    }
+
+    bool m_initialized{false};
+
     PlatformWindow m_window{};
     GraphicsContext m_graphics{};
     Swapchain m_swapchain{};
     FrameBuffer m_frameBuffer{};
     Engine* m_renderer{nullptr};
-
-public:
-    Editor(Editor const&) = delete;
-
-    Editor& operator=(Editor const&) = delete;
-
-    explicit Editor(
-        PlatformWindow const& window,
-        GraphicsContext const& graphics,
-        Swapchain&& swapchain,
-        FrameBuffer const& frameBuffer,
-        Engine* const renderer
-    )
-        : m_window{window}
-        , m_graphics{graphics}
-        , m_swapchain{std::move(swapchain)}
-        , m_frameBuffer{frameBuffer}
-        , m_renderer{renderer}
-    {
-    }
-
-    ~Editor() noexcept;
-
-private:
-    Editor() = default;
-
-    static auto createWindow(glm::u16vec2 const extent)
-        -> std::optional<PlatformWindow>;
-
-public:
-    static auto create() -> std::optional<Editor>;
-
-    auto run() -> EditorResult;
 };

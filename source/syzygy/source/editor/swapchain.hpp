@@ -15,15 +15,11 @@ public:
 
     Swapchain& operator=(Swapchain&& other)
     {
-        m_swapchain = other.m_swapchain;
-        m_imageFormat = other.m_imageFormat;
+        m_swapchain = std::exchange(other.m_swapchain, VK_NULL_HANDLE);
+        m_imageFormat = std::exchange(other.m_imageFormat, VK_FORMAT_UNDEFINED);
         m_images = std::move(other.m_images);
         m_imageViews = std::move(other.m_imageViews);
-        m_extent = other.m_extent;
-
-        other.m_swapchain = VK_NULL_HANDLE;
-        other.m_imageFormat = VK_FORMAT_UNDEFINED;
-        other.m_extent = VkExtent2D{.width = 0, .height = 0};
+        m_extent = std::exchange(other.m_extent, VkExtent2D{});
 
         return *this;
     }
@@ -42,13 +38,13 @@ public:
 
     void destroy(VkDevice device);
 
-    VkSwapchainKHR swapchain() { return m_swapchain; };
-    std::span<VkImage const> images() { return m_images; };
-    std::span<VkImageView const> imageViews() { return m_imageViews; };
-    VkExtent2D extent() const { return m_extent; };
+    auto swapchain() const -> VkSwapchainKHR;
+    auto images() const -> std::span<VkImage const>;
+    auto imageViews() const -> std::span<VkImageView const>;
+    auto extent() const -> VkExtent2D;
 
 private:
-    Swapchain(
+    explicit Swapchain(
         VkSwapchainKHR swapchain,
         VkFormat format,
         std::vector<VkImage>&& images,
