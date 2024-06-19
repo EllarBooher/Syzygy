@@ -11,17 +11,7 @@ struct Swapchain
 public:
     Swapchain() = default;
 
-    Swapchain(Swapchain&& other)
-        : m_swapchain{other.m_swapchain}
-        , m_imageFormat{other.m_imageFormat}
-        , m_images{std::move(other.m_images)}
-        , m_imageViews{std::move(other.m_imageViews)}
-        , m_extent{other.m_extent}
-    {
-        other.m_swapchain = VK_NULL_HANDLE;
-        other.m_imageFormat = VK_FORMAT_UNDEFINED;
-        other.m_extent = VkExtent2D{.width = 0, .height = 0};
-    }
+    Swapchain(Swapchain&& other) { *this = std::move(other); }
 
     Swapchain& operator=(Swapchain&& other)
     {
