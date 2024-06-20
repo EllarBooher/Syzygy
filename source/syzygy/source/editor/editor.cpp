@@ -359,7 +359,6 @@ auto Editor::run() -> EditorResult
 
         VkRect2D const drawRect{m_renderer->mainLoop(
             vulkanContext.device,
-            m_graphics.allocator(),
             currentFrame.mainCommandBuffer,
             deltaTimeSeconds
         )};

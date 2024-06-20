@@ -462,7 +462,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         {
             m_directionalLights->clearStaged();
             m_directionalLights->push(directionalLights);
-            m_directionalLights->recordCopyToDevice(cmd, m_allocator);
+            m_directionalLights->recordCopyToDevice(cmd);
             m_directionalLights->recordTotalCopyBarrier(
                 cmd,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -478,7 +478,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         {
             m_spotLights->clearStaged();
             m_spotLights->push(spotLights);
-            m_spotLights->recordCopyToDevice(cmd, m_allocator);
+            m_spotLights->recordCopyToDevice(cmd);
             m_spotLights->recordTotalCopyBarrier(
                 cmd,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,

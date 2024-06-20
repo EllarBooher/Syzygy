@@ -200,7 +200,7 @@ void ShadowPassArray::recordInitialize(
             );
         }
 
-        projViewMatrices.recordCopyToDevice(cmd, m_allocator);
+        projViewMatrices.recordCopyToDevice(cmd);
         projViewMatrices.recordTotalCopyBarrier(
             cmd,
             VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,

@@ -85,12 +85,10 @@ void DebugLines::pushBox(
     pushRectangleAxes(center + forward, up, right);
 }
 
-void DebugLines::recordCopy(
-    VkCommandBuffer const cmd, VmaAllocator const allocator
-) const
+void DebugLines::recordCopy(VkCommandBuffer const cmd) const
 {
-    vertices->recordCopyToDevice(cmd, allocator);
-    indices->recordCopyToDevice(cmd, allocator);
+    vertices->recordCopyToDevice(cmd);
+    indices->recordCopyToDevice(cmd);
 }
 
 void DebugLines::cleanup(

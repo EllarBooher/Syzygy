@@ -48,8 +48,7 @@ public:
     );
 
     void tickWorld(TickTiming);
-    auto
-    mainLoop(VkDevice, VmaAllocator, VkCommandBuffer, double deltaTimeSeconds)
+    auto mainLoop(VkDevice, VkCommandBuffer, double deltaTimeSeconds)
         -> VkRect2D;
     auto drawImage() -> AllocatedImage& { return m_drawImage; }
 
@@ -68,11 +67,10 @@ private:
 
 private:
     bool renderUI(VkDevice);
-    void draw(VmaAllocator, VkCommandBuffer);
+    void draw(VkCommandBuffer);
 
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
     void recordDrawDebugLines(
-        VmaAllocator,
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& camerasBuffer

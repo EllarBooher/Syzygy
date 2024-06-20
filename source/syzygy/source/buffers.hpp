@@ -7,57 +7,104 @@
 #include "vulkanusage.hpp"
 
 // A single VkBuffer alongside all of its allocation information.
+// TODO: split this into two types: a host-side, mapped buffer, and a
+// device-side buffer that has its address mapped.
 struct AllocatedBuffer
 {
-    AllocatedBuffer(){};
-
-    AllocatedBuffer(AllocatedBuffer const& other) = delete;
+    AllocatedBuffer() = delete;
 
     AllocatedBuffer(AllocatedBuffer&& other) noexcept
-        : allocator(other.allocator)
-        , allocation(other.allocation)
-        , info(other.info)
-        , deviceAddress(other.deviceAddress)
-        , buffer(other.buffer)
     {
-        other.allocator = VK_NULL_HANDLE;
-        other.allocation = VK_NULL_HANDLE;
-        other.info = {};
-        other.deviceAddress = {};
-        other.buffer = VK_NULL_HANDLE;
+        *this = std::move(other);
     };
+    AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept
+    {
+        m_vkCreateInfo =
+            std::exchange(other.m_vkCreateInfo, VkBufferCreateInfo{});
+        m_vmaCreateInfo =
+            std::exchange(other.m_vmaCreateInfo, VmaAllocationCreateInfo{});
+
+        m_deviceAddress = std::exchange(other.m_deviceAddress, 0);
+
+        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+        m_allocation = std::exchange(other.m_allocation, VK_NULL_HANDLE);
+
+        m_buffer = std::exchange(other.m_buffer, VK_NULL_HANDLE);
+
+        return *this;
+    }
+
+    AllocatedBuffer(AllocatedBuffer const& other) = delete;
     AllocatedBuffer& operator=(AllocatedBuffer const& other) = delete;
-    AllocatedBuffer& operator=(AllocatedBuffer&& other) = default;
 
     ~AllocatedBuffer() noexcept
     {
-        if (allocator)
+        if (m_allocator == VK_NULL_HANDLE)
         {
-            vmaDestroyBuffer(allocator, buffer, allocation);
+            return;
         }
-        else if (allocation)
-        {
-            Warning("Failed to destroy buffer with non-null allocation.");
-        }
+
+        vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
     }
 
-    // For now we store all of this with each buffer to simplify management
-    // at the cost of memory and speed.
-    VmaAllocator allocator{VK_NULL_HANDLE};
-    VmaAllocation allocation{VK_NULL_HANDLE};
-    VmaAllocationInfo info{};
-    VkDeviceAddress deviceAddress{};
-
-    VkBuffer buffer{VK_NULL_HANDLE};
-
-    static AllocatedBuffer allocate(
+public:
+    static auto allocate(
         VkDevice device,
         VmaAllocator allocator,
         size_t allocationSize,
         VkBufferUsageFlags bufferUsage,
         VmaMemoryUsage memoryUsage,
         VmaAllocationCreateFlags createFlags
-    );
+    ) -> AllocatedBuffer;
+
+    auto bufferSize() const -> VkDeviceSize;
+
+    auto isMapped() const -> bool;
+
+    void writeBytes(VkDeviceSize offset, std::span<uint8_t const> data);
+    auto readBytes() const -> std::span<uint8_t const>;
+    auto mappedBytes() -> std::span<uint8_t>;
+
+    auto deviceAddress() const -> VkDeviceAddress;
+    auto buffer() const -> VkBuffer;
+
+    VkResult flush();
+
+private:
+    AllocatedBuffer(
+        VkBufferCreateInfo vkCreateInfo,
+        VmaAllocationCreateInfo vmaCreateInfo,
+        VmaAllocator allocator,
+        VmaAllocation allocation,
+        VkDeviceAddress deviceAddress,
+        VkBuffer buffer
+    )
+        : m_vkCreateInfo{vkCreateInfo}
+        , m_vmaCreateInfo{vmaCreateInfo}
+        , m_deviceAddress{deviceAddress}
+        , m_allocator{allocator}
+        , m_allocation{allocation}
+        , m_buffer{buffer}
+    {
+    }
+
+    static auto getMappedPointer_impl(AllocatedBuffer&) -> uint8_t*;
+    static auto getMappedPointer_impl(AllocatedBuffer const&) -> uint8_t const*;
+
+    static auto flush_impl(AllocatedBuffer& buffer) -> VkResult;
+    static auto allocationInfo_impl(AllocatedBuffer const& buffer)
+        -> VmaAllocationInfo;
+
+    // For now we store all of this with each buffer to simplify management
+    // at the cost of memory and speed.
+    VkBufferCreateInfo m_vkCreateInfo{};
+    VmaAllocationCreateInfo m_vmaCreateInfo{};
+
+    VkDeviceAddress m_deviceAddress{};
+
+    VmaAllocator m_allocator{VK_NULL_HANDLE};
+    VmaAllocation m_allocation{VK_NULL_HANDLE};
+    VkBuffer m_buffer{VK_NULL_HANDLE};
 };
 
 // Two linked buffers of the same capacity, one on host and one on device.
@@ -65,51 +112,44 @@ struct StagedBuffer
 {
     StagedBuffer() = delete;
 
+    StagedBuffer(StagedBuffer&& other) { *this = std::move(other); }
+
+    StagedBuffer& operator=(StagedBuffer&& other)
+    {
+        m_dirty = std::exchange(other.m_dirty, false);
+
+        m_deviceBuffer = std::move(other.m_deviceBuffer);
+        m_deviceSizeBytes = std::exchange(other.m_deviceSizeBytes, 0);
+
+        m_stagingBuffer = std::move(other.m_stagingBuffer);
+        m_stagedSizeBytes = std::exchange(other.m_stagedSizeBytes, 0);
+
+        return *this;
+    }
+
     StagedBuffer(StagedBuffer const& other) = delete;
-
-    StagedBuffer(StagedBuffer&& other) = default;
-
     StagedBuffer& operator=(StagedBuffer const& other) = delete;
 
-    StagedBuffer& operator=(StagedBuffer&& other) = default;
-
-    static StagedBuffer allocate(
+    static auto allocate(
         VkDevice device,
         VmaAllocator allocator,
         VkDeviceSize allocationSize,
         VkBufferUsageFlags bufferUsage
-    );
+    ) -> StagedBuffer;
 
-    VkDeviceAddress deviceAddress() const;
-    VkBuffer deviceBuffer() const { return m_deviceBuffer.buffer; };
+    ~StagedBuffer() noexcept = default;
 
-    void overwriteStagedBytes(std::span<uint8_t const> data);
-    void pushStagedBytes(std::span<uint8_t const> data);
-    void popStagedBytes(size_t count);
+    auto deviceAddress() const -> VkDeviceAddress;
+    auto deviceBuffer() const -> VkBuffer;
 
-    // This zeroes out the size flags, and leaves the memory as-is.
     void clearStaged();
-    // This zeroes out the size flags, and leaves the memory as-is.
     void clearStagedAndDevice();
-
-    // This structure cannot know exactly how many bytes are up-to-date on the
-    // device side. This value is updated upon recording a copy, and assumes
-    // correct barrier usage so that the staged bytes in the staged amount are
-    // present when queueing further commands with read accesses.
-    // Thus, this is a read after write hazard that the host must be careful of.
-    VkDeviceSize deviceSizeQueuedBytes() const { return m_deviceSizeBytes; };
-
-    VkDeviceSize stagedCapacityBytes() const
-    {
-        return m_stagingBuffer.info.size;
-    };
-    VkDeviceSize stagedSizeBytes() const { return m_stagedSizeBytes; };
 
     // Does not record any barriers. See StagedBuffer::recordTotalCopyBarrier.
     // This creates the assumption that the memory on the device is a snapshot
     // of the staged memory at this point, even if a barrier has not been
     // recorded yet.
-    void recordCopyToDevice(VkCommandBuffer cmd, VmaAllocator allocator);
+    void recordCopyToDevice(VkCommandBuffer cmd);
 
     // Records a barrier to compliment StagedBuffer::recordCopyToDevice.
     void recordTotalCopyBarrier(
@@ -118,14 +158,39 @@ struct StagedBuffer
         VkAccessFlags2 destinationAccessFlags
     ) const;
 
-    bool isDirty() const { return m_dirty; };
-
 protected:
+    void overwriteStagedBytes(std::span<uint8_t const> data);
+    void pushStagedBytes(std::span<uint8_t const> data);
+    void popStagedBytes(size_t count);
+
+    // This structure cannot know exactly how many bytes are up-to-date on the
+    // device side. This value is updated upon recording a copy, and assumes
+    // correct barrier usage so that the staged bytes in the staged amount are
+    // visible when further read accesses are executed.
+    // Thus, this represents a read after write hazard that the caller must be
+    // careful of.
+    auto deviceSizeQueuedBytes() const -> VkDeviceSize;
+
+    auto stagedCapacityBytes() const -> VkDeviceSize;
+    auto stagedSizeBytes() const -> VkDeviceSize;
+
+    auto mapStagedBytes() -> std::span<uint8_t>;
+    auto readStagedBytes() const -> std::span<uint8_t const>;
+
+    // The buffer is dirtied when the the staged bytes are write accessed, and
+    // cleaned when a copy is recorded.
+    auto isDirty() const -> bool;
+
+private:
     StagedBuffer(
         AllocatedBuffer&& deviceBuffer, AllocatedBuffer&& stagingBuffer
     )
-        : m_deviceBuffer(std::move(deviceBuffer))
-        , m_stagingBuffer(std::move(stagingBuffer)){};
+        : m_deviceBuffer{std::make_unique<AllocatedBuffer>(
+            std::move(deviceBuffer)
+        )}
+        , m_stagingBuffer{
+              std::make_unique<AllocatedBuffer>(std::move(stagingBuffer))
+          } {};
 
     void markDirty(bool dirty) { m_dirty = dirty; }
 
@@ -134,12 +199,12 @@ protected:
     //
     // This flag marks if staged memory is possibly not in sync with
     // device memory.
-    bool m_dirty{};
+    bool m_dirty{false};
 
-    AllocatedBuffer m_deviceBuffer{};
+    std::unique_ptr<AllocatedBuffer> m_deviceBuffer;
     VkDeviceSize m_deviceSizeBytes{0};
 
-    AllocatedBuffer m_stagingBuffer{};
+    std::unique_ptr<AllocatedBuffer> m_stagingBuffer;
     VkDeviceSize m_stagedSizeBytes{0};
 };
 
@@ -174,9 +239,14 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
     // TODO: get rid of this and have a write-only interface instead
     std::span<T> mapValidStaged()
     {
-        return std::span<T>(
-            reinterpret_cast<T*>(m_stagingBuffer.info.pMappedData), stagedSize()
-        );
+        std::span<uint8_t> byteSpan{mapStagedBytes()};
+
+        assert(byteSpan.size_bytes() % sizeof(T) == 0);
+
+        return std::span<T>{
+            reinterpret_cast<T*>(byteSpan.data()),
+            byteSpan.size_bytes() / sizeof(T)
+        };
     }
 
     // This can be used as a proxy for values on the device,
@@ -185,14 +255,18 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
     {
         if (isDirty())
         {
-            Warning("Dirty buffer was accessed with a read, "
-                    "these are not the values last recorded onto the GPU.");
+            Warning("Dirty buffer was accessed with a read, these are not the "
+                    "values from the last recorded copy.");
         }
 
-        return std::span<T const>(
-            reinterpret_cast<T const*>(m_stagingBuffer.info.pMappedData),
-            stagedSize()
-        );
+        std::span<uint8_t const> byteSpan{readStagedBytes()};
+
+        assert(byteSpan.size_bytes() % sizeof(T) == 0);
+
+        return std::span<T const>{
+            reinterpret_cast<T const*>(byteSpan.data()),
+            byteSpan.size_bytes() / sizeof(T)
+        };
     }
 
     static TStagedBuffer<T> allocate(
@@ -246,13 +320,13 @@ struct GPUMeshBuffers
 
     // These are not const since they give access to the underlying memory.
 
-    VkDeviceAddress indexAddress() { return m_indexBuffer.deviceAddress; }
-    VkBuffer indexBuffer() { return m_indexBuffer.buffer; }
+    VkDeviceAddress indexAddress() { return m_indexBuffer.deviceAddress(); }
+    VkBuffer indexBuffer() { return m_indexBuffer.buffer(); }
 
-    VkDeviceAddress vertexAddress() { return m_vertexBuffer.deviceAddress; }
-    VkBuffer vertexBuffer() { return m_vertexBuffer.buffer; }
+    VkDeviceAddress vertexAddress() { return m_vertexBuffer.deviceAddress(); }
+    VkBuffer vertexBuffer() { return m_vertexBuffer.buffer(); }
 
 private:
-    AllocatedBuffer m_indexBuffer{};
-    AllocatedBuffer m_vertexBuffer{};
+    AllocatedBuffer m_indexBuffer;
+    AllocatedBuffer m_vertexBuffer;
 };

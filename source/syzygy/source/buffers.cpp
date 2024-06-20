@@ -10,7 +10,7 @@ auto AllocatedBuffer::allocate(
     VmaAllocationCreateFlags const createFlags
 ) -> AllocatedBuffer
 {
-    VkBufferCreateInfo const bufferInfo{
+    VkBufferCreateInfo const vkCreateInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
 
@@ -18,46 +18,140 @@ auto AllocatedBuffer::allocate(
         .usage = bufferUsage,
     };
 
-    VmaAllocationCreateInfo const vmaAllocInfo{
+    VmaAllocationCreateInfo const vmaCreateInfo{
         .flags = createFlags,
         .usage = memoryUsage,
     };
 
-    AllocatedBuffer newBuffer{};
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocationInfo;
     CheckVkResult(vmaCreateBuffer(
         allocator,
-        &bufferInfo,
-        &vmaAllocInfo,
-        &newBuffer.buffer,
-        &newBuffer.allocation,
-        &newBuffer.info
+        &vkCreateInfo,
+        &vmaCreateInfo,
+        &buffer,
+        &allocation,
+        &allocationInfo
     ));
 
-    newBuffer.deviceAddress = 0;
+    VkDeviceAddress deviceAddress{0};
     if ((bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0U)
     {
         VkBufferDeviceAddressInfo const addressInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
             .pNext = nullptr,
 
-            .buffer = newBuffer.buffer,
+            .buffer = buffer,
         };
-        newBuffer.deviceAddress =
-            vkGetBufferDeviceAddress(device, &addressInfo);
+        deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
     }
 
-    newBuffer.allocator = allocator;
-
-    return newBuffer;
+    return {
+        vkCreateInfo,
+        vmaCreateInfo,
+        allocator,
+        allocation,
+        deviceAddress,
+        buffer
+    };
 }
 
-void StagedBuffer::recordCopyToDevice(
-    VkCommandBuffer const cmd, VmaAllocator const allocator
+auto AllocatedBuffer::bufferSize() const -> VkDeviceSize
+{
+    return m_vkCreateInfo.size;
+}
+
+auto AllocatedBuffer::isMapped() const -> bool
+{
+    return m_allocation != VK_NULL_HANDLE
+        && getMappedPointer_impl(*this) != nullptr;
+}
+
+void AllocatedBuffer::writeBytes(
+    VkDeviceSize const offset, std::span<uint8_t const> const data
 )
 {
-    CheckVkResult(vmaFlushAllocation(
-        allocator, m_stagingBuffer.allocation, 0, VK_WHOLE_SIZE
-    ));
+    assert(data.size_bytes() + offset <= bufferSize());
+
+    uint8_t* const start{
+        reinterpret_cast<uint8_t*>(getMappedPointer_impl(*this)) + offset
+    };
+    memcpy(start, data.data(), data.size_bytes());
+}
+
+auto AllocatedBuffer::readBytes() const -> std::span<uint8_t const>
+{
+    if (m_allocation == VK_NULL_HANDLE)
+    {
+        return {};
+    }
+
+    return {getMappedPointer_impl(*this), bufferSize()};
+}
+
+auto AllocatedBuffer::mappedBytes() -> std::span<uint8_t>
+{
+    if (m_allocation == VK_NULL_HANDLE)
+    {
+        return {};
+    }
+
+    return {getMappedPointer_impl(*this), bufferSize()};
+}
+
+auto AllocatedBuffer::deviceAddress() const -> VkDeviceAddress
+{
+    if ((m_vkCreateInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) == 0)
+    {
+        Warning("Accessed device address of buffer that was not created with "
+                "address flag set.");
+    }
+
+    return m_deviceAddress;
+}
+
+auto AllocatedBuffer::buffer() const -> VkBuffer { return m_buffer; }
+
+auto AllocatedBuffer::flush() -> VkResult { return flush_impl(*this); }
+
+auto AllocatedBuffer::getMappedPointer_impl(AllocatedBuffer& buffer) -> uint8_t*
+{
+    void* const rawPointer{allocationInfo_impl(buffer).pMappedData};
+
+    return reinterpret_cast<uint8_t*>(rawPointer);
+}
+
+auto AllocatedBuffer::getMappedPointer_impl(AllocatedBuffer const& buffer)
+    -> uint8_t const*
+{
+    void* const rawPointer{allocationInfo_impl(buffer).pMappedData};
+
+    return reinterpret_cast<uint8_t const*>(rawPointer);
+}
+
+auto AllocatedBuffer::flush_impl(AllocatedBuffer& buffer) -> VkResult
+{
+    return vmaFlushAllocation(
+        buffer.m_allocator, buffer.m_allocation, 0, VK_WHOLE_SIZE
+    );
+}
+
+auto AllocatedBuffer::allocationInfo_impl(AllocatedBuffer const& buffer)
+    -> VmaAllocationInfo
+{
+    VmaAllocationInfo allocationInfo;
+
+    vmaGetAllocationInfo(
+        buffer.m_allocator, buffer.m_allocation, &allocationInfo
+    );
+
+    return allocationInfo;
+}
+
+void StagedBuffer::recordCopyToDevice(VkCommandBuffer const cmd)
+{
+    CheckVkResult(m_stagingBuffer->flush());
 
     markDirty(false);
 
@@ -67,7 +161,7 @@ void StagedBuffer::recordCopyToDevice(
         .size = m_stagedSizeBytes,
     };
     vkCmdCopyBuffer(
-        cmd, m_stagingBuffer.buffer, m_deviceBuffer.buffer, 1, &copyInfo
+        cmd, m_stagingBuffer->buffer(), m_deviceBuffer->buffer(), 1, &copyInfo
     );
 
     m_deviceSizeBytes = m_stagedSizeBytes;
@@ -81,7 +175,12 @@ auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
                 "the buffer may have unexpected values at command execution.");
     }
 
-    return m_deviceBuffer.deviceAddress;
+    return m_deviceBuffer->deviceAddress();
+}
+
+auto StagedBuffer::deviceBuffer() const -> VkBuffer
+{
+    return m_deviceBuffer->buffer();
 }
 
 void StagedBuffer::overwriteStagedBytes(std::span<uint8_t const> const data)
@@ -93,14 +192,9 @@ void StagedBuffer::overwriteStagedBytes(std::span<uint8_t const> const data)
 
 void StagedBuffer::pushStagedBytes(std::span<uint8_t const> const data)
 {
-    assert(data.size_bytes() + m_stagedSizeBytes <= m_stagingBuffer.info.size);
+    m_stagingBuffer->writeBytes(m_stagedSizeBytes, data);
 
     markDirty(true);
-    uint8_t* const start{
-        reinterpret_cast<uint8_t*>(m_stagingBuffer.info.pMappedData)
-        + m_stagedSizeBytes
-    };
-    memcpy(start, data.data(), data.size_bytes());
     m_stagedSizeBytes += data.size_bytes();
 }
 
@@ -128,6 +222,39 @@ void StagedBuffer::clearStagedAndDevice()
 {
     m_stagedSizeBytes = 0;
     m_deviceSizeBytes = 0;
+}
+
+auto StagedBuffer::deviceSizeQueuedBytes() const -> VkDeviceSize
+{
+    return m_deviceSizeBytes;
+}
+
+auto StagedBuffer::stagedCapacityBytes() const -> VkDeviceSize
+{
+    return m_stagingBuffer->bufferSize();
+}
+
+auto StagedBuffer::stagedSizeBytes() const -> VkDeviceSize
+{
+    return m_stagedSizeBytes;
+}
+
+auto StagedBuffer::mapStagedBytes() -> std::span<uint8_t>
+{
+    std::span<uint8_t> const bufferBytes{m_stagingBuffer->mappedBytes()};
+
+    assert(m_stagedSizeBytes <= bufferBytes.size());
+
+    return {bufferBytes.data(), m_stagedSizeBytes};
+}
+
+auto StagedBuffer::readStagedBytes() const -> std::span<uint8_t const>
+{
+    std::span<uint8_t const> const bufferBytes{m_stagingBuffer->readBytes()};
+
+    assert(m_stagedSizeBytes <= bufferBytes.size());
+
+    return {bufferBytes.data(), m_stagedSizeBytes};
 }
 
 auto StagedBuffer::allocate(
@@ -205,3 +332,5 @@ void StagedBuffer::recordTotalCopyBarrier(
 
     vkCmdPipelineBarrier2(cmd, &transformsDependency);
 }
+
+auto StagedBuffer::isDirty() const -> bool { return m_dirty; }

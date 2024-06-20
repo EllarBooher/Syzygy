@@ -42,7 +42,7 @@ public:
     // Push a rectangular prism, stretched along the (x,y,z) axes by extents.
     void pushBox(glm::vec3 center, glm::quat orientation, glm::vec3 extents);
 
-    void recordCopy(VkCommandBuffer cmd, VmaAllocator allocator) const;
+    void recordCopy(VkCommandBuffer cmd) const;
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 };

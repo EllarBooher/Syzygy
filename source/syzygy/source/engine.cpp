@@ -467,10 +467,8 @@ void Engine::initWorld(
             transferQueue,
             [&](VkCommandBuffer cmd)
         {
-            m_meshInstances.models->recordCopyToDevice(cmd, allocator);
-            m_meshInstances.modelInverseTransposes->recordCopyToDevice(
-                cmd, allocator
-            );
+            m_meshInstances.models->recordCopyToDevice(cmd);
+            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd);
         }
         );
     }
@@ -509,7 +507,7 @@ void Engine::initWorld(
             device,
             transferQueue,
             [&](VkCommandBuffer cmd)
-        { m_atmospheresBuffer->recordCopyToDevice(cmd, allocator); }
+        { m_atmospheresBuffer->recordCopyToDevice(cmd); }
         );
     }
 }
@@ -777,18 +775,23 @@ auto Engine::uploadMeshToGPU(
         VMA_ALLOCATION_CREATE_MAPPED_BIT
     )};
 
-    uint8_t* const data{
-        reinterpret_cast<uint8_t*>(stagingBuffer.info.pMappedData)
-    };
+    assert(
+        stagingBuffer.isMapped()
+        && "Staging buffer for mesh upload was not mapped."
+    );
 
-    if (data == nullptr)
-    {
-        Warning("Mesh upload failed: Pointer to staging buffer was nullptr.");
-        return nullptr;
-    }
-
-    memcpy(data, vertices.data(), vertexBufferSize);
-    memcpy(data + vertexBufferSize, indices.data(), indexBufferSize);
+    stagingBuffer.writeBytes(
+        0,
+        std::span<uint8_t const>{
+            reinterpret_cast<uint8_t const*>(vertices.data()), vertexBufferSize
+        }
+    );
+    stagingBuffer.writeBytes(
+        vertexBufferSize,
+        std::span<uint8_t const>{
+            reinterpret_cast<uint8_t const*>(indices.data()), indexBufferSize
+        }
+    );
 
     immediateSubmit(
         device,
@@ -801,7 +804,7 @@ auto Engine::uploadMeshToGPU(
             .size = vertexBufferSize,
         };
         vkCmdCopyBuffer(
-            cmd, stagingBuffer.buffer, vertexBuffer.buffer, 1, &vertexCopy
+            cmd, stagingBuffer.buffer(), vertexBuffer.buffer(), 1, &vertexCopy
         );
 
         VkBufferCopy const indexCopy{
@@ -810,7 +813,7 @@ auto Engine::uploadMeshToGPU(
             .size = indexBufferSize,
         };
         vkCmdCopyBuffer(
-            cmd, stagingBuffer.buffer, indexBuffer.buffer, 1, &indexCopy
+            cmd, stagingBuffer.buffer(), indexBuffer.buffer(), 1, &indexCopy
         );
     }
     );
@@ -850,7 +853,6 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 
 auto Engine::mainLoop(
     VkDevice const device,
-    VmaAllocator const allocator,
     VkCommandBuffer const cmd,
     double const deltaTimeSeconds
 ) -> VkRect2D
@@ -870,7 +872,7 @@ auto Engine::mainLoop(
         renderUI(device);
         renderUI(device);
     }
-    draw(allocator, cmd);
+    draw(cmd);
 
     return m_drawRect;
 }
@@ -1215,7 +1217,7 @@ void Engine::tickWorld(TickTiming const timing)
     }
 }
 
-void Engine::draw(VmaAllocator const allocator, VkCommandBuffer const cmd)
+void Engine::draw(VkCommandBuffer const cmd)
 {
     // Begin scene drawing
 
@@ -1237,7 +1239,7 @@ void Engine::draw(VmaAllocator const allocator, VkCommandBuffer const cmd)
                 : m_cameraParameters.toDeviceEquivalent(aspectRatio)
         };
 
-        m_camerasBuffer->recordCopyToDevice(cmd, allocator);
+        m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
     { // Copy atmospheres to gpu
@@ -1257,14 +1259,12 @@ void Engine::draw(VmaAllocator const allocator, VkCommandBuffer const cmd)
                 m_atmosphereParameters.toDeviceEquivalent();
         }
 
-        m_atmospheresBuffer->recordCopyToDevice(cmd, allocator);
+        m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
     { // Copy models to gpu
-        m_meshInstances.models->recordCopyToDevice(cmd, allocator);
-        m_meshInstances.modelInverseTransposes->recordCopyToDevice(
-            cmd, allocator
-        );
+        m_meshInstances.models->recordCopyToDevice(cmd);
+        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd);
     }
 
     {
@@ -1406,9 +1406,7 @@ void Engine::draw(VmaAllocator const allocator, VkCommandBuffer const cmd)
                 glm::quat_identity<float, glm::qualifier::defaultp>(),
                 m_sceneBounds.extent
             );
-            recordDrawDebugLines(
-                allocator, cmd, m_cameraIndexMain, *m_camerasBuffer
-            );
+            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
 
             break;
         }
@@ -1489,7 +1487,6 @@ void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
 }
 
 void Engine::recordDrawDebugLines(
-    VmaAllocator const allocator,
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
     TStagedBuffer<gputypes::Camera> const& camerasBuffer
@@ -1499,7 +1496,7 @@ void Engine::recordDrawDebugLines(
 
     if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0)
     {
-        m_debugLines.recordCopy(cmd, allocator);
+        m_debugLines.recordCopy(cmd);
 
         DrawResultsGraphics const drawResults{
             m_debugLines.pipeline->recordDrawCommands(
