@@ -124,18 +124,16 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 {
     m_allocator = allocator;
 
-    { // GBuffer
-        std::optional<GBuffer> const gBufferResult{GBuffer::create(
+    if (std::optional<GBuffer> gBufferResult{GBuffer::create(
             device, dimensionCapacity, allocator, descriptorAllocator
         )};
-        if (gBufferResult.has_value())
-        {
-            m_gBuffer = gBufferResult.value();
-        }
-        else
-        {
-            Warning("Failed to create GBuffer.");
-        }
+        gBufferResult.has_value())
+    {
+        m_gBuffer = std::move(gBufferResult).value();
+    }
+    else
+    {
+        Warning("Failed to create GBuffer for deferred shading pipeline.");
     }
 
     { // Lights used during the pass
@@ -173,31 +171,42 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             descriptorAllocator.allocate(device, m_drawImageLayout);
 
         {
-            VkExtent3D const drawImageExtent{
+            VkExtent2D const drawImageExtent{
                 .width = dimensionCapacity.width,
                 .height = dimensionCapacity.height,
-                .depth = 1,
             };
 
-            m_drawImage =
-                AllocatedImage::allocate(
-                    allocator,
-                    device,
-                    AllocatedImage::AllocationParameters{
-                        .extent = drawImageExtent,
-                        .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                        .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                                    | VK_IMAGE_USAGE_STORAGE_BIT
-                                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                        .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                    }
-                )
-                    .value_or(AllocatedImage::makeInvalid());
+            if (std::optional<AllocatedImage> drawImageResult{
+                    AllocatedImage::allocate(
+                        allocator,
+                        device,
+                        AllocatedImage::AllocationParameters{
+                            .extent = drawImageExtent,
+                            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                                        | VK_IMAGE_USAGE_STORAGE_BIT
+                                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+                        }
+                    )
+                };
+                drawImageResult.has_value())
+            {
+                m_drawImage = std::make_unique<AllocatedImage>(
+                    std::move(drawImageResult).value()
+                );
+            }
+            else
+            {
+                Warning("Failed to allocate draw image for deferred shading "
+                        "pipeline.");
+            }
 
             VkDescriptorImageInfo const drawImageInfo{
                 .sampler = VK_NULL_HANDLE,
-                .imageView = m_drawImage.imageView,
+                .imageView = m_drawImage->view(),
                 .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
             };
 
@@ -267,10 +276,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             device,
             descriptorAllocator,
             allocator,
-            VkExtent3D{
+            VkExtent2D{
                 .width = SHADOWMAP_SIZE,
                 .height = SHADOWMAP_SIZE,
-                .depth = 1,
             },
             SHADOWMAP_COUNT
         )
@@ -426,9 +434,8 @@ void setRasterizationShaderObjectState(
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    VkImageLayout const colorLayout,
-    AllocatedImage const& color,
-    AllocatedImage const& depth,
+    AllocatedImage& color,
+    AllocatedImage& depth,
     std::span<gputypes::LightDirectional const> const directionalLights,
     std::span<gputypes::LightSpot const> const spotLights,
     uint32_t const viewCameraIndex,
@@ -513,12 +520,8 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         );
 
-        vkutil::transitionImage(
-            cmd,
-            depth.image,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            VK_IMAGE_ASPECT_DEPTH_BIT
+        depth.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
         );
     }
 
@@ -532,19 +535,19 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         std::array<VkRenderingAttachmentInfo, 4> const gBufferAttachments{
             vkinit::renderingAttachmentInfo(
-                m_gBuffer.diffuseColor.imageView,
+                m_gBuffer.diffuseColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
             vkinit::renderingAttachmentInfo(
-                m_gBuffer.specularColor.imageView,
+                m_gBuffer.specularColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
             vkinit::renderingAttachmentInfo(
-                m_gBuffer.normal.imageView,
+                m_gBuffer.normal->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
             vkinit::renderingAttachmentInfo(
-                m_gBuffer.worldPosition.imageView,
+                m_gBuffer.worldPosition->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             )
         };
@@ -553,7 +556,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
 
-            .imageView = depth.imageView,
+            .imageView = depth.view(),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
             .resolveMode = VK_RESOLVE_MODE_NONE,
@@ -683,39 +686,23 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
     else
     {
-        vkutil::transitionImage(
-            cmd,
-            depth.image,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_ASPECT_DEPTH_BIT
-        );
+        depth.recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
         VkClearDepthStencilValue const clearValue{.depth = 0.0};
         VkImageSubresourceRange const range{
             vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
         };
         vkCmdClearDepthStencilImage(
-            cmd, depth.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range
+            cmd, depth.image(), VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range
         );
 
-        vkutil::transitionImage(
-            cmd,
-            depth.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-            VK_IMAGE_ASPECT_DEPTH_BIT
+        depth.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
         );
     }
 
     { // Clear color image
-        vkutil::transitionImage(
-            cmd,
-            m_drawImage.image,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
-        );
+        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
         VkClearColorValue const clearColor{.float32{0.0, 0.0, 0.0, 1.0}};
         VkImageSubresourceRange const range{
@@ -723,20 +710,14 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         vkCmdClearColorImage(
             cmd,
-            m_drawImage.image,
+            m_drawImage->image(),
             VK_IMAGE_LAYOUT_GENERAL,
             &clearColor,
             1,
             &range
         );
 
-        vkutil::transitionImage(
-            cmd,
-            m_drawImage.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
-        );
+        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
     }
 
     if (renderMesh)
@@ -815,20 +796,9 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     { // Sky post-process pass
-        vkutil::transitionImage(
-            cmd,
-            m_drawImage.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
-        );
-        vkutil::transitionImage(
-            cmd,
-            depth.image,
-            renderMesh ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-                       : VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-            VK_IMAGE_ASPECT_DEPTH_BIT
+        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
+        depth.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
         );
 
         VkShaderStageFlagBits const computeStage{VK_SHADER_STAGE_COMPUTE_BIT};
@@ -885,46 +855,28 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     {
-        vkutil::transitionImage(
-            cmd,
-            m_drawImage.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
+        m_drawImage->recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         );
-        vkutil::transitionImage(
-            cmd,
-            color.image,
-            colorLayout,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
+        color.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         );
 
-        vkutil::recordCopyImageToImage(
-            cmd,
-            m_drawImage.image,
-            color.image,
-            VkRect2D{.extent{drawRect.extent}},
-            drawRect
-        );
-
-        vkutil::transitionImage(
-            cmd,
-            color.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            colorLayout,
-            VK_IMAGE_ASPECT_COLOR_BIT
+        VkRect2D const srcRegion{.offset{}, .extent{drawRect.extent}};
+        VkRect2D const dstRegion{drawRect};
+        AllocatedImage::recordCopySubregion(
+            cmd, *m_drawImage, srcRegion, color, dstRegion
         );
     }
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, AllocatedImage const& depthImage
+    VkDevice const device, AllocatedImage& depthImage
 )
 {
     VkDescriptorImageInfo const depthImageInfo{
         .sampler = VK_NULL_HANDLE,
-        .imageView = depthImage.imageView,
+        .imageView = depthImage.view(),
         .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
     };
 
@@ -958,7 +910,7 @@ void DeferredShadingPipeline::cleanup(
     m_directionalLights.reset();
     m_spotLights.reset();
 
-    m_drawImage.cleanup(device, allocator);
+    m_drawImage.reset();
 
     vkDestroyDescriptorSetLayout(device, m_depthImageLayout, nullptr);
     vkDestroyDescriptorSetLayout(device, m_drawImageLayout, nullptr);

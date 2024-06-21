@@ -50,7 +50,7 @@ public:
     void tickWorld(TickTiming);
     auto mainLoop(VkDevice, VkCommandBuffer, double deltaTimeSeconds)
         -> VkRect2D;
-    auto drawImage() -> AllocatedImage& { return m_drawImage; }
+    auto drawImage() -> AllocatedImage& { return *m_drawImage; }
 
     void cleanup(VkDevice, VmaAllocator);
 
@@ -87,7 +87,6 @@ private:
 
 private:
     void initDrawTargets(VkDevice, VmaAllocator);
-    void cleanupDrawTargets(VkDevice, VmaAllocator);
 
     // queueFamilyIndex must support all operations: graphics, compute, present,
     // and transfer.
@@ -143,16 +142,16 @@ private:
 
     // Rendered into by most render passes. Used as an image by UI rendering,
     // to render properly as a window.
-    AllocatedImage m_sceneColorTexture{};
+    std::unique_ptr<AllocatedImage> m_sceneColorTexture{};
     // Depth image used for graphics passes
-    AllocatedImage m_sceneDepthTexture{};
+    std::unique_ptr<AllocatedImage> m_sceneDepthTexture{};
 
     // The rectangle drawn into, usually the window/swapchain/UI viewport
     // extents are all the same
     VkRect2D m_drawRect{};
 
     // The final image output, blitted to the swapchain
-    AllocatedImage m_drawImage{};
+    std::unique_ptr<AllocatedImage> m_drawImage{};
 
     // Immediate submit structures
 

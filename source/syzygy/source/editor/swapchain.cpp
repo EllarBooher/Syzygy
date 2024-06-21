@@ -59,6 +59,8 @@ auto Swapchain::create(
     cleanupCallbacks.pushFunction([&]()
     { swapchain.destroy_image_views(viewsResult.value()); });
 
+    cleanupCallbacks.clear();
+
     return Swapchain{
         swapchain.swapchain,
         SWAPCHAIN_IMAGE_FORMAT,

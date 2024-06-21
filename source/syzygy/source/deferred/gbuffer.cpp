@@ -1,5 +1,6 @@
 #include "gbuffer.hpp"
 
+#include "../core/deletionqueue.hpp"
 #include "../helpers.hpp"
 #include "../initializers.hpp"
 
@@ -10,101 +11,92 @@ auto GBuffer::create(
     DescriptorAllocator& descriptorAllocator
 ) -> std::optional<GBuffer>
 {
-    VkExtent3D const extent{
-        .width = drawExtent.width,
-        .height = drawExtent.height,
-        .depth = 1,
+    DeletionQueue cleanupCallbacks{};
+
+    std::optional<AllocatedImage> createDiffuseResult{AllocatedImage::allocate(
+        allocator,
+        device,
+        AllocatedImage::AllocationParameters{
+            .extent = drawExtent,
+            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+            .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        }
+    )};
+    if (!createDiffuseResult.has_value())
+    {
+        Error("Failed to create GBuffer diffuse color image.");
+        return std::nullopt;
+    }
+
+    std::optional<AllocatedImage> createSpecularResult{AllocatedImage::allocate(
+        allocator,
+        device,
+        AllocatedImage::AllocationParameters{
+            .extent = drawExtent,
+            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+            .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        }
+    )};
+    if (!createSpecularResult.has_value())
+    {
+        Error("Failed to create GBuffer specular color image.");
+        return std::nullopt;
+    }
+
+    std::optional<AllocatedImage> createNormalResult{AllocatedImage::allocate(
+        allocator,
+        device,
+        AllocatedImage::AllocationParameters{
+            .extent = drawExtent,
+            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+            .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        }
+    )};
+    if (!createNormalResult.has_value())
+    {
+        Error("Failed to create GBuffer normal image.");
+        return std::nullopt;
+    }
+
+    std::optional<AllocatedImage> createWorldPositionResult{
+        AllocatedImage::allocate(
+            allocator,
+            device,
+            AllocatedImage::AllocationParameters{
+                .extent = drawExtent,
+                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+            }
+        )
     };
-
-    GBuffer buffer{};
-    { // Diffuse Color
-        std::optional<AllocatedImage> createDiffuseResult{
-            AllocatedImage::allocate(
-                allocator,
-                device,
-                AllocatedImage::AllocationParameters{
-                    .extent = extent,
-                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
-                                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                }
-            )
-        };
-        if (!createDiffuseResult.has_value())
-        {
-            Error("Failed to create GBuffer diffuse color image.");
-            return {};
-        }
-
-        buffer.diffuseColor = createDiffuseResult.value();
+    if (!createWorldPositionResult.has_value())
+    {
+        Error("Failed to create GBuffer worldPosition image.");
+        return std::nullopt;
     }
-    { // Specular Color
-        std::optional<AllocatedImage> createSpecularResult{
-            AllocatedImage::allocate(
-                allocator,
-                device,
-                AllocatedImage::AllocationParameters{
-                    .extent = extent,
-                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
-                                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                }
-            )
-        };
-        if (!createSpecularResult.has_value())
-        {
-            Error("Failed to create GBuffer specular color image.");
-            return {};
-        }
 
-        buffer.specularColor = createSpecularResult.value();
-    }
-    { // Normals
-        std::optional<AllocatedImage> createNormalResult{
-            AllocatedImage::allocate(
-                allocator,
-                device,
-                AllocatedImage::AllocationParameters{
-                    .extent = extent,
-                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
-                                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                }
-            )
-        };
-        if (!createNormalResult.has_value())
+    std::array<VkSampler, 4> immutableSamplers{};
+    cleanupCallbacks.pushFunction(
+        [&]()
+    {
+        for (VkSampler const sampler : immutableSamplers)
         {
-            Error("Failed to create GBuffer normal image.");
-            return {};
+            vkDestroySampler(device, sampler, nullptr);
         }
-
-        buffer.normal = createNormalResult.value();
     }
-    { // World Position
-        std::optional<AllocatedImage> createWorldPositionResult{
-            AllocatedImage::allocate(
-                allocator,
-                device,
-                AllocatedImage::AllocationParameters{
-                    .extent = extent,
-                    .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
-                                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                }
-            )
-        };
-        if (!createWorldPositionResult.has_value())
-        {
-            Error("Failed to create GBuffer worldPosition image.");
-            return {};
-        }
-
-        buffer.worldPosition = createWorldPositionResult.value();
-    }
+    );
 
     {
         VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
@@ -117,26 +109,26 @@ auto GBuffer::create(
         for (size_t i{0}; i < 4; i++)
         {
             VkSampler sampler{VK_NULL_HANDLE};
-            VkResult const samplerResult{
-                vkCreateSampler(device, &samplerInfo, nullptr, &sampler)
-            };
+            VkResult const samplerResult{vkCreateSampler(
+                device, &samplerInfo, nullptr, &immutableSamplers[i]
+            )};
             if (samplerResult != VK_SUCCESS)
             {
                 Error(fmt::format(
                     "Failed to create GBuffer immutable sampler {}", i
                 ));
-                return {};
+                cleanupCallbacks.flush();
+                return std::nullopt;
             }
-            buffer.immutableSamplers.push_back(sampler);
         }
     }
-    VkSampler const diffuseColorSampler{buffer.immutableSamplers[0]};
-    VkSampler const specularColorSampler{buffer.immutableSamplers[1]};
-    VkSampler const normalSampler{buffer.immutableSamplers[2]};
-    VkSampler const worldPositionSampler{buffer.immutableSamplers[3]};
+    VkSampler const diffuseColorSampler{immutableSamplers[0]};
+    VkSampler const specularColorSampler{immutableSamplers[1]};
+    VkSampler const normalSampler{immutableSamplers[2]};
+    VkSampler const worldPositionSampler{immutableSamplers[3]};
 
     // The descriptor for accessing all the samplers in the lighting passes
-    VkDescriptorSetLayout const descriptorLayout{
+    std::optional<VkDescriptorSetLayout> const descriptorLayoutResult{
         DescriptorLayoutBuilder{}
             .addBinding(
                 DescriptorLayoutBuilder::AddBindingParameters{
@@ -177,35 +169,35 @@ auto GBuffer::create(
             .build(device, 0)
             .value_or(VK_NULL_HANDLE)
     };
-    if (descriptorLayout == VK_NULL_HANDLE)
+    if (!descriptorLayoutResult.has_value())
     {
         Error("Failed to create GBuffer descriptor set layout.");
-        return {};
+        return std::nullopt;
     }
 
     VkDescriptorSet const descriptorSet{
-        descriptorAllocator.allocate(device, descriptorLayout)
+        descriptorAllocator.allocate(device, descriptorLayoutResult.value())
     };
 
     std::vector<VkDescriptorImageInfo> const imageInfos{
         VkDescriptorImageInfo{
             .sampler = VK_NULL_HANDLE,
-            .imageView = buffer.diffuseColor.imageView,
+            .imageView = createDiffuseResult.value().view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
             .sampler = VK_NULL_HANDLE,
-            .imageView = buffer.specularColor.imageView,
+            .imageView = createSpecularResult.value().view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
             .sampler = VK_NULL_HANDLE,
-            .imageView = buffer.normal.imageView,
+            .imageView = createNormalResult.value().view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
             .sampler = VK_NULL_HANDLE,
-            .imageView = buffer.worldPosition.imageView,
+            .imageView = createWorldPositionResult.value().view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
     };
@@ -228,46 +220,37 @@ auto GBuffer::create(
     std::vector<VkWriteDescriptorSet> const writes{descriptorWrite};
     vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
 
-    buffer.descriptors = descriptorSet;
-    buffer.descriptorLayout = descriptorLayout;
+    cleanupCallbacks.clear();
 
-    return buffer;
+    return GBuffer{
+        std::move(createDiffuseResult).value(),
+        std::move(createSpecularResult).value(),
+        std::move(createNormalResult).value(),
+        std::move(createWorldPositionResult).value(),
+        descriptorLayoutResult.value(),
+        descriptorSet,
+        immutableSamplers
+    };
 }
 
 void GBuffer::recordTransitionImages(
     VkCommandBuffer const cmd,
-    VkImageLayout const srcLayout,
+    VkImageLayout const /*srcLayout*/,
     VkImageLayout const dstLayout
 ) const
 {
-    vkutil::transitionImage(
-        cmd, diffuseColor.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT
-    );
-    vkutil::transitionImage(
-        cmd,
-        specularColor.image,
-        srcLayout,
-        dstLayout,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
-    vkutil::transitionImage(
-        cmd, normal.image, srcLayout, dstLayout, VK_IMAGE_ASPECT_COLOR_BIT
-    );
-    vkutil::transitionImage(
-        cmd,
-        worldPosition.image,
-        srcLayout,
-        dstLayout,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
+    diffuseColor->recordTransitionBarriered(cmd, dstLayout);
+    specularColor->recordTransitionBarriered(cmd, dstLayout);
+    normal->recordTransitionBarriered(cmd, dstLayout);
+    worldPosition->recordTransitionBarriered(cmd, dstLayout);
 }
 
-void GBuffer::cleanup(VkDevice const device, VmaAllocator const allocator)
+void GBuffer::cleanup(VkDevice const device, VmaAllocator const /*allocator*/)
 {
-    diffuseColor.cleanup(device, allocator);
-    specularColor.cleanup(device, allocator);
-    normal.cleanup(device, allocator);
-    worldPosition.cleanup(device, allocator);
+    diffuseColor.reset();
+    specularColor.reset();
+    normal.reset();
+    worldPosition.reset();
 
     for (VkSampler const sampler : immutableSamplers)
     {

@@ -454,8 +454,8 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const lineWidth,
     VkRect2D const drawRect,
-    AllocatedImage const& color,
-    AllocatedImage const& depth,
+    AllocatedImage& color,
+    AllocatedImage& depth,
     uint32_t const cameraIndex,
     TStagedBuffer<gputypes::Camera> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
@@ -466,7 +466,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
 
-        .imageView = color.imageView,
+        .imageView = color.view(),
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 
         .resolveMode = VK_RESOLVE_MODE_NONE,
@@ -484,7 +484,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
 
-        .imageView = depth.imageView,
+        .imageView = depth.view(),
         .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
         .resolveMode = VK_RESOLVE_MODE_NONE,
@@ -667,7 +667,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const depthBias,
     float const depthBiasSlope,
-    AllocatedImage const& depth,
+    AllocatedImage& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
     MeshAsset const& mesh,
@@ -682,7 +682,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = nullptr,
 
-        .imageView = depth.imageView,
+        .imageView = depth.view(),
         .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
         .resolveMode = VK_RESOLVE_MODE_NONE,
@@ -695,12 +695,8 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
         .clearValue = VkClearValue{.depthStencil{.depth = 0.0F}},
     };
 
-    VkExtent2D const drawExtent{
-        .width = depth.imageExtent.width,
-        .height = depth.imageExtent.height,
-    };
     VkRenderingInfo const renderInfo{vkinit::renderingInfo(
-        VkRect2D{.extent = drawExtent}, {}, &depthAttachment
+        VkRect2D{.extent = depth.extent2D()}, {}, &depthAttachment
     )};
 
     vkCmdBeginRendering(cmd, &renderInfo);
@@ -711,8 +707,8 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     VkViewport const viewport{
         .x = 0,
         .y = 0,
-        .width = static_cast<float>(drawExtent.width),
-        .height = static_cast<float>(drawExtent.height),
+        .width = static_cast<float>(depth.extent2D().width),
+        .height = static_cast<float>(depth.extent2D().height),
         .minDepth = 0.0F,
         .maxDepth = 1.0F,
     };
@@ -724,10 +720,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
             .x = 0,
             .y = 0,
         },
-        .extent{
-            .width = drawExtent.width,
-            .height = drawExtent.height,
-        },
+        .extent{depth.extent2D()},
     };
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);

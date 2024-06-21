@@ -115,6 +115,8 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         { vkDestroySemaphore(device, frame.renderSemaphore, nullptr); });
     }
 
+    cleanupCallbacks.clear();
+
     return {frame, VK_SUCCESS};
 }
 } // namespace
@@ -153,6 +155,8 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
         }
         frames.push_back(frameResult.value());
     }
+
+    cleanupCallbacks.clear();
 
     return {FrameBuffer{std::move(frames)}, VK_SUCCESS};
 }

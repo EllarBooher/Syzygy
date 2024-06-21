@@ -11,6 +11,7 @@
 // device-side buffer that has its address mapped.
 struct AllocatedBuffer
 {
+public:
     AllocatedBuffer() = delete;
 
     AllocatedBuffer(AllocatedBuffer&& other) noexcept
@@ -19,10 +20,8 @@ struct AllocatedBuffer
     };
     AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept
     {
-        m_vkCreateInfo =
-            std::exchange(other.m_vkCreateInfo, VkBufferCreateInfo{});
-        m_vmaCreateInfo =
-            std::exchange(other.m_vmaCreateInfo, VmaAllocationCreateInfo{});
+        m_vkCreateInfo = std::exchange(other.m_vkCreateInfo, {});
+        m_vmaCreateInfo = std::exchange(other.m_vmaCreateInfo, {});
 
         m_deviceAddress = std::exchange(other.m_deviceAddress, 0);
 

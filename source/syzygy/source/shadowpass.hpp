@@ -22,7 +22,7 @@ public:
         VkDevice device,
         DescriptorAllocator& descriptorAllocator,
         VmaAllocator allocator,
-        VkExtent3D shadowmapExtent,
+        VkExtent2D shadowmapExtent,
         size_t capacity
     );
 
@@ -61,7 +61,7 @@ public:
     {
         for (auto& image : m_textures)
         {
-            image.cleanup(device, allocator);
+            image.reset();
         }
 
         vkDestroySampler(device, m_sampler, nullptr);
@@ -102,7 +102,7 @@ private:
     VkDescriptorSetLayout m_samplerSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_samplerSet{VK_NULL_HANDLE};
 
-    std::vector<AllocatedImage> m_textures{};
+    std::vector<std::unique_ptr<AllocatedImage>> m_textures{};
 
     VkDescriptorSetLayout m_texturesSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_texturesSet{VK_NULL_HANDLE};

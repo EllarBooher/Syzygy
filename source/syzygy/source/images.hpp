@@ -4,6 +4,8 @@
 #include "vulkanusage.hpp"
 #include <optional>
 
+#include "helpers.hpp"
+
 namespace vkutil
 {
 // Transitions the layout of an image, putting in a full memory barrier
@@ -56,45 +58,120 @@ void recordCopyImageToImage(
 double aspectRatio(VkExtent2D extent);
 } // namespace vkutil
 
-// TODO: Fix up the interface to better model how images work. Make info fields
-// const (since an image cannot be changed in any meaningful well), add tracking
-// of layout, hide resource handles to avoid mutation of const AllocatedImages.
+// This image is very wasteful with memory, but stores everything it needs for
+// operation locally.
 struct AllocatedImage
 {
-    VmaAllocation allocation{VK_NULL_HANDLE};
-    VkImage image{VK_NULL_HANDLE};
-    VkImageView imageView{VK_NULL_HANDLE};
-    VkExtent3D imageExtent{};
-    VkFormat imageFormat{VK_FORMAT_UNDEFINED};
+public:
+    AllocatedImage() = delete;
 
-    static auto makeInvalid() -> AllocatedImage { return {}; }
-
-    void cleanup(VkDevice device, VmaAllocator allocator)
+    AllocatedImage(AllocatedImage&& other) noexcept
     {
-        vkDestroyImageView(device, imageView, nullptr);
-        vmaDestroyImage(allocator, image, allocation);
+        *this = std::move(other);
+    };
+    AllocatedImage& operator=(AllocatedImage&& other) noexcept
+    {
+        m_imageCreateInfo = std::exchange(other.m_imageCreateInfo, {});
+        m_viewCreateInfo = std::exchange(other.m_viewCreateInfo, {});
+        m_vmaCreateInfo = std::exchange(other.m_vmaCreateInfo, {});
+
+        m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
+
+        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+        m_allocation = std::exchange(other.m_allocation, VK_NULL_HANDLE);
+
+        m_image = std::exchange(other.m_image, VK_NULL_HANDLE);
+        m_view = std::exchange(other.m_view, VK_NULL_HANDLE);
+
+        m_expectedLayout =
+            std::exchange(other.m_expectedLayout, VK_IMAGE_LAYOUT_UNDEFINED);
+
+        return *this;
     }
 
-    VkExtent2D extent2D() const
-    {
-        return VkExtent2D{
-            .width = imageExtent.width,
-            .height = imageExtent.height,
-        };
-    }
+    AllocatedImage(AllocatedImage const& other) = delete;
+    AllocatedImage& operator=(AllocatedImage const& other) = delete;
 
-    // The value will be 0.0/inf/NaN for an image without valid bounds.
-    double aspectRatio() const { return vkutil::aspectRatio(extent2D()); }
+    ~AllocatedImage() noexcept;
 
+public:
     struct AllocationParameters
     {
-        VkExtent3D extent;
-        VkFormat format;
-        VkImageUsageFlags usageFlags;
-        VkImageAspectFlags viewFlags;
+        VkExtent2D extent{};
+        VkFormat format{VK_FORMAT_UNDEFINED};
+        VkImageUsageFlags usageFlags{0};
+        VkImageAspectFlags viewFlags{VK_IMAGE_ASPECT_NONE};
+        VkImageLayout initialLayout{VK_IMAGE_LAYOUT_UNDEFINED};
     };
 
-    static std::optional<AllocatedImage> allocate(
+    static auto allocate(
         VmaAllocator allocator, VkDevice device, AllocationParameters parameters
+    ) -> std::optional<AllocatedImage>;
+
+    void recordTransitionBarriered(VkCommandBuffer, VkImageLayout dstLayout);
+
+    // Blits an entire image into the full extent of another image.
+    // Does not apply any memory barriers.
+    // Expects the images to be in VK_LAYOUT_TRANSFER_SOURCE/DST_OPTIMAL
+    static void recordCopyEntire(
+        VkCommandBuffer, AllocatedImage& srcImage, AllocatedImage& dstImage
     );
+    static void recordCopySubregion(
+        VkCommandBuffer,
+        AllocatedImage& srcImage,
+        VkRect2D srcRegion,
+        AllocatedImage& dstImage,
+        VkRect2D dstRegion
+    );
+
+    auto extent2D() const -> VkExtent2D;
+    auto format() const -> VkFormat;
+
+    // The value will be 0.0/inf/NaN for an image without valid bounds.
+    auto aspectRatio() const -> double;
+
+    // TODO: deprecate this, since it allows desyncing the layout easily
+    auto image() -> VkImage;
+    auto view() -> VkImageView;
+
+private:
+    AllocatedImage(
+        VkImageCreateInfo imageCreateInfo,
+        VkImageViewCreateInfo imageViewCreateInfo,
+        VmaAllocationCreateInfo vmaCreateInfo,
+        VkDevice device,
+        VmaAllocator allocator,
+        VmaAllocation allocation,
+        VkImage image,
+        VkImageView imageView,
+        VkImageLayout imageLayout
+    )
+        : m_imageCreateInfo{imageCreateInfo}
+        , m_viewCreateInfo{imageViewCreateInfo}
+        , m_vmaCreateInfo{vmaCreateInfo}
+        , m_device{device}
+        , m_allocator{allocator}
+        , m_allocation{allocation}
+        , m_image{image}
+        , m_view{imageView}
+        , m_expectedLayout{imageLayout}
+    {
+    }
+
+    static auto image_impl(AllocatedImage&) -> VkImage;
+    static auto view_impl(AllocatedImage&) -> VkImageView;
+
+    VkImageCreateInfo m_imageCreateInfo{};
+    VkImageViewCreateInfo m_viewCreateInfo{};
+    VmaAllocationCreateInfo m_vmaCreateInfo{};
+
+    VkDevice m_device{VK_NULL_HANDLE};
+
+    VmaAllocator m_allocator{VK_NULL_HANDLE};
+    VmaAllocation m_allocation{VK_NULL_HANDLE};
+
+    VkImage m_image{VK_NULL_HANDLE};
+    VkImageView m_view{VK_NULL_HANDLE};
+
+    VkImageLayout m_expectedLayout{VK_IMAGE_LAYOUT_UNDEFINED};
 };

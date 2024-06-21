@@ -204,26 +204,57 @@ auto vkutil::aspectRatio(VkExtent2D const extent) -> double
     return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
 }
 
+AllocatedImage::~AllocatedImage() noexcept
+{
+    if (m_allocation == VK_NULL_HANDLE && m_view == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    if (m_allocation == VK_NULL_HANDLE || m_device == VK_NULL_HANDLE
+        || m_view == VK_NULL_HANDLE || m_image == VK_NULL_HANDLE)
+    {
+        Warning(fmt::format(
+            "One of but not all image handles were null upon destruction. "
+            "This has resulted in a leak. Allocation: {}. Device: {}. "
+            "View: {}. Image: {}.",
+            reinterpret_cast<uint64_t>(m_allocation),
+            reinterpret_cast<uint64_t>(m_device),
+            reinterpret_cast<uint64_t>(m_view),
+            reinterpret_cast<uint64_t>(m_image)
+        ));
+        return;
+    }
+
+    vkDestroyImageView(m_device, m_view, nullptr);
+    vmaDestroyImage(m_allocator, m_image, m_allocation);
+}
+
 auto AllocatedImage::allocate(
     VmaAllocator const allocator,
     VkDevice const device,
     AllocationParameters const parameters
 ) -> std::optional<AllocatedImage>
 {
-    AllocatedImage image{
-        .allocation = VK_NULL_HANDLE,
-        .image = VK_NULL_HANDLE,
-        .imageView = VK_NULL_HANDLE,
+    if (parameters.extent.width == 0 || parameters.extent.height == 0
+        || parameters.format == VK_FORMAT_UNDEFINED
+        || parameters.viewFlags == VK_IMAGE_ASPECT_NONE)
+    {
+        Warning("Image is being allocated with one or more likely invalid "
+                "parameters. ");
+    }
 
-        .imageExtent = parameters.extent,
-        .imageFormat = parameters.format
+    VkExtent3D const extent3D{
+        .width = parameters.extent.width,
+        .height = parameters.extent.height,
+        .depth = 1,
     };
 
     VkImageCreateInfo const imageInfo{vkinit::imageCreateInfo(
-        image.imageFormat,
-        VK_IMAGE_LAYOUT_UNDEFINED,
+        parameters.format,
+        parameters.initialLayout,
         parameters.usageFlags,
-        image.imageExtent
+        extent3D
     )};
 
     VmaAllocationCreateInfo const imageAllocInfo{
@@ -231,32 +262,120 @@ auto AllocatedImage::allocate(
         .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     };
 
+    VkImage image;
+    VmaAllocation allocation;
     VkResult const createImageResult{vmaCreateImage(
-        allocator,
-        &imageInfo,
-        &imageAllocInfo,
-        &image.image,
-        &image.allocation,
-        nullptr
+        allocator, &imageInfo, &imageAllocInfo, &image, &allocation, nullptr
     )};
     if (createImageResult != VK_SUCCESS)
     {
-        LogVkResult(createImageResult, "VMA Allocation failed");
+        LogVkResult(createImageResult, "VMA Allocation for image failed.");
         return {};
     }
 
     VkImageViewCreateInfo const imageViewInfo{vkinit::imageViewCreateInfo(
-        image.imageFormat, image.image, parameters.viewFlags
+        parameters.format, image, parameters.viewFlags
     )};
 
+    VkImageView imageView;
     VkResult const createViewResult{
-        vkCreateImageView(device, &imageViewInfo, nullptr, &image.imageView)
+        vkCreateImageView(device, &imageViewInfo, nullptr, &imageView)
     };
     if (createViewResult != VK_SUCCESS)
     {
         LogVkResult(createViewResult, "vkCreateImageView failed");
+
+        vmaDestroyImage(allocator, image, allocation);
+
         return {};
     }
 
-    return image;
+    return AllocatedImage{
+        imageInfo,
+        imageViewInfo,
+        imageAllocInfo,
+        device,
+        allocator,
+        allocation,
+        image,
+        imageView,
+        imageInfo.initialLayout
+    };
+}
+
+void AllocatedImage::recordTransitionBarriered(
+    VkCommandBuffer const cmd, VkImageLayout const dstLayout
+)
+{
+    vkutil::transitionImage(
+        cmd,
+        m_image,
+        m_expectedLayout,
+        dstLayout,
+        m_viewCreateInfo.subresourceRange.aspectMask
+    );
+
+    m_expectedLayout = dstLayout;
+}
+
+void AllocatedImage::recordCopyEntire(
+    VkCommandBuffer const cmd,
+    AllocatedImage& srcImage,
+    AllocatedImage& dstImage
+)
+{
+    vkutil::recordCopyImageToImage(
+        cmd,
+        srcImage.m_image,
+        dstImage.m_image,
+        srcImage.m_imageCreateInfo.extent,
+        dstImage.m_imageCreateInfo.extent
+    );
+}
+
+void AllocatedImage::recordCopySubregion(
+    VkCommandBuffer const cmd,
+    AllocatedImage& srcImage,
+    VkRect2D const srcRegion,
+    AllocatedImage& dstImage,
+    VkRect2D const dstRegion
+)
+{
+    vkutil::recordCopyImageToImage(
+        cmd, srcImage.m_image, dstImage.m_image, srcRegion, dstRegion
+    );
+}
+
+auto AllocatedImage::extent2D() const -> VkExtent2D
+{
+    VkExtent3D const extent{m_imageCreateInfo.extent};
+
+    return {
+        .width = extent.width,
+        .height = extent.height,
+    };
+}
+
+auto AllocatedImage::format() const -> VkFormat
+{
+    return m_imageCreateInfo.format;
+}
+
+auto AllocatedImage::aspectRatio() const -> double
+{
+    return vkutil::aspectRatio(extent2D());
+}
+
+auto AllocatedImage::view() -> VkImageView { return view_impl(*this); }
+
+auto AllocatedImage::image() -> VkImage { return image_impl(*this); }
+
+auto AllocatedImage::view_impl(AllocatedImage& image) -> VkImageView
+{
+    return image.m_view;
+}
+
+auto AllocatedImage::image_impl(AllocatedImage& image) -> VkImage
+{
+    return image.m_image;
 }

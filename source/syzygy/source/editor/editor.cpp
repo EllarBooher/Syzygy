@@ -179,7 +179,7 @@ auto endFrame(
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
-    AllocatedImage const& drawImage,
+    AllocatedImage& drawImage,
     VkRect2D const drawRect
 ) -> VkResult
 {
@@ -211,13 +211,10 @@ auto endFrame(
 
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
 
-    vkutil::transitionImage(
-        cmd,
-        drawImage.image,
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
+    drawImage.recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
     );
+
     vkutil::transitionImage(
         cmd,
         swapchainImage,
@@ -228,7 +225,7 @@ auto endFrame(
 
     vkutil::recordCopyImageToImage(
         cmd,
-        drawImage.image,
+        drawImage.image(),
         swapchainImage,
         drawRect,
         VkRect2D{.extent{swapchain.extent()}}

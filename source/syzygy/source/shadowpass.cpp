@@ -7,7 +7,7 @@ auto ShadowPassArray::create(
     VkDevice const device,
     DescriptorAllocator& descriptorAllocator,
     VmaAllocator const allocator,
-    VkExtent3D const shadowmapExtent,
+    VkExtent2D const shadowmapExtent,
     size_t const capacity
 ) -> std::optional<ShadowPassArray>
 {
@@ -76,6 +76,7 @@ auto ShadowPassArray::create(
                                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                                 | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                     .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
+                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
                 }
             )};
             if (!imageResult.has_value())
@@ -84,7 +85,9 @@ auto ShadowPassArray::create(
                 return {};
             }
 
-            shadowPass.m_textures.push_back(imageResult.value());
+            shadowPass.m_textures.push_back(
+                std::make_unique<AllocatedImage>(std::move(imageResult).value())
+            );
         }
     }
 
@@ -120,11 +123,12 @@ auto ShadowPassArray::create(
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
         mapInfos.reserve(shadowPass.m_textures.size());
-        for (AllocatedImage const& texture : shadowPass.m_textures)
+        for (std::unique_ptr<AllocatedImage> const& texture :
+             shadowPass.m_textures)
         {
             mapInfos.push_back(VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE, // sampled images
-                .imageView = texture.imageView,
+                .imageView = texture->view(),
                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
             });
         }
@@ -214,8 +218,6 @@ void ShadowPassArray::recordInitialize(
 
         for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
         {
-            AllocatedImage const& texture{m_textures[i]};
-
             VkClearDepthStencilValue const clearValue{
                 .depth = 0.0,
             };
@@ -226,7 +228,7 @@ void ShadowPassArray::recordInitialize(
 
             vkCmdClearDepthStencilImage(
                 cmd,
-                texture.image,
+                m_textures[i]->image(),
                 VK_IMAGE_LAYOUT_GENERAL,
                 &clearValue,
                 1,
@@ -249,13 +251,12 @@ void ShadowPassArray::recordDrawCommands(
 {
     for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
     {
-        AllocatedImage const& texture{m_textures[i]};
         m_pipeline->recordDrawCommands(
             cmd,
             false,
             m_depthBias,
             m_depthBiasSlope,
-            texture,
+            *m_textures[i],
             i,
             *m_projViewMatrices,
             mesh,
@@ -270,14 +271,7 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
 {
     for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
     {
-        AllocatedImage const& texture{m_textures[i]};
-        vkutil::transitionImage(
-            cmd,
-            texture.image,
-            m_texturesCurrentLayout,
-            dstLayout,
-            VK_IMAGE_ASPECT_DEPTH_BIT
-        );
+        m_textures[i]->recordTransitionBarriered(cmd, dstLayout);
     }
 
     m_texturesCurrentLayout = dstLayout;

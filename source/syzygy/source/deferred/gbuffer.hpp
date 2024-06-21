@@ -6,10 +6,52 @@
 
 struct GBuffer
 {
-    AllocatedImage diffuseColor{};
-    AllocatedImage specularColor{};
-    AllocatedImage normal{};
-    AllocatedImage worldPosition{};
+    GBuffer() = default;
+
+    GBuffer(GBuffer&& other) { *this = std::move(other); }
+    GBuffer& operator=(GBuffer&& other)
+    {
+        diffuseColor.swap(other.diffuseColor);
+        specularColor.swap(other.specularColor);
+        normal.swap(other.normal);
+        worldPosition.swap(other.worldPosition);
+
+        descriptorLayout =
+            std::exchange(other.descriptorLayout, VK_NULL_HANDLE);
+        descriptors = std::exchange(other.descriptors, VK_NULL_HANDLE);
+
+        immutableSamplers = std::move(other.immutableSamplers);
+
+        return *this;
+    }
+
+    GBuffer(GBuffer const& other) = delete;
+    GBuffer& operator=(GBuffer const& other) = delete;
+
+    GBuffer(
+        AllocatedImage&& diffuse,
+        AllocatedImage&& specular,
+        AllocatedImage&& normal,
+        AllocatedImage&& worldPosition,
+        VkDescriptorSetLayout descriptorLayout,
+        VkDescriptorSet descriptors,
+        std::span<VkSampler const> immutableSamplers
+    )
+        : diffuseColor{std::make_unique<AllocatedImage>(std::move(diffuse))}
+        , specularColor{std::make_unique<AllocatedImage>(std::move(specular))}
+        , normal{std::make_unique<AllocatedImage>(std::move(normal))}
+        , worldPosition{std::make_unique<AllocatedImage>(std::move(worldPosition
+          ))}
+        , descriptorLayout{descriptorLayout}
+        , descriptors{descriptors}
+        , immutableSamplers{immutableSamplers.begin(), immutableSamplers.end()}
+    {
+    }
+
+    std::unique_ptr<AllocatedImage> diffuseColor{};
+    std::unique_ptr<AllocatedImage> specularColor{};
+    std::unique_ptr<AllocatedImage> normal{};
+    std::unique_ptr<AllocatedImage> worldPosition{};
 
     VkDescriptorSetLayout descriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet descriptors{VK_NULL_HANDLE};
@@ -24,12 +66,7 @@ struct GBuffer
         DescriptorAllocator& descriptorAllocator
     );
 
-    VkExtent2D extent() const
-    {
-        return VkExtent2D{
-            diffuseColor.imageExtent.width, diffuseColor.imageExtent.height
-        };
-    }
+    VkExtent2D extent() const { return diffuseColor->extent2D(); }
 
     void recordTransitionImages(
         VkCommandBuffer cmd, VkImageLayout srcLayout, VkImageLayout dstLayout

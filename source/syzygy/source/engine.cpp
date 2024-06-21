@@ -173,14 +173,13 @@ void Engine::initDrawTargets(
 {
     // Initialize the image used for rendering outside of the swapchain.
 
-    VkExtent3D constexpr RESERVED_IMAGE_EXTENT{
-        MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height, 1
+    VkExtent2D constexpr RESERVED_IMAGE_EXTENT{
+        MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
     VkFormat constexpr COLOR_FORMAT{VK_FORMAT_R16G16B16A16_SFLOAT};
     VkImageAspectFlags constexpr COLOR_ASPECTS{VK_IMAGE_ASPECT_COLOR_BIT};
 
-    m_sceneColorTexture =
-        AllocatedImage::allocate(
+    if (std::optional<AllocatedImage> sceneColorResult{AllocatedImage::allocate(
             allocator,
             device,
             AllocatedImage::AllocationParameters{
@@ -188,20 +187,31 @@ void Engine::initDrawTargets(
                 .format = COLOR_FORMAT,
                 .usageFlags =
                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                    | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for e.g.
+                    | VK_IMAGE_USAGE_SAMPLED_BIT // used as descriptor for
+                                                 // e.g.
                                                  // ImGui
                     | VK_IMAGE_USAGE_STORAGE_BIT // used in compute passes
-                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in graphics
+                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT // used in
+                    // graphics
                     // passes
                     | VK_IMAGE_USAGE_TRANSFER_DST_BIT, // copy to from other
                 // render passes
                 .viewFlags = COLOR_ASPECTS,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
             }
-        )
-            .value_or(AllocatedImage::makeInvalid());
+        )};
+        sceneColorResult.has_value())
+    {
+        m_sceneColorTexture =
+            std::make_unique<AllocatedImage>(std::move(sceneColorResult).value()
+            );
+    }
+    else
+    {
+        Warning("Failed to allocate scene color texture.");
+    }
 
-    m_drawImage =
-        AllocatedImage::allocate(
+    if (std::optional<AllocatedImage> drawImageResult{AllocatedImage::allocate(
             allocator,
             device,
             AllocatedImage::AllocationParameters{
@@ -214,13 +224,21 @@ void Engine::initDrawTargets(
                     | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render
                                                            // passes
                 .viewFlags = COLOR_ASPECTS,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
             }
-        )
-            .value_or(AllocatedImage::makeInvalid()
-            ); // TODO: handle failed case
+        )};
+        drawImageResult.has_value())
+    {
+        m_drawImage =
+            std::make_unique<AllocatedImage>(std::move(drawImageResult).value()
+            );
+    }
+    else
+    {
+        Warning("Failed to allocate total draw image.");
+    }
 
-    m_sceneDepthTexture =
-        AllocatedImage::allocate(
+    if (std::optional<AllocatedImage> sceneDepthResult{AllocatedImage::allocate(
             allocator,
             device,
             AllocatedImage::AllocationParameters{
@@ -230,18 +248,19 @@ void Engine::initDrawTargets(
                             | VK_IMAGE_USAGE_SAMPLED_BIT
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
             }
-        )
-            .value_or(AllocatedImage::makeInvalid());
-}
-
-void Engine::cleanupDrawTargets(
-    VkDevice const device, VmaAllocator const allocator
-)
-{
-    m_sceneColorTexture.cleanup(device, allocator);
-    m_drawImage.cleanup(device, allocator);
-    m_sceneDepthTexture.cleanup(device, allocator);
+        )};
+        sceneDepthResult.has_value())
+    {
+        m_sceneDepthTexture =
+            std::make_unique<AllocatedImage>(std::move(sceneDepthResult).value()
+            );
+    }
+    else
+    {
+        Warning("Failed to allocate scene depth texture.");
+    }
 }
 
 void Engine::initCommands(
@@ -325,7 +344,7 @@ void Engine::updateDescriptors(VkDevice const device)
 {
     VkDescriptorImageInfo const sceneTextureInfo{
         .sampler = VK_NULL_HANDLE,
-        .imageView = m_sceneColorTexture.imageView,
+        .imageView = m_sceneColorTexture->view(),
         .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
     };
 
@@ -517,8 +536,8 @@ void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
     m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
         device,
         DebugLineGraphicsPipeline::ImageFormats{
-            .color = m_sceneColorTexture.imageFormat,
-            .depth = m_sceneDepthTexture.imageFormat,
+            .color = m_sceneColorTexture->format(),
+            .depth = m_sceneDepthTexture->format(),
         }
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
@@ -547,7 +566,7 @@ void Engine::initDeferredShadingPipeline(
     );
 
     m_deferredShadingPipeline->updateRenderTargetDescriptors(
-        device, m_sceneDepthTexture
+        device, *m_sceneDepthTexture
     );
 }
 
@@ -606,7 +625,7 @@ void Engine::initImgui(
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    std::vector<VkFormat> const colorAttachmentFormats{m_drawImage.imageFormat};
+    std::vector<VkFormat> const colorAttachmentFormats{m_drawImage->format()};
     VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .pNext = nullptr,
@@ -681,7 +700,7 @@ void Engine::initImgui(
 
         m_imguiSceneTextureDescriptor = ImGui_ImplVulkan_AddTexture(
             m_imguiSceneTextureSampler,
-            m_sceneColorTexture.imageView,
+            m_sceneColorTexture->view(),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
@@ -966,11 +985,13 @@ auto Engine::renderUI(VkDevice const device) -> bool
                 .extent{VkExtent2D{sceneContentExtent}},
             };
 
+            VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D()};
+
             ImVec2 const uvMax{
                 static_cast<float>(m_sceneRect.extent.width)
-                    / static_cast<float>(m_sceneColorTexture.imageExtent.width),
+                    / static_cast<float>(sceneTotalExtent.width),
                 static_cast<float>(m_sceneRect.extent.height)
-                    / static_cast<float>(m_sceneColorTexture.imageExtent.height)
+                    / static_cast<float>(sceneTotalExtent.height)
             };
 
             ImGui::Image(
@@ -1102,15 +1123,14 @@ auto Engine::renderUI(VkDevice const device) -> bool
                     .extent{sceneContentExtent},
                 };
 
+                VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D(
+                )};
+
                 ImVec2 const uvMax{
                     static_cast<float>(m_sceneRect.extent.width)
-                        / static_cast<float>(
-                            m_sceneColorTexture.imageExtent.width
-                        ),
+                        / static_cast<float>(sceneTotalExtent.width),
                     static_cast<float>(m_sceneRect.extent.height)
-                        / static_cast<float>(
-                            m_sceneColorTexture.imageExtent.height
-                        )
+                        / static_cast<float>(sceneTotalExtent.height)
                 };
 
                 ImGui::Image(
@@ -1268,12 +1288,8 @@ void Engine::draw(VkCommandBuffer const cmd)
     }
 
     {
-        vkutil::transitionImage(
-            cmd,
-            m_sceneColorTexture.image,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_ASPECT_COLOR_BIT
+        m_sceneColorTexture->recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_GENERAL
         );
 
         switch (m_activeRenderingPipeline)
@@ -1386,9 +1402,8 @@ void Engine::draw(VkCommandBuffer const cmd)
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 m_sceneRect,
-                VK_IMAGE_LAYOUT_GENERAL,
-                m_sceneColorTexture,
-                m_sceneDepthTexture,
+                *m_sceneColorTexture,
+                *m_sceneDepthTexture,
                 directionalLights,
                 m_showSpotlights ? spotLights
                                  : std::vector<gputypes::LightSpot>{},
@@ -1399,6 +1414,10 @@ void Engine::draw(VkCommandBuffer const cmd)
                 m_renderMeshInstances,
                 *m_testMeshes[m_testMeshUsed],
                 m_meshInstances
+            );
+
+            m_sceneColorTexture->recordTransitionBarriered(
+                cmd, VK_IMAGE_LAYOUT_GENERAL
             );
 
             m_debugLines.pushBox(
@@ -1425,31 +1444,16 @@ void Engine::draw(VkCommandBuffer const cmd)
 
     // ImGui Drawing
 
-    vkutil::transitionImage(
-        cmd,
-        m_sceneColorTexture.image,
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
+    m_sceneColorTexture->recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+    m_drawImage->recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     );
 
-    vkutil::transitionImage(
-        cmd,
-        m_drawImage.image,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
+    recordDrawImgui(cmd, m_drawImage->view());
 
-    recordDrawImgui(cmd, m_drawImage.imageView);
-
-    vkutil::transitionImage(
-        cmd,
-        m_drawImage.image,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_IMAGE_ASPECT_COLOR_BIT
-    );
+    m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
     // End ImGui Drawing
 }
@@ -1504,8 +1508,8 @@ void Engine::recordDrawDebugLines(
                 false,
                 m_debugLines.lineWidth,
                 m_sceneRect,
-                m_sceneColorTexture,
-                m_sceneDepthTexture,
+                *m_sceneColorTexture,
+                *m_sceneDepthTexture,
                 cameraIndex,
                 camerasBuffer,
                 *m_debugLines.vertices,
@@ -1557,7 +1561,9 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
     vkDestroyFence(device, m_immFence, nullptr);
     vkDestroyCommandPool(device, m_immCommandPool, nullptr);
 
-    cleanupDrawTargets(device, allocator);
+    m_sceneDepthTexture.reset();
+    m_sceneColorTexture.reset();
+    m_drawImage.reset();
 
     m_initialized = false;
 

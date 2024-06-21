@@ -177,6 +177,8 @@ auto VulkanContext::create(GLFWwindow* window) -> std::optional<VulkanContext>
     }
     uint32_t const graphicsQueueFamily{graphicsQueueFamilyResult.value()};
 
+    cleanupCallbacks.clear();
+
     return VulkanContext{
         .instance = instance.instance,
         .debugMessenger = instance.debug_messenger,
@@ -233,6 +235,8 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
     VmaAllocator const allocator{allocatorResult.value()};
     cleanupCallbacks.pushFunction([&]() { vmaDestroyAllocator(allocator); });
+
+    cleanupCallbacks.clear();
 
     return GraphicsContext{vulkanContext, allocator};
 }

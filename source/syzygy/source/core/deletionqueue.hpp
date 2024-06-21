@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../helpers.hpp"
 #include <deque>
 #include <functional>
 
@@ -21,6 +22,15 @@ public:
         cleanupCallbacks.clear();
     }
     void clear() { cleanupCallbacks.clear(); }
+
+    ~DeletionQueue() noexcept
+    {
+        if (!cleanupCallbacks.empty())
+        {
+            Warning("Cleanup callbacks was flushed.");
+            flush();
+        }
+    }
 
 private:
     std::deque<std::function<void()>> cleanupCallbacks{};

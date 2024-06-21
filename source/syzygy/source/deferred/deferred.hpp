@@ -20,9 +20,8 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd,
         VkRect2D drawRect,
-        VkImageLayout colorLayout,
-        AllocatedImage const& color,
-        AllocatedImage const& depth,
+        AllocatedImage& color,
+        AllocatedImage& depth,
         std::span<gputypes::LightDirectional const> directionalLights,
         std::span<gputypes::LightSpot const> spotLights,
         uint32_t viewCameraIndex,
@@ -34,16 +33,14 @@ public:
         MeshInstances const& sceneGeometry
     );
 
-    void updateRenderTargetDescriptors(
-        VkDevice device, AllocatedImage const& depthImage
-    );
+    void updateRenderTargetDescriptors(VkDevice, AllocatedImage& depthImage);
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:
     ShadowPassArray m_shadowPassArray{};
 
-    AllocatedImage m_drawImage{};
+    std::unique_ptr<AllocatedImage> m_drawImage{};
 
     VmaAllocator m_allocator{VK_NULL_HANDLE};
 
