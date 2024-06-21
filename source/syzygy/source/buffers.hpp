@@ -20,6 +20,8 @@ public:
     };
     AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept
     {
+        destroy();
+
         m_vkCreateInfo = std::exchange(other.m_vkCreateInfo, {});
         m_vmaCreateInfo = std::exchange(other.m_vmaCreateInfo, {});
 
@@ -36,15 +38,7 @@ public:
     AllocatedBuffer(AllocatedBuffer const& other) = delete;
     AllocatedBuffer& operator=(AllocatedBuffer const& other) = delete;
 
-    ~AllocatedBuffer() noexcept
-    {
-        if (m_allocator == VK_NULL_HANDLE)
-        {
-            return;
-        }
-
-        vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
-    }
+    ~AllocatedBuffer() noexcept { destroy(); }
 
 public:
     static auto allocate(
@@ -70,6 +64,8 @@ public:
     VkResult flush();
 
 private:
+    void destroy() const;
+
     AllocatedBuffer(
         VkBufferCreateInfo vkCreateInfo,
         VmaAllocationCreateInfo vmaCreateInfo,
@@ -117,10 +113,10 @@ struct StagedBuffer
     {
         m_dirty = std::exchange(other.m_dirty, false);
 
-        m_deviceBuffer = std::move(other.m_deviceBuffer);
+        m_deviceBuffer.reset(other.m_deviceBuffer.release());
         m_deviceSizeBytes = std::exchange(other.m_deviceSizeBytes, 0);
 
-        m_stagingBuffer = std::move(other.m_stagingBuffer);
+        m_stagingBuffer.reset(other.m_stagingBuffer.release());
         m_stagedSizeBytes = std::exchange(other.m_stagedSizeBytes, 0);
 
         return *this;

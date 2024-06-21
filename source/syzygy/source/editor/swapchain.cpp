@@ -62,24 +62,13 @@ auto Swapchain::create(
     cleanupCallbacks.clear();
 
     return Swapchain{
+        device,
         swapchain.swapchain,
         SWAPCHAIN_IMAGE_FORMAT,
         std::move(imagesResult).value(),
         std::move(viewsResult).value(),
         swapchain.extent,
     };
-}
-
-void Swapchain::destroy(VkDevice const device)
-{
-    vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-
-    for (VkImageView const view : m_imageViews)
-    {
-        vkDestroyImageView(device, view, nullptr);
-    }
-
-    *this = Swapchain{};
 }
 
 auto Swapchain::swapchain() const -> VkSwapchainKHR { return m_swapchain; }
@@ -92,3 +81,24 @@ auto Swapchain::imageViews() const -> std::span<VkImageView const>
 }
 
 auto Swapchain::extent() const -> VkExtent2D { return m_extent; }
+
+void Swapchain::destroy()
+{
+    if (m_swapchain == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    if (m_device == VK_NULL_HANDLE)
+    {
+        Warning("Device was null when trying to destroy swapchain.");
+        return;
+    }
+
+    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+
+    for (VkImageView const view : m_imageViews)
+    {
+        vkDestroyImageView(m_device, view, nullptr);
+    }
+}

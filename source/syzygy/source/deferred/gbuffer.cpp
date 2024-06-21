@@ -223,13 +223,22 @@ auto GBuffer::create(
     cleanupCallbacks.clear();
 
     return GBuffer{
-        std::move(createDiffuseResult).value(),
-        std::move(createSpecularResult).value(),
-        std::move(createNormalResult).value(),
-        std::move(createWorldPositionResult).value(),
-        descriptorLayoutResult.value(),
-        descriptorSet,
-        immutableSamplers
+        .diffuseColor = std::make_unique<AllocatedImage>(
+            std::move(createDiffuseResult).value()
+        ),
+        .specularColor = std::make_unique<AllocatedImage>(
+            std::move(createSpecularResult).value()
+        ),
+        .normal = std::make_unique<AllocatedImage>(
+            std::move(createNormalResult).value()
+        ),
+        .worldPosition = std::make_unique<AllocatedImage>(
+            std::move(createWorldPositionResult).value()
+        ),
+        .descriptorLayout = descriptorLayoutResult.value(),
+        .descriptors = descriptorSet,
+        .immutableSamplers =
+            {immutableSamplers.begin(), immutableSamplers.end()},
     };
 }
 
@@ -245,7 +254,7 @@ void GBuffer::recordTransitionImages(
     worldPosition->recordTransitionBarriered(cmd, dstLayout);
 }
 
-void GBuffer::cleanup(VkDevice const device, VmaAllocator const /*allocator*/)
+void GBuffer::cleanup(VkDevice const device)
 {
     diffuseColor.reset();
     specularColor.reset();

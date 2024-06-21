@@ -13,6 +13,7 @@ struct ShadowPassParameters
 
 // Handles the resources for an array of depth maps,
 // which share a sampler and should be accessed via a descriptor array.
+// TODO: Implement move/copy/constructors to properly manage resources
 class ShadowPassArray
 {
 public:

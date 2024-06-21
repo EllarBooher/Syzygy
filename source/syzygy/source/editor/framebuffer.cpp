@@ -134,7 +134,7 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
     cleanupCallbacks.pushFunction(
         [&]
     {
-        for (Frame& frame : frames)
+        for (Frame const& frame : frames)
         {
             frame.destroy(device);
         }
@@ -158,7 +158,7 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
 
     cleanupCallbacks.clear();
 
-    return {FrameBuffer{std::move(frames)}, VK_SUCCESS};
+    return {FrameBuffer{device, std::move(frames)}, VK_SUCCESS};
 }
 
 auto FrameBuffer::currentFrame() const -> Frame const&
@@ -171,23 +171,19 @@ auto FrameBuffer::frameNumber() const -> size_t { return m_frameNumber; }
 
 void FrameBuffer::increment() { m_frameNumber += 1; }
 
-void FrameBuffer::destroy(VkDevice device)
+void FrameBuffer::destroy()
 {
-    for (Frame& frame : m_frames)
+    for (Frame const& frame : m_frames)
     {
-        frame.destroy(device);
+        frame.destroy(m_device);
     }
-
-    *this = FrameBuffer{};
 }
 
-void Frame::destroy(VkDevice const device)
+void Frame::destroy(VkDevice const device) const
 {
     vkDestroyCommandPool(device, commandPool, nullptr);
 
     vkDestroyFence(device, renderFence, nullptr);
     vkDestroySemaphore(device, renderSemaphore, nullptr);
     vkDestroySemaphore(device, swapchainSemaphore, nullptr);
-
-    *this = Frame{};
 }

@@ -71,6 +71,8 @@ public:
     };
     AllocatedImage& operator=(AllocatedImage&& other) noexcept
     {
+        destroy();
+
         m_imageCreateInfo = std::exchange(other.m_imageCreateInfo, {});
         m_viewCreateInfo = std::exchange(other.m_viewCreateInfo, {});
         m_vmaCreateInfo = std::exchange(other.m_vmaCreateInfo, {});
@@ -135,6 +137,8 @@ public:
     auto view() -> VkImageView;
 
 private:
+    void destroy();
+
     AllocatedImage(
         VkImageCreateInfo imageCreateInfo,
         VkImageViewCreateInfo imageViewCreateInfo,

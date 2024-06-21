@@ -191,10 +191,17 @@ auto VulkanContext::create(GLFWwindow* window) -> std::optional<VulkanContext>
 }
 void VulkanContext::destroy() const
 {
-    vkDestroyDevice(device, nullptr);
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    if (device != VK_NULL_HANDLE)
+    {
+        vkDestroyDevice(device, nullptr);
+    }
+
+    if (instance != VK_NULL_HANDLE)
+    {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        vkDestroyInstance(instance, nullptr);
+    }
 }
 
 auto GraphicsContext::create(PlatformWindow const& window)
@@ -253,8 +260,10 @@ auto GraphicsContext::allocator() const -> VmaAllocator const&
 
 void GraphicsContext::destroy()
 {
-    vmaDestroyAllocator(m_allocator);
-    m_vulkan.destroy();
+    if (m_allocator != VK_NULL_HANDLE)
+    {
+        vmaDestroyAllocator(m_allocator);
+    }
 
-    *this = GraphicsContext{};
+    m_vulkan.destroy();
 }

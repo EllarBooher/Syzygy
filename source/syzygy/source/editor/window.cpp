@@ -39,11 +39,6 @@ auto PlatformWindow::create(glm::u16vec2 const extent)
     return PlatformWindow{handle};
 }
 
-void PlatformWindow::destroy()
-{
-    glfwDestroyWindow(m_handle);
-
-    *this = PlatformWindow{};
-}
+void PlatformWindow::destroy() { glfwDestroyWindow(m_handle); }
 
 auto PlatformWindow::handle() const -> GLFWwindow* { return m_handle; }

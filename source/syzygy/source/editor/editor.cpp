@@ -123,8 +123,6 @@ auto rebuildSwapchain(
         newExtent, physicalDevice, device, surface, old.swapchain()
     )};
 
-    old.destroy(device);
-
     return newSwapchain;
 }
 auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
@@ -380,26 +378,29 @@ auto Editor::run() -> EditorResult
                 return EditorResult::ERROR_EDITOR;
             }
 
-            std::optional<Swapchain> newSwapchain{rebuildSwapchain(
-                m_swapchain,
-                vulkanContext.physicalDevice,
-                vulkanContext.device,
-                vulkanContext.surface,
-                m_window.extent()
-            )};
-            if (!newSwapchain.has_value())
+            if (std::optional<Swapchain> newSwapchain{rebuildSwapchain(
+                    m_swapchain,
+                    vulkanContext.physicalDevice,
+                    vulkanContext.device,
+                    vulkanContext.surface,
+                    m_window.extent()
+                )};
+                newSwapchain.has_value())
+            {
+                m_swapchain = std::move(newSwapchain).value();
+            }
+            else
             {
                 Error("Failed to create new swapchain for resizing");
                 return EditorResult::ERROR_EDITOR;
             }
-            m_swapchain = std::move(newSwapchain).value();
         }
     }
 
     return EditorResult::SUCCESS;
 }
 
-Editor::~Editor() noexcept
+void Editor::destroy()
 {
     if (!m_initialized)
     {
@@ -418,10 +419,12 @@ Editor::~Editor() noexcept
         m_renderer->cleanup(device, m_graphics.allocator());
     }
 
-    m_frameBuffer.destroy(device);
-    m_swapchain.destroy(device);
-    m_graphics.destroy();
+    // Ensure proper destruction order
+    m_frameBuffer = {};
+    m_swapchain = {};
+    m_graphics = {};
+
+    m_window = {};
 
     glfwTerminate();
-    m_window.destroy();
 }

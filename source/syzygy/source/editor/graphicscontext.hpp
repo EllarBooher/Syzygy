@@ -32,11 +32,15 @@ public:
 
     GraphicsContext& operator=(GraphicsContext&& other)
     {
+        destroy();
+
         m_vulkan = std::exchange(other.m_vulkan, VulkanContext{});
         m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
 
         return *this;
     }
+
+    ~GraphicsContext() noexcept { destroy(); }
 
     GraphicsContext(GraphicsContext const& other) = delete;
     GraphicsContext& operator=(GraphicsContext const& other) = delete;
@@ -44,12 +48,12 @@ public:
     static auto create(PlatformWindow const& window)
         -> std::optional<GraphicsContext>;
 
-    void destroy();
-
     auto vulkanContext() const -> VulkanContext const&;
     auto allocator() const -> VmaAllocator const&;
 
 private:
+    void destroy();
+
     explicit GraphicsContext(
         VulkanContext const& vulkan, VmaAllocator allocator
     )

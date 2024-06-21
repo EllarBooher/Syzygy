@@ -905,7 +905,7 @@ void DeferredShadingPipeline::cleanup(
 )
 {
     m_shadowPassArray.cleanup(device, allocator);
-    m_gBuffer.cleanup(device, allocator);
+    m_gBuffer.cleanup(device);
 
     m_directionalLights.reset();
     m_spotLights.reset();

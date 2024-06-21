@@ -24,6 +24,8 @@ public:
 
     Editor& operator=(Editor&& other)
     {
+        destroy();
+
         m_window = std::move(other.m_window);
         m_graphics = std::move(other.m_graphics);
         m_swapchain = std::move(other.m_swapchain);
@@ -39,12 +41,14 @@ public:
 
     static auto create() -> std::optional<Editor>;
 
-    ~Editor() noexcept;
+    ~Editor() noexcept { destroy(); }
 
     auto run() -> EditorResult;
 
 private:
     Editor() = default;
+
+    void destroy();
 
     explicit Editor(
         PlatformWindow&& window,

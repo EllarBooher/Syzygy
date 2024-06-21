@@ -115,6 +115,25 @@ auto AllocatedBuffer::buffer() const -> VkBuffer { return m_buffer; }
 
 auto AllocatedBuffer::flush() -> VkResult { return flush_impl(*this); }
 
+void AllocatedBuffer::destroy() const
+{
+    if (m_allocator == VK_NULL_HANDLE
+        && (m_allocation != VK_NULL_HANDLE || m_buffer != VK_NULL_HANDLE))
+    {
+        Warning("Allocator was null when attempting to destroy buffer and/or "
+                "memory.");
+        return;
+    }
+
+    if (m_allocator == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    // VMA handles the case of if one or the other is null
+    vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+}
+
 auto AllocatedBuffer::getMappedPointer_impl(AllocatedBuffer& buffer) -> uint8_t*
 {
     void* const rawPointer{allocationInfo_impl(buffer).pMappedData};

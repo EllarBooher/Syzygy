@@ -204,31 +204,7 @@ auto vkutil::aspectRatio(VkExtent2D const extent) -> double
     return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
 }
 
-AllocatedImage::~AllocatedImage() noexcept
-{
-    if (m_allocation == VK_NULL_HANDLE && m_view == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    if (m_allocation == VK_NULL_HANDLE || m_device == VK_NULL_HANDLE
-        || m_view == VK_NULL_HANDLE || m_image == VK_NULL_HANDLE)
-    {
-        Warning(fmt::format(
-            "One of but not all image handles were null upon destruction. "
-            "This has resulted in a leak. Allocation: {}. Device: {}. "
-            "View: {}. Image: {}.",
-            reinterpret_cast<uint64_t>(m_allocation),
-            reinterpret_cast<uint64_t>(m_device),
-            reinterpret_cast<uint64_t>(m_view),
-            reinterpret_cast<uint64_t>(m_image)
-        ));
-        return;
-    }
-
-    vkDestroyImageView(m_device, m_view, nullptr);
-    vmaDestroyImage(m_allocator, m_image, m_allocation);
-}
+AllocatedImage::~AllocatedImage() noexcept { destroy(); }
 
 auto AllocatedImage::allocate(
     VmaAllocator const allocator,
@@ -367,6 +343,32 @@ auto AllocatedImage::aspectRatio() const -> double
 }
 
 auto AllocatedImage::view() -> VkImageView { return view_impl(*this); }
+
+void AllocatedImage::destroy()
+{
+    if (m_allocation == VK_NULL_HANDLE && m_view == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    if (m_allocation == VK_NULL_HANDLE || m_device == VK_NULL_HANDLE
+        || m_view == VK_NULL_HANDLE || m_image == VK_NULL_HANDLE)
+    {
+        Warning(fmt::format(
+            "One of but not all image handles were null upon destruction. "
+            "This has resulted in a leak. Allocation: {}. Device: {}. "
+            "View: {}. Image: {}.",
+            reinterpret_cast<uint64_t>(m_allocation),
+            reinterpret_cast<uint64_t>(m_device),
+            reinterpret_cast<uint64_t>(m_view),
+            reinterpret_cast<uint64_t>(m_image)
+        ));
+        return;
+    }
+
+    vkDestroyImageView(m_device, m_view, nullptr);
+    vmaDestroyImage(m_allocator, m_image, m_allocation);
+}
 
 auto AllocatedImage::image() -> VkImage { return image_impl(*this); }
 
