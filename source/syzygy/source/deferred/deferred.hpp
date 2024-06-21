@@ -42,8 +42,6 @@ private:
 
     std::unique_ptr<AllocatedImage> m_drawImage{};
 
-    VmaAllocator m_allocator{VK_NULL_HANDLE};
-
     typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 

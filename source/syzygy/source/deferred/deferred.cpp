@@ -1,6 +1,7 @@
 #include "deferred.hpp"
 
 #include "../initializers.hpp"
+#include "../renderpass/renderpass.hpp"
 
 namespace
 {
@@ -122,8 +123,6 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     VkExtent2D const dimensionCapacity
 )
 {
-    m_allocator = allocator;
-
     if (std::optional<GBuffer> gBufferResult{GBuffer::create(
             device, dimensionCapacity, allocator, descriptorAllocator
         )};
@@ -515,9 +514,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     if (renderMesh)
     { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(
-            cmd,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         );
 
         depth.recordTransitionBarriered(
@@ -686,47 +683,22 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
     else
     {
-        depth.recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-
-        VkClearDepthStencilValue const clearValue{.depth = 0.0};
-        VkImageSubresourceRange const range{
-            vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
-        };
-        vkCmdClearDepthStencilImage(
-            cmd, depth.image(), VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range
-        );
-
-        depth.recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+        renderpass::recordClearDepthImage(
+            cmd, depth, VkClearDepthStencilValue{.depth = renderpass::DEPTH_FAR}
         );
     }
 
-    { // Clear color image
-        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-
-        VkClearColorValue const clearColor{.float32{0.0, 0.0, 0.0, 1.0}};
-        VkImageSubresourceRange const range{
-            vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
-        };
-        vkCmdClearColorImage(
-            cmd,
-            m_drawImage->image(),
-            VK_IMAGE_LAYOUT_GENERAL,
-            &clearColor,
-            1,
-            &range
-        );
-
-        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-    }
+    renderpass::recordClearColorImage(
+        cmd, color, renderpass::COLOR_BLACK_OPAQUE
+    );
 
     if (renderMesh)
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
-            cmd,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+            cmd, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
         );
+
+        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
         m_shadowPassArray.recordTransitionActiveShadowMaps(
             cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL

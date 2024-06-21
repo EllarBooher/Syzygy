@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include <glm/vec4.hpp>
+
 #include "vulkanusage.hpp"
 #include <optional>
 #include <span>
@@ -74,4 +76,5 @@ VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
     std::span<VkDescriptorSetLayout const> layouts,
     std::span<VkPushConstantRange const> ranges
 );
+
 } // namespace vkinit

@@ -84,7 +84,6 @@ public:
         m_samplerSet = VK_NULL_HANDLE;
         m_texturesSetLayout = VK_NULL_HANDLE;
         m_texturesSet = VK_NULL_HANDLE;
-        m_texturesCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
 private:
@@ -93,9 +92,6 @@ private:
     // Each of these staged values represents
     // a shadow map we are going to write
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> m_projViewMatrices{};
-    // The current layout of the textures,
-    // as recorded by this class.
-    VkImageLayout m_texturesCurrentLayout{VK_IMAGE_LAYOUT_UNDEFINED};
 
     VmaAllocator m_allocator{VK_NULL_HANDLE};
 

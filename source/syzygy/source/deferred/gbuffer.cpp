@@ -243,9 +243,7 @@ auto GBuffer::create(
 }
 
 void GBuffer::recordTransitionImages(
-    VkCommandBuffer const cmd,
-    VkImageLayout const /*srcLayout*/,
-    VkImageLayout const dstLayout
+    VkCommandBuffer const cmd, VkImageLayout const dstLayout
 ) const
 {
     diffuseColor->recordTransitionBarriered(cmd, dstLayout);

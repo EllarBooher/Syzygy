@@ -27,6 +27,7 @@ add_library(
 	"source/vulkanusage.cpp"
 	"source/editor/swapchain.cpp"
 	"source/editor/framebuffer.cpp"
+    "source/renderpass/renderpass.cpp"
 )
 
 add_dependencies(syzygy Shaders)

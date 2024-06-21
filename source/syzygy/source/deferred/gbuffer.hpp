@@ -26,9 +26,8 @@ struct GBuffer
 
     VkExtent2D extent() const { return diffuseColor->extent2D(); }
 
-    void recordTransitionImages(
-        VkCommandBuffer cmd, VkImageLayout srcLayout, VkImageLayout dstLayout
-    ) const;
+    void
+    recordTransitionImages(VkCommandBuffer cmd, VkImageLayout dstLayout) const;
 
     void cleanup(VkDevice device);
 };

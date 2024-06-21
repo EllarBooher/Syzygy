@@ -3,6 +3,8 @@
 #include "images.hpp"
 #include "initializers.hpp"
 
+#include "renderpass/renderpass.hpp"
+
 auto ShadowPassArray::create(
     VkDevice const device,
     DescriptorAllocator& descriptorAllocator,
@@ -213,27 +215,9 @@ void ShadowPassArray::recordInitialize(
     }
 
     { // Clear each shadow map we are going to use
-        m_texturesCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        recordTransitionActiveShadowMaps(cmd, VK_IMAGE_LAYOUT_GENERAL);
-
         for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
         {
-            VkClearDepthStencilValue const clearValue{
-                .depth = 0.0,
-            };
-
-            VkImageSubresourceRange const range{
-                vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
-            };
-
-            vkCmdClearDepthStencilImage(
-                cmd,
-                m_textures[i]->image(),
-                VK_IMAGE_LAYOUT_GENERAL,
-                &clearValue,
-                1,
-                &range
-            );
+            renderpass::recordClearDepthImage(cmd, *m_textures[i], renderpass::DEPTH_FAR_STENCIL_NONE);
         }
 
         // Prepare for recording of draw commands
@@ -273,6 +257,4 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
     {
         m_textures[i]->recordTransitionBarriered(cmd, dstLayout);
     }
-
-    m_texturesCurrentLayout = dstLayout;
 }
