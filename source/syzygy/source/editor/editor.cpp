@@ -4,6 +4,8 @@
 #include "../helpers.hpp"
 #include "../initializers.hpp"
 #include <GLFW/glfw3.h>
+#include <chrono>
+#include <thread>
 
 auto Editor::create() -> std::optional<Editor>
 {
@@ -301,6 +303,8 @@ auto endFrame(
 
 auto Editor::run() -> EditorResult
 {
+    using namespace std::chrono_literals;
+
     if (m_renderer == nullptr)
     {
         return EditorResult::ERROR_NO_RENDERER;
@@ -316,6 +320,8 @@ auto Editor::run() -> EditorResult
 
         if (iconified)
         {
+            // TODO: should time pause while minified?
+            std::this_thread::sleep_for(1ms);
             continue;
         }
 
