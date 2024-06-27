@@ -72,7 +72,6 @@ private:
         uint8_t padding0[12]{};
     };
 
-    GBufferVertexPushConstant /* mutable */ m_gBufferVertexPushConstant{};
     ShaderObjectReflected m_gBufferVertexShader{
         ShaderObjectReflected::makeInvalid()
     };
@@ -100,8 +99,6 @@ private:
         glm::vec2 gbufferExtent{};
     };
 
-    LightingPassComputePushConstant /* mutable */ m_lightingPassPushConstant{};
-
     ShaderObjectReflected m_lightingPassComputeShader{
         ShaderObjectReflected::makeInvalid()
     };
@@ -121,8 +118,6 @@ private:
 
         uint8_t padding0[8]{};
     };
-
-    SkyPassComputePushConstant /* mutable */ m_skyPassPushConstant{};
 
     ShaderObjectReflected m_skyPassComputeShader{
         ShaderObjectReflected::makeInvalid()

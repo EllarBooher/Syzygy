@@ -650,7 +650,6 @@ void DeferredShadingPipeline::recordDrawCommands(
                 sizeof(GBufferVertexPushConstant),
                 &vertexPushConstant
             );
-            m_gBufferVertexPushConstant = vertexPushConstant;
         }
 
         GeometrySurface const& drawnSurface{sceneMesh.surfaces[0]};
@@ -741,7 +740,6 @@ void DeferredShadingPipeline::recordDrawCommands(
             .gbufferExtent =
                 glm::vec2(m_gBuffer.extent().width, m_gBuffer.extent().height),
         };
-        m_lightingPassPushConstant = pushConstant;
 
         vkCmdPushConstants(
             cmd,
@@ -749,7 +747,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
             sizeof(LightingPassComputePushConstant),
-            &m_lightingPassPushConstant
+            &pushConstant
         );
 
         uint32_t constexpr COMPUTE_WORKGROUP_SIZE{16};
@@ -800,7 +798,6 @@ void DeferredShadingPipeline::recordDrawCommands(
             .drawExtent =
                 glm::vec2{drawRect.extent.width, drawRect.extent.height},
         };
-        m_skyPassPushConstant = pushConstant;
 
         vkCmdPushConstants(
             cmd,
@@ -808,7 +805,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
             sizeof(SkyPassComputePushConstant),
-            &m_skyPassPushConstant
+            &pushConstant
         );
 
         uint32_t constexpr COMPUTE_WORKGROUP_SIZE{16};
