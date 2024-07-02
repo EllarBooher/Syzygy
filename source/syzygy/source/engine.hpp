@@ -66,7 +66,7 @@ private:
     );
 
 private:
-    bool renderUI(VkDevice);
+    bool renderUI();
     void draw(VkCommandBuffer);
 
     void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);

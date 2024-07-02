@@ -64,6 +64,43 @@ AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     }
 };
 
+namespace
+{
+// Resets the ImGui style and reloads other resources like fonts, then builds a
+// new style from the passed preferences.
+void reloadUI(
+    VkDevice const device,
+    UIPreferences const preferences,
+    ImGuiStyle const styleDefault
+)
+{
+    float constexpr FONT_BASE_SIZE{13.0F};
+
+    std::filesystem::path const fontPath{
+        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(
+            std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}
+        )
+    };
+    ImGui::GetIO().Fonts->Clear();
+    ImGui::GetIO().Fonts->AddFontFromFileTTF(
+        fontPath.string().c_str(), FONT_BASE_SIZE * preferences.dpiScale
+    );
+
+    // Wait for idle since we are modifying backend resources
+    vkDeviceWaitIdle(device);
+    // We destroy this to later force a rebuild when the fonts are needed.
+    ImGui_ImplVulkan_DestroyFontsTexture();
+
+    // TODO: is rebuilding the font with a specific scale good?
+    // ImGui recommends building fonts at various sizes then just
+    // selecting them
+
+    // Reset style so further scaling works off the base "1.0x" scaling
+    ImGui::GetStyle() = styleDefault;
+    ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
+}
+} // namespace
+
 Engine::Engine(
     PlatformWindow const& window,
     VkInstance const instance,
@@ -882,14 +919,22 @@ auto Engine::mainLoop(
 
     m_fpsValues.write(instantFPS);
 
-    if (renderUI(device))
+    static bool reloadUIRequested{false};
+
+    if (reloadUIRequested)
+    {
+        reloadUI(device, m_uiPreferences, m_imguiStyleDefault);
+        reloadUIRequested = false;
+    }
+
+    if (renderUI())
     {
         // TODO: fix
         // For some reason, ImGui gives visual artifacts for two frames
         // when resetting certain docking states. We force updating to
         // flush these through.
-        renderUI(device);
-        renderUI(device);
+        renderUI();
+        renderUI();
     }
     draw(cmd);
 
@@ -901,44 +946,8 @@ auto Engine::mainLoop(
 // file. Considerations must be made for updating the scene drawing extents and
 // all of engine's members.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Engine::renderUI(VkDevice const device) -> bool
+auto Engine::renderUI() -> bool
 {
-    if (m_uiReloadRequested)
-    {
-        // It is necessary to defer reloading to before each frame, since
-        // beginning an ImGui frame locks some resources we wish to modify.
-
-        float constexpr FONT_BASE_SIZE{13.0F};
-
-        UIPreferences const currentPreferences{m_uiPreferences};
-
-        std::filesystem::path const fontPath{
-            DebugUtils::getLoadedDebugUtils().makeAbsolutePath(
-                std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}
-            )
-        };
-        ImGui::GetIO().Fonts->Clear();
-        ImGui::GetIO().Fonts->AddFontFromFileTTF(
-            fontPath.string().c_str(),
-            FONT_BASE_SIZE * currentPreferences.dpiScale
-        );
-
-        // Wait for idle since we are modifying backend resources
-        vkDeviceWaitIdle(device);
-        // We destroy this to later force a rebuild when the fonts are needed.
-        ImGui_ImplVulkan_DestroyFontsTexture();
-
-        // TODO: is rebuilding the font with a specific scale good?
-        // ImGui recommends building fonts at various sizes then just
-        // selecting them
-
-        // Reset style so further scaling works off the base "1.0x" scaling
-        ImGui::GetStyle() = m_imguiStyleDefault;
-        ImGui::GetStyle().ScaleAllSizes(currentPreferences.dpiScale);
-
-        m_uiReloadRequested = false;
-    }
-
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
