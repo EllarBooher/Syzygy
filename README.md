@@ -1,6 +1,6 @@
 # Syzygy
 
-The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan. In order to aid learning and demonstration, the engine is designed with a focus in configurability and exposing the internals of the rendering.
+The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan.
 
 ## Requirements
 
