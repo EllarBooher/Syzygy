@@ -11,59 +11,53 @@
 #include <fmt/format.h>
 #include <implot.h>
 
-void imguiPerformanceWindow(PerformanceValues const values, float& targetFPS)
+void imguiPerformanceDisplay(PerformanceValues const values, float& targetFPS)
 {
-    if (ImGui::Begin("Performance Information"))
+    ImGui::Text("%s", fmt::format("FPS: {:.1f}", values.averageFPS).c_str());
+    float const minFPS{10.0};
+    float const maxFPS{1000.0};
+    ImGui::DragScalar(
+        "Target FPS",
+        ImGuiDataType_Float,
+        &targetFPS,
+        1.0,
+        &minFPS,
+        &maxFPS,
+        nullptr,
+        ImGuiSliderFlags_AlwaysClamp
+    );
+
+    ImVec2 const plotSize{-1, 200};
+
+    if (ImPlot::BeginPlot("FPS", plotSize))
     {
-        ImGui::Text(
-            "%s", fmt::format("FPS: {:.1f}", values.averageFPS).c_str()
-        );
-        float const minFPS{10.0};
-        float const maxFPS{1000.0};
-        ImGui::DragScalar(
-            "Target FPS",
-            ImGuiDataType_Float,
-            &targetFPS,
-            1.0,
-            &minFPS,
-            &maxFPS,
-            nullptr,
-            ImGuiSliderFlags_AlwaysClamp
+        ImPlot::SetupAxes(
+            "",
+            "FPS",
+            ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock,
+            ImPlotAxisFlags_LockMin
         );
 
-        ImVec2 const plotSize{-1, 200};
+        double constexpr DISPLAYED_FPS_MIN{0.0};
+        double constexpr DISPLAYED_FPS_MAX{320.0};
 
-        if (ImPlot::BeginPlot("FPS", plotSize))
-        {
-            ImPlot::SetupAxes(
-                "",
-                "FPS",
-                ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_Lock,
-                ImPlotAxisFlags_LockMin
-            );
+        ImPlot::SetupAxesLimits(
+            0,
+            static_cast<double>(values.samplesFPS.size()),
+            DISPLAYED_FPS_MIN,
+            DISPLAYED_FPS_MAX
+        );
 
-            double constexpr DISPLAYED_FPS_MIN{0.0};
-            double constexpr DISPLAYED_FPS_MAX{320.0};
+        ImPlot::PlotLine(
+            "##fpsValues",
+            values.samplesFPS.data(),
+            static_cast<int32_t>(values.samplesFPS.size())
+        );
 
-            ImPlot::SetupAxesLimits(
-                0,
-                static_cast<double>(values.samplesFPS.size()),
-                DISPLAYED_FPS_MIN,
-                DISPLAYED_FPS_MAX
-            );
+        ImPlot::PlotInfLines("##current", &values.currentFrame, 1);
 
-            ImPlot::PlotLine(
-                "##fpsValues",
-                values.samplesFPS.data(),
-                static_cast<int32_t>(values.samplesFPS.size())
-            );
-
-            ImPlot::PlotInfLines("##current", &values.currentFrame, 1);
-
-            ImPlot::EndPlot();
-        }
+        ImPlot::EndPlot();
     }
-    ImGui::End();
 }
 
 namespace
@@ -118,6 +112,8 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
         bool resetLayoutRequested{false};
 
         static bool maximizeSceneViewport{false};
+        bool const maximizeSceneViewportLastValue{maximizeSceneViewport};
+
         static bool showPreferences{false};
         static bool showUIDemoWindow{false};
 
@@ -133,6 +129,8 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
         assert(backgroundWindow && "Background Window was closed.");
 
         ImGui::PopStyleVar(3);
+
+        bool maximizeToggled{false};
 
         if (ImGui::BeginMenuBar())
         {
@@ -155,9 +153,13 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
             ImGui::EndMenuBar();
         }
 
-        if (resetLayoutRequested)
+        bool const maximizeEnded{
+            maximizeSceneViewportLastValue && !maximizeSceneViewport
+        };
+
+        if (resetLayoutRequested || maximizeEnded)
         {
-            hud.resetLayoutRequested = true;
+            hud.rebuildLayoutRequested = true;
 
             maximizeSceneViewport = false;
         }
@@ -185,7 +187,7 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
     static bool firstLoop{true};
     if (firstLoop)
     {
-        hud.resetLayoutRequested = true;
+        hud.rebuildLayoutRequested = true;
         firstLoop = false;
     }
 
@@ -622,4 +624,60 @@ void imguiStructureControls(
             }
         )
         .end();
+}
+
+namespace
+{
+auto getWindowScreenRectangle() -> UIRectangle
+{
+    return UIRectangle::fromPosSize(
+        ImGui::GetWindowPos(), ImGui::GetWindowSize()
+    );
+};
+} // namespace
+
+auto UIWindow::beginMaximized(std::string const& name, UIRectangle const workArea)
+    -> UIWindow
+{
+    ImGui::SetNextWindowPos(workArea.pos());
+    ImGui::SetNextWindowSize(workArea.size());
+
+    ImGuiWindowFlags constexpr MAXIMIZED_WINDOW_FLAGS{
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBringToFrontOnFocus
+    };
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
+
+    bool const open{ImGui::Begin(name.c_str(), nullptr, MAXIMIZED_WINDOW_FLAGS)
+    };
+
+    return UIWindow{
+        .screenRectangle = getWindowScreenRectangle(),
+        .open = open,
+        .styleVariables = 1
+    };
+}
+
+auto UIWindow::beginDockable(
+    std::string const& name, std::optional<ImGuiID> const dockspace
+) -> UIWindow
+{
+    if (dockspace.has_value())
+    {
+        ImGui::SetNextWindowDockID(dockspace.value());
+    }
+
+    bool const open{ImGui::Begin(name.c_str())};
+
+    return UIWindow{
+        .screenRectangle = getWindowScreenRectangle(),
+        .open = open,
+        .styleVariables = 0
+    };
+}
+
+UIWindow::~UIWindow()
+{
+    ImGui::End();
+    ImGui::PopStyleVar(styleVariables);
 }

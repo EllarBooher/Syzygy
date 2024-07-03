@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <span>
 
 #include <imgui.h>
@@ -57,17 +58,33 @@ struct UIRectangle
     }
 };
 
+struct UIWindow
+{
+    static auto
+    beginMaximized(std::string const& name, UIRectangle const workArea)
+        -> UIWindow;
+
+    static auto beginDockable(
+        std::string const& name, std::optional<ImGuiID> const dockspace
+    ) -> UIWindow;
+
+    ~UIWindow();
+
+    UIRectangle screenRectangle{};
+    bool open{false};
+    uint16_t styleVariables{0};
+};
+
 struct HUDState
 {
     UIRectangle workArea{};
-    UIRectangle sceneViewport{};
 
     // The background window that acts as the parent of all the laid out windows
     ImGuiID dockspaceID{};
 
     bool maximizeSceneViewport{false};
 
-    bool resetLayoutRequested{false};
+    bool rebuildLayoutRequested{false};
 
     bool resetPreferencesRequested{false};
     bool applyPreferencesRequested{false};
@@ -77,10 +94,10 @@ HUDState renderHUD(UIPreferences& preferences);
 
 struct DockingLayout
 {
-    ImGuiID left{};
-    ImGuiID right{};
-    ImGuiID centerBottom{};
-    ImGuiID centerTop{};
+    std::optional<ImGuiID> left{};
+    std::optional<ImGuiID> right{};
+    std::optional<ImGuiID> centerBottom{};
+    std::optional<ImGuiID> centerTop{};
 };
 
 // Builds a hardcoded hierarchy of docking nodes from the passed parent.
@@ -113,4 +130,4 @@ struct PerformanceValues
     size_t currentFrame;
 };
 
-void imguiPerformanceWindow(PerformanceValues values, float& targetFPS);
+void imguiPerformanceDisplay(PerformanceValues values, float& targetFPS);

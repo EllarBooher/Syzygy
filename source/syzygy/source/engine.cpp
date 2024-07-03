@@ -927,15 +927,7 @@ auto Engine::mainLoop(
         reloadUIRequested = false;
     }
 
-    if (renderUI())
-    {
-        // TODO: fix
-        // For some reason, ImGui gives visual artifacts for two frames
-        // when resetting certain docking states. We force updating to
-        // flush these through.
-        renderUI();
-        renderUI();
-    }
+    renderUI();
     draw(cmd);
 
     return m_drawRect;
@@ -962,198 +954,128 @@ auto Engine::renderUI() -> bool
     }
 
     bool skipFrame{false};
-    std::optional<DockingLayout> dockingLayout{};
+    DockingLayout dockingLayout{};
 
-    if (hud.maximizeSceneViewport)
+    bool const rebuildLayout{
+        hud.rebuildLayoutRequested && hud.dockspaceID != 0
+    };
+    if (rebuildLayout)
     {
-        ImGui::SetNextWindowPos(hud.workArea.pos());
-        ImGui::SetNextWindowSize(hud.workArea.size());
+        dockingLayout =
+            buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
+        skipFrame = true;
+    }
 
-        ImGuiWindowFlags constexpr FULLSCREEN_WINDOW_FLAGS{
-            ImGuiWindowFlags_None | ImGuiWindowFlags_NoDecoration
-            | ImGuiWindowFlags_NoBringToFrontOnFocus
+    if (UIWindow const sceneViewport{
+            hud.maximizeSceneViewport
+                ? UIWindow::beginMaximized("Scene Viewport", hud.workArea)
+                : UIWindow::beginDockable(
+                    "Scene Viewport", dockingLayout.centerTop
+                )
+        };
+        sceneViewport.open)
+    {
+        VkExtent2D const sceneContentExtent{
+            .width =
+                static_cast<uint32_t>(sceneViewport.screenRectangle.size().x),
+            .height =
+                static_cast<uint32_t>(sceneViewport.screenRectangle.size().y),
         };
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
-        if (ImGui::Begin(
-                "SceneViewportMaximized", nullptr, FULLSCREEN_WINDOW_FLAGS
-            ))
-        {
-            VkExtent2D const sceneContentExtent{
-                .width =
-                    static_cast<uint32_t>(ImGui::GetContentRegionAvail().x),
-                .height =
-                    static_cast<uint32_t>(ImGui::GetContentRegionAvail().y),
-            };
+        m_sceneRect = VkRect2D{
+            .offset{VkOffset2D{
+                .x = 0,
+                .y = 0,
+            }},
+            .extent{sceneContentExtent},
+        };
 
-            m_sceneRect = VkRect2D{
-                .offset{VkOffset2D{
-                    .x = 0,
-                    .y = 0,
-                }},
-                .extent{VkExtent2D{sceneContentExtent}},
-            };
+        VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D()};
 
-            VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D()};
+        ImVec2 const uvMax{
+            static_cast<float>(m_sceneRect.extent.width)
+                / static_cast<float>(sceneTotalExtent.width),
+            static_cast<float>(m_sceneRect.extent.height)
+                / static_cast<float>(sceneTotalExtent.height)
+        };
 
-            ImVec2 const uvMax{
-                static_cast<float>(m_sceneRect.extent.width)
-                    / static_cast<float>(sceneTotalExtent.width),
-                static_cast<float>(m_sceneRect.extent.height)
-                    / static_cast<float>(sceneTotalExtent.height)
-            };
-
-            ImGui::Image(
-                (ImTextureID)m_imguiSceneTextureDescriptor,
-                ImGui::GetContentRegionAvail(),
-                ImVec2{0.0, 0.0},
-                uvMax,
-                ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
-                ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-            );
-        }
-        ImGui::End();
-        ImGui::PopStyleVar();
+        ImGui::Image(
+            (ImTextureID)m_imguiSceneTextureDescriptor,
+            ImGui::GetContentRegionAvail(),
+            ImVec2{0.0, 0.0},
+            uvMax,
+            ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+            ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        );
     }
-    else
+
+    if (UIWindow const sceneControls{
+            UIWindow::beginDockable("Scene Controls", dockingLayout.left)
+        };
+        sceneControls.open)
     {
-        if (hud.resetLayoutRequested && hud.dockspaceID != 0)
+        imguiMeshInstanceControls(
+            m_renderMeshInstances, m_testMeshes, m_testMeshUsed
+        );
+
+        ImGui::Separator();
+        imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
+
+        ImGui::Separator();
+        ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
+
+        ImGui::Separator();
+        ImGui::Checkbox(
+            "Use Orthographic Camera", &m_useOrthographicProjection
+        );
+
+        ImGui::Separator();
+        imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
+
+        ImGui::Separator();
+        imguiStructureControls(
+            m_atmosphereParameters, m_defaultAtmosphereParameters
+        );
+    }
+
+    if (UIWindow const engineControls{
+            UIWindow::beginDockable("Engine Controls", dockingLayout.right)
+        };
+        engineControls.open)
+    {
+        imguiRenderingSelection(m_activeRenderingPipeline);
+
+        ImGui::Separator();
+        switch (m_activeRenderingPipeline)
         {
-            dockingLayout =
-                buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
-            skipFrame = true;
+        case RenderingPipelines::DEFERRED:
+            imguiPipelineControls(*m_deferredShadingPipeline);
+            break;
+        case RenderingPipelines::COMPUTE_COLLECTION:
+            imguiPipelineControls(*m_genericComputePipeline);
+            break;
+        default:
+            ImGui::Text("Invalid rendering pipeline selected.");
+            break;
         }
 
-        { // Scene Controls
-            if (dockingLayout.has_value())
-            {
-                ImGui::SetNextWindowDockID(dockingLayout.value().left);
-            }
+        ImGui::Separator();
+        imguiStructureControls(m_debugLines);
+    }
 
-            if (ImGui::Begin("Scene Controls"))
-            {
-                imguiMeshInstanceControls(
-                    m_renderMeshInstances, m_testMeshes, m_testMeshUsed
-                );
-
-                ImGui::Separator();
-                imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
-
-                ImGui::Separator();
-                ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
-
-                ImGui::Separator();
-                ImGui::Checkbox(
-                    "Use Orthographic Camera", &m_useOrthographicProjection
-                );
-
-                ImGui::Separator();
-                imguiStructureControls(
-                    m_cameraParameters, m_defaultCameraParameters
-                );
-
-                ImGui::Separator();
-                imguiStructureControls(
-                    m_atmosphereParameters, m_defaultAtmosphereParameters
-                );
-            }
-            ImGui::End();
-        }
-
-        { // Engine Controls
-            if (dockingLayout.has_value())
-            {
-                ImGui::SetNextWindowDockID(dockingLayout.value().right);
-            }
-
-            if (ImGui::Begin("Engine Controls"))
-            {
-                imguiRenderingSelection(m_activeRenderingPipeline);
-
-                ImGui::Separator();
-                switch (m_activeRenderingPipeline)
-                {
-                case RenderingPipelines::DEFERRED:
-                    imguiPipelineControls(*m_deferredShadingPipeline);
-                    break;
-                case RenderingPipelines::COMPUTE_COLLECTION:
-                    imguiPipelineControls(*m_genericComputePipeline);
-                    break;
-                default:
-                    ImGui::Text("Invalid rendering pipeline selected.");
-                    break;
-                }
-
-                ImGui::Separator();
-                imguiStructureControls(m_debugLines);
-            }
-            ImGui::End();
-        }
-
-        { // Performance window
-            if (dockingLayout.has_value())
-            {
-                ImGui::SetNextWindowDockID(dockingLayout.value().centerBottom);
-            }
-
-            imguiPerformanceWindow(
-                PerformanceValues{
-                    .samplesFPS = m_fpsValues.values(),
-                    .averageFPS = m_fpsValues.average(),
-                    .currentFrame = m_fpsValues.current(),
-                },
-                m_targetFPS
-            );
-        }
-
-        { // Scene viewport
-            if (dockingLayout.has_value())
-            {
-                ImGui::SetNextWindowDockID(dockingLayout.value().centerTop);
-            }
-
-            ImGui::PushStyleVar(
-                ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F)
-            );
-            if (ImGui::Begin("SceneViewport"))
-            {
-                VkExtent2D const sceneContentExtent{
-                    .width =
-                        static_cast<uint32_t>(ImGui::GetContentRegionAvail().x),
-                    .height =
-                        static_cast<uint32_t>(ImGui::GetContentRegionAvail().y),
-                };
-
-                m_sceneRect = VkRect2D{
-                    .offset{VkOffset2D{
-                        .x = 0,
-                        .y = 0,
-                    }},
-                    .extent{sceneContentExtent},
-                };
-
-                VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D(
-                )};
-
-                ImVec2 const uvMax{
-                    static_cast<float>(m_sceneRect.extent.width)
-                        / static_cast<float>(sceneTotalExtent.width),
-                    static_cast<float>(m_sceneRect.extent.height)
-                        / static_cast<float>(sceneTotalExtent.height)
-                };
-
-                ImGui::Image(
-                    (ImTextureID)m_imguiSceneTextureDescriptor,
-                    ImGui::GetContentRegionAvail(),
-                    ImVec2{0.0, 0.0},
-                    uvMax,
-                    ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
-                    ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-                );
-            }
-            ImGui::End();
-            ImGui::PopStyleVar();
-        }
+    if (UIWindow const performance{
+            UIWindow::beginDockable("Performance", dockingLayout.centerBottom)
+        };
+        performance.open)
+    {
+        imguiPerformanceDisplay(
+            PerformanceValues{
+                .samplesFPS = m_fpsValues.values(),
+                .averageFPS = m_fpsValues.average(),
+                .currentFrame = m_fpsValues.current(),
+            },
+            m_targetFPS
+        );
     }
 
     ImGui::Render();
