@@ -628,16 +628,18 @@ void imguiStructureControls(
 
 namespace
 {
-auto getWindowScreenRectangle() -> UIRectangle
+auto getWindowContent() -> UIRectangle
 {
-    return UIRectangle::fromPosSize(
-        ImGui::GetWindowPos(), ImGui::GetWindowSize()
-    );
+    return UIRectangle{
+        .min{ImGui::GetWindowContentRegionMin()},
+        .max{ImGui::GetWindowContentRegionMax()}
+    };
 };
 } // namespace
 
-auto UIWindow::beginMaximized(std::string const& name, UIRectangle const workArea)
-    -> UIWindow
+auto UIWindow::beginMaximized(
+    std::string const& name, UIRectangle const workArea
+) -> UIWindow
 {
     ImGui::SetNextWindowPos(workArea.pos());
     ImGui::SetNextWindowSize(workArea.size());
@@ -651,11 +653,8 @@ auto UIWindow::beginMaximized(std::string const& name, UIRectangle const workAre
     bool const open{ImGui::Begin(name.c_str(), nullptr, MAXIMIZED_WINDOW_FLAGS)
     };
 
-    return UIWindow{
-        .screenRectangle = getWindowScreenRectangle(),
-        .open = open,
-        .styleVariables = 1
-    };
+    uint16_t constexpr styleVariables{1};
+    return UIWindow(getWindowContent(), open, styleVariables);
 }
 
 auto UIWindow::beginDockable(
@@ -669,15 +668,66 @@ auto UIWindow::beginDockable(
 
     bool const open{ImGui::Begin(name.c_str())};
 
-    return UIWindow{
-        .screenRectangle = getWindowScreenRectangle(),
-        .open = open,
-        .styleVariables = 0
-    };
+    uint16_t constexpr styleVariables{0};
+    return UIWindow(getWindowContent(), open, styleVariables);
+}
+
+UIWindow::UIWindow(UIWindow&& other) noexcept
+{
+    screenRectangle = std::exchange(other.screenRectangle, UIRectangle{});
+    open = std::exchange(other.open, false);
+
+    m_styleVariables = std::exchange(other.m_styleVariables, 0);
+    m_initialized = std::exchange(other.m_initialized, false);
 }
 
 UIWindow::~UIWindow()
 {
+    if (!m_initialized)
+    {
+        return;
+    }
+
     ImGui::End();
-    ImGui::PopStyleVar(styleVariables);
+    ImGui::PopStyleVar(m_styleVariables);
+}
+
+auto ui::sceneViewport(
+    VkDescriptorSet const sceneTexture,
+    VkExtent2D const sceneTextureExtent,
+    std::optional<UIRectangle> const maximizedArea,
+    std::optional<ImGuiID> const dockspace
+) -> std::optional<RenderTarget>
+{
+    char const* const WINDOW_TITLE{"Scene Viewport"};
+
+    bool const maximized{maximizedArea.has_value()};
+
+    if (UIWindow const sceneViewport{
+            maximized
+                ? UIWindow::beginMaximized(WINDOW_TITLE, maximizedArea.value())
+                : UIWindow::beginDockable(WINDOW_TITLE, dockspace)
+        };
+        sceneViewport.open)
+    {
+        glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+
+        ImVec2 const uvMax{
+            contentExtent.x / static_cast<float>(sceneTextureExtent.width),
+            contentExtent.y / static_cast<float>(sceneTextureExtent.height)
+        };
+
+        ImGui::Image(
+            reinterpret_cast<ImTextureID>(sceneTexture),
+            contentExtent,
+            ImVec2{0.0, 0.0},
+            uvMax,
+            ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+            ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        );
+
+        return RenderTarget{.extent = contentExtent};
+    }
+
+    return std::nullopt;
 }

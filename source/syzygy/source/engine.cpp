@@ -966,20 +966,20 @@ auto Engine::renderUI() -> bool
         skipFrame = true;
     }
 
-    if (UIWindow const sceneViewport{
-            hud.maximizeSceneViewport
-                ? UIWindow::beginMaximized("Scene Viewport", hud.workArea)
-                : UIWindow::beginDockable(
-                    "Scene Viewport", dockingLayout.centerTop
-                )
-        };
-        sceneViewport.open)
+    if (std::optional<ui::RenderTarget> sceneViewport{ui::sceneViewport(
+            m_imguiSceneTextureDescriptor,
+            m_sceneColorTexture->extent2D(),
+            hud.maximizeSceneViewport ? hud.workArea
+                                      : std::optional<UIRectangle>{},
+            dockingLayout.centerTop
+        )};
+        sceneViewport.has_value())
     {
+        glm::vec2 pixelExtent{ sceneViewport.value().extent };
+
         VkExtent2D const sceneContentExtent{
-            .width =
-                static_cast<uint32_t>(sceneViewport.screenRectangle.size().x),
-            .height =
-                static_cast<uint32_t>(sceneViewport.screenRectangle.size().y),
+            .width = static_cast<uint32_t>(pixelExtent.x),
+            .height = static_cast<uint32_t>(pixelExtent.y),
         };
 
         m_sceneRect = VkRect2D{
@@ -989,24 +989,6 @@ auto Engine::renderUI() -> bool
             }},
             .extent{sceneContentExtent},
         };
-
-        VkExtent2D const sceneTotalExtent{m_sceneColorTexture->extent2D()};
-
-        ImVec2 const uvMax{
-            static_cast<float>(m_sceneRect.extent.width)
-                / static_cast<float>(sceneTotalExtent.width),
-            static_cast<float>(m_sceneRect.extent.height)
-                / static_cast<float>(sceneTotalExtent.height)
-        };
-
-        ImGui::Image(
-            (ImTextureID)m_imguiSceneTextureDescriptor,
-            ImGui::GetContentRegionAvail(),
-            ImVec2{0.0, 0.0},
-            uvMax,
-            ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
-            ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-        );
     }
 
     if (UIWindow const sceneControls{

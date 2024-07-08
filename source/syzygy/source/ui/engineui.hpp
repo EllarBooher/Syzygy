@@ -58,6 +58,8 @@ struct UIRectangle
     }
 };
 
+// Opens the context for a Dear ImGui window, allowing further calls to the
+// library to be placed within it.
 struct UIWindow
 {
     static auto
@@ -68,11 +70,26 @@ struct UIWindow
         std::string const& name, std::optional<ImGuiID> const dockspace
     ) -> UIWindow;
 
+    UIWindow& operator=(UIWindow const& other) = delete;
+    UIWindow& operator=(UIWindow&& other) = delete;
+    UIWindow(UIWindow&& other) noexcept;
+
     ~UIWindow();
 
     UIRectangle screenRectangle{};
     bool open{false};
-    uint16_t styleVariables{0};
+
+private:
+    UIWindow(UIRectangle screenRectangle, bool open, uint16_t styleVariables)
+        : screenRectangle{screenRectangle}
+        , open{open}
+        , m_styleVariables{styleVariables}
+        , m_initialized{true}
+    {
+    }
+
+    uint16_t m_styleVariables{0};
+    bool m_initialized{false};
 };
 
 struct HUDState
@@ -99,6 +116,21 @@ struct DockingLayout
     std::optional<ImGuiID> centerBottom{};
     std::optional<ImGuiID> centerTop{};
 };
+
+namespace ui
+{
+struct RenderTarget
+{
+    glm::vec2 extent;
+};
+
+auto sceneViewport(
+    VkDescriptorSet sceneTexture,
+    VkExtent2D sceneTextureExtent,
+    std::optional<UIRectangle> maximizedArea,
+    std::optional<ImGuiID> dockspace
+) -> std::optional<RenderTarget>;
+} // namespace ui
 
 // Builds a hardcoded hierarchy of docking nodes from the passed parent.
 // This also may break layouts, if windows have been moved or docked,
