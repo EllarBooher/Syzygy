@@ -66,10 +66,19 @@ private:
     );
 
 private:
-    bool renderUI();
-    void draw(VkCommandBuffer);
+    struct UIResults
+    {
+        bool reloadRequested;
+    };
+    auto renderUI(
+        UIPreferences& currentPreferences,
+        UIPreferences const& defaultPreferences
+    ) -> UIResults;
 
-    void recordDrawImgui(VkCommandBuffer cmd, VkImageView view);
+    // Returns the valid rendered area of the draw image (in pixels)
+    auto recordDraw(VkCommandBuffer) -> VkRect2D;
+
+    auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view) -> VkRect2D;
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
@@ -145,10 +154,6 @@ private:
     std::unique_ptr<AllocatedImage> m_sceneColorTexture{};
     // Depth image used for graphics passes
     std::unique_ptr<AllocatedImage> m_sceneDepthTexture{};
-
-    // The rectangle drawn into, usually the window/swapchain/UI viewport
-    // extents are all the same
-    VkRect2D m_drawRect{};
 
     // The final image output, blitted to the swapchain
     std::unique_ptr<AllocatedImage> m_drawImage{};

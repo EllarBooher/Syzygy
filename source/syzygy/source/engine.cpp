@@ -919,7 +919,8 @@ auto Engine::mainLoop(
 
     m_fpsValues.write(instantFPS);
 
-    static bool reloadUIRequested{false};
+    // TODO: propagate this signal higher
+    static bool reloadUIRequested{true};
 
     if (reloadUIRequested)
     {
@@ -927,10 +928,10 @@ auto Engine::mainLoop(
         reloadUIRequested = false;
     }
 
-    renderUI();
-    draw(cmd);
-
-    return m_drawRect;
+    UIResults const uiResults{renderUI(m_uiPreferences, m_uiPreferencesDefault)
+    };
+    reloadUIRequested = uiResults.reloadRequested;
+    return recordDraw(cmd);
 }
 
 // TODO: Break this method up to get rid of the NOLINT. It should be as pure as
@@ -938,7 +939,9 @@ auto Engine::mainLoop(
 // file. Considerations must be made for updating the scene drawing extents and
 // all of engine's members.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Engine::renderUI() -> bool
+auto Engine::renderUI(
+    UIPreferences& currentPreferences, UIPreferences const& defaultPreferences
+) -> UIResults
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -946,11 +949,12 @@ auto Engine::renderUI() -> bool
 
     HUDState const hud{renderHUD(m_uiPreferences)};
 
-    m_uiReloadRequested = hud.applyPreferencesRequested;
+    bool const reloadUI{
+        hud.applyPreferencesRequested || hud.resetPreferencesRequested
+    };
     if (hud.resetPreferencesRequested)
     {
-        m_uiPreferences = m_uiPreferencesDefault;
-        m_uiReloadRequested = true;
+        currentPreferences = defaultPreferences;
     }
 
     bool skipFrame{false};
@@ -975,7 +979,7 @@ auto Engine::renderUI() -> bool
         )};
         sceneViewport.has_value())
     {
-        glm::vec2 pixelExtent{ sceneViewport.value().extent };
+        glm::vec2 pixelExtent{sceneViewport.value().extent};
 
         VkExtent2D const sceneContentExtent{
             .width = static_cast<uint32_t>(pixelExtent.x),
@@ -1061,7 +1065,9 @@ auto Engine::renderUI() -> bool
     }
 
     ImGui::Render();
-    return skipFrame;
+    return UIResults{
+        .reloadRequested = reloadUI,
+    };
 }
 
 void Engine::tickWorld(TickTiming const timing)
@@ -1150,7 +1156,7 @@ void Engine::tickWorld(TickTiming const timing)
     }
 }
 
-void Engine::draw(VkCommandBuffer const cmd)
+auto Engine::recordDraw(VkCommandBuffer const cmd) -> VkRect2D
 {
     // Begin scene drawing
 
@@ -1364,19 +1370,22 @@ void Engine::draw(VkCommandBuffer const cmd)
         cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     );
 
-    recordDrawImgui(cmd, m_drawImage->view());
+    VkRect2D const renderedArea{recordDrawImgui(cmd, m_drawImage->view())};
 
+    // TODO: is this line necessary?
     m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
     // End ImGui Drawing
+
+    return renderedArea;
 }
 
-void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
+auto Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
+    -> VkRect2D
 {
-
     ImDrawData* const drawData{ImGui::GetDrawData()};
 
-    m_drawRect = VkRect2D{
+    VkRect2D renderedArea{
         .offset{VkOffset2D{
             .x = static_cast<int32_t>(drawData->DisplayPos.x),
             .y = static_cast<int32_t>(drawData->DisplayPos.y),
@@ -1394,13 +1403,15 @@ void Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
         colorAttachmentInfo
     };
     VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(m_drawRect, colorAttachments, nullptr)
+        vkinit::renderingInfo(renderedArea, colorAttachments, nullptr)
     };
     vkCmdBeginRendering(cmd, &renderingInfo);
 
     ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
 
     vkCmdEndRendering(cmd);
+
+    return renderedArea;
 }
 
 void Engine::recordDrawDebugLines(
