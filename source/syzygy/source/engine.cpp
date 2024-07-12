@@ -64,43 +64,6 @@ AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
     }
 };
 
-namespace
-{
-// Resets the ImGui style and reloads other resources like fonts, then builds a
-// new style from the passed preferences.
-void reloadUI(
-    VkDevice const device,
-    UIPreferences const preferences,
-    ImGuiStyle const styleDefault
-)
-{
-    float constexpr FONT_BASE_SIZE{13.0F};
-
-    std::filesystem::path const fontPath{
-        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(
-            std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}
-        )
-    };
-    ImGui::GetIO().Fonts->Clear();
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        fontPath.string().c_str(), FONT_BASE_SIZE * preferences.dpiScale
-    );
-
-    // Wait for idle since we are modifying backend resources
-    vkDeviceWaitIdle(device);
-    // We destroy this to later force a rebuild when the fonts are needed.
-    ImGui_ImplVulkan_DestroyFontsTexture();
-
-    // TODO: is rebuilding the font with a specific scale good?
-    // ImGui recommends building fonts at various sizes then just
-    // selecting them
-
-    // Reset style so further scaling works off the base "1.0x" scaling
-    ImGui::GetStyle() = styleDefault;
-    ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
-}
-} // namespace
-
 Engine::Engine(
     PlatformWindow const& window,
     VkInstance const instance,
@@ -165,13 +128,6 @@ void Engine::init(
 )
 {
     Log("Initializing Engine...");
-
-    m_uiPreferences.dpiScale = glm::round(glm::min<float>(
-        static_cast<float>(window.extent().y)
-            / static_cast<float>(RESOLUTION_DEFAULT.height),
-        static_cast<float>(window.extent().x)
-            / static_cast<float>(RESOLUTION_DEFAULT.width)
-    ));
 
     initDrawTargets(device, allocator);
 
@@ -744,10 +700,6 @@ void Engine::initImgui(
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    m_uiReloadRequested = true;
-
-    m_imguiStyleDefault = ImGui::GetStyle();
-
     Log("ImGui initialized.");
 }
 
@@ -907,33 +859,6 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-auto Engine::mainLoop(
-    VkDevice const device,
-    VkCommandBuffer const cmd,
-    double const deltaTimeSeconds
-) -> VkRect2D
-{
-    m_debugLines.clear();
-
-    double const instantFPS{1.0F / deltaTimeSeconds};
-
-    m_fpsValues.write(instantFPS);
-
-    // TODO: propagate this signal higher
-    static bool reloadUIRequested{true};
-
-    if (reloadUIRequested)
-    {
-        reloadUI(device, m_uiPreferences, m_imguiStyleDefault);
-        reloadUIRequested = false;
-    }
-
-    UIResults const uiResults{renderUI(m_uiPreferences, m_uiPreferencesDefault)
-    };
-    reloadUIRequested = uiResults.reloadRequested;
-    return recordDraw(cmd);
-}
-
 // TODO: Break this method up to get rid of the NOLINT. It should be as pure as
 // possible, with most of the UI implementation living outside of this source
 // file. Considerations must be made for updating the scene drawing extents and
@@ -947,7 +872,7 @@ auto Engine::renderUI(
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    HUDState const hud{renderHUD(m_uiPreferences)};
+    HUDState const hud{renderHUD(currentPreferences)};
 
     bool const reloadUI{
         hud.applyPreferencesRequested || hud.resetPreferencesRequested
@@ -956,18 +881,12 @@ auto Engine::renderUI(
     {
         currentPreferences = defaultPreferences;
     }
-
-    bool skipFrame{false};
     DockingLayout dockingLayout{};
 
-    bool const rebuildLayout{
-        hud.rebuildLayoutRequested && hud.dockspaceID != 0
-    };
-    if (rebuildLayout)
+    if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
     {
         dockingLayout =
             buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
-        skipFrame = true;
     }
 
     if (std::optional<ui::RenderTarget> sceneViewport{ui::sceneViewport(
@@ -1072,6 +991,11 @@ auto Engine::renderUI(
 
 void Engine::tickWorld(TickTiming const timing)
 {
+    m_debugLines.clear();
+
+    double const instantFPS{1.0F / timing.deltaTimeSeconds};
+    m_fpsValues.write(instantFPS);
+
     std::span<glm::mat4x4> const models{m_meshInstances.models->mapValidStaged()
     };
     std::span<glm::mat4x4> const modelInverseTransposes{
@@ -1156,7 +1080,7 @@ void Engine::tickWorld(TickTiming const timing)
     }
 }
 
-auto Engine::recordDraw(VkCommandBuffer const cmd) -> VkRect2D
+auto Engine::recordDraw(VkCommandBuffer const cmd) -> DrawResults
 {
     // Begin scene drawing
 
@@ -1377,7 +1301,10 @@ auto Engine::recordDraw(VkCommandBuffer const cmd) -> VkRect2D
 
     // End ImGui Drawing
 
-    return renderedArea;
+    return DrawResults{
+        .renderTarget = *m_drawImage,
+        .renderArea = renderedArea,
+    };
 }
 
 auto Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)

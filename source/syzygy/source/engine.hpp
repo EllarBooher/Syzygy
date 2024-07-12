@@ -48,9 +48,22 @@ public:
     );
 
     void tickWorld(TickTiming);
-    auto mainLoop(VkDevice, VkCommandBuffer, double deltaTimeSeconds)
-        -> VkRect2D;
-    auto drawImage() -> AllocatedImage& { return *m_drawImage; }
+
+    struct UIResults
+    {
+        bool reloadRequested;
+    };
+    auto renderUI(
+        UIPreferences& currentPreferences,
+        UIPreferences const& defaultPreferences
+    ) -> UIResults;
+    
+    struct DrawResults
+    {
+        AllocatedImage& renderTarget;
+        VkRect2D renderArea;
+    };
+    auto recordDraw(VkCommandBuffer) -> DrawResults;
 
     void cleanup(VkDevice, VmaAllocator);
 
@@ -66,18 +79,6 @@ private:
     );
 
 private:
-    struct UIResults
-    {
-        bool reloadRequested;
-    };
-    auto renderUI(
-        UIPreferences& currentPreferences,
-        UIPreferences const& defaultPreferences
-    ) -> UIResults;
-
-    // Returns the valid rendered area of the draw image (in pixels)
-    auto recordDraw(VkCommandBuffer) -> VkRect2D;
-
     auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view) -> VkRect2D;
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
@@ -89,8 +90,6 @@ private:
     inline static Engine* m_loadedEngine{nullptr};
 
     RingBuffer m_fpsValues{};
-
-    bool m_bRender{true};
 
     // Begin Vulkan
 
@@ -120,21 +119,6 @@ private:
         VkQueue graphicsQueue,
         GLFWwindow* const window
     );
-
-    // Swapchain Resources
-
-    ImGuiStyle m_imguiStyleDefault{};
-
-    static VkExtent2D constexpr RESOLUTION_DEFAULT{1920, 1080};
-
-    static UIPreferences constexpr m_uiPreferencesDefault{
-        .dpiScale = 1.0f,
-    };
-    UIPreferences m_uiPreferences{m_uiPreferencesDefault};
-
-    bool m_uiReloadRequested{false};
-
-    bool m_resizeRequested{false};
 
     // Draw Resources
 

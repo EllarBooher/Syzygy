@@ -7,6 +7,8 @@
 #include <chrono>
 #include <thread>
 
+#include <imgui_impl_vulkan.h>
+
 auto Editor::create() -> std::optional<Editor>
 {
     Log("Creating Editor instance.");
@@ -299,6 +301,37 @@ auto endFrame(
         return presentResult;
     }
 }
+// Resets the ImGui style and reloads other resources like fonts, then builds a
+// new style from the passed preferences.
+void uiReload(VkDevice const device, UIPreferences const preferences)
+{
+    float constexpr FONT_BASE_SIZE{13.0F};
+
+    std::filesystem::path const fontPath{
+        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(
+            std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}
+        )
+    };
+    ImGui::GetIO().Fonts->Clear();
+    ImGui::GetIO().Fonts->AddFontFromFileTTF(
+        fontPath.string().c_str(), FONT_BASE_SIZE * preferences.dpiScale
+    );
+
+    // Wait for idle since we are modifying backend resources
+    vkDeviceWaitIdle(device);
+    // We destroy this to later force a rebuild when the fonts are needed.
+    ImGui_ImplVulkan_DestroyFontsTexture();
+
+    // TODO: is rebuilding the font with a specific scale good?
+    // ImGui recommends building fonts at various sizes then just
+    // selecting them
+
+    // Reset style so further scaling works off the base "1.0x" scaling
+    ImGui::GetStyle() = ImGuiStyle{};
+    ImGui::StyleColorsDark();
+
+    ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
+}
 } // namespace
 
 auto Editor::run() -> EditorResult
@@ -309,6 +342,11 @@ auto Editor::run() -> EditorResult
     {
         return EditorResult::ERROR_NO_RENDERER;
     }
+
+    double timeSecondsPrevious{0.0};
+
+    UIPreferences uiPreferences{};
+    bool uiReloadNecessary{false};
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
@@ -325,10 +363,8 @@ auto Editor::run() -> EditorResult
             continue;
         }
 
-        static double previousTimeSeconds{0};
-
-        double const currentTimeSeconds{glfwGetTime()};
-        double const deltaTimeSeconds{currentTimeSeconds - previousTimeSeconds};
+        double const timeSecondsCurrent{glfwGetTime()};
+        double const deltaTimeSeconds{timeSecondsCurrent - timeSecondsPrevious};
 
         double const targetFPS{m_renderer->targetFPS()};
 
@@ -337,12 +373,18 @@ auto Editor::run() -> EditorResult
             continue;
         }
 
-        previousTimeSeconds = currentTimeSeconds;
+        timeSecondsPrevious = timeSecondsCurrent;
 
         m_frameBuffer.increment();
 
         Frame const& currentFrame{m_frameBuffer.currentFrame()};
         VulkanContext const& vulkanContext{m_graphics.vulkanContext()};
+
+        if (uiReloadNecessary)
+        {
+            uiReload(vulkanContext.device, uiPreferences);
+            uiReloadNecessary = false;
+        }
 
         if (VkResult const beginFrameResult{
                 beginFrame(currentFrame, vulkanContext.device)
@@ -354,15 +396,18 @@ auto Editor::run() -> EditorResult
         }
 
         m_renderer->tickWorld(TickTiming{
-            .timeElapsedSeconds = currentTimeSeconds,
+            .timeElapsedSeconds = timeSecondsCurrent,
             .deltaTimeSeconds = deltaTimeSeconds,
         });
 
-        VkRect2D const drawRect{m_renderer->mainLoop(
-            vulkanContext.device,
-            currentFrame.mainCommandBuffer,
-            deltaTimeSeconds
-        )};
+        Engine::UIResults const uiResults{
+            m_renderer->renderUI(uiPreferences, UIPreferences{})
+        };
+        uiReloadNecessary = uiResults.reloadRequested;
+
+        Engine::DrawResults const drawResults{
+            m_renderer->recordDraw(currentFrame.mainCommandBuffer)
+        };
 
         if (VkResult const endFrameResult{endFrame(
                 currentFrame,
@@ -370,8 +415,8 @@ auto Editor::run() -> EditorResult
                 vulkanContext.device,
                 vulkanContext.graphicsQueue,
                 currentFrame.mainCommandBuffer,
-                m_renderer->drawImage(),
-                drawRect
+                drawResults.renderTarget,
+                drawResults.renderArea
             )};
             endFrameResult != VK_SUCCESS)
         {
