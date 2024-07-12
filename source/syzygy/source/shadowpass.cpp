@@ -217,7 +217,9 @@ void ShadowPassArray::recordInitialize(
     { // Clear each shadow map we are going to use
         for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
         {
-            renderpass::recordClearDepthImage(cmd, *m_textures[i], renderpass::DEPTH_FAR_STENCIL_NONE);
+            renderpass::recordClearDepthImage(
+                cmd, *m_textures[i], renderpass::DEPTH_FAR_STENCIL_NONE
+            );
         }
 
         // Prepare for recording of draw commands

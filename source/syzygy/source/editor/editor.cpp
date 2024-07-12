@@ -383,7 +383,6 @@ auto Editor::run() -> EditorResult
         if (uiReloadNecessary)
         {
             uiReload(vulkanContext.device, uiPreferences);
-            uiReloadNecessary = false;
         }
 
         if (VkResult const beginFrameResult{

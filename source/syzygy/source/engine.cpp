@@ -898,7 +898,7 @@ auto Engine::renderUI(
         )};
         sceneViewport.has_value())
     {
-        glm::vec2 pixelExtent{sceneViewport.value().extent};
+        glm::vec2 const pixelExtent{sceneViewport.value().extent};
 
         VkExtent2D const sceneContentExtent{
             .width = static_cast<uint32_t>(pixelExtent.x),

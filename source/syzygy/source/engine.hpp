@@ -57,7 +57,7 @@ public:
         UIPreferences& currentPreferences,
         UIPreferences const& defaultPreferences
     ) -> UIResults;
-    
+
     struct DrawResults
     {
         AllocatedImage& renderTarget;
@@ -79,7 +79,8 @@ private:
     );
 
 private:
-    auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view) -> VkRect2D;
+    static auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
+        -> VkRect2D;
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,

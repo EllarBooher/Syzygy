@@ -130,8 +130,6 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
 
         ImGui::PopStyleVar(3);
 
-        bool maximizeToggled{false};
-
         if (ImGui::BeginMenuBar())
         {
             if (ImGui::BeginMenu("Tools"))
@@ -654,7 +652,7 @@ auto UIWindow::beginMaximized(
     };
 
     uint16_t constexpr styleVariables{1};
-    return UIWindow(getWindowContent(), open, styleVariables);
+    return {getWindowContent(), open, styleVariables};
 }
 
 auto UIWindow::beginDockable(
@@ -669,7 +667,7 @@ auto UIWindow::beginDockable(
     bool const open{ImGui::Begin(name.c_str())};
 
     uint16_t constexpr styleVariables{0};
-    return UIWindow(getWindowContent(), open, styleVariables);
+    return {getWindowContent(), open, styleVariables};
 }
 
 UIWindow::UIWindow(UIWindow&& other) noexcept
@@ -701,10 +699,8 @@ auto ui::sceneViewport(
 {
     char const* const WINDOW_TITLE{"Scene Viewport"};
 
-    bool const maximized{maximizedArea.has_value()};
-
     if (UIWindow const sceneViewport{
-            maximized
+            maximizedArea.has_value()
                 ? UIWindow::beginMaximized(WINDOW_TITLE, maximizedArea.value())
                 : UIWindow::beginDockable(WINDOW_TITLE, dockspace)
         };
