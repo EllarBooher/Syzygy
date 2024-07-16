@@ -351,7 +351,8 @@ auto Editor::run() -> EditorResult
 
     // Guess that the window is on the primary monitor, as a guess for refresh
     // rate to use
-    GLFWvidmode const* const videoModePrimary{glfwGetVideoMode(glfwGetPrimaryMonitor())
+    GLFWvidmode const* const videoModePrimary{
+        glfwGetVideoMode(glfwGetPrimaryMonitor())
     };
 
     RingBuffer fpsHistory{};

@@ -60,10 +60,7 @@ struct Vertex
 
 struct RingBuffer
 {
-    RingBuffer()
-    {
-        m_values.resize(500, 0.0);
-    }
+    RingBuffer() { m_values.resize(500, 0.0); }
 
     void write(double const value)
     {
