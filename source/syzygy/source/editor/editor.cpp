@@ -349,8 +349,13 @@ auto Editor::run() -> EditorResult
     UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
 
+    // Guess that the window is on the primary monitor, as a guess for refresh
+    // rate to use
+    GLFWvidmode const* const videoModePrimary{glfwGetVideoMode(glfwGetPrimaryMonitor())
+    };
+
     RingBuffer fpsHistory{};
-    float fpsTarget{160.0F};
+    auto fpsTarget{static_cast<float>(videoModePrimary->refreshRate)};
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
