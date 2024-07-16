@@ -400,9 +400,13 @@ auto Editor::run() -> EditorResult
         });
 
         Engine::UIResults const uiResults{
-            m_renderer->renderUI(uiPreferences, UIPreferences{})
+            m_renderer->uiBegin(uiPreferences, UIPreferences{})
         };
         uiReloadNecessary = uiResults.reloadRequested;
+        m_renderer->uiRenderDefaultWindows(
+            uiResults.hud, uiResults.dockingLayout
+        );
+        m_renderer->uiEnd();
 
         Engine::DrawResults const drawResults{
             m_renderer->recordDraw(currentFrame.mainCommandBuffer)

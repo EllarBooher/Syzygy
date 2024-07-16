@@ -14,6 +14,7 @@
 #include "pipelines.hpp"
 #include "shaders.hpp"
 #include "shadowpass.hpp"
+#include "ui/engineui.hpp"
 
 struct GLFWwindow;
 
@@ -49,14 +50,26 @@ public:
 
     void tickWorld(TickTiming);
 
+
+    // TODO: These methods are part of a rewrite to decouple UI from this engine
+    // code, and should be removed eventually
+
     struct UIResults
     {
+        HUDState hud;
+        DockingLayout dockingLayout;
         bool reloadRequested;
     };
-    auto renderUI(
+
+    // Draw HUD and possibly build docking layout
+    auto uiBegin(
         UIPreferences& currentPreferences,
         UIPreferences const& defaultPreferences
     ) -> UIResults;
+    void uiRenderDefaultWindows(HUDState const&, DockingLayout const&);
+    void uiEnd();
+
+    // END TODO
 
     struct DrawResults
     {

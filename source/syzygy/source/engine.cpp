@@ -33,7 +33,6 @@
 
 #include "lights.hpp"
 
-#include "ui/engineui.hpp"
 #include "ui/pipelineui.hpp"
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
@@ -859,12 +858,7 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-// TODO: Break this method up to get rid of the NOLINT. It should be as pure as
-// possible, with most of the UI implementation living outside of this source
-// file. Considerations must be made for updating the scene drawing extents and
-// all of engine's members.
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Engine::renderUI(
+auto Engine::uiBegin(
     UIPreferences& currentPreferences, UIPreferences const& defaultPreferences
 ) -> UIResults
 {
@@ -889,6 +883,17 @@ auto Engine::renderUI(
             buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
     }
 
+    return UIResults{
+        .hud = hud,
+        .dockingLayout = dockingLayout,
+        .reloadRequested = reloadUI,
+    };
+}
+
+void Engine::uiRenderDefaultWindows(
+    HUDState const& hud, DockingLayout const& dockingLayout
+)
+{
     if (std::optional<ui::RenderTarget> sceneViewport{ui::sceneViewport(
             m_imguiSceneTextureDescriptor,
             m_sceneColorTexture->extent2D(),
@@ -982,12 +987,9 @@ auto Engine::renderUI(
             m_targetFPS
         );
     }
-
-    ImGui::Render();
-    return UIResults{
-        .reloadRequested = reloadUI,
-    };
 }
+
+void Engine::uiEnd() { ImGui::Render(); }
 
 void Engine::tickWorld(TickTiming const timing)
 {
