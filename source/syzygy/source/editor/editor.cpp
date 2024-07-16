@@ -3,6 +3,7 @@
 #include "../engine.hpp"
 #include "../helpers.hpp"
 #include "../initializers.hpp"
+#include "../ui/widgets.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <thread>
@@ -348,6 +349,9 @@ auto Editor::run() -> EditorResult
     UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
 
+    RingBuffer fpsHistory{};
+    float fpsTarget{160.0F};
+
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
         glfwPollEvents();
@@ -366,14 +370,14 @@ auto Editor::run() -> EditorResult
         double const timeSecondsCurrent{glfwGetTime()};
         double const deltaTimeSeconds{timeSecondsCurrent - timeSecondsPrevious};
 
-        double const targetFPS{m_renderer->targetFPS()};
-
-        if (deltaTimeSeconds < 1.0 / targetFPS)
+        if (deltaTimeSeconds < 1.0 / fpsTarget)
         {
             continue;
         }
 
         timeSecondsPrevious = timeSecondsCurrent;
+
+        fpsHistory.write(1.0 / deltaTimeSeconds);
 
         m_frameBuffer.increment();
 
@@ -403,8 +407,12 @@ auto Editor::run() -> EditorResult
             m_renderer->uiBegin(uiPreferences, UIPreferences{})
         };
         uiReloadNecessary = uiResults.reloadRequested;
-        m_renderer->uiRenderDefaultWindows(
-            uiResults.hud, uiResults.dockingLayout
+        m_renderer->uiRenderOldWindows(uiResults.hud, uiResults.dockingLayout);
+        ui::performanceWindow(
+            "Engine Performance",
+            uiResults.dockingLayout.right,
+            fpsHistory,
+            fpsTarget
         );
         m_renderer->uiEnd();
 

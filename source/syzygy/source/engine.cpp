@@ -890,7 +890,7 @@ auto Engine::uiBegin(
     };
 }
 
-void Engine::uiRenderDefaultWindows(
+void Engine::uiRenderOldWindows(
     HUDState const& hud, DockingLayout const& dockingLayout
 )
 {
@@ -972,21 +972,6 @@ void Engine::uiRenderDefaultWindows(
         ImGui::Separator();
         imguiStructureControls(m_debugLines);
     }
-
-    if (UIWindow const performance{
-            UIWindow::beginDockable("Performance", dockingLayout.centerBottom)
-        };
-        performance.open)
-    {
-        imguiPerformanceDisplay(
-            PerformanceValues{
-                .samplesFPS = m_fpsValues.values(),
-                .averageFPS = m_fpsValues.average(),
-                .currentFrame = m_fpsValues.current(),
-            },
-            m_targetFPS
-        );
-    }
 }
 
 void Engine::uiEnd() { ImGui::Render(); }
@@ -994,9 +979,6 @@ void Engine::uiEnd() { ImGui::Render(); }
 void Engine::tickWorld(TickTiming const timing)
 {
     m_debugLines.clear();
-
-    double const instantFPS{1.0F / timing.deltaTimeSeconds};
-    m_fpsValues.write(instantFPS);
 
     std::span<glm::mat4x4> const models{m_meshInstances.models->mapValidStaged()
     };

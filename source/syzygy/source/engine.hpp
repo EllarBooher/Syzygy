@@ -50,7 +50,6 @@ public:
 
     void tickWorld(TickTiming);
 
-
     // TODO: These methods are part of a rewrite to decouple UI from this engine
     // code, and should be removed eventually
 
@@ -62,12 +61,12 @@ public:
     };
 
     // Draw HUD and possibly build docking layout
-    auto uiBegin(
+    static auto uiBegin(
         UIPreferences& currentPreferences,
         UIPreferences const& defaultPreferences
     ) -> UIResults;
-    void uiRenderDefaultWindows(HUDState const&, DockingLayout const&);
-    void uiEnd();
+    void uiRenderOldWindows(HUDState const&, DockingLayout const&);
+    static void uiEnd();
 
     // END TODO
 
@@ -102,8 +101,6 @@ private:
 
     bool m_initialized{false};
     inline static Engine* m_loadedEngine{nullptr};
-
-    RingBuffer m_fpsValues{};
 
     // Begin Vulkan
 
@@ -195,8 +192,6 @@ public:
         std::span<Vertex const> vertices
     );
 
-    float targetFPS() const { return m_targetFPS; }
-
 private:
     // Meshes
 
@@ -204,7 +199,6 @@ private:
 
     // Scene
 
-    float m_targetFPS{160.0};
     uint32_t m_cameraIndexMain{0};
     size_t m_testMeshUsed{0};
 
