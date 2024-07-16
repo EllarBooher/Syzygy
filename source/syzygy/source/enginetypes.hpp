@@ -60,6 +60,11 @@ struct Vertex
 
 struct RingBuffer
 {
+    RingBuffer()
+    {
+        m_values.resize(500, 0.0);
+    }
+
     void write(double const value)
     {
         m_values[m_index] = value;
@@ -87,7 +92,7 @@ struct RingBuffer
     std::span<double const> values() const { return m_values; }
 
 private:
-    std::array<double, 500> m_values{};
+    std::vector<double> m_values{};
     size_t m_index{0};
     bool m_saturated{false};
 };
