@@ -108,6 +108,15 @@ auto Editor::create() -> std::optional<Editor>
 
 namespace
 {
+auto defaultRefreshRate() -> float
+{
+    // Guess that the window is on the primary monitor, as a guess for refresh
+    // rate to use
+    GLFWvidmode const* const videoModePrimary{
+        glfwGetVideoMode(glfwGetPrimaryMonitor())
+    };
+    return static_cast<float>(videoModePrimary->refreshRate);
+}
 auto rebuildSwapchain(
     Swapchain& old,
     VkPhysicalDevice const physicalDevice,
@@ -349,14 +358,8 @@ auto Editor::run() -> EditorResult
     UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
 
-    // Guess that the window is on the primary monitor, as a guess for refresh
-    // rate to use
-    GLFWvidmode const* const videoModePrimary{
-        glfwGetVideoMode(glfwGetPrimaryMonitor())
-    };
-
     RingBuffer fpsHistory{};
-    auto fpsTarget{static_cast<float>(videoModePrimary->refreshRate)};
+    float fpsTarget{defaultRefreshRate()};
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
