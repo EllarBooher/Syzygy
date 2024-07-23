@@ -10,11 +10,15 @@
 # readability-identifier-length
 # Does not seem to impact readability all that much.
 #
+# bugprone-unchecked-optional-access
+# Sometimes causes crashes and has false positives in clang-tidy verison 17
+#
 
 FormatStyle:        file
 Checks: >
   -*,
   bugprone-*,
+  -bugprone-unchecked-optional-access,
   clang-analyzer-*,
   llvm-*,
   misc-*,
