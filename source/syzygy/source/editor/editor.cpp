@@ -410,7 +410,7 @@ auto Editor::run() -> EditorResult
         });
 
         Engine::UIResults const uiResults{
-            m_renderer->uiBegin(uiPreferences, UIPreferences{})
+            Engine::uiBegin(uiPreferences, UIPreferences{})
         };
         uiReloadNecessary = uiResults.reloadRequested;
         m_renderer->uiRenderOldWindows(uiResults.hud, uiResults.dockingLayout);
@@ -420,7 +420,7 @@ auto Editor::run() -> EditorResult
             fpsHistory,
             fpsTarget
         );
-        m_renderer->uiEnd();
+        Engine::uiEnd();
 
         Engine::DrawResults const drawResults{
             m_renderer->recordDraw(currentFrame.mainCommandBuffer)
