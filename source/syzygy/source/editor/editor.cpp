@@ -1,5 +1,6 @@
 #include "editor.hpp"
 
+#include "../core/scene.hpp"
 #include "../engine.hpp"
 #include "../helpers.hpp"
 #include "../initializers.hpp"
@@ -361,6 +362,8 @@ auto Editor::run() -> EditorResult
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
+    scene::Scene scene{};
+
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
         glfwPollEvents();
@@ -407,10 +410,12 @@ auto Editor::run() -> EditorResult
             return EditorResult::ERROR_EDITOR;
         }
 
-        m_renderer->tickWorld(TickTiming{
+        TickTiming const lastFrameTiming{
             .timeElapsedSeconds = timeSecondsCurrent,
             .deltaTimeSeconds = deltaTimeSeconds,
-        });
+        };
+        m_renderer->tickWorld(lastFrameTiming);
+        scene.tick(lastFrameTiming);
 
         Engine::UIResults const uiResults{
             Engine::uiBegin(uiPreferences, UIPreferences{})
@@ -419,14 +424,17 @@ auto Editor::run() -> EditorResult
         m_renderer->uiRenderOldWindows(uiResults.hud, uiResults.dockingLayout);
         ui::performanceWindow(
             "Engine Performance",
-            uiResults.dockingLayout.right,
+            uiResults.dockingLayout.centerBottom,
             fpsHistory,
             fpsTarget
+        );
+        ui::sceneControlsWindow(
+            "Default Scene", uiResults.dockingLayout.left, scene
         );
         Engine::uiEnd();
 
         Engine::DrawResults const drawResults{
-            m_renderer->recordDraw(currentFrame.mainCommandBuffer)
+            m_renderer->recordDraw(currentFrame.mainCommandBuffer, scene)
         };
 
         if (VkResult const endFrameResult{endFrame(

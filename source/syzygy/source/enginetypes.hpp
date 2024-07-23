@@ -43,12 +43,6 @@ struct MeshInstances
     size_t dynamicIndex{};
 };
 
-struct SceneBounds
-{
-    glm::vec3 center{};
-    glm::vec3 extent{};
-};
-
 struct Vertex
 {
     glm::vec3 position;

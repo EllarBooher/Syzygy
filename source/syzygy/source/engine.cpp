@@ -45,24 +45,6 @@ CameraParameters const Engine::m_defaultCameraParameters{CameraParameters{
     .far = 10000.0F,
 }};
 
-AtmosphereParameters const Engine::m_defaultAtmosphereParameters{
-    AtmosphereParameters{
-        .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
-
-        .earthRadiusMeters = 6378000,
-        .atmosphereRadiusMeters = 6420000,
-
-        .groundColor = glm::vec3{0.9, 0.8, 0.6},
-
-        .scatteringCoefficientRayleigh =
-            glm::vec3(0.0000038, 0.0000135, 0.0000331),
-        .altitudeDecayRayleigh = 7994.0,
-
-        .scatteringCoefficientMie = glm::vec3(0.000021),
-        .altitudeDecayMie = 1200.0,
-    }
-};
-
 Engine::Engine(
     PlatformWindow const& window,
     VkInstance const instance,
@@ -509,17 +491,6 @@ void Engine::initWorld(
                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 )
             );
-        std::vector<gputypes::Atmosphere> const atmospheres{
-            m_atmosphereParameters.toDeviceEquivalent()
-        };
-        m_atmospheresBuffer->stage(atmospheres);
-
-        immediateSubmit(
-            device,
-            transferQueue,
-            [&](VkCommandBuffer cmd)
-        { m_atmospheresBuffer->recordCopyToDevice(cmd); }
-        );
     }
 }
 
@@ -919,9 +890,9 @@ void Engine::uiRenderOldWindows(
         };
     }
 
-    if (UIWindow const sceneControls{
-            UIWindow::beginDockable("Scene Controls", dockingLayout.left)
-        };
+    if (UIWindow const sceneControls{UIWindow::beginDockable(
+            "Scene Controls (LEGACY)", dockingLayout.left
+        )};
         sceneControls.open)
     {
         imguiMeshInstanceControls(
@@ -941,11 +912,6 @@ void Engine::uiRenderOldWindows(
 
         ImGui::Separator();
         imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
-
-        ImGui::Separator();
-        imguiStructureControls(
-            m_atmosphereParameters, m_defaultAtmosphereParameters
-        );
     }
 
     if (UIWindow const engineControls{
@@ -1021,50 +987,10 @@ void Engine::tickWorld(TickTiming const timing)
         }
         index += 1;
     }
-
-    // Atmosphere
-    {
-        AtmosphereParameters::AnimationParameters const atmosphereAnimation{
-            m_atmosphereParameters.animation
-        };
-        if (atmosphereAnimation.animateSun)
-        {
-            float const time{
-                // position of sun as proxy for time
-                glm::dot(geometry::up, m_atmosphereParameters.directionToSun())
-            };
-
-            bool const isNight{time < -0.11F};
-            float const sunriseAngle{glm::asin(0.1F)};
-
-            if (isNight && atmosphereAnimation.skipNight)
-            {
-                if (atmosphereAnimation.animationSpeed > 0.0)
-                {
-                    m_atmosphereParameters.sunEulerAngles.x =
-                        glm::pi<float>() - sunriseAngle;
-                }
-                else
-                {
-                    m_atmosphereParameters.sunEulerAngles.x = sunriseAngle;
-                }
-            }
-            else
-            {
-                m_atmosphereParameters.sunEulerAngles.x +=
-                    static_cast<float>(timing.deltaTimeSeconds)
-                    * atmosphereAnimation.animationSpeed;
-            }
-
-            m_atmosphereParameters.sunEulerAngles = glm::mod(
-                m_atmosphereParameters.sunEulerAngles,
-                glm::vec3(glm::two_pi<float>())
-            );
-        }
-    }
 }
 
-auto Engine::recordDraw(VkCommandBuffer const cmd) -> DrawResults
+auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
+    -> DrawResults
 {
     // Begin scene drawing
 
@@ -1089,23 +1015,22 @@ auto Engine::recordDraw(VkCommandBuffer const cmd) -> DrawResults
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
+    std::vector<gputypes::LightDirectional> directionalLights{};
     { // Copy atmospheres to gpu
-        std::span<gputypes::Atmosphere> const stagedAtmospheres{
-            m_atmospheresBuffer->mapValidStaged()
+        scene::AtmosphereBaked const bakedAtmosphere{
+            scene.atmosphere.baked(m_sceneBounds)
         };
-        if (stagedAtmospheres.size() <= m_atmosphereIndex)
+        if (bakedAtmosphere.moonlight.has_value())
         {
-            Warning("AtmosphereIndex does not point to valid atmosphere, "
-                    "resetting to 0.");
-            m_atmosphereIndex = 0;
+            directionalLights.push_back(bakedAtmosphere.moonlight.value());
         }
-        if (!stagedAtmospheres.empty()
-            && m_atmosphereIndex < stagedAtmospheres.size())
+        if (bakedAtmosphere.sunlight.has_value())
         {
-            stagedAtmospheres[m_atmosphereIndex] =
-                m_atmosphereParameters.toDeviceEquivalent();
+            directionalLights.push_back(bakedAtmosphere.sunlight.value());
         }
 
+        m_atmospheresBuffer->clearStaged();
+        m_atmospheresBuffer->push(bakedAtmosphere.atmosphere);
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
@@ -1123,82 +1048,6 @@ auto Engine::recordDraw(VkCommandBuffer const cmd) -> DrawResults
         {
         case RenderingPipelines::DEFERRED:
         {
-            std::vector<gputypes::LightDirectional> directionalLights{};
-            std::span<gputypes::Atmosphere const> const atmospheres{
-                m_atmospheresBuffer->readValidStaged()
-            };
-            if (m_atmosphereIndex < atmospheres.size())
-            {
-                gputypes::Atmosphere const atmosphere{
-                    atmospheres[m_atmosphereIndex]
-                };
-
-                float const sunCosine{
-                    // position of sun as proxy for time
-                    glm::dot(geometry::up, atmosphere.directionToSun)
-                };
-                if (sunCosine > 0.0)
-                { // Sunlight
-                    float constexpr SUNLIGHT_STRENGTH{0.5F};
-
-                    directionalLights.push_back(lights::makeDirectional(
-                        glm::vec4(atmosphere.sunlightColor, 1.0),
-                        SUNLIGHT_STRENGTH,
-                        m_atmosphereParameters.sunEulerAngles,
-                        m_sceneBounds.center,
-                        m_sceneBounds.extent
-                    ));
-                }
-
-                float constexpr SUNSET_COSINE{0.06};
-
-                if (sunCosine < SUNSET_COSINE)
-                { // Moonlight
-                    float constexpr MOONRISE_LENGTH{0.08};
-
-                    float const moonlightStrength{
-                        0.1F
-                        * glm::clamp(
-                            0.0F,
-                            1.0F,
-                            glm::abs(sunCosine - SUNSET_COSINE)
-                                / MOONRISE_LENGTH
-                        )
-                    };
-
-                    glm::vec4 constexpr MOONLIGHT_COLOR_RGBA{
-                        0.3, 0.4, 0.6, 1.0
-                    };
-                    glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{
-                        -glm::half_pi<float>(), 0.0F, 0.0F
-                    };
-
-                    directionalLights.push_back(lights::makeDirectional(
-                        MOONLIGHT_COLOR_RGBA,
-                        moonlightStrength,
-                        STRAIGHT_DOWN_EULER_ANGLES,
-                        m_sceneBounds.center,
-                        m_sceneBounds.extent
-                    ));
-                }
-            }
-            else
-            {
-                glm::vec4 constexpr WHITE_RGBA{1.0F};
-                float constexpr STRENGTH{1.0F};
-                glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{
-                    -glm::half_pi<float>(), 0.0F, 0.0F
-                };
-
-                directionalLights.push_back(lights::makeDirectional(
-                    WHITE_RGBA,
-                    STRENGTH,
-                    STRAIGHT_DOWN_EULER_ANGLES,
-                    m_sceneBounds.center,
-                    m_sceneBounds.extent
-                ));
-            }
-
             std::vector<gputypes::LightSpot> const spotLights{
                 lights::makeSpot(
                     glm::vec4(0.0, 1.0, 0.0, 1.0),
@@ -1236,7 +1085,7 @@ auto Engine::recordDraw(VkCommandBuffer const cmd) -> DrawResults
                                  : std::vector<gputypes::LightSpot>{},
                 m_cameraIndexMain,
                 *m_camerasBuffer,
-                m_atmosphereIndex,
+                0,
                 *m_atmospheresBuffer,
                 m_renderMeshInstances,
                 *m_testMeshes[m_testMeshUsed],

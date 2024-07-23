@@ -4,6 +4,8 @@
 
 #include "assets.hpp"
 #include "buffers.hpp"
+#include "core/scene.hpp"
+#include "core/timing.hpp"
 #include "debuglines.hpp"
 #include "deferred/deferred.hpp"
 #include "descriptors.hpp"
@@ -17,12 +19,6 @@
 #include "ui/engineui.hpp"
 
 struct GLFWwindow;
-
-struct TickTiming
-{
-    double timeElapsedSeconds;
-    double deltaTimeSeconds;
-};
 
 class Engine
 {
@@ -75,7 +71,7 @@ public:
         AllocatedImage& renderTarget;
         VkRect2D renderArea;
     };
-    auto recordDraw(VkCommandBuffer) -> DrawResults;
+    auto recordDraw(VkCommandBuffer, scene::Scene const&) -> DrawResults;
 
     void cleanup(VkDevice, VmaAllocator);
 
@@ -209,19 +205,15 @@ private:
 
     // These scene bounds help inform shadow map generation
     // TODO: compute this from the scene
-    static SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
+    static scene::SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
         .center = glm::vec3{0.0, -4.0, 0.0},
         .extent = glm::vec3{40.0, 5.0, 40.0},
     };
-    SceneBounds m_sceneBounds{DEFAULT_SCENE_BOUNDS};
+    scene::SceneBounds m_sceneBounds{DEFAULT_SCENE_BOUNDS};
 
     bool m_useOrthographicProjection{false};
     static CameraParameters const m_defaultCameraParameters;
     CameraParameters m_cameraParameters{m_defaultCameraParameters};
-
-    uint32_t m_atmosphereIndex{0};
-    static AtmosphereParameters const m_defaultAtmosphereParameters;
-    AtmosphereParameters m_atmosphereParameters{m_defaultAtmosphereParameters};
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
     std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};

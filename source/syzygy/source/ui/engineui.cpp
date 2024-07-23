@@ -1,5 +1,6 @@
 #include "engineui.hpp"
 #include "../assets.hpp"
+#include "../core/scene.hpp"
 #include "../debuglines.hpp"
 #include "../engineparams.hpp"
 #include "../shaders.hpp"
@@ -288,129 +289,6 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 
 template <>
 void imguiStructureControls(
-    AtmosphereParameters& structure,
-    AtmosphereParameters const& defaultStructure
-)
-{
-    if (!ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        return;
-    }
-
-    FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{-20.0F, 20.0F};
-
-    float constexpr EULER_ANGLES_SPEED{0.1F};
-
-    FloatBounds constexpr RGBA_BOUNDS{0.0F, 1.0F};
-
-    float constexpr PLANETARY_RADIUS_MIN{1.0F};
-    float constexpr PLANETARY_RADIUS_MAX{1'000'000'000.0F};
-
-    // Scattering coefficient meaningfully exists over a very small and
-    // unpredictable range. Thus finer controls are needed, and a speed of 0.1
-    // or default 0.0 is too high.
-    float constexpr SCATTERING_COEFFICIENT_SPEED{0.01F};
-    FloatBounds constexpr SCATTERING_COEFFICIENT_BOUNDS{0.0F, 1.0F};
-
-    FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
-
-    PropertyTable::begin()
-        .rowBoolean(
-            "Animate Sun",
-            structure.animation.animateSun,
-            defaultStructure.animation.animateSun
-        )
-        .rowFloat(
-            "Sun Animation Speed",
-            structure.animation.animationSpeed,
-            defaultStructure.animation.animationSpeed,
-            PropertySliderBehavior{
-                .bounds = SUN_ANIMATION_SPEED_BOUNDS,
-            }
-        )
-        .rowBoolean(
-            "Skip Night",
-            structure.animation.skipNight,
-            defaultStructure.animation.skipNight
-        )
-        .rowVec3(
-            "Sun Euler Angles",
-            structure.sunEulerAngles,
-            defaultStructure.sunEulerAngles,
-            PropertySliderBehavior{
-                .speed = EULER_ANGLES_SPEED,
-            }
-        )
-        .rowReadOnlyVec3("Direction to Sun", structure.directionToSun())
-        .rowVec3(
-            "Ground Diffuse Color",
-            structure.groundColor,
-            defaultStructure.groundColor,
-            PropertySliderBehavior{
-                .bounds = RGBA_BOUNDS,
-            }
-        )
-        .rowFloat(
-            "Earth Radius",
-            structure.earthRadiusMeters,
-            defaultStructure.earthRadiusMeters,
-            PropertySliderBehavior{
-                .bounds =
-                    FloatBounds{
-                        PLANETARY_RADIUS_MIN, structure.atmosphereRadiusMeters
-                    },
-            }
-        )
-        .rowFloat(
-            "Atmosphere Radius",
-            structure.atmosphereRadiusMeters,
-            defaultStructure.atmosphereRadiusMeters,
-            PropertySliderBehavior{
-                .bounds =
-                    FloatBounds{
-                        structure.earthRadiusMeters, PLANETARY_RADIUS_MAX
-                    },
-            }
-        )
-        .rowVec3(
-            "Rayleigh Scattering Coefficient",
-            structure.scatteringCoefficientRayleigh,
-            defaultStructure.scatteringCoefficientRayleigh,
-            PropertySliderBehavior{
-                .speed = SCATTERING_COEFFICIENT_SPEED,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
-        )
-        .rowFloat(
-            "Rayleigh Altitude Decay",
-            structure.altitudeDecayRayleigh,
-            defaultStructure.altitudeDecayRayleigh,
-            PropertySliderBehavior{
-                .bounds = ALTITUDE_DECAY_BOUNDS,
-            }
-        )
-        .rowVec3(
-            "Mie Scattering Coefficient",
-            structure.scatteringCoefficientMie,
-            defaultStructure.scatteringCoefficientMie,
-            PropertySliderBehavior{
-                .speed = SCATTERING_COEFFICIENT_SPEED,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
-        )
-        .rowFloat(
-            "Mie Altitude Decay",
-            structure.altitudeDecayMie,
-            defaultStructure.altitudeDecayMie,
-            PropertySliderBehavior{
-                .bounds = ALTITUDE_DECAY_BOUNDS,
-            }
-        )
-        .end();
-}
-
-template <>
-void imguiStructureControls(
     CameraParameters& structure, CameraParameters const& defaultStructure
 )
 {
@@ -592,7 +470,7 @@ void imguiStructureControls(
 
 template <>
 void imguiStructureControls(
-    SceneBounds& structure, SceneBounds const& defaultStructure
+    scene::SceneBounds& structure, scene::SceneBounds const& defaultStructure
 )
 {
     bool const headerOpen{
