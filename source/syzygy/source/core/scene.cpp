@@ -126,8 +126,8 @@ auto createMoonlight(
 }
 
 // Returns an estimate of the color of sunlight that has reached the
-// origin.
-auto computeSunlight(scene::Atmosphere const& atmosphere) -> glm::vec4
+// origin, attenuated due to scattering.
+auto computeSunlightColor(scene::Atmosphere const& atmosphere) -> glm::vec4
 {
     float const surfaceCosine{
         glm::dot(atmosphere.directionToSun(), glm::vec3{0.0, -1.0, 0.0})
@@ -185,7 +185,7 @@ auto scene::Atmosphere::toDeviceEquivalent() const -> gputypes::Atmosphere
 {
     // TODO: move these computations out to somewhere more sensible
 
-    glm::vec4 const sunlight{computeSunlight(*this)};
+    glm::vec4 const sunlight{computeSunlightColor(*this)};
     glm::vec3 const sunDirection{glm::normalize(directionToSun())};
 
     return gputypes::Atmosphere{
