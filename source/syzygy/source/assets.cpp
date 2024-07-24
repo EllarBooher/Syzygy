@@ -13,11 +13,110 @@
 
 #include "helpers.hpp"
 
+namespace
+{
+auto uploadMeshToGPU(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    ImmediateSubmissionQueue const& submissionQueue,
+    std::span<uint32_t const> const indices,
+    std::span<Vertex const> const vertices
+) -> std::unique_ptr<GPUMeshBuffers>
+{
+    // Allocate buffer
+
+    size_t const indexBufferSize{indices.size_bytes()};
+    size_t const vertexBufferSize{vertices.size_bytes()};
+
+    AllocatedBuffer indexBuffer{AllocatedBuffer::allocate(
+        device,
+        allocator,
+        indexBufferSize,
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        0
+    )};
+
+    AllocatedBuffer vertexBuffer{AllocatedBuffer::allocate(
+        device,
+        allocator,
+        vertexBufferSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        0
+    )};
+
+    // Copy data into buffer
+
+    AllocatedBuffer stagingBuffer{AllocatedBuffer::allocate(
+        device,
+        allocator,
+        vertexBufferSize + indexBufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_CPU_ONLY,
+        VMA_ALLOCATION_CREATE_MAPPED_BIT
+    )};
+
+    assert(
+        stagingBuffer.isMapped()
+        && "Staging buffer for mesh upload was not mapped."
+    );
+
+    stagingBuffer.writeBytes(
+        0,
+        std::span<uint8_t const>{
+            reinterpret_cast<uint8_t const*>(vertices.data()), vertexBufferSize
+        }
+    );
+    stagingBuffer.writeBytes(
+        vertexBufferSize,
+        std::span<uint8_t const>{
+            reinterpret_cast<uint8_t const*>(indices.data()), indexBufferSize
+        }
+    );
+
+    if (auto result{submissionQueue.immediateSubmit(
+            transferQueue,
+            [&](VkCommandBuffer cmd)
+    {
+        VkBufferCopy const vertexCopy{
+            .srcOffset = 0,
+            .dstOffset = 0,
+            .size = vertexBufferSize,
+        };
+        vkCmdCopyBuffer(
+            cmd, stagingBuffer.buffer(), vertexBuffer.buffer(), 1, &vertexCopy
+        );
+
+        VkBufferCopy const indexCopy{
+            .srcOffset = vertexBufferSize,
+            .dstOffset = 0,
+            .size = indexBufferSize,
+        };
+        vkCmdCopyBuffer(
+            cmd, stagingBuffer.buffer(), indexBuffer.buffer(), 1, &indexCopy
+        );
+    }
+        )};
+        result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
+    {
+        Warning("Command submission for mesh upload failed, buffers will "
+                "likely contain junk or no data.");
+    }
+
+    return std::make_unique<GPUMeshBuffers>(
+        std::move(indexBuffer), std::move(vertexBuffer)
+    );
+}
+} // namespace
+
 auto loadGltfMeshes(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    Engine* const engine,
+    ImmediateSubmissionQueue const& submissionQueue,
     std::string const& localPath
 ) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
@@ -173,8 +272,13 @@ auto loadGltfMeshes(
         newMeshes.push_back(std::make_shared<MeshAsset>(MeshAsset{
             .name = std::string{mesh.name},
             .surfaces = surfaces,
-            .meshBuffers = engine->uploadMeshToGPU(
-                device, allocator, transferQueue, indices, vertices
+            .meshBuffers = uploadMeshToGPU(
+                device,
+                allocator,
+                transferQueue,
+                submissionQueue,
+                indices,
+                vertices
             ),
         }));
     }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../assets.hpp"
 #include "../geometryhelpers.hpp"
 #include "../gputypes.hpp"
 #include "timing.hpp"
@@ -83,6 +84,17 @@ struct Camera
     auto toDeviceEquivalent(float aspectRatio) const -> gputypes::Camera;
 };
 
+struct MeshInstanced
+{
+    bool render{false};
+    std::shared_ptr<MeshAsset> mesh{};
+
+    std::vector<glm::mat4x4> originals{};
+
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+};
+
 struct Scene
 {
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
@@ -94,7 +106,16 @@ struct Scene
     bool spotlightsRender{false};
     std::vector<gputypes::LightSpot> spotlights{};
 
-    static auto defaultScene() -> Scene;
+    // TODO: we need to store this count because the rendering pipelines can't
+    // handle multiple meshes in one rendering pass. When that is added,
+    // multiple meshinstanced can be put here instead of having to pack all
+    // geometry in one.
+    size_t geometryMovingCubeIndex{};
+    MeshInstanced geometry;
+
+    static auto
+    defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
+        -> Scene;
     void tick(TickTiming);
 };
 } // namespace scene

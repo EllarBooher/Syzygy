@@ -441,9 +441,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     TStagedBuffer<gputypes::Camera> const& cameras,
     uint32_t const atmosphereIndex,
     TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
-    bool const renderMesh,
-    MeshAsset const& sceneMesh,
-    MeshInstances const& sceneGeometry
+    scene::MeshInstanced const& sceneGeometry
 )
 {
     VkPipelineStageFlags2 const bufferStages{
@@ -497,7 +495,10 @@ void DeferredShadingPipeline::recordDrawCommands(
         }
     }
 
-    if (renderMesh)
+    bool const shouldRenderGeometry{
+        sceneGeometry.render || sceneGeometry.mesh == nullptr
+    };
+    if (shouldRenderGeometry)
     { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd,
@@ -507,11 +508,11 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         m_shadowPassArray.recordDrawCommands(
-            cmd, sceneMesh, *sceneGeometry.models
+            cmd, *sceneGeometry.mesh, *sceneGeometry.models
         );
     }
 
-    if (renderMesh)
+    if (shouldRenderGeometry)
     { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(
             cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -522,7 +523,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
     }
 
-    if (renderMesh)
+    if (shouldRenderGeometry)
     { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd, VkRect2D{.extent{drawRect.extent}}
@@ -631,7 +632,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdBindShadersEXT(cmd, 2, stages.data(), shaders.data());
 
-        GPUMeshBuffers& meshBuffers{*sceneMesh.meshBuffers};
+        GPUMeshBuffers& meshBuffers{*sceneGeometry.mesh->meshBuffers};
 
         { // Vertex push constant
             GBufferVertexPushConstant const vertexPushConstant{
@@ -652,7 +653,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             );
         }
 
-        GeometrySurface const& drawnSurface{sceneMesh.surfaces[0]};
+        GeometrySurface const& drawnSurface{sceneGeometry.mesh->surfaces[0]};
 
         // Bind the entire index buffer of the mesh, but only draw a single
         // surface.
@@ -691,7 +692,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         cmd, color, renderpass::COLOR_BLACK_OPAQUE
     );
 
-    if (renderMesh)
+    if (shouldRenderGeometry)
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
             cmd, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL

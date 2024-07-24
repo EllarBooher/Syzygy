@@ -362,7 +362,46 @@ auto Editor::run() -> EditorResult
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
-    scene::Scene scene{scene::Scene::defaultScene()};
+    ImmediateSubmissionQueue submissionQueue{};
+    if (auto result{ImmediateSubmissionQueue::create(
+            m_graphics.vulkanContext().device,
+            m_graphics.vulkanContext().graphicsQueueFamily
+        )};
+        result.has_value())
+    {
+        submissionQueue = std::move(result).value();
+    }
+    else
+    {
+        Error("Failed to create immediate submission queue.");
+        return EditorResult::ERROR_EDITOR;
+    }
+
+    MeshAssetLibrary meshAssets{};
+    if (auto result{loadGltfMeshes(
+            m_graphics.vulkanContext().device,
+            m_graphics.allocator(),
+            m_graphics.vulkanContext().graphicsQueue,
+            submissionQueue,
+            "assets/vkguide/basicmesh.glb"
+        )};
+        result.has_value())
+    {
+        meshAssets.loadedMeshes.insert(
+            std::end(meshAssets.loadedMeshes),
+            std::begin(result.value()),
+            std::end(result.value())
+        );
+    }
+    else
+    {
+        Error("Failed to load any meshes.");
+        return EditorResult::ERROR_EDITOR;
+    }
+
+    scene::Scene scene{scene::Scene::defaultScene(
+        m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
+    )};
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
@@ -475,6 +514,10 @@ auto Editor::run() -> EditorResult
             }
         }
     }
+
+    // Wait for idle, so stack allocated handles can be freed safely when this
+    // method returns.
+    vkDeviceWaitIdle(m_graphics.vulkanContext().device);
 
     return EditorResult::SUCCESS;
 }

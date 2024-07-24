@@ -5,33 +5,17 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
-#include <iostream>
-
-#include <chrono>
-#include <thread>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
-
 #include <implot.h>
-
-#include <glm/gtc/matrix_inverse.hpp>
-#include <glm/gtc/random.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/transform.hpp>
-
-#include <glm/gtx/string_cast.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec4.hpp>
 
 #include "descriptors.hpp"
 #include "helpers.hpp"
 #include "images.hpp"
 #include "initializers.hpp"
-#include "pipelines.hpp"
-
 #include "lights.hpp"
+#include "pipelines.hpp"
 
 #include "ui/pipelineui.hpp"
 
@@ -102,25 +86,12 @@ void Engine::init(
 {
     Log("Initializing Engine...");
 
-    if (auto result{
-            ImmediateSubmissionQueue::create(device, generalQueueFamilyIndex)
-        };
-        result.has_value())
-    {
-        m_immediateSubmissionQueue = std::move(result).value();
-    }
-    else
-    {
-        Error("Failed to allocate immediate submission queue.");
-    }
-
     initDrawTargets(device, allocator);
 
     initDescriptors(device);
 
     updateDescriptors(device);
 
-    initDefaultMeshData(device, allocator, generalQueue);
     initWorld(device, allocator);
     initDebug(device, allocator);
     initGenericComputePipelines(device);
@@ -302,115 +273,8 @@ void Engine::updateDescriptors(VkDevice const device)
     vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
 }
 
-void Engine::initDefaultMeshData(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue
-)
-{
-    m_testMeshes =
-        loadGltfMeshes( // NOLINT(bugprone-unchecked-optional-access):
-                        // Necessary for program execution
-            device,
-            allocator,
-            transferQueue,
-            this,
-            "assets/vkguide/basicmesh.glb"
-        )
-            .value();
-}
-
-auto randomQuat() -> glm::quat
-{
-    // https://stackoverflow.com/a/56794499
-
-    glm::vec2 const xy{glm::diskRand(1.0F)};
-    glm::vec2 const uv{glm::diskRand(1.0F)};
-
-    float const s{glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv))};
-
-    return {s * uv.y, xy.x, xy.y, s * uv.x};
-}
-
 void Engine::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
-    int32_t const coordinateMin{-40};
-    int32_t const coordinateMax{40};
-
-    if (m_meshInstances.models != nullptr
-        || m_meshInstances.modelInverseTransposes != nullptr)
-    {
-        Warning("initWorld called when World already initialized");
-        return;
-    }
-
-    { // Mesh Instances
-        // Floor
-        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
-        {
-            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
-            {
-                glm::vec3 const position{
-                    static_cast<float>(x) * 20.0F,
-                    1.0F,
-                    static_cast<float>(z) * 20.0F
-                };
-                glm::vec3 const scale{10.0F, 2.0F, 10.0F};
-
-                m_meshInstances.originals.push_back(
-                    glm::translate(position) * glm::scale(scale)
-                );
-            }
-        }
-
-        m_meshInstances.dynamicIndex = m_meshInstances.originals.size();
-
-        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
-        {
-            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
-            {
-                glm::vec3 const position{
-                    static_cast<float>(x), -4.0, static_cast<float>(z)
-                };
-                glm::quat const orientation{randomQuat()};
-                glm::vec3 const scale{0.2F};
-
-                m_meshInstances.originals.push_back(
-                    glm::translate(position) * glm::toMat4(orientation)
-                    * glm::scale(scale)
-                );
-            }
-        }
-
-        VkDeviceSize const maxInstanceCount{m_meshInstances.originals.size()};
-        m_meshInstances.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-            TStagedBuffer<glm::mat4x4>::allocate(
-                device,
-                allocator,
-                maxInstanceCount,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            )
-        );
-        m_meshInstances.modelInverseTransposes =
-            std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                TStagedBuffer<glm::mat4x4>::allocate(
-                    device,
-                    allocator,
-                    maxInstanceCount,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                )
-            );
-
-        std::vector<glm::mat4x4> modelInverseTransposes{};
-        modelInverseTransposes.reserve(m_meshInstances.originals.size());
-        for (glm::mat4x4 const& model : m_meshInstances.originals)
-        {
-            modelInverseTransposes.push_back(glm::inverseTranspose(model));
-        }
-
-        m_meshInstances.models->stage(m_meshInstances.originals);
-        m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
-    }
     m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
         TStagedBuffer<gputypes::Camera>::allocate(
             device,
@@ -608,101 +472,6 @@ void Engine::initImgui(
     Log("ImGui initialized.");
 }
 
-auto Engine::uploadMeshToGPU(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue,
-    std::span<uint32_t const> const indices,
-    std::span<Vertex const> const vertices
-) const -> std::unique_ptr<GPUMeshBuffers>
-{
-    // Allocate buffer
-
-    size_t const indexBufferSize{indices.size_bytes()};
-    size_t const vertexBufferSize{vertices.size_bytes()};
-
-    AllocatedBuffer indexBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        indexBufferSize,
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        0
-    )};
-
-    AllocatedBuffer vertexBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        vertexBufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        0
-    )};
-
-    // Copy data into buffer
-
-    AllocatedBuffer stagingBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        vertexBufferSize + indexBufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VMA_ALLOCATION_CREATE_MAPPED_BIT
-    )};
-
-    assert(
-        stagingBuffer.isMapped()
-        && "Staging buffer for mesh upload was not mapped."
-    );
-
-    stagingBuffer.writeBytes(
-        0,
-        std::span<uint8_t const>{
-            reinterpret_cast<uint8_t const*>(vertices.data()), vertexBufferSize
-        }
-    );
-    stagingBuffer.writeBytes(
-        vertexBufferSize,
-        std::span<uint8_t const>{
-            reinterpret_cast<uint8_t const*>(indices.data()), indexBufferSize
-        }
-    );
-
-    if (auto result{m_immediateSubmissionQueue.immediateSubmit(
-            transferQueue,
-            [&](VkCommandBuffer cmd)
-    {
-        VkBufferCopy const vertexCopy{
-            .srcOffset = 0,
-            .dstOffset = 0,
-            .size = vertexBufferSize,
-        };
-        vkCmdCopyBuffer(
-            cmd, stagingBuffer.buffer(), vertexBuffer.buffer(), 1, &vertexCopy
-        );
-
-        VkBufferCopy const indexCopy{
-            .srcOffset = vertexBufferSize,
-            .dstOffset = 0,
-            .size = indexBufferSize,
-        };
-        vkCmdCopyBuffer(
-            cmd, stagingBuffer.buffer(), indexBuffer.buffer(), 1, &indexCopy
-        );
-    }
-        )};
-        result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
-    {
-        Warning("Command submission for mesh upload failed, buffers will "
-                "likely contain junk or no data.");
-    }
-
-    return std::make_unique<GPUMeshBuffers>(
-        std::move(indexBuffer), std::move(vertexBuffer)
-    );
-}
-
 // TODO: Once scenes are made, extract this to a testing scene
 #if VKRENDERER_COMPILE_WITH_TESTING
 void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
@@ -797,10 +566,6 @@ void Engine::uiRenderOldWindows(
         )};
         sceneControls.open)
     {
-        imguiMeshInstanceControls(
-            m_renderMeshInstances, m_testMeshes, m_testMeshUsed
-        );
-
         ImGui::Separator();
         imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
     }
@@ -833,52 +598,7 @@ void Engine::uiRenderOldWindows(
 
 void Engine::uiEnd() { ImGui::Render(); }
 
-void Engine::tickWorld(TickTiming const timing)
-{
-    m_debugLines.clear();
-
-    std::span<glm::mat4x4> const models{m_meshInstances.models->mapValidStaged()
-    };
-    std::span<glm::mat4x4> const modelInverseTransposes{
-        m_meshInstances.modelInverseTransposes->mapValidStaged()
-    };
-
-    if (models.size() != modelInverseTransposes.size())
-    {
-        Warning("models and modelInverseTransposes out of sync");
-        return;
-    }
-
-    size_t index{0};
-    for (glm::mat4x4 const& modelOriginal : m_meshInstances.originals)
-    {
-        if (index >= m_meshInstances.dynamicIndex)
-        {
-            glm::vec4 const position{
-                modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0)
-            };
-
-            double const timeOffset{
-                (position.x - (-10) + position.z - (-10)) / 3.1415
-            };
-
-            double const y{std::sin(timing.timeElapsedSeconds + timeOffset)};
-
-            glm::mat4x4 const translation{glm::translate(glm::vec3(0.0, y, 0.0))
-            };
-
-            models[index] = translation * modelOriginal;
-
-            // In general, the model inverse transposes only need to be
-            // updated once per tick, before rendering and after the last
-            // update of the model matrices. For now, we only update once
-            // per tick, so we just compute it here.
-            modelInverseTransposes[index] =
-                glm::inverseTranspose(models[index]);
-        }
-        index += 1;
-    }
-}
+void Engine::tickWorld(TickTiming const /*timing*/) { m_debugLines.clear(); }
 
 auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
     -> DrawResults
@@ -919,8 +639,8 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
     }
 
     { // Copy models to gpu
-        m_meshInstances.models->recordCopyToDevice(cmd);
-        m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd);
+        scene.geometry.models->recordCopyToDevice(cmd);
+        scene.geometry.modelInverseTransposes->recordCopyToDevice(cmd);
     }
 
     {
@@ -949,9 +669,7 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
                 *m_camerasBuffer,
                 atmosphereIndex,
                 *m_atmospheresBuffer,
-                m_renderMeshInstances,
-                *m_testMeshes[m_testMeshUsed],
-                m_meshInstances
+                scene.geometry
             );
 
             m_sceneColorTexture->recordTransitionBarriered(
@@ -1089,13 +807,9 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
     m_genericComputePipeline->cleanup(device);
     m_deferredShadingPipeline->cleanup(device, allocator);
 
-    m_meshInstances.models.reset();
-    m_meshInstances.modelInverseTransposes.reset();
-
     m_atmospheresBuffer.reset();
     m_camerasBuffer.reset();
 
-    m_testMeshes.clear();
     m_debugLines.cleanup(device, allocator);
 
     m_globalDescriptorAllocator.destroyPool(device);
@@ -1109,8 +823,6 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
     m_drawImage.reset();
 
     m_initialized = false;
-
-    m_immediateSubmissionQueue = {};
 
     Log("Engine cleaned up.");
 }

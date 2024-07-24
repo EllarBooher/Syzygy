@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../core/scene.hpp"
 #include "../enginetypes.hpp"
 #include "../pipelines.hpp"
 #include "../shadowpass.hpp"
@@ -27,9 +28,7 @@ public:
         TStagedBuffer<gputypes::Camera> const& cameras,
         uint32_t atmosphereIndex,
         TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
-        bool renderMesh,
-        MeshAsset const& sceneMesh,
-        MeshInstances const& sceneGeometry
+        scene::MeshInstanced const& sceneGeometry
     );
 
     void updateRenderTargetDescriptors(VkDevice, AllocatedImage& depthImage);

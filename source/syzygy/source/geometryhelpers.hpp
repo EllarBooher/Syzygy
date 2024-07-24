@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <glm/gtx/quaternion.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
@@ -64,4 +65,6 @@ glm::vec3 forwardFromEulers(glm::vec3 eulerAngles);
 glm::mat4x4 transformVk(glm::vec3 position, glm::vec3 eulerAngles);
 
 glm::mat4x4 viewVk(glm::vec3 position, glm::vec3 eulerAngles);
+
+auto randomQuat() -> glm::quat;
 } // namespace geometry

@@ -1,7 +1,9 @@
 #include "geometryhelpers.hpp"
 
 #include <glm/geometric.hpp>
+#include <glm/gtc/random.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>
 
 #include "geometrystatics.hpp"
@@ -91,6 +93,18 @@ auto geometry::viewVk(glm::vec3 const position, glm::vec3 const eulerAngles)
     -> glm::mat4x4
 {
     return glm::inverse(transformVk(position, eulerAngles));
+}
+
+auto geometry::randomQuat() -> glm::quat
+{
+    // https://stackoverflow.com/a/56794499
+
+    glm::vec2 const xy{glm::diskRand(1.0F)};
+    glm::vec2 const uv{glm::diskRand(1.0F)};
+
+    float const s{glm::sqrt((1 - glm::length2(xy)) / glm::length2(uv))};
+
+    return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
 auto geometry::projectionOrthoAABBVk(

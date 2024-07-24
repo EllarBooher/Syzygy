@@ -21,13 +21,19 @@ struct MeshAsset
     std::unique_ptr<GPUMeshBuffers> meshBuffers{};
 };
 
+struct MeshAssetLibrary
+{
+    std::vector<std::shared_ptr<MeshAsset>> loadedMeshes;
+};
+
 class Engine;
 
+// TODO: decouple engine from this
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     VkDevice,
     VmaAllocator,
     VkQueue transferQueue,
-    Engine* engine,
+    ImmediateSubmissionQueue const& submissionQueue,
     std::string const& localPath
 );
 

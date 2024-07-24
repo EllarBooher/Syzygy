@@ -106,7 +106,6 @@ private:
 
     void updateDescriptors(VkDevice);
 
-    void initDefaultMeshData(VkDevice, VmaAllocator, VkQueue transferQueue);
     void initWorld(VkDevice, VmaAllocator);
     void initDebug(VkDevice, VmaAllocator);
     void initDeferredShadingPipeline(VkDevice, VmaAllocator);
@@ -162,29 +161,8 @@ private:
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
 
-public:
-    std::unique_ptr<GPUMeshBuffers> uploadMeshToGPU(
-        VkDevice,
-        VmaAllocator,
-        VkQueue transferQueue,
-        std::span<uint32_t const> indices,
-        std::span<Vertex const> vertices
-    ) const;
-
-    ImmediateSubmissionQueue m_immediateSubmissionQueue{};
-
 private:
-    // Meshes
-
-    std::vector<std::shared_ptr<MeshAsset>> m_testMeshes{};
-
     // Scene
-
-    size_t m_testMeshUsed{0};
-
-    bool m_renderMeshInstances{true};
-
-    MeshInstances m_meshInstances{};
 
     // These scene bounds help inform shadow map generation
     // TODO: compute this from the scene

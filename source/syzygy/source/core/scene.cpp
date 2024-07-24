@@ -1,7 +1,9 @@
 #include "scene.hpp"
 
+#include "../geometryhelpers.hpp"
 #include "../geometrystatics.hpp"
 #include "../lights.hpp"
+#include <glm/gtx/quaternion.hpp>
 
 /*
  * Values derived from:
@@ -81,7 +83,11 @@ auto tickSunEulerAngles(
 }
 } // namespace
 
-auto scene::Scene::defaultScene() -> Scene
+auto scene::Scene::defaultScene(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    MeshAssetLibrary const& meshes
+) -> Scene
 {
     std::vector<gputypes::LightSpot> const spotlights{
         lights::makeSpot(
@@ -110,15 +116,130 @@ auto scene::Scene::defaultScene() -> Scene
         ),
     };
 
+    MeshInstanced geometry{};
+    size_t geometryMovingCubeIndex{};
+    if (!meshes.loadedMeshes.empty())
+    {
+        geometry.mesh = meshes.loadedMeshes[0];
+        geometry.render = true;
+
+        // Floor
+        int32_t const coordinateMin{-40};
+        int32_t const coordinateMax{40};
+
+        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
+        {
+            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
+            {
+                glm::vec3 const position{
+                    static_cast<float>(x) * 20.0F,
+                    1.0F,
+                    static_cast<float>(z) * 20.0F
+                };
+                glm::vec3 const scale{10.0F, 2.0F, 10.0F};
+
+                geometry.originals.push_back(
+                    glm::translate(position) * glm::scale(scale)
+                );
+            }
+        }
+
+        geometryMovingCubeIndex = geometry.originals.size();
+
+        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
+        {
+            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
+            {
+                glm::vec3 const position{
+                    static_cast<float>(x), -4.0, static_cast<float>(z)
+                };
+                glm::quat const orientation{geometry::randomQuat()};
+                glm::vec3 const scale{0.2F};
+
+                geometry.originals.push_back(
+                    glm::translate(position) * glm::toMat4(orientation)
+                    * glm::scale(scale)
+                );
+            }
+        }
+
+        VkDeviceSize const maxInstanceCount{geometry.originals.size()};
+        geometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+            TStagedBuffer<glm::mat4x4>::allocate(
+                device,
+                allocator,
+                maxInstanceCount,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
+        geometry.modelInverseTransposes =
+            std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    allocator,
+                    maxInstanceCount,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                )
+            );
+
+        std::vector<glm::mat4x4> modelInverseTransposes{};
+        modelInverseTransposes.reserve(geometry.originals.size());
+        for (glm::mat4x4 const& model : geometry.originals)
+        {
+            modelInverseTransposes.push_back(glm::inverseTranspose(model));
+        }
+
+        geometry.models->stage(geometry.originals);
+        geometry.modelInverseTransposes->stage(modelInverseTransposes);
+    }
+
     return Scene{
         .spotlightsRender = true,
-        .spotlights{spotlights},
+        .spotlights = spotlights,
+        .geometryMovingCubeIndex = geometryMovingCubeIndex,
+        .geometry = std::move(geometry),
     };
 }
 
 void scene::Scene::tick(TickTiming const lastFrame)
 {
     atmosphere.sunEulerAngles = tickSunEulerAngles(atmosphere, lastFrame);
+
+    std::span<glm::mat4x4> const models{geometry.models->mapValidStaged()};
+    std::span<glm::mat4x4> const modelInverseTransposes{
+        geometry.modelInverseTransposes->mapValidStaged()
+    };
+
+    if (models.size() != modelInverseTransposes.size())
+    {
+        Warning("models and modelInverseTransposes out of sync");
+        return;
+    }
+
+    for (size_t index{geometryMovingCubeIndex};
+         index < geometry.originals.size();
+         index++)
+    {
+        glm::mat4x4 const modelOriginal{geometry.originals[index]};
+
+        glm::vec4 const position{modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0)};
+
+        double const timeOffset{
+            (position.x - (-10) + position.z - (-10)) / 3.1415
+        };
+
+        double const y{std::sin(lastFrame.timeElapsedSeconds + timeOffset)};
+
+        glm::mat4x4 const translation{glm::translate(glm::vec3(0.0, y, 0.0))};
+
+        models[index] = translation * modelOriginal;
+
+        // In general, the model inverse transposes only need to be
+        // updated once per tick, before rendering and after the last
+        // update of the model matrices. For now, we only update once
+        // per tick, so we just compute it here.
+        modelInverseTransposes[index] = glm::inverseTranspose(models[index]);
+    }
 }
 
 namespace

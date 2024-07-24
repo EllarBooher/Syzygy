@@ -277,5 +277,12 @@ void ui::sceneControlsWindow(
         PropertyTable::begin()
             .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
             .end();
-    };
+    }
+
+    if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        PropertyTable::begin()
+            .rowBoolean("Render Geometry", scene.geometry.render, true)
+            .end();
+    }
 }
