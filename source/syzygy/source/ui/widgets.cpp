@@ -187,6 +187,62 @@ void uiAtmosphere(
         )
         .end();
 }
+void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
+{
+    // Stay an arbitrary distance away 0 and 180 degrees to avoid singularities
+    FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
+
+    float constexpr CLIPPING_PLANE_MIN{0.01F};
+    float constexpr CLIPPING_PlANE_MAX{1'000'000.0F};
+
+    float constexpr CLIPPING_PLANE_MARGIN{0.01F};
+
+    PropertyTable::begin()
+        .rowVec3(
+            "Camera Position",
+            camera.cameraPosition,
+            defaultValues.cameraPosition,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+        )
+        .rowVec3(
+            "Euler Angles",
+            camera.eulerAngles,
+            defaultValues.eulerAngles,
+            PropertySliderBehavior{
+                .bounds = FloatBounds{-glm::pi<float>(), glm::pi<float>()},
+            }
+        )
+        .rowFloat(
+            "Field of View",
+            camera.fovDegrees,
+            defaultValues.fovDegrees,
+            PropertySliderBehavior{
+                .bounds = FOV_BOUNDS,
+            }
+        )
+        .rowFloat(
+            "Near Plane",
+            camera.near,
+            std::min(camera.far, defaultValues.near),
+            PropertySliderBehavior{
+                .bounds = FloatBounds{CLIPPING_PLANE_MIN, camera.far},
+            }
+        )
+        .rowFloat(
+            "Far Plane",
+            camera.far,
+            std::max(camera.near, defaultValues.far),
+            PropertySliderBehavior{
+                .bounds =
+                    FloatBounds{
+                        camera.near + CLIPPING_PLANE_MARGIN, CLIPPING_PlANE_MAX
+                    },
+            }
+        )
+        .end();
+}
 } // namespace
 
 void ui::sceneControlsWindow(
@@ -205,6 +261,11 @@ void ui::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiAtmosphere(scene.atmosphere, scene::Atmosphere::DEFAULT_VALUES_EARTH);
+        uiAtmosphere(scene.atmosphere, scene::Scene::DEFAULT_ATMOSPHERE_EARTH);
+    }
+
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        uiCamera(scene.camera, scene::Scene::DEFAULT_CAMERA);
     }
 }

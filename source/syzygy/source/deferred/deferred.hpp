@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../engineparams.hpp"
 #include "../enginetypes.hpp"
 #include "../pipelines.hpp"
 #include "../shadowpass.hpp"

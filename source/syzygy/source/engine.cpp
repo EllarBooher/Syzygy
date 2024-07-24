@@ -37,14 +37,6 @@
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
-CameraParameters const Engine::m_defaultCameraParameters{CameraParameters{
-    .cameraPosition = glm::vec3(0.0F, -8.0F, -8.0F),
-    .eulerAngles = glm::vec3(-0.3F, 0.0F, 0.0F),
-    .fov = 70.0F,
-    .near = 0.1F,
-    .far = 10000.0F,
-}};
-
 Engine::Engine(
     PlatformWindow const& window,
     VkInstance const instance,
@@ -465,33 +457,22 @@ void Engine::initWorld(
         }
         );
     }
-
-    { // Camera
-
-        m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
-            TStagedBuffer<gputypes::Camera>::allocate(
-                device,
-                allocator,
-                CAMERA_CAPACITY,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            )
-        );
-        m_camerasBuffer->push(gputypes::Camera{});
-
-        m_cameraIndexMain = 0;
-    }
-
-    { // Atmosphere
-        m_atmospheresBuffer =
-            std::make_unique<TStagedBuffer<gputypes::Atmosphere>>(
-                TStagedBuffer<gputypes::Atmosphere>::allocate(
-                    device,
-                    allocator,
-                    ATMOSPHERE_CAPACITY,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                )
-            );
-    }
+    m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
+        TStagedBuffer<gputypes::Camera>::allocate(
+            device,
+            allocator,
+            CAMERA_CAPACITY,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
+    m_atmospheresBuffer = std::make_unique<TStagedBuffer<gputypes::Atmosphere>>(
+        TStagedBuffer<gputypes::Atmosphere>::allocate(
+            device,
+            allocator,
+            ATMOSPHERE_CAPACITY,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
 }
 
 void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
@@ -909,9 +890,6 @@ void Engine::uiRenderOldWindows(
         ImGui::Checkbox(
             "Use Orthographic Camera", &m_useOrthographicProjection
         );
-
-        ImGui::Separator();
-        imguiStructureControls(m_cameraParameters, m_defaultCameraParameters);
     }
 
     if (UIWindow const engineControls{
@@ -999,19 +977,12 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
             static_cast<float>(vkutil::aspectRatio(m_sceneRect.extent))
         };
 
-        float const orthoDistanceFromCamera{5.0F};
+        gputypes::Camera const mainCamera{scene.camera.toDeviceEquivalent(
+            aspectRatio, m_useOrthographicProjection
+        )};
 
-        std::span<gputypes::Camera> const cameras{
-            m_camerasBuffer->mapValidStaged()
-        };
-        cameras[m_cameraIndexMain] = {
-            m_useOrthographicProjection
-                ? m_cameraParameters.toDeviceEquivalentOrthographic(
-                    aspectRatio, orthoDistanceFromCamera
-                )
-                : m_cameraParameters.toDeviceEquivalent(aspectRatio)
-        };
-
+        m_camerasBuffer->clearStaged();
+        m_camerasBuffer->push(mainCamera);
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
@@ -1075,6 +1046,10 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
                 ),
             };
 
+            // TODO: create a struct that contains a ref to a struct in a buffer
+            uint32_t const cameraIndex{0};
+            uint32_t const atmosphereIndex{0};
+
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 m_sceneRect,
@@ -1083,9 +1058,9 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
                 directionalLights,
                 m_showSpotlights ? spotLights
                                  : std::vector<gputypes::LightSpot>{},
-                m_cameraIndexMain,
+                cameraIndex,
                 *m_camerasBuffer,
-                0,
+                atmosphereIndex,
                 *m_atmospheresBuffer,
                 m_renderMeshInstances,
                 *m_testMeshes[m_testMeshUsed],
@@ -1101,7 +1076,7 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
                 glm::quat_identity<float, glm::qualifier::defaultp>(),
                 m_sceneBounds.extent
             );
-            recordDrawDebugLines(cmd, m_cameraIndexMain, *m_camerasBuffer);
+            recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
 
             break;
         }

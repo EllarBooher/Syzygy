@@ -2,7 +2,6 @@
 #include "../assets.hpp"
 #include "../core/scene.hpp"
 #include "../debuglines.hpp"
-#include "../engineparams.hpp"
 #include "../shaders.hpp"
 #include "../shadowpass.hpp"
 #include "imgui_internal.h"
@@ -285,76 +284,6 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 
         currentActivePipeline = pipelineOrdering[selectedIndex];
     }
-}
-
-template <>
-void imguiStructureControls(
-    CameraParameters& structure, CameraParameters const& defaultStructure
-)
-{
-    bool const headerOpen{ImGui::CollapsingHeader(
-        "Camera Parameters", ImGuiTreeNodeFlags_DefaultOpen
-    )};
-
-    if (!headerOpen)
-    {
-        return;
-    }
-
-    // Stay an arbitrary distance away 0 and 180 to avoid singularities
-    FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
-
-    float constexpr CLIPPING_PLANE_MIN{0.01F};
-    float constexpr CLIPPING_PlANE_MAX{1'000'000.0F};
-
-    float constexpr CLIPPING_PLANE_MARGIN{0.01F};
-
-    PropertyTable::begin()
-        .rowVec3(
-            "Camera Position",
-            structure.cameraPosition,
-            defaultStructure.cameraPosition,
-            PropertySliderBehavior{
-                .speed = 1.0F,
-            }
-        )
-        .rowVec3(
-            "Euler Angles",
-            structure.eulerAngles,
-            defaultStructure.eulerAngles,
-            PropertySliderBehavior{
-                .bounds = FloatBounds{-glm::pi<float>(), glm::pi<float>()},
-            }
-        )
-        .rowFloat(
-            "Field of View",
-            structure.fov,
-            defaultStructure.fov,
-            PropertySliderBehavior{
-                .bounds = FOV_BOUNDS,
-            }
-        )
-        .rowFloat(
-            "Near Plane",
-            structure.near,
-            std::min(structure.far, defaultStructure.near),
-            PropertySliderBehavior{
-                .bounds = FloatBounds{CLIPPING_PLANE_MIN, structure.far},
-            }
-        )
-        .rowFloat(
-            "Far Plane",
-            structure.far,
-            std::max(structure.near, defaultStructure.far),
-            PropertySliderBehavior{
-                .bounds =
-                    FloatBounds{
-                        structure.near + CLIPPING_PLANE_MARGIN,
-                        CLIPPING_PlANE_MAX
-                    },
-            }
-        )
-        .end();
 }
 
 template <> void imguiStructureControls<DebugLines>(DebugLines& structure)

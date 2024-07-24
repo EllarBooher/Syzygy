@@ -10,7 +10,6 @@
 #include "deferred/deferred.hpp"
 #include "descriptors.hpp"
 #include "editor/window.hpp"
-#include "engineparams.hpp"
 #include "enginetypes.hpp"
 #include "imgui.h"
 #include "pipelines.hpp"
@@ -195,7 +194,6 @@ private:
 
     // Scene
 
-    uint32_t m_cameraIndexMain{0};
     size_t m_testMeshUsed{0};
 
     bool m_showSpotlights{true};
@@ -212,8 +210,6 @@ private:
     scene::SceneBounds m_sceneBounds{DEFAULT_SCENE_BOUNDS};
 
     bool m_useOrthographicProjection{false};
-    static CameraParameters const m_defaultCameraParameters;
-    CameraParameters m_cameraParameters{m_defaultCameraParameters};
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
     std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};

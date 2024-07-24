@@ -10,7 +10,7 @@
  * Account Atmospheric Scattering" by Tomoyuki Nishita, Takao Sirai, Katsumi
  * Tadamura, Eihachiro Nakamae
  */
-scene::Atmosphere const scene::Atmosphere::DEFAULT_VALUES_EARTH{
+scene::Atmosphere const scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
     scene::Atmosphere{
         .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
@@ -27,6 +27,14 @@ scene::Atmosphere const scene::Atmosphere::DEFAULT_VALUES_EARTH{
         .altitudeDecayMie = 1200.0,
     }
 };
+
+scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
+    .cameraPosition = glm::vec3(0.0F, -8.0F, -8.0F),
+    .eulerAngles = glm::vec3(-0.3F, 0.0F, 0.0F),
+    .fovDegrees = 70.0F,
+    .near = 0.1F,
+    .far = 10000.0F,
+}};
 
 namespace
 {
@@ -231,4 +239,70 @@ auto scene::Atmosphere::baked(SceneBounds const sceneBounds) const
         .sunlight = sunlight,
         .moonlight = moonlight,
     };
+}
+
+auto scene::Camera::toDeviceEquivalent(
+    float const aspectRatio, bool const orthographic
+) const -> gputypes::Camera
+{
+    glm::mat4x4 const proj{
+        orthographic ? projectionOrthographic(aspectRatio)
+                     : projection(aspectRatio)
+    };
+    glm::mat4x4 const projViewInverse{glm::inverse(proj * view())};
+
+    return gputypes::Camera{
+        .projection = proj,
+        .inverseProjection = glm::inverse(proj),
+        .view = view(),
+        .viewInverseTranspose = glm::inverseTranspose(view()),
+        .rotation = rotation(),
+        .projViewInverse = projViewInverse,
+        .forwardWorld = rotation() * glm::vec4(geometry::forward, 0.0),
+        .position = glm::vec4(cameraPosition, 1.0),
+    };
+}
+
+auto scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4
+{
+    return projection(aspectRatio) * view();
+}
+
+auto scene::Camera::rotation() const -> glm::mat4
+{
+    return glm::orientate4(eulerAngles);
+}
+
+auto scene::Camera::transform() const -> glm::mat4
+{
+    return geometry::transformVk(cameraPosition, eulerAngles);
+}
+
+auto scene::Camera::view() const -> glm::mat4
+{
+    return geometry::viewVk(cameraPosition, eulerAngles);
+}
+
+auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4
+{
+    return geometry::projectionVk(geometry::PerspectiveProjectionParameters{
+        .fov_y = fovDegrees,
+        .aspectRatio = aspectRatio,
+        .near = near,
+        .far = far,
+    });
+}
+
+auto scene::Camera::projectionOrthographic(float const aspectRatio) const
+    -> glm::mat4
+{
+    // An orthographic projection has one view plane along the forward axis, so
+    // we compute its height from the fov.
+
+    float const height{glm::tan(glm::radians(fovDegrees) / 2.0F)};
+
+    glm::vec3 const min{-aspectRatio * height, -height, near};
+    glm::vec3 const max{aspectRatio * height, height, far};
+
+    return geometry::projectionOrthoVk(min, max);
 }

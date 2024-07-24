@@ -26,8 +26,6 @@ struct AtmosphereBaked
 
 struct Atmosphere
 {
-    static Atmosphere const DEFAULT_VALUES_EARTH;
-
     struct SunAnimation
     {
         bool animateSun{false};
@@ -56,9 +54,43 @@ struct Atmosphere
     auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
+struct Camera
+{
+    glm::vec3 cameraPosition{0.0F, 0.0F, 0.0F};
+    glm::vec3 eulerAngles{0.0F, 0.0F, 0.0F};
+    float fovDegrees{90.0F};
+    float near{0.0F};
+    float far{1.0F};
+
+    // In all of these methods, aspect ratio is passed as a parameter since it
+    // may depend on the drawn surface.
+
+    // Rotates (but does not translate) from camera to world space
+    auto rotation() const -> glm::mat4;
+    // The matrix that transforms from camera to world space
+    auto transform() const -> glm::mat4;
+    // The inverse of transform, transforms from world to camera space
+    auto view() const -> glm::mat4;
+    // Projects from camera space to clip space
+    auto projection(float aspectRatio) const -> glm::mat4;
+    // Projects from camera space to clip space
+    auto projectionOrthographic(float aspectRatio) const -> glm::mat4;
+
+    // Gives the projection * view matrix that transforms from world to
+    // clip space.
+    auto toProjView(float aspectRatio) const -> glm::mat4;
+
+    auto toDeviceEquivalent(float aspectRatio, bool orthographic) const
+        -> gputypes::Camera;
+};
+
 struct Scene
 {
-    Atmosphere atmosphere{Atmosphere::DEFAULT_VALUES_EARTH};
+    static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
+    static Camera const DEFAULT_CAMERA;
+
+    Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
+    Camera camera{DEFAULT_CAMERA};
 
     void tick(TickTiming);
 };
