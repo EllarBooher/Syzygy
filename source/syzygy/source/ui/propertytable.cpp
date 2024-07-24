@@ -260,6 +260,24 @@ auto PropertyTable::rowDropdown(
     return *this;
 }
 
+auto PropertyTable::rowCustom(
+    std::string const& name, std::function<void()> const& contentCallback
+) -> PropertyTable&
+{
+    if (!Self::rowBegin(name))
+    {
+        return *this;
+    }
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+    contentCallback();
+
+    Self::rowEnd();
+
+    return *this;
+}
+
 auto PropertyTable::rowText(
     std::string const& name, std::string& value, std::string const& resetValue
 ) -> PropertyTable&

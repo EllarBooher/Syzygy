@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <functional>
 #include <glm/vec3.hpp>
 #include <imgui.h>
 #include <optional>
@@ -124,6 +125,12 @@ public:
         size_t& selectedIndex,
         size_t const& defaultIndex,
         std::span<std::string const> displayValues
+    );
+
+    // Adds a row that runs a callback for the content column. Useful to render
+    // custom UI.
+    PropertyTable& rowCustom(
+        std::string const& name, std::function<void()> const& contentCallback
     );
 
     // Adds a row that contains an interactable text entry,

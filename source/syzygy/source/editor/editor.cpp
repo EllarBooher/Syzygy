@@ -468,7 +468,7 @@ auto Editor::run() -> EditorResult
             fpsTarget
         );
         ui::sceneControlsWindow(
-            "Default Scene", uiResults.dockingLayout.left, scene
+            "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
         );
         Engine::uiEnd();
 

@@ -251,7 +251,8 @@ void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
 void ui::sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
-    scene::Scene& scene
+    scene::Scene& scene,
+    MeshAssetLibrary const& meshes
 )
 {
     UIWindow const window{
@@ -281,8 +282,46 @@ void ui::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        PropertyTable::begin()
-            .rowBoolean("Render Geometry", scene.geometry.render, true)
-            .end();
+        PropertyTable table{PropertyTable::begin()};
+
+        table.rowBoolean("Render Geometry", scene.geometry.render, true);
+        table.rowCustom(
+            "Mesh Used",
+            [&]()
+        {
+            ImGui::BeginDisabled(meshes.loadedMeshes.empty());
+
+            std::string const previewLabel{
+                scene.geometry.mesh == nullptr ? "None"
+                                               : scene.geometry.mesh->name
+            };
+            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+            {
+                size_t const index{0};
+                for (std::shared_ptr<MeshAsset> const& pMesh :
+                     meshes.loadedMeshes)
+                {
+                    if (pMesh == nullptr)
+                    {
+                        continue;
+                    }
+
+                    MeshAsset const& mesh{*pMesh};
+                    bool const selected{pMesh == scene.geometry.mesh};
+
+                    if (ImGui::Selectable(mesh.name.c_str(), selected))
+                    {
+                        scene.geometry.mesh = pMesh;
+                        break;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::EndDisabled();
+        }
+        );
+
+        table.end();
     }
 }
