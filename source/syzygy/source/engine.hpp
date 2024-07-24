@@ -209,8 +209,6 @@ private:
     };
     scene::SceneBounds m_sceneBounds{DEFAULT_SCENE_BOUNDS};
 
-    bool m_useOrthographicProjection{false};
-
     static uint32_t constexpr CAMERA_CAPACITY{20};
     std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};
 

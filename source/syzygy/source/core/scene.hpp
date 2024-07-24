@@ -56,6 +56,7 @@ struct Atmosphere
 
 struct Camera
 {
+    bool orthographic{false};
     glm::vec3 cameraPosition{0.0F, 0.0F, 0.0F};
     glm::vec3 eulerAngles{0.0F, 0.0F, 0.0F};
     float fovDegrees{90.0F};
@@ -73,15 +74,12 @@ struct Camera
     auto view() const -> glm::mat4;
     // Projects from camera space to clip space
     auto projection(float aspectRatio) const -> glm::mat4;
-    // Projects from camera space to clip space
-    auto projectionOrthographic(float aspectRatio) const -> glm::mat4;
 
     // Gives the projection * view matrix that transforms from world to
     // clip space.
     auto toProjView(float aspectRatio) const -> glm::mat4;
 
-    auto toDeviceEquivalent(float aspectRatio, bool orthographic) const
-        -> gputypes::Camera;
+    auto toDeviceEquivalent(float aspectRatio) const -> gputypes::Camera;
 };
 
 struct Scene

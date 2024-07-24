@@ -885,11 +885,6 @@ void Engine::uiRenderOldWindows(
 
         ImGui::Separator();
         ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
-
-        ImGui::Separator();
-        ImGui::Checkbox(
-            "Use Orthographic Camera", &m_useOrthographicProjection
-        );
     }
 
     if (UIWindow const engineControls{
@@ -977,9 +972,9 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
             static_cast<float>(vkutil::aspectRatio(m_sceneRect.extent))
         };
 
-        gputypes::Camera const mainCamera{scene.camera.toDeviceEquivalent(
-            aspectRatio, m_useOrthographicProjection
-        )};
+        gputypes::Camera const mainCamera{
+            scene.camera.toDeviceEquivalent(aspectRatio)
+        };
 
         m_camerasBuffer->clearStaged();
         m_camerasBuffer->push(mainCamera);

@@ -241,15 +241,11 @@ auto scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     };
 }
 
-auto scene::Camera::toDeviceEquivalent(
-    float const aspectRatio, bool const orthographic
-) const -> gputypes::Camera
+auto scene::Camera::toDeviceEquivalent(float const aspectRatio) const
+    -> gputypes::Camera
 {
-    glm::mat4x4 const proj{
-        orthographic ? projectionOrthographic(aspectRatio)
-                     : projection(aspectRatio)
-    };
-    glm::mat4x4 const projViewInverse{glm::inverse(proj * view())};
+    glm::mat4x4 const proj{projection(aspectRatio)};
+    glm::mat4x4 const projViewInverse{glm::inverse(toProjView(aspectRatio))};
 
     return gputypes::Camera{
         .projection = proj,
@@ -285,24 +281,20 @@ auto scene::Camera::view() const -> glm::mat4
 
 auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4
 {
+    if (orthographic)
+    {
+        float const height{glm::tan(glm::radians(fovDegrees) / 2.0F)};
+
+        glm::vec3 const min{-aspectRatio * height, -height, near};
+        glm::vec3 const max{aspectRatio * height, height, far};
+
+        return geometry::projectionOrthoVk(min, max);
+    }
+
     return geometry::projectionVk(geometry::PerspectiveProjectionParameters{
         .fov_y = fovDegrees,
         .aspectRatio = aspectRatio,
         .near = near,
         .far = far,
     });
-}
-
-auto scene::Camera::projectionOrthographic(float const aspectRatio) const
-    -> glm::mat4
-{
-    // An orthographic projection has one view plane along the forward axis, so
-    // we compute its height from the fov.
-
-    float const height{glm::tan(glm::radians(fovDegrees) / 2.0F)};
-
-    glm::vec3 const min{-aspectRatio * height, -height, near};
-    glm::vec3 const max{aspectRatio * height, height, far};
-
-    return geometry::projectionOrthoVk(min, max);
 }

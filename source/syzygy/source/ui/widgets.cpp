@@ -198,6 +198,9 @@ void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
     float constexpr CLIPPING_PLANE_MARGIN{0.01F};
 
     PropertyTable::begin()
+        .rowBoolean(
+            "Orthographic", camera.orthographic, defaultValues.orthographic
+        )
         .rowVec3(
             "Camera Position",
             camera.cameraPosition,
