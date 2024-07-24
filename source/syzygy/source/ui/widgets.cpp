@@ -271,4 +271,11 @@ void ui::sceneControlsWindow(
     {
         uiCamera(scene.camera, scene::Scene::DEFAULT_CAMERA);
     }
+
+    if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        PropertyTable::begin()
+            .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
+            .end();
+    };
 }

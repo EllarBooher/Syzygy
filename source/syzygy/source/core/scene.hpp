@@ -8,6 +8,7 @@
 #include <glm/gtx/intersect.hpp>
 #include <glm/gtx/transform.hpp>
 #include <optional>
+#include <vector>
 
 namespace scene
 {
@@ -87,9 +88,13 @@ struct Scene
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
 
-    Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
-    Camera camera{DEFAULT_CAMERA};
+    Atmosphere atmosphere{ DEFAULT_ATMOSPHERE_EARTH };
+    Camera camera{ DEFAULT_CAMERA };
 
+    bool spotlightsRender{ false };
+    std::vector<gputypes::LightSpot> spotlights{};
+
+    static auto defaultScene() -> Scene;
     void tick(TickTiming);
 };
 } // namespace scene

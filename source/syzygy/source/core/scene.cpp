@@ -81,6 +81,41 @@ auto tickSunEulerAngles(
 }
 } // namespace
 
+auto scene::Scene::defaultScene() -> Scene
+{
+    std::vector<gputypes::LightSpot> const spotlights{
+        lights::makeSpot(
+            glm::vec4(0.0, 1.0, 0.0, 1.0),
+            30.0,
+            1.0,
+            1.0,
+            60,
+            1.0,
+            glm::vec3(-1.0, 0.0, 1.0),
+            glm::vec3(-8.0, -10.0, -2.0),
+            0.1,
+            1000.0
+        ),
+        lights::makeSpot(
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+            30.0,
+            1.0,
+            1.0,
+            60,
+            1.0,
+            glm::vec3(-1.0, 0.0, -1.0),
+            glm::vec3(8.0, -10.0, 2.0),
+            0.1,
+            1000.0
+        ),
+    };
+
+    return Scene{
+        .spotlightsRender = true,
+        .spotlights{std::move(spotlights)},
+    };
+}
+
 void scene::Scene::tick(TickTiming const lastFrame)
 {
     atmosphere.sunEulerAngles = tickSunEulerAngles(atmosphere, lastFrame);

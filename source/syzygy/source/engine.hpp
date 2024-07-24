@@ -196,7 +196,6 @@ private:
 
     size_t m_testMeshUsed{0};
 
-    bool m_showSpotlights{true};
     bool m_renderMeshInstances{true};
 
     MeshInstances m_meshInstances{};

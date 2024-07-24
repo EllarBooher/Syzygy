@@ -882,9 +882,6 @@ void Engine::uiRenderOldWindows(
 
         ImGui::Separator();
         imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
-
-        ImGui::Separator();
-        ImGui::Checkbox("Show Spotlights", &m_showSpotlights);
     }
 
     if (UIWindow const engineControls{
@@ -1014,33 +1011,6 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
         {
         case RenderingPipelines::DEFERRED:
         {
-            std::vector<gputypes::LightSpot> const spotLights{
-                lights::makeSpot(
-                    glm::vec4(0.0, 1.0, 0.0, 1.0),
-                    30.0,
-                    1.0,
-                    1.0,
-                    60,
-                    1.0,
-                    glm::vec3(-1.0, 0.0, 1.0),
-                    glm::vec3(-8.0, -10.0, -2.0),
-                    0.1,
-                    1000.0
-                ),
-                lights::makeSpot(
-                    glm::vec4(1.0, 0.0, 0.0, 1.0),
-                    30.0,
-                    1.0,
-                    1.0,
-                    60,
-                    1.0,
-                    glm::vec3(-1.0, 0.0, -1.0),
-                    glm::vec3(8.0, -10.0, 2.0),
-                    0.1,
-                    1000.0
-                ),
-            };
-
             // TODO: create a struct that contains a ref to a struct in a buffer
             uint32_t const cameraIndex{0};
             uint32_t const atmosphereIndex{0};
@@ -1051,8 +1021,8 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
                 *m_sceneColorTexture,
                 *m_sceneDepthTexture,
                 directionalLights,
-                m_showSpotlights ? spotLights
-                                 : std::vector<gputypes::LightSpot>{},
+                scene.spotlightsRender ? scene.spotlights
+                                       : std::vector<gputypes::LightSpot>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,

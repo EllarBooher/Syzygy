@@ -362,7 +362,7 @@ auto Editor::run() -> EditorResult
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
-    scene::Scene scene{};
+    scene::Scene scene{scene::Scene::defaultScene()};
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
