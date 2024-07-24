@@ -73,6 +73,13 @@ void LogVkResult(
     std::source_location location = std::source_location::current()
 );
 
+#define TRY_VK(result_expr, message, return_expr)                              \
+    if (VkResult const result{result_expr}; result != VK_SUCCESS)              \
+    {                                                                          \
+        LogVkResult(result, message);                                          \
+        return return_expr;                                                    \
+    }
+
 // Logs the message in grey,
 // alongside a prefix that indicates the code location.
 void Log(

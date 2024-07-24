@@ -112,7 +112,7 @@ auto scene::Scene::defaultScene() -> Scene
 
     return Scene{
         .spotlightsRender = true,
-        .spotlights{std::move(spotlights)},
+        .spotlights{spotlights},
     };
 }
 

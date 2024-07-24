@@ -30,6 +30,7 @@ add_library(
     "source/renderpass/renderpass.cpp"
 	"source/ui/widgets.cpp"
 	"source/core/scene.cpp"
+    "source/core/immediate.cpp"
 )
 
 add_dependencies(syzygy Shaders)

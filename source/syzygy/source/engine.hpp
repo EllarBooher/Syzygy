@@ -102,16 +102,12 @@ private:
 private:
     void initDrawTargets(VkDevice, VmaAllocator);
 
-    // queueFamilyIndex must support all operations: graphics, compute, present,
-    // and transfer.
-    void initCommands(VkDevice, uint32_t queueFamilyIndex);
-    void initSyncStructures(VkDevice);
     void initDescriptors(VkDevice);
 
     void updateDescriptors(VkDevice);
 
     void initDefaultMeshData(VkDevice, VmaAllocator, VkQueue transferQueue);
-    void initWorld(VkDevice, VmaAllocator, VkQueue transferQueue);
+    void initWorld(VkDevice, VmaAllocator);
     void initDebug(VkDevice, VmaAllocator);
     void initDeferredShadingPipeline(VkDevice, VmaAllocator);
 
@@ -148,18 +144,6 @@ private:
     // The final image output, blitted to the swapchain
     std::unique_ptr<AllocatedImage> m_drawImage{};
 
-    // Immediate submit structures
-
-    VkFence m_immFence{VK_NULL_HANDLE};
-    VkCommandBuffer m_immCommandBuffer{VK_NULL_HANDLE};
-    VkCommandPool m_immCommandPool{VK_NULL_HANDLE};
-
-    // Immediately opens and submits a command buffer. Use for one-off things
-    // outside the render loop or when hangs are okay.
-    void immediateSubmit(
-        VkDevice, VkQueue, std::function<void(VkCommandBuffer cmd)>&& function
-    );
-
     // Descriptor
 
     static uint32_t constexpr DESCRIPTOR_SET_CAPACITY_DEFAULT{10};
@@ -185,7 +169,9 @@ public:
         VkQueue transferQueue,
         std::span<uint32_t const> indices,
         std::span<Vertex const> vertices
-    );
+    ) const;
+
+    ImmediateSubmissionQueue m_immediateSubmissionQueue{};
 
 private:
     // Meshes

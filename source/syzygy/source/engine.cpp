@@ -102,16 +102,26 @@ void Engine::init(
 {
     Log("Initializing Engine...");
 
+    if (auto result{
+            ImmediateSubmissionQueue::create(device, generalQueueFamilyIndex)
+        };
+        result.has_value())
+    {
+        m_immediateSubmissionQueue = std::move(result).value();
+    }
+    else
+    {
+        Error("Failed to allocate immediate submission queue.");
+    }
+
     initDrawTargets(device, allocator);
 
-    initCommands(device, generalQueueFamilyIndex);
-    initSyncStructures(device);
     initDescriptors(device);
 
     updateDescriptors(device);
 
     initDefaultMeshData(device, allocator, generalQueue);
-    initWorld(device, allocator, generalQueue);
+    initWorld(device, allocator);
     initDebug(device, allocator);
     initGenericComputePipelines(device);
 
@@ -229,48 +239,6 @@ void Engine::initDrawTargets(
     }
 }
 
-void Engine::initCommands(
-    VkDevice const device, uint32_t const queueFamilyIndex
-)
-{
-    VkCommandPoolCreateInfo const commandPoolInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queueFamilyIndex,
-    };
-
-    // Immediate command structures
-
-    CheckVkResult(vkCreateCommandPool(
-        device, &commandPoolInfo, nullptr, &m_immCommandPool
-    ));
-    VkCommandBufferAllocateInfo const immCmdAllocInfo{
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext = nullptr,
-
-        .commandPool = m_immCommandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
-    };
-    CheckVkResult(
-        vkAllocateCommandBuffers(device, &immCmdAllocInfo, &m_immCommandBuffer)
-    );
-}
-
-void Engine::initSyncStructures(VkDevice const device)
-{
-    // Signaled so first frame can occur
-    VkFenceCreateInfo const fenceCreateInfo{
-        vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
-    };
-
-    // Immediate sync structures
-
-    CheckVkResult(vkCreateFence(device, &fenceCreateInfo, nullptr, &m_immFence)
-    );
-}
-
 void Engine::initDescriptors(VkDevice const device)
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> const sizes{
@@ -364,11 +332,7 @@ auto randomQuat() -> glm::quat
     return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
-void Engine::initWorld(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue
-)
+void Engine::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
     int32_t const coordinateMin{-40};
     int32_t const coordinateMax{40};
@@ -446,16 +410,6 @@ void Engine::initWorld(
 
         m_meshInstances.models->stage(m_meshInstances.originals);
         m_meshInstances.modelInverseTransposes->stage(modelInverseTransposes);
-
-        immediateSubmit(
-            device,
-            transferQueue,
-            [&](VkCommandBuffer cmd)
-        {
-            m_meshInstances.models->recordCopyToDevice(cmd);
-            m_meshInstances.modelInverseTransposes->recordCopyToDevice(cmd);
-        }
-        );
     }
     m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
         TStagedBuffer<gputypes::Camera>::allocate(
@@ -654,50 +608,13 @@ void Engine::initImgui(
     Log("ImGui initialized.");
 }
 
-void Engine::immediateSubmit(
-    VkDevice const device,
-    VkQueue const queue,
-    std::function<void(VkCommandBuffer cmd)>&& function
-)
-{
-    CheckVkResult(vkResetFences(device, 1, &m_immFence));
-    CheckVkResult(vkResetCommandBuffer(m_immCommandBuffer, 0));
-
-    VkCommandBuffer const& cmd = m_immCommandBuffer;
-
-    VkCommandBufferBeginInfo const cmdBeginInfo{vkinit::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
-
-    CheckVkResult(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-    function(cmd);
-
-    CheckVkResult(vkEndCommandBuffer(cmd));
-
-    VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        vkinit::commandBufferSubmitInfo(cmd)
-    };
-    std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
-    VkSubmitInfo2 const submitInfo{vkinit::submitInfo(cmdSubmitInfos, {}, {})};
-
-    CheckVkResult(vkQueueSubmit2(queue, 1, &submitInfo, m_immFence));
-
-    // 100 second timeout
-    uint64_t constexpr SUBMIT_TIMEOUT_NANOSECONDS{100'000'000'000};
-    VkBool32 constexpr WAIT_ALL{VK_TRUE};
-    CheckVkResult(vkWaitForFences(
-        device, 1, &m_immFence, WAIT_ALL, SUBMIT_TIMEOUT_NANOSECONDS
-    ));
-}
-
 auto Engine::uploadMeshToGPU(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
     std::span<uint32_t const> const indices,
     std::span<Vertex const> const vertices
-) -> std::unique_ptr<GPUMeshBuffers>
+) const -> std::unique_ptr<GPUMeshBuffers>
 {
     // Allocate buffer
 
@@ -752,10 +669,9 @@ auto Engine::uploadMeshToGPU(
         }
     );
 
-    immediateSubmit(
-        device,
-        transferQueue,
-        [&](VkCommandBuffer cmd)
+    if (auto result{m_immediateSubmissionQueue.immediateSubmit(
+            transferQueue,
+            [&](VkCommandBuffer cmd)
     {
         VkBufferCopy const vertexCopy{
             .srcOffset = 0,
@@ -775,7 +691,12 @@ auto Engine::uploadMeshToGPU(
             cmd, stagingBuffer.buffer(), indexBuffer.buffer(), 1, &indexCopy
         );
     }
-    );
+        )};
+        result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
+    {
+        Warning("Command submission for mesh upload failed, buffers will "
+                "likely contain junk or no data.");
+    }
 
     return std::make_unique<GPUMeshBuffers>(
         std::move(indexBuffer), std::move(vertexBuffer)
@@ -948,10 +869,10 @@ void Engine::tickWorld(TickTiming const timing)
 
             models[index] = translation * modelOriginal;
 
-            // In general, the model inverse transposes only need to be updated
-            // once per tick, before rendering and after the last update of the
-            // model matrices. For now, we only update once per tick, so we
-            // just compute it here.
+            // In general, the model inverse transposes only need to be
+            // updated once per tick, before rendering and after the last
+            // update of the model matrices. For now, we only update once
+            // per tick, so we just compute it here.
             modelInverseTransposes[index] =
                 glm::inverseTranspose(models[index]);
         }
@@ -1011,7 +932,8 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
         {
         case RenderingPipelines::DEFERRED:
         {
-            // TODO: create a struct that contains a ref to a struct in a buffer
+            // TODO: create a struct that contains a ref to a struct in a
+            // buffer
             uint32_t const cameraIndex{0};
             uint32_t const atmosphereIndex{0};
 
@@ -1182,14 +1104,13 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
         device, m_sceneTextureDescriptorLayout, nullptr
     );
 
-    vkDestroyFence(device, m_immFence, nullptr);
-    vkDestroyCommandPool(device, m_immCommandPool, nullptr);
-
     m_sceneDepthTexture.reset();
     m_sceneColorTexture.reset();
     m_drawImage.reset();
 
     m_initialized = false;
+
+    m_immediateSubmissionQueue = {};
 
     Log("Engine cleaned up.");
 }
