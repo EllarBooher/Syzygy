@@ -12,5 +12,10 @@ void performanceWindow(
     RingBuffer const& values,
     float& targetFPS
 );
-void sceneControlsWindow(std::string const& title, std::optional<ImGuiID> dockNode, scene::Scene& scene, MeshAssetLibrary const&);
+void sceneControlsWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    scene::Scene& scene,
+    MeshAssetLibrary const& meshes
+);
 } // namespace ui
