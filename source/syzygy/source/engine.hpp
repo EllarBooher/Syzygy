@@ -1,10 +1,9 @@
 #pragma once
 
-#include <functional>
-
 #include "assets.hpp"
 #include "buffers.hpp"
 #include "core/scene.hpp"
+#include "core/scenetexture.hpp"
 #include "core/timing.hpp"
 #include "debuglines.hpp"
 #include "deferred/deferred.hpp"
@@ -16,6 +15,7 @@
 #include "shaders.hpp"
 #include "shadowpass.hpp"
 #include "ui/engineui.hpp"
+#include <functional>
 
 struct GLFWwindow;
 
@@ -23,22 +23,21 @@ class Engine
 {
 private:
     Engine(
-        PlatformWindow const& window,
-        VkInstance const instance,
-        VkPhysicalDevice const physicalDevice,
-        VkDevice const device,
-        VmaAllocator const allocator,
-        VkQueue const generalQueue,
-        uint32_t const generalQueueFamilyIndex
+        VkDevice,
+        VmaAllocator,
+        DescriptorAllocator&,
+        scene::SceneTexture const& scene
     );
 
 public:
     static Engine* loadEngine(
-        PlatformWindow const& window,
-        VkInstance const instance,
-        VkPhysicalDevice const physicalDevice,
-        VkDevice const device,
-        VmaAllocator const allocator,
+        PlatformWindow const&,
+        VkInstance,
+        VkPhysicalDevice,
+        VkDevice,
+        VmaAllocator,
+        DescriptorAllocator&,
+        scene::SceneTexture const&,
         VkQueue const generalQueue,
         uint32_t const generalQueueFamilyIndex
     );
@@ -60,7 +59,7 @@ public:
         UIPreferences& currentPreferences,
         UIPreferences const& defaultPreferences
     ) -> UIResults;
-    void uiRenderOldWindows(HUDState const&, DockingLayout const&);
+    void uiRenderOldWindows(DockingLayout const&);
     static void uiEnd();
 
     // END TODO
@@ -70,20 +69,14 @@ public:
         AllocatedImage& renderTarget;
         VkRect2D renderArea;
     };
-    auto recordDraw(VkCommandBuffer, scene::Scene const&) -> DrawResults;
+    auto recordDraw(
+        VkCommandBuffer,
+        scene::Scene const& scene,
+        scene::SceneTexture& sceneTexture,
+        std::optional<scene::SceneViewport> const& sceneViewport
+    ) -> DrawResults;
 
     void cleanup(VkDevice, VmaAllocator);
-
-private:
-    void init(
-        PlatformWindow const& window,
-        VkInstance,
-        VkPhysicalDevice,
-        VkDevice,
-        VmaAllocator,
-        VkQueue generalQueue,
-        uint32_t const generalQueueFamilyIndex
-    );
 
 private:
     static auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
@@ -91,6 +84,8 @@ private:
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
+        scene::SceneTexture& sceneTexture,
+        scene::SceneViewport const& sceneViewport,
         TStagedBuffer<gputypes::Camera> const& camerasBuffer
     );
 
@@ -102,24 +97,12 @@ private:
 private:
     void initDrawTargets(VkDevice, VmaAllocator);
 
-    void initDescriptors(VkDevice);
-
-    void updateDescriptors(VkDevice);
-
     void initWorld(VkDevice, VmaAllocator);
     void initDebug(VkDevice, VmaAllocator);
-    void initDeferredShadingPipeline(VkDevice, VmaAllocator);
+    void
+    initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
 
-    void initGenericComputePipelines(VkDevice);
-
-    void initImgui(
-        VkInstance,
-        VkPhysicalDevice,
-        VkDevice,
-        uint32_t graphicsQueueFamily,
-        VkQueue graphicsQueue,
-        GLFWwindow* const window
-    );
+    void initGenericComputePipelines(VkDevice, scene::SceneTexture const&);
 
     // Draw Resources
 
@@ -128,29 +111,13 @@ private:
     // the creation of resources that can contain any requested draw extent
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{4096, 4096};
 
-    VkSampler m_imguiSceneTextureSampler{VK_NULL_HANDLE};
-    VkDescriptorSet m_imguiSceneTextureDescriptor{VK_NULL_HANDLE};
-    VkDescriptorPool m_imguiDescriptorPool{VK_NULL_HANDLE};
-
-    VkRect2D m_sceneRect{};
-
-    // Rendered into by most render passes. Used as an image by UI rendering,
-    // to render properly as a window.
-    std::unique_ptr<AllocatedImage> m_sceneColorTexture{};
     // Depth image used for graphics passes
     std::unique_ptr<AllocatedImage> m_sceneDepthTexture{};
 
     // The final image output, blitted to the swapchain
     std::unique_ptr<AllocatedImage> m_drawImage{};
 
-    // Descriptor
-
-    static uint32_t constexpr DESCRIPTOR_SET_CAPACITY_DEFAULT{10};
-
-    DescriptorAllocator m_globalDescriptorAllocator{};
-
-    VkDescriptorSetLayout m_sceneTextureDescriptorLayout{VK_NULL_HANDLE};
-    VkDescriptorSet m_sceneTextureDescriptors{VK_NULL_HANDLE};
+    VkDescriptorPool m_imguiDescriptorPool{VK_NULL_HANDLE};
 
     // Pipelines
 

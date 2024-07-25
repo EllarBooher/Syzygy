@@ -199,7 +199,12 @@ auto vkutil::aspectRatio(VkExtent2D const extent) -> double
     auto const width{static_cast<float>(extent.width)};
     auto const height{static_cast<float>(extent.height)};
 
-    float const rawAspectRatio = width / height;
+    return aspectRatio(glm::vec2{width, height});
+}
+
+auto vkutil::aspectRatio(glm::vec2 extent) -> double
+{
+    float const rawAspectRatio = extent.x / extent.y;
 
     return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
 }

@@ -1,8 +1,12 @@
 #include "widgets.hpp"
 
+#include "../core/deletionqueue.hpp"
+#include "../helpers.hpp"
+#include "../initializers.hpp"
 #include "engineui.hpp"
 #include "propertytable.hpp"
 #include <fmt/format.h>
+#include <imgui_impl_vulkan.h>
 #include <implot.h>
 
 void ui::performanceWindow(
@@ -343,4 +347,53 @@ void ui::sceneControlsWindow(
 
         table.end();
     }
+}
+
+auto ui::sceneViewportWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    std::optional<UIRectangle> maximizeArea,
+    scene::SceneTexture const& texture
+) -> std::optional<scene::SceneViewport>
+{
+    UIWindow const sceneViewport{
+        maximizeArea.has_value()
+            ? UIWindow::beginMaximized(title, maximizeArea.value())
+            : UIWindow::beginDockable(title, dockNode)
+    };
+
+    if (!sceneViewport.open)
+    {
+        return std::nullopt;
+    }
+
+    glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+
+    VkExtent2D const textureMax{texture.texture().extent2D()};
+
+    ImVec2 const uvMax{
+        contentExtent.x / static_cast<float>(textureMax.width),
+        contentExtent.y / static_cast<float>(textureMax.height)
+    };
+
+    ImGui::Image(
+        reinterpret_cast<ImTextureID>(texture.imguiDescriptor()),
+        contentExtent,
+        ImVec2{0.0, 0.0},
+        uvMax,
+        ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+        ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+    );
+
+    return scene::SceneViewport{
+        .rect =
+            VkRect2D{
+                .offset = {0, 0},
+                .extent =
+                    VkExtent2D{
+                        .width = static_cast<uint32_t>(contentExtent.x),
+                        .height = static_cast<uint32_t>(contentExtent.y),
+                    }
+            }
+    };
 }

@@ -9,7 +9,10 @@
 #include <chrono>
 #include <thread>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
+#include <implot.h>
 
 auto Editor::create() -> std::optional<Editor>
 {
@@ -81,29 +84,11 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Created Frame Buffer.");
 
-    Engine* const renderer{Engine::loadEngine(
-        windowResult.value(),
-        vulkanContext.instance,
-        vulkanContext.physicalDevice,
-        vulkanContext.device,
-        graphicsResult.value().allocator(),
-        vulkanContext.graphicsQueue,
-        vulkanContext.graphicsQueueFamily
-    )};
-    if (renderer == nullptr)
-    {
-        Error("Failed to load renderer.");
-        return std::nullopt;
-    }
-
-    Log("Created Editor instance.");
-
     return std::make_optional<Editor>(Editor{
         std::move(windowResult).value(),
         std::move(graphicsResult).value(),
         std::move(swapchainResult).value(),
-        std::move(frameBufferResult).value(),
-        renderer
+        std::move(frameBufferResult).value()
     });
 }
 
@@ -312,6 +297,123 @@ auto endFrame(
         return presentResult;
     }
 }
+auto uiInit(
+    VkInstance const instance,
+    VkPhysicalDevice const physicalDevice,
+    VkDevice const device,
+    uint32_t const graphicsQueueFamily,
+    VkQueue const graphicsQueue,
+    GLFWwindow* const window
+) -> VkDescriptorPool
+{
+    Log("Initializing ImGui...");
+
+    std::vector<VkDescriptorPoolSize> const poolSizes{
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+    };
+
+    VkDescriptorPoolCreateInfo const poolInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+
+        .maxSets = 1000,
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data(),
+    };
+
+    VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
+    CheckVkResult(
+        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiDescriptorPool)
+    );
+
+    ImGui::CreateContext();
+    ImPlot::CreateContext();
+
+    std::vector<VkFormat> const colorAttachmentFormats{
+        VK_FORMAT_R16G16B16A16_SFLOAT
+    };
+    VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = nullptr,
+
+        .viewMask = 0, // Not sure on this value
+        .colorAttachmentCount =
+            static_cast<uint32_t>(colorAttachmentFormats.size()),
+        .pColorAttachmentFormats = colorAttachmentFormats.data(),
+
+        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED,
+    };
+
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+
+    // Load functions since we are using volk,
+    // and not the built-in vulkan loader
+    ImGui_ImplVulkan_LoadFunctions(
+        [](char const* functionName, void* vkInstance)
+    {
+        return vkGetInstanceProcAddr(
+            *(reinterpret_cast<VkInstance*>(vkInstance)), functionName
+        );
+    },
+        const_cast<VkInstance*>(&instance)
+    );
+
+    // This amount is recommended by ImGui to satisfy validation layers, even if
+    // a little wasteful
+    VkDeviceSize constexpr IMGUI_MIN_ALLOCATION_SIZE{1024ULL * 1024ULL};
+
+    ImGui_ImplVulkan_InitInfo initInfo{
+        .Instance = instance,
+        .PhysicalDevice = physicalDevice,
+        .Device = device,
+
+        .QueueFamily = graphicsQueueFamily,
+        .Queue = graphicsQueue,
+
+        .DescriptorPool = imguiDescriptorPool,
+
+        .MinImageCount = 3,
+        .ImageCount = 3,
+        .MSAASamples = VK_SAMPLE_COUNT_1_BIT, // No MSAA
+
+        // Dynamic rendering
+        .UseDynamicRendering = true,
+        .PipelineRenderingCreateInfo = dynamicRenderingInfo,
+
+        // Allocation/Debug
+        .Allocator = nullptr,
+        .CheckVkResultFn = CheckVkResult_Imgui,
+        .MinAllocationSize = IMGUI_MIN_ALLOCATION_SIZE,
+    };
+
+    ImGui_ImplVulkan_Init(&initInfo);
+
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    Log("ImGui initialized.");
+
+    return imguiDescriptorPool;
+}
+void uiCleanup()
+{
+    ImPlot::DestroyContext();
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
 // Resets the ImGui style and reloads other resources like fonts, then builds a
 // new style from the passed preferences.
 void uiReload(VkDevice const device, UIPreferences const preferences)
@@ -349,10 +451,30 @@ auto Editor::run() -> EditorResult
 {
     using namespace std::chrono_literals;
 
-    if (m_renderer == nullptr)
+    VkDescriptorPool const imguiPool{uiInit(
+        m_graphics.vulkanContext().instance,
+        m_graphics.vulkanContext().physicalDevice,
+        m_graphics.vulkanContext().device,
+        m_graphics.vulkanContext().graphicsQueueFamily,
+        m_graphics.vulkanContext().graphicsQueue,
+        m_window.handle()
+    )};
+
+    std::optional<scene::SceneTexture> sceneTextureResult{
+        scene::SceneTexture::create(
+            m_graphics.vulkanContext().device,
+            m_graphics.allocator(),
+            m_graphics.descriptorAllocator(),
+            {4096U, 4096U},
+            VK_FORMAT_R16G16B16A16_SFLOAT
+        )
+    };
+    if (!sceneTextureResult.has_value())
     {
-        return EditorResult::ERROR_NO_RENDERER;
+        Error("Failed to allocate scene texture");
+        return EditorResult::ERROR_EDITOR;
     }
+    scene::SceneTexture sceneTexture{std::move(sceneTextureResult).value()};
 
     double timeSecondsPrevious{0.0};
 
@@ -402,6 +524,22 @@ auto Editor::run() -> EditorResult
     scene::Scene scene{scene::Scene::defaultScene(
         m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
     )};
+
+    Engine* const renderer = Engine::loadEngine(
+        m_window,
+        m_graphics.vulkanContext().instance,
+        m_graphics.vulkanContext().physicalDevice,
+        m_graphics.vulkanContext().device,
+        m_graphics.allocator(),
+        m_graphics.descriptorAllocator(),
+        sceneTexture,
+        m_graphics.vulkanContext().graphicsQueue,
+        m_graphics.vulkanContext().graphicsQueueFamily
+    );
+    if (renderer == nullptr)
+    {
+        return EditorResult::ERROR_NO_RENDERER;
+    }
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
@@ -453,28 +591,39 @@ auto Editor::run() -> EditorResult
             .timeElapsedSeconds = timeSecondsCurrent,
             .deltaTimeSeconds = deltaTimeSeconds,
         };
-        m_renderer->tickWorld(lastFrameTiming);
+        renderer->tickWorld(lastFrameTiming);
         scene.tick(lastFrameTiming);
 
         Engine::UIResults const uiResults{
             Engine::uiBegin(uiPreferences, UIPreferences{})
         };
         uiReloadNecessary = uiResults.reloadRequested;
-        m_renderer->uiRenderOldWindows(uiResults.hud, uiResults.dockingLayout);
+        renderer->uiRenderOldWindows(uiResults.dockingLayout);
         ui::performanceWindow(
             "Engine Performance",
             uiResults.dockingLayout.centerBottom,
             fpsHistory,
             fpsTarget
         );
+        std::optional<scene::SceneViewport> const sceneViewport{
+            ui::sceneViewportWindow(
+                "Scene Viewport",
+                uiResults.dockingLayout.centerTop,
+                uiResults.hud.maximizeSceneViewport
+                    ? uiResults.hud.workArea
+                    : std::optional<UIRectangle>{},
+                sceneTexture
+            )
+        };
+
         ui::sceneControlsWindow(
             "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
         );
         Engine::uiEnd();
 
-        Engine::DrawResults const drawResults{
-            m_renderer->recordDraw(currentFrame.mainCommandBuffer, scene)
-        };
+        Engine::DrawResults const drawResults{renderer->recordDraw(
+            currentFrame.mainCommandBuffer, scene, sceneTexture, sceneViewport
+        )};
 
         if (VkResult const endFrameResult{endFrame(
                 currentFrame,
@@ -496,28 +645,36 @@ auto Editor::run() -> EditorResult
                 return EditorResult::ERROR_EDITOR;
             }
 
-            if (std::optional<Swapchain> newSwapchain{rebuildSwapchain(
-                    m_swapchain,
-                    vulkanContext.physicalDevice,
-                    vulkanContext.device,
-                    vulkanContext.surface,
-                    m_window.extent()
-                )};
-                newSwapchain.has_value())
-            {
-                m_swapchain = std::move(newSwapchain).value();
-            }
-            else
+            std::optional<Swapchain> newSwapchain{rebuildSwapchain(
+                m_swapchain,
+                vulkanContext.physicalDevice,
+                vulkanContext.device,
+                vulkanContext.surface,
+                m_window.extent()
+            )};
+
+            if (!newSwapchain.has_value())
             {
                 Error("Failed to create new swapchain for resizing");
                 return EditorResult::ERROR_EDITOR;
             }
+            m_swapchain = std::move(newSwapchain).value();
         }
     }
 
     // Wait for idle, so stack allocated handles can be freed safely when this
     // method returns.
     vkDeviceWaitIdle(m_graphics.vulkanContext().device);
+    if (nullptr != renderer)
+    {
+        renderer->cleanup(
+            m_graphics.vulkanContext().device, m_graphics.allocator()
+        );
+    }
+    uiCleanup();
+    vkDestroyDescriptorPool(
+        m_graphics.vulkanContext().device, imguiPool, nullptr
+    );
 
     return EditorResult::SUCCESS;
 }
@@ -534,11 +691,6 @@ void Editor::destroy()
     {
         Warning("At destruction time, Vulkan device was null.");
         return;
-    }
-
-    if (nullptr != m_renderer)
-    {
-        m_renderer->cleanup(device, m_graphics.allocator());
     }
 
     // Ensure proper destruction order

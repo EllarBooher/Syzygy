@@ -1,6 +1,7 @@
 #pragma once
 
 #include "enginetypes.hpp"
+#include "helpers.hpp"
 #include <optional>
 
 struct DescriptorLayoutBuilder
@@ -49,19 +50,35 @@ public:
         float ratio{0.0f};
     };
 
-    VkDescriptorPool getPool() const { return pool; }
+    DescriptorAllocator() = delete;
 
-    void initPool(
+    DescriptorAllocator(DescriptorAllocator const&) = delete;
+    DescriptorAllocator& operator=(DescriptorAllocator const&) = delete;
+
+    DescriptorAllocator(DescriptorAllocator&&) noexcept;
+    DescriptorAllocator& operator=(DescriptorAllocator&&) noexcept;
+
+    ~DescriptorAllocator();
+
+    static auto create(
         VkDevice device,
         uint32_t maxSets,
         std::span<PoolSizeRatio const> poolRatios,
         VkDescriptorPoolCreateFlags flags
-    );
+    ) -> DescriptorAllocator;
     void clearDescriptors(VkDevice device);
-    void destroyPool(VkDevice device);
 
     VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
 
 private:
-    VkDescriptorPool pool{VK_NULL_HANDLE};
+    DescriptorAllocator(VkDevice device, VkDescriptorPool pool)
+        : m_device{device}
+        , m_pool{pool}
+    {
+    }
+
+    void destroy() noexcept;
+
+    VkDevice m_device{VK_NULL_HANDLE};
+    VkDescriptorPool m_pool{VK_NULL_HANDLE};
 };

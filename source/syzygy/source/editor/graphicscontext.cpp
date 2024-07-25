@@ -243,9 +243,27 @@ auto GraphicsContext::create(PlatformWindow const& window)
     VmaAllocator const allocator{allocatorResult.value()};
     cleanupCallbacks.pushFunction([&]() { vmaDestroyAllocator(allocator); });
 
-    cleanupCallbacks.clear();
+    std::vector<DescriptorAllocator::PoolSizeRatio> const poolSizes{
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
+    };
 
-    return GraphicsContext{vulkanContext, allocator};
+    uint32_t constexpr MAX_SETS{10U};
+
+    std::optional<DescriptorAllocator> descriptorAllocator{
+        DescriptorAllocator::create(
+            vulkanContext.device,
+            MAX_SETS,
+            poolSizes,
+            (VkDescriptorPoolCreateFlags)0
+        )
+    };
+    cleanupCallbacks.pushFunction([&]() { descriptorAllocator.reset(); });
+
+    cleanupCallbacks.clear();
+    return GraphicsContext{
+        vulkanContext, allocator, std::move(descriptorAllocator).value()
+    };
 }
 
 auto GraphicsContext::vulkanContext() const -> VulkanContext const&
@@ -258,12 +276,21 @@ auto GraphicsContext::allocator() const -> VmaAllocator const&
     return m_allocator;
 }
 
+auto GraphicsContext::descriptorAllocator() -> DescriptorAllocator&
+{
+    return *m_descriptorAllocator;
+}
+
 void GraphicsContext::destroy()
 {
     if (m_allocator != VK_NULL_HANDLE)
     {
         vmaDestroyAllocator(m_allocator);
     }
+    m_allocator = VK_NULL_HANDLE;
+    
+    m_descriptorAllocator.reset();
 
     m_vulkan.destroy();
+    m_vulkan = {};
 }

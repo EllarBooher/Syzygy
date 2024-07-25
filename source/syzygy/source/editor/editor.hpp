@@ -30,7 +30,6 @@ public:
         m_graphics = std::move(other.m_graphics);
         m_swapchain = std::move(other.m_swapchain);
         m_frameBuffer = std::move(other.m_frameBuffer);
-        m_renderer = std::exchange(other.m_renderer, nullptr);
         m_initialized = std::exchange(other.m_initialized, false);
 
         return *this;
@@ -54,14 +53,12 @@ private:
         PlatformWindow&& window,
         GraphicsContext&& graphics,
         Swapchain&& swapchain,
-        FrameBuffer&& frameBuffer,
-        Engine* const renderer
+        FrameBuffer&& frameBuffer
     )
         : m_window{std::move(window)}
         , m_graphics{std::move(graphics)}
         , m_swapchain{std::move(swapchain)}
         , m_frameBuffer{std::move(frameBuffer)}
-        , m_renderer{renderer}
         , m_initialized{true}
     {
     }
@@ -72,5 +69,4 @@ private:
     GraphicsContext m_graphics{};
     Swapchain m_swapchain{};
     FrameBuffer m_frameBuffer{};
-    Engine* m_renderer{nullptr};
 };

@@ -164,10 +164,11 @@ auto scene::Scene::defaultScene(
             }
         }
 
-        bounds = SceneBounds{
+        SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
             .center = glm::vec3{0.0, -4.0, 0.0},
             .extent = glm::vec3{40.0, 5.0, 40.0},
         };
+        bounds = DEFAULT_SCENE_BOUNDS;
 
         VkDeviceSize const maxInstanceCount{geometry.originals.size()};
         geometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(

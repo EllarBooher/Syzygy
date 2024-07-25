@@ -98,12 +98,30 @@ auto DescriptorLayoutBuilder::build(
     return set;
 }
 
-void DescriptorAllocator::initPool(
-    VkDevice const device,
-    uint32_t const maxSets,
-    std::span<PoolSizeRatio const> const poolRatios,
-    VkDescriptorPoolCreateFlags const flags
-)
+DescriptorAllocator::DescriptorAllocator(DescriptorAllocator&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+auto DescriptorAllocator::operator=(DescriptorAllocator&& other) noexcept
+    -> DescriptorAllocator&
+{
+    destroy();
+
+    m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
+    m_pool = std::exchange(other.m_pool, VK_NULL_HANDLE);
+
+    return *this;
+}
+
+DescriptorAllocator::~DescriptorAllocator() { destroy(); }
+
+auto DescriptorAllocator::create(
+    VkDevice device,
+    uint32_t maxSets,
+    std::span<PoolSizeRatio const> poolRatios,
+    VkDescriptorPoolCreateFlags flags
+) -> DescriptorAllocator
 {
     std::vector<VkDescriptorPoolSize> poolSizes{};
     for (PoolSizeRatio const& ratio : poolRatios)
@@ -126,27 +144,31 @@ void DescriptorAllocator::initPool(
         .pPoolSizes = poolSizes.data(),
     };
 
+    VkDescriptorPool pool{VK_NULL_HANDLE};
     CheckVkResult(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
+
+    return DescriptorAllocator{device, pool};
 }
 
 void DescriptorAllocator::clearDescriptors(VkDevice const device)
 {
-    CheckVkResult(vkResetDescriptorPool(device, pool, 0));
-}
-
-void DescriptorAllocator::destroyPool(VkDevice const device)
-{
-    vkDestroyDescriptorPool(device, pool, nullptr);
+    CheckVkResult(vkResetDescriptorPool(device, m_pool, 0));
 }
 
 auto DescriptorAllocator::allocate(
     VkDevice const device, VkDescriptorSetLayout const layout
 ) -> VkDescriptorSet
 {
+    if (m_pool == VK_NULL_HANDLE)
+    {
+        Error("Descriptor Allocator pool is null.");
+        return VK_NULL_HANDLE;
+    }
+
     VkDescriptorSetAllocateInfo const allocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .pNext = nullptr,
-        .descriptorPool = pool,
+        .descriptorPool = m_pool,
         .descriptorSetCount = 1,
         .pSetLayouts = &layout,
     };
@@ -155,4 +177,17 @@ auto DescriptorAllocator::allocate(
     CheckVkResult(vkAllocateDescriptorSets(device, &allocInfo, &set));
 
     return set;
+}
+
+void DescriptorAllocator::destroy() noexcept
+{
+    if (m_device == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    vkDestroyDescriptorPool(m_device, m_pool, VK_NULL_HANDLE);
+
+    m_device = VK_NULL_HANDLE;
+    m_pool = VK_NULL_HANDLE;
 }

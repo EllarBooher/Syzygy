@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../descriptors.hpp"
 #include "../vulkanusage.hpp"
 
 #include <optional>
@@ -36,6 +37,7 @@ public:
 
         m_vulkan = std::exchange(other.m_vulkan, VulkanContext{});
         m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+        m_descriptorAllocator = std::move(other.m_descriptorAllocator);
 
         return *this;
     }
@@ -50,18 +52,25 @@ public:
 
     auto vulkanContext() const -> VulkanContext const&;
     auto allocator() const -> VmaAllocator const&;
+    auto descriptorAllocator() -> DescriptorAllocator&;
 
 private:
     void destroy();
 
     explicit GraphicsContext(
-        VulkanContext const& vulkan, VmaAllocator allocator
+        VulkanContext const& vulkan,
+        VmaAllocator allocator,
+        DescriptorAllocator&& descriptorAllocator
     )
         : m_vulkan(vulkan)
         , m_allocator(allocator)
+        , m_descriptorAllocator{std::make_unique<DescriptorAllocator>(
+              std::move(descriptorAllocator)
+          )}
     {
     }
 
     VulkanContext m_vulkan{};
     VmaAllocator m_allocator{VK_NULL_HANDLE};
+    std::unique_ptr<DescriptorAllocator> m_descriptorAllocator{};
 };

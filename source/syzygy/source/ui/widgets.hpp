@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../core/scene.hpp"
+#include "../core/scenetexture.hpp"
 #include "../enginetypes.hpp"
+#include "uirectangle.hpp"
 #include <imgui.h>
 
 namespace ui
@@ -18,4 +20,13 @@ void sceneControlsWindow(
     scene::Scene& scene,
     MeshAssetLibrary const& meshes
 );
+
+// The returned value indicates the extent from (0,0) to (x,y) that will be read
+// from the the scene texture by ImGui when the final image is composited.
+auto sceneViewportWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    std::optional<UIRectangle> maximizeArea,
+    scene::SceneTexture const& texture
+) -> std::optional<scene::SceneViewport>;
 } // namespace ui

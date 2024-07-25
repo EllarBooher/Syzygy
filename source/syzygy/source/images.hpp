@@ -56,6 +56,7 @@ void recordCopyImageToImage(
 );
 
 double aspectRatio(VkExtent2D extent);
+double aspectRatio(glm::vec2 extent);
 } // namespace vkutil
 
 // This image is very wasteful with memory, but stores everything it needs for
