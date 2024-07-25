@@ -284,6 +284,25 @@ void ui::sceneControlsWindow(
     {
         PropertyTable table{PropertyTable::begin()};
 
+        table.rowChildPropertyBegin("Scene Bounds")
+            .rowVec3(
+                "Scene Center",
+                scene.bounds.center,
+                scene.bounds.center,
+                PropertySliderBehavior{
+                    .speed = 1.0F,
+                }
+            )
+            .rowVec3(
+                "Scene Extent",
+                scene.bounds.extent,
+                scene.bounds.extent,
+                PropertySliderBehavior{
+                    .speed = 1.0F,
+                }
+            )
+            .childPropertyEnd();
+
         table.rowBoolean("Render Geometry", scene.geometry.render, true);
         table.rowCustom(
             "Mesh Used",

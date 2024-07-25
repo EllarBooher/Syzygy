@@ -113,6 +113,11 @@ struct Scene
     size_t geometryMovingCubeIndex{};
     MeshInstanced geometry;
 
+    // TODO: compute this on demand instead of making it a tweakable parameter
+    // This is used to compute the necessary dimensions of various resource e.g.
+    // shadowmaps
+    SceneBounds bounds{};
+
     static auto
     defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
         -> Scene;

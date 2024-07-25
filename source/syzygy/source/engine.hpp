@@ -164,14 +164,6 @@ private:
 private:
     // Scene
 
-    // These scene bounds help inform shadow map generation
-    // TODO: compute this from the scene
-    static scene::SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
-        .center = glm::vec3{0.0, -4.0, 0.0},
-        .extent = glm::vec3{40.0, 5.0, 40.0},
-    };
-    scene::SceneBounds m_sceneBounds{DEFAULT_SCENE_BOUNDS};
-
     static uint32_t constexpr CAMERA_CAPACITY{20};
     std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};
 

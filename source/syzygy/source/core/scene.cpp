@@ -118,6 +118,7 @@ auto scene::Scene::defaultScene(
 
     MeshInstanced geometry{};
     size_t geometryMovingCubeIndex{};
+    SceneBounds bounds{};
     if (!meshes.loadedMeshes.empty())
     {
         geometry.mesh = meshes.loadedMeshes[0];
@@ -163,6 +164,11 @@ auto scene::Scene::defaultScene(
             }
         }
 
+        bounds = SceneBounds{
+            .center = glm::vec3{0.0, -4.0, 0.0},
+            .extent = glm::vec3{40.0, 5.0, 40.0},
+        };
+
         VkDeviceSize const maxInstanceCount{geometry.originals.size()};
         geometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
             TStagedBuffer<glm::mat4x4>::allocate(
@@ -198,6 +204,7 @@ auto scene::Scene::defaultScene(
         .spotlights = spotlights,
         .geometryMovingCubeIndex = geometryMovingCubeIndex,
         .geometry = std::move(geometry),
+        .bounds = bounds,
     };
 }
 

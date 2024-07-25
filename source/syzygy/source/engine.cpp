@@ -561,15 +561,6 @@ void Engine::uiRenderOldWindows(
         };
     }
 
-    if (UIWindow const sceneControls{UIWindow::beginDockable(
-            "Scene Controls (LEGACY)", dockingLayout.left
-        )};
-        sceneControls.open)
-    {
-        ImGui::Separator();
-        imguiStructureControls(m_sceneBounds, DEFAULT_SCENE_BOUNDS);
-    }
-
     if (UIWindow const engineControls{
             UIWindow::beginDockable("Engine Controls", dockingLayout.right)
         };
@@ -622,7 +613,7 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
     std::vector<gputypes::LightDirectional> directionalLights{};
     { // Copy atmospheres to gpu
         scene::AtmosphereBaked const bakedAtmosphere{
-            scene.atmosphere.baked(m_sceneBounds)
+            scene.atmosphere.baked(scene.bounds)
         };
         if (bakedAtmosphere.moonlight.has_value())
         {
@@ -677,9 +668,9 @@ auto Engine::recordDraw(VkCommandBuffer const cmd, scene::Scene const& scene)
             );
 
             m_debugLines.pushBox(
-                m_sceneBounds.center,
+                scene.bounds.center,
                 glm::quat_identity<float, glm::qualifier::defaultp>(),
-                m_sceneBounds.extent
+                scene.bounds.extent
             );
             recordDrawDebugLines(cmd, cameraIndex, *m_camerasBuffer);
 

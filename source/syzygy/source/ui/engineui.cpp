@@ -397,40 +397,6 @@ void imguiStructureControls(
         .end();
 }
 
-template <>
-void imguiStructureControls(
-    scene::SceneBounds& structure, scene::SceneBounds const& defaultStructure
-)
-{
-    bool const headerOpen{
-        ImGui::CollapsingHeader("Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen)
-    };
-
-    if (!headerOpen)
-    {
-        return;
-    }
-
-    PropertyTable::begin()
-        .rowVec3(
-            "Scene Center",
-            structure.center,
-            defaultStructure.center,
-            PropertySliderBehavior{
-                .speed = 1.0F,
-            }
-        )
-        .rowVec3(
-            "Scene Extent",
-            structure.extent,
-            defaultStructure.extent,
-            PropertySliderBehavior{
-                .speed = 1.0F,
-            }
-        )
-        .end();
-}
-
 namespace
 {
 auto getWindowContent() -> UIRectangle
