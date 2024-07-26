@@ -92,6 +92,13 @@ auto Editor::create() -> std::optional<Editor>
     });
 }
 
+struct UIResults
+{
+    HUDState hud;
+    DockingLayout dockingLayout;
+    bool reloadRequested;
+};
+
 namespace
 {
 auto defaultRefreshRate() -> float
@@ -406,6 +413,38 @@ auto uiInit(
 
     return imguiDescriptorPool;
 }
+auto uiBegin(
+    UIPreferences& preferences, UIPreferences const& defaultPreferences
+) -> UIResults
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    HUDState const hud{renderHUD(preferences)};
+
+    bool const reloadUI{
+        hud.applyPreferencesRequested || hud.resetPreferencesRequested
+    };
+    if (hud.resetPreferencesRequested)
+    {
+        preferences = defaultPreferences;
+    }
+    DockingLayout dockingLayout{};
+
+    if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
+    {
+        dockingLayout =
+            buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
+    }
+
+    return {
+        .hud = hud,
+        .dockingLayout = dockingLayout,
+        .reloadRequested = reloadUI,
+    };
+}
+void uiEnd() { ImGui::Render(); }
 void uiCleanup()
 {
     ImPlot::DestroyContext();
@@ -594,11 +633,11 @@ auto Editor::run() -> EditorResult
         renderer->tickWorld(lastFrameTiming);
         scene.tick(lastFrameTiming);
 
-        Engine::UIResults const uiResults{
-            Engine::uiBegin(uiPreferences, UIPreferences{})
+        UIResults const uiResults{
+            uiBegin(uiPreferences, UIPreferences{})
         };
         uiReloadNecessary = uiResults.reloadRequested;
-        renderer->uiRenderOldWindows(uiResults.dockingLayout);
+        renderer->uiEngineControls(uiResults.dockingLayout);
         ui::performanceWindow(
             "Engine Performance",
             uiResults.dockingLayout.centerBottom,
@@ -615,11 +654,10 @@ auto Editor::run() -> EditorResult
                 sceneTexture
             )
         };
-
         ui::sceneControlsWindow(
             "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
         );
-        Engine::uiEnd();
+        uiEnd();
 
         Engine::DrawResults const drawResults{renderer->recordDraw(
             currentFrame.mainCommandBuffer, scene, sceneTexture, sceneViewport

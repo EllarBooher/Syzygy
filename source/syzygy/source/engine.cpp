@@ -240,39 +240,7 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-auto Engine::uiBegin(
-    UIPreferences& currentPreferences, UIPreferences const& defaultPreferences
-) -> UIResults
-{
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    HUDState const hud{renderHUD(currentPreferences)};
-
-    bool const reloadUI{
-        hud.applyPreferencesRequested || hud.resetPreferencesRequested
-    };
-    if (hud.resetPreferencesRequested)
-    {
-        currentPreferences = defaultPreferences;
-    }
-    DockingLayout dockingLayout{};
-
-    if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
-    {
-        dockingLayout =
-            buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
-    }
-
-    return UIResults{
-        .hud = hud,
-        .dockingLayout = dockingLayout,
-        .reloadRequested = reloadUI,
-    };
-}
-
-void Engine::uiRenderOldWindows(DockingLayout const& dockingLayout)
+void Engine::uiEngineControls(DockingLayout const& dockingLayout)
 {
     if (UIWindow const engineControls{
             UIWindow::beginDockable("Engine Controls", dockingLayout.right)
@@ -299,8 +267,6 @@ void Engine::uiRenderOldWindows(DockingLayout const& dockingLayout)
         imguiStructureControls(m_debugLines);
     }
 }
-
-void Engine::uiEnd() { ImGui::Render(); }
 
 void Engine::tickWorld(TickTiming const /*timing*/) { m_debugLines.clear(); }
 

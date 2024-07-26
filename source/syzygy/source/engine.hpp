@@ -44,25 +44,7 @@ public:
 
     void tickWorld(TickTiming);
 
-    // TODO: These methods are part of a rewrite to decouple UI from this engine
-    // code, and should be removed eventually
-
-    struct UIResults
-    {
-        HUDState hud;
-        DockingLayout dockingLayout;
-        bool reloadRequested;
-    };
-
-    // Draw HUD and possibly build docking layout
-    static auto uiBegin(
-        UIPreferences& currentPreferences,
-        UIPreferences const& defaultPreferences
-    ) -> UIResults;
-    void uiRenderOldWindows(DockingLayout const&);
-    static void uiEnd();
-
-    // END TODO
+    void uiEngineControls(DockingLayout const&);
 
     struct DrawResults
     {
