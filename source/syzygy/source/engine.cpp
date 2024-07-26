@@ -81,35 +81,6 @@ void Engine::initDrawTargets(
     VkExtent2D constexpr RESERVED_IMAGE_EXTENT{
         MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
-    VkFormat constexpr COLOR_FORMAT{VK_FORMAT_R16G16B16A16_SFLOAT};
-    VkImageAspectFlags constexpr COLOR_ASPECTS{VK_IMAGE_ASPECT_COLOR_BIT};
-
-    if (std::optional<AllocatedImage> drawImageResult{AllocatedImage::allocate(
-            allocator,
-            device,
-            AllocatedImage::AllocationParameters{
-                .extent = RESERVED_IMAGE_EXTENT,
-                .format = COLOR_FORMAT,
-                .usageFlags =
-                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                    | VK_IMAGE_USAGE_STORAGE_BIT
-                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render
-                                                           // passes
-                .viewFlags = COLOR_ASPECTS,
-                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-            }
-        )};
-        drawImageResult.has_value())
-    {
-        m_drawImage =
-            std::make_unique<AllocatedImage>(std::move(drawImageResult).value()
-            );
-    }
-    else
-    {
-        Warning("Failed to allocate total draw image.");
-    }
 
     if (std::optional<AllocatedImage> sceneDepthResult{AllocatedImage::allocate(
             allocator,
@@ -268,16 +239,16 @@ void Engine::uiEngineControls(DockingLayout const& dockingLayout)
     }
 }
 
-void Engine::tickWorld(TickTiming const /*timing*/) { m_debugLines.clear(); }
-
-auto Engine::recordDraw(
+void Engine::recordDraw(
     VkCommandBuffer const cmd,
     scene::Scene const& scene,
     scene::SceneTexture& sceneTexture,
     std::optional<scene::SceneViewport> const& sceneViewport
-) -> DrawResults
+)
 {
     // Begin scene drawing
+
+    m_debugLines.clear();
 
     if (sceneViewport.has_value())
     {
@@ -382,61 +353,6 @@ auto Engine::recordDraw(
     }
 
     // End scene drawing
-
-    // ImGui Drawing
-
-    sceneTexture.texture().recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
-    m_drawImage->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    );
-
-    VkRect2D const renderedArea{recordDrawImgui(cmd, m_drawImage->view())};
-
-    // TODO: is this line necessary?
-    m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-
-    // End ImGui Drawing
-
-    return DrawResults{
-        .renderTarget = *m_drawImage,
-        .renderArea = renderedArea,
-    };
-}
-
-auto Engine::recordDrawImgui(VkCommandBuffer const cmd, VkImageView const view)
-    -> VkRect2D
-{
-    ImDrawData* const drawData{ImGui::GetDrawData()};
-
-    VkRect2D renderedArea{
-        .offset{VkOffset2D{
-            .x = static_cast<int32_t>(drawData->DisplayPos.x),
-            .y = static_cast<int32_t>(drawData->DisplayPos.y),
-        }},
-        .extent{VkExtent2D{
-            .width = static_cast<uint32_t>(drawData->DisplaySize.x),
-            .height = static_cast<uint32_t>(drawData->DisplaySize.y),
-        }},
-    };
-
-    VkRenderingAttachmentInfo const colorAttachmentInfo{
-        vkinit::renderingAttachmentInfo(view, VK_IMAGE_LAYOUT_GENERAL)
-    };
-    std::vector<VkRenderingAttachmentInfo> const colorAttachments{
-        colorAttachmentInfo
-    };
-    VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(renderedArea, colorAttachments, nullptr)
-    };
-    vkCmdBeginRendering(cmd, &renderingInfo);
-
-    ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
-
-    vkCmdEndRendering(cmd);
-
-    return renderedArea;
 }
 
 void Engine::recordDrawDebugLines(
@@ -492,7 +408,6 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
     m_debugLines.cleanup(device, allocator);
 
     m_sceneDepthTexture.reset();
-    m_drawImage.reset();
 
     m_initialized = false;
 

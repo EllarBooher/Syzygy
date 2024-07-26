@@ -184,8 +184,8 @@ auto endFrame(
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
-    AllocatedImage& drawImage,
-    VkRect2D const drawRect
+    AllocatedImage& sourceTexture,
+    VkRect2D const sourceSubregion
 ) -> VkResult
 {
     // Copy image to swapchain
@@ -216,7 +216,7 @@ auto endFrame(
 
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
 
-    drawImage.recordTransitionBarriered(
+    sourceTexture.recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
     );
 
@@ -230,9 +230,9 @@ auto endFrame(
 
     vkutil::recordCopyImageToImage(
         cmd,
-        drawImage.image(),
+        sourceTexture.image(),
         swapchainImage,
-        drawRect,
+        sourceSubregion,
         VkRect2D{.extent{swapchain.extent()}}
     );
 
@@ -444,6 +444,51 @@ auto uiBegin(
         .reloadRequested = reloadUI,
     };
 }
+auto uiRecordDraw(
+    VkCommandBuffer const cmd,
+    scene::SceneTexture& sceneTexture,
+    AllocatedImage& windowTexture
+) -> VkRect2D
+{
+    sceneTexture.texture().recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+    windowTexture.recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    );
+
+    ImDrawData* const drawData{ImGui::GetDrawData()};
+
+    VkRect2D renderedArea{
+        .offset{VkOffset2D{
+            .x = static_cast<int32_t>(drawData->DisplayPos.x),
+            .y = static_cast<int32_t>(drawData->DisplayPos.y),
+        }},
+        .extent{VkExtent2D{
+            .width = static_cast<uint32_t>(drawData->DisplaySize.x),
+            .height = static_cast<uint32_t>(drawData->DisplaySize.y),
+        }},
+    };
+
+    VkRenderingAttachmentInfo const colorAttachmentInfo{
+        vkinit::renderingAttachmentInfo(
+            windowTexture.view(), VK_IMAGE_LAYOUT_GENERAL
+        )
+    };
+    std::vector<VkRenderingAttachmentInfo> const colorAttachments{
+        colorAttachmentInfo
+    };
+    VkRenderingInfo const renderingInfo{
+        vkinit::renderingInfo(renderedArea, colorAttachments, nullptr)
+    };
+    vkCmdBeginRendering(cmd, &renderingInfo);
+
+    ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
+
+    vkCmdEndRendering(cmd);
+
+    return renderedArea;
+}
 void uiEnd() { ImGui::Render(); }
 void uiCleanup()
 {
@@ -513,15 +558,26 @@ auto Editor::run() -> EditorResult
         Error("Failed to allocate scene texture");
         return EditorResult::ERROR_EDITOR;
     }
-    scene::SceneTexture sceneTexture{std::move(sceneTextureResult).value()};
-
-    double timeSecondsPrevious{0.0};
-
-    UIPreferences uiPreferences{};
-    bool uiReloadNecessary{false};
-
-    RingBuffer fpsHistory{};
-    float fpsTarget{defaultRefreshRate()};
+    std::optional<AllocatedImage> windowTextureResult{AllocatedImage::allocate(
+        m_graphics.allocator(),
+        m_graphics.vulkanContext().device,
+        AllocatedImage::AllocationParameters{
+            .extent = {4096U, 4096U},
+            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
+                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                        | VK_IMAGE_USAGE_STORAGE_BIT
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render
+            // passes
+            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        }
+    )};
+    if (!windowTextureResult.has_value())
+    {
+        Warning("Failed to allocate window texture.");
+        return EditorResult::ERROR_EDITOR;
+    }
 
     ImmediateSubmissionQueue submissionQueue{};
     if (auto result{ImmediateSubmissionQueue::create(
@@ -564,6 +620,9 @@ auto Editor::run() -> EditorResult
         m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
     )};
 
+    scene::SceneTexture& sceneTexture = sceneTextureResult.value();
+    AllocatedImage& windowTexture = windowTextureResult.value();
+
     Engine* const renderer = Engine::loadEngine(
         m_window,
         m_graphics.vulkanContext().instance,
@@ -580,15 +639,18 @@ auto Editor::run() -> EditorResult
         return EditorResult::ERROR_NO_RENDERER;
     }
 
+    UIPreferences uiPreferences{};
+    bool uiReloadNecessary{false};
+
+    double timeSecondsPrevious{0.0};
+    RingBuffer fpsHistory{};
+    float fpsTarget{defaultRefreshRate()};
+
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
         glfwPollEvents();
 
-        bool const iconified{
-            glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE
-        };
-
-        if (iconified)
+        if (glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE)
         {
             // TODO: should time pause while minified?
             std::this_thread::sleep_for(1ms);
@@ -603,19 +665,20 @@ auto Editor::run() -> EditorResult
             continue;
         }
 
+        TickTiming const lastFrameTiming{
+            .timeElapsedSeconds = timeSecondsCurrent,
+            .deltaTimeSeconds = deltaTimeSeconds,
+        };
+
         timeSecondsPrevious = timeSecondsCurrent;
 
         fpsHistory.write(1.0 / deltaTimeSeconds);
 
-        m_frameBuffer.increment();
+        scene.tick(lastFrameTiming);
 
+        m_frameBuffer.increment();
         Frame const& currentFrame{m_frameBuffer.currentFrame()};
         VulkanContext const& vulkanContext{m_graphics.vulkanContext()};
-
-        if (uiReloadNecessary)
-        {
-            uiReload(vulkanContext.device, uiPreferences);
-        }
 
         if (VkResult const beginFrameResult{
                 beginFrame(currentFrame, vulkanContext.device)
@@ -626,16 +689,12 @@ auto Editor::run() -> EditorResult
             return EditorResult::ERROR_EDITOR;
         }
 
-        TickTiming const lastFrameTiming{
-            .timeElapsedSeconds = timeSecondsCurrent,
-            .deltaTimeSeconds = deltaTimeSeconds,
-        };
-        renderer->tickWorld(lastFrameTiming);
-        scene.tick(lastFrameTiming);
+        if (uiReloadNecessary)
+        {
+            uiReload(vulkanContext.device, uiPreferences);
+        }
 
-        UIResults const uiResults{
-            uiBegin(uiPreferences, UIPreferences{})
-        };
+        UIResults const uiResults{uiBegin(uiPreferences, UIPreferences{})};
         uiReloadNecessary = uiResults.reloadRequested;
         renderer->uiEngineControls(uiResults.dockingLayout);
         ui::performanceWindow(
@@ -659,8 +718,12 @@ auto Editor::run() -> EditorResult
         );
         uiEnd();
 
-        Engine::DrawResults const drawResults{renderer->recordDraw(
+        renderer->recordDraw(
             currentFrame.mainCommandBuffer, scene, sceneTexture, sceneViewport
+        );
+
+        VkRect2D const windowTextureDrawArea{uiRecordDraw(
+            currentFrame.mainCommandBuffer, sceneTexture, windowTexture
         )};
 
         if (VkResult const endFrameResult{endFrame(
@@ -669,8 +732,8 @@ auto Editor::run() -> EditorResult
                 vulkanContext.device,
                 vulkanContext.graphicsQueue,
                 currentFrame.mainCommandBuffer,
-                drawResults.renderTarget,
-                drawResults.renderArea
+                windowTexture,
+                windowTextureDrawArea
             )};
             endFrameResult != VK_SUCCESS)
         {
@@ -700,8 +763,6 @@ auto Editor::run() -> EditorResult
         }
     }
 
-    // Wait for idle, so stack allocated handles can be freed safely when this
-    // method returns.
     vkDeviceWaitIdle(m_graphics.vulkanContext().device);
     if (nullptr != renderer)
     {

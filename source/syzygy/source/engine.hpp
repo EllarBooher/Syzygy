@@ -42,27 +42,18 @@ public:
         uint32_t const generalQueueFamilyIndex
     );
 
-    void tickWorld(TickTiming);
-
     void uiEngineControls(DockingLayout const&);
 
-    struct DrawResults
-    {
-        AllocatedImage& renderTarget;
-        VkRect2D renderArea;
-    };
-    auto recordDraw(
+    void recordDraw(
         VkCommandBuffer,
         scene::Scene const& scene,
         scene::SceneTexture& sceneTexture,
         std::optional<scene::SceneViewport> const& sceneViewport
-    ) -> DrawResults;
+    );
 
     void cleanup(VkDevice, VmaAllocator);
 
 private:
-    static auto recordDrawImgui(VkCommandBuffer cmd, VkImageView view)
-        -> VkRect2D;
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
@@ -95,9 +86,6 @@ private:
 
     // Depth image used for graphics passes
     std::unique_ptr<AllocatedImage> m_sceneDepthTexture{};
-
-    // The final image output, blitted to the swapchain
-    std::unique_ptr<AllocatedImage> m_drawImage{};
 
     // Pipelines
 

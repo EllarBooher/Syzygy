@@ -31,7 +31,8 @@ add_library(
 	"source/ui/widgets.cpp"
 	"source/core/scene.cpp"
     "source/core/immediate.cpp"
- "source/core/scenetexture.cpp")
+    "source/core/scenetexture.cpp" 
+)
 
 add_dependencies(syzygy Shaders)
 
