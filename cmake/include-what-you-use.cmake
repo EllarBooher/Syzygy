@@ -1,4 +1,4 @@
-set(IWYU_PATH CACHE FILEPATH "The path of IWYU to use.")
+option(IWYU_ENABLE "Enable IWYU - this impacts compilation time." OFF)
 
 if (NOT IWYU_ENABLE)
 	message(STATUS "iwyu NOT enabled")
@@ -6,16 +6,17 @@ if (NOT IWYU_ENABLE)
 endif()
 
 find_program(
-	IWYU 
-	NAMES include-what-you-use iwyu
+	IWYU_PATH
+	NAMES "include-what-you-use" "iwyu"
+	DOC "The path of include-what-you-use, ran alongside compilation."
 )
 
-if (IWYU)
-	message(STATUS "iwyu enabled - using ${IWYU}")
+if (IWYU_PATH)
+	message(STATUS "iwyu enabled - using ${IWYU_PATH}")
 	set_property(
 		TARGET syzygy
-		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU}
+		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH}
 	)
 else()
-	message(WARNING "iwyu enabled - NOT found")
+	message(WARNING "iwyu enabled - unable to find program, or no path is specified")
 endif()
