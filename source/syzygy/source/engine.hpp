@@ -117,8 +117,6 @@ private:
     // The final image output, blitted to the swapchain
     std::unique_ptr<AllocatedImage> m_drawImage{};
 
-    VkDescriptorPool m_imguiDescriptorPool{VK_NULL_HANDLE};
-
     // Pipelines
 
     static uint32_t constexpr DEBUGLINES_CAPACITY{1000};
