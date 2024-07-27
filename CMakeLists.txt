@@ -6,7 +6,7 @@ include(cmake/dependencies.cmake)
 set(CMAKE_CXX_STANDARD 20)
 
 add_subdirectory("shaders")
-add_subdirectory("source")
+add_subdirectory("syzygy")
 
 include(cmake/include-what-you-use.cmake)
 include(cmake/clang-format.cmake)

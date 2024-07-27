@@ -5,7 +5,7 @@ find_program(
 )
 
 if (CLANG_FORMAT_PATH)
-	set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/source")
+	set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/syzygy")
 
 	file(
 		GLOB_RECURSE
