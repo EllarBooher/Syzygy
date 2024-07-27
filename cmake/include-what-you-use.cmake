@@ -12,10 +12,15 @@ find_program(
 )
 
 if (IWYU_PATH)
-	message(STATUS "iwyu enabled - using ${IWYU_PATH}")
+	set(
+		IWYU_WITH_OPTIONS
+		${IWYU_PATH};-Xiwyu;--mapping_file=${CMAKE_SOURCE_DIR}/iwyu/mappings.imp;-Xiwyu;--no_default_mappings
+	)
+
+	message(STATUS "iwyu enabled - using ${IWYU_WITH_OPTIONS}")
 	set_property(
 		TARGET syzygy
-		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH}
+		PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${IWYU_WITH_OPTIONS}
 	)
 else()
 	message(WARNING "iwyu enabled - unable to find program, or no path is specified")
