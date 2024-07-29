@@ -292,9 +292,7 @@ void scene::Scene::tick(TickTiming const lastFrame)
         return;
     }
 
-    std::span<glm::mat4x4> const models{
-        cubes.models->mapValidStaged()
-    };
+    std::span<glm::mat4x4> const models{cubes.models->mapValidStaged()};
     std::span<glm::mat4x4> const modelInverseTransposes{
         cubes.modelInverseTransposes->mapValidStaged()
     };

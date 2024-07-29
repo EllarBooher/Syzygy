@@ -261,6 +261,77 @@ void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
         )
         .end();
 }
+void uiSceneGeometry(
+    scene::SceneBounds& bounds,
+    std::span<scene::MeshInstanced> const geometry,
+    MeshAssetLibrary const& meshes
+)
+{
+    PropertyTable table{ PropertyTable::begin() };
+
+    table.rowChildPropertyBegin("Scene Bounds")
+        .rowVec3(
+            "Scene Center",
+            bounds.center,
+            bounds.center,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+            )
+        .rowVec3(
+            "Scene Extent",
+            bounds.extent,
+            bounds.extent,
+            PropertySliderBehavior{
+                .speed = 1.0F,
+            }
+            )
+        .childPropertyEnd();
+
+    for (scene::MeshInstanced& instance : geometry)
+    {
+        table.rowChildPropertyBegin(instance.name);
+        table.rowBoolean("Render", instance.render, true);
+        table.rowCustom(
+            "Mesh Used",
+            [&]()
+            {
+                ImGui::BeginDisabled(meshes.loadedMeshes.empty());
+
+                std::string const previewLabel{
+                    instance.mesh == nullptr ? "None" : instance.mesh->name
+                };
+                if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+                {
+                    size_t const index{ 0 };
+                    for (std::shared_ptr<MeshAsset> const& pMesh :
+                        meshes.loadedMeshes)
+                    {
+                        if (pMesh == nullptr)
+                        {
+                            continue;
+                        }
+
+                        MeshAsset const& mesh{ *pMesh };
+                        bool const selected{ pMesh == instance.mesh };
+
+                        if (ImGui::Selectable(mesh.name.c_str(), selected))
+                        {
+                            instance.mesh = pMesh;
+                            break;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::EndDisabled();
+            }
+        );
+        table.childPropertyEnd();
+    }
+
+    table.end();
+}
 } // namespace
 
 void ui::sceneControlsWindow(
@@ -297,70 +368,7 @@ void ui::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        PropertyTable table{PropertyTable::begin()};
-
-        table.rowChildPropertyBegin("Scene Bounds")
-            .rowVec3(
-                "Scene Center",
-                scene.bounds.center,
-                scene.bounds.center,
-                PropertySliderBehavior{
-                    .speed = 1.0F,
-                }
-            )
-            .rowVec3(
-                "Scene Extent",
-                scene.bounds.extent,
-                scene.bounds.extent,
-                PropertySliderBehavior{
-                    .speed = 1.0F,
-                }
-            )
-            .childPropertyEnd();
-
-        for (scene::MeshInstanced& instance : scene.geometry)
-        {
-            table.rowChildPropertyBegin(instance.name);
-            table.rowBoolean("Render", instance.render, true);
-            table.rowCustom(
-                "Mesh Used",
-                [&]()
-            {
-                ImGui::BeginDisabled(meshes.loadedMeshes.empty());
-
-                std::string const previewLabel{
-                    instance.mesh == nullptr ? "None" : instance.mesh->name
-                };
-                if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
-                {
-                    size_t const index{0};
-                    for (std::shared_ptr<MeshAsset> const& pMesh :
-                         meshes.loadedMeshes)
-                    {
-                        if (pMesh == nullptr)
-                        {
-                            continue;
-                        }
-
-                        MeshAsset const& mesh{*pMesh};
-                        bool const selected{pMesh == instance.mesh};
-
-                        if (ImGui::Selectable(mesh.name.c_str(), selected))
-                        {
-                            instance.mesh = pMesh;
-                            break;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-
-                ImGui::EndDisabled();
-            }
-            );
-            table.childPropertyEnd();
-        }
-
-        table.end();
+        uiSceneGeometry(scene.bounds, scene.geometry, meshes);
     }
 }
 

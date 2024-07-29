@@ -236,8 +236,6 @@ void ShadowPassArray::recordInitialize(
     }
 }
 
-
-
 void ShadowPassArray::recordDrawCommands(
     VkCommandBuffer const cmd,
     std::span<scene::MeshInstanced const> const geometry,

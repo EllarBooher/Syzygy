@@ -737,13 +737,12 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     for (size_t index{0}; index < geometry.size(); index++)
     {
-        scene::MeshInstanced const& instance{ geometry[index] };
+        scene::MeshInstanced const& instance{geometry[index]};
 
         bool render{instance.render};
         if (index < renderOverrides.size())
         {
-            RenderOverride const& renderOverride{renderOverrides[index]
-            };
+            RenderOverride const& renderOverride{renderOverrides[index]};
 
             render = renderOverride.render;
         }

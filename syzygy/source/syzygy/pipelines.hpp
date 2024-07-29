@@ -1,10 +1,10 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
+#include "syzygy/core/scene.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/vulkanusage.hpp"
-#include "syzygy/core/scene.hpp"
 #include <fmt/core.h>
 #include <glm/mat4x4.hpp>
 #include <optional>
@@ -24,7 +24,7 @@ template <typename T> struct TStagedBuffer;
 
 struct RenderOverride
 {
-    bool render{ false };
+    bool render{false};
 };
 
 namespace
