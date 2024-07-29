@@ -1,11 +1,21 @@
 #include "pipelines.hpp"
 
-#include "helpers.hpp"
-#include "initializers.hpp"
-#include "shaders.hpp"
-#include <fstream>
+#include "syzygy/assets.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/helpers.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/initializers.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/shaders.hpp"
+#include <glm/vec2.hpp>
+#include <memory>
+#include <utility>
 
-#include <glm/gtx/intersect.hpp>
+namespace gputypes
+{
+struct Camera;
+}
 
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout

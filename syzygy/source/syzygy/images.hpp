@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkanusage.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <glm/vec2.hpp>
 #include <optional>
 #include <utility>

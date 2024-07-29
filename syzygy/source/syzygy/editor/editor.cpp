@@ -1,18 +1,40 @@
 #include "editor.hpp"
 
+#include "syzygy/assets.hpp"
+#include "syzygy/core/immediate.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/core/result.hpp"
 #include "syzygy/core/scene.hpp"
+#include "syzygy/core/scenetexture.hpp"
+#include "syzygy/core/timing.hpp"
+#include "syzygy/editor/framebuffer.hpp"
+#include "syzygy/editor/graphicscontext.hpp"
+#include "syzygy/editor/swapchain.hpp"
+#include "syzygy/editor/window.hpp"
 #include "syzygy/engine.hpp"
+#include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
+#include "syzygy/images.hpp"
 #include "syzygy/initializers.hpp"
+#include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <chrono>
-#include <thread>
-
+#include <filesystem>
+#include <fmt/core.h>
+#include <glm/vec2.hpp>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <implot.h>
+#include <limits>
+#include <memory>
+#include <span>
+#include <thread>
+#include <vector>
 
 auto Editor::create() -> std::optional<Editor>
 {
@@ -212,7 +234,6 @@ auto endFrame(
             return acquireResult;
         }
     }
-    assert(swapchainImageIndex != std::numeric_limits<uint32_t>::max());
 
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
 

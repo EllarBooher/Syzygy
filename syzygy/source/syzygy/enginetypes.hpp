@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "vulkanusage.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <vulkan/vk_enum_string_helper.h>
 
 #include <fmt/core.h>

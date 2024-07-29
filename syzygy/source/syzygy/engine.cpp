@@ -1,27 +1,30 @@
 #include "engine.hpp"
 
-#include "vulkanusage.hpp"
-
-#include <GLFW/glfw3.h>
-#include <VkBootstrap.h>
-
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
-#include <implot.h>
-
-#include "descriptors.hpp"
-#include "helpers.hpp"
-#include "images.hpp"
-#include "initializers.hpp"
-#include "lights.hpp"
-#include "pipelines.hpp"
-
-#include <glm/gtx/quaternion.hpp>
-
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/scene.hpp"
+#include "syzygy/core/scenetexture.hpp"
+#include "syzygy/debuglines.hpp"
+#include "syzygy/deferred/deferred.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/gputypes.hpp"
+#include "syzygy/helpers.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/ui/engineui.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include "ui/pipelineui.hpp"
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <imgui.h>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
+
+class DescriptorAllocator;
+struct PlatformWindow;
 
 Engine::Engine(
     VkDevice const device,
@@ -327,9 +330,10 @@ void Engine::recordDraw(
 
                 m_debugLines.pushBox(
                     scene.bounds.center,
-                    glm::quat_identity<float, glm::qualifier::defaultp>(),
+                    glm::identity<glm::quat>(),
                     scene.bounds.extent
                 );
+
                 recordDrawDebugLines(
                     cmd,
                     cameraIndex,

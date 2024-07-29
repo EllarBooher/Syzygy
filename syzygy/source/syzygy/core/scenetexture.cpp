@@ -2,9 +2,12 @@
 
 #include "deletionqueue.hpp"
 #include "syzygy/descriptors.hpp"
+#include "syzygy/helpers.hpp"
 #include "syzygy/initializers.hpp"
+#include <functional>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <vector>
 
 scene::SceneTexture::SceneTexture(SceneTexture&& other) noexcept
 {

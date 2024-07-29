@@ -1,6 +1,8 @@
 #include "descriptors.hpp"
 #include "helpers.hpp"
 #include <cmath>
+#include <glm/common.hpp>
+#include <utility>
 
 auto DescriptorLayoutBuilder::addBinding(
     AddBindingParameters const parameters, uint32_t const count
@@ -128,7 +130,7 @@ auto DescriptorAllocator::create(
     for (PoolSizeRatio const& ratio : poolRatios)
     {
         auto const descriptorCount{static_cast<uint32_t>(
-            std::roundf(ratio.ratio * static_cast<float>(maxSets))
+            glm::round(ratio.ratio * static_cast<float>(maxSets)) + 0.5F
         )};
 
         poolSizes.push_back(VkDescriptorPoolSize{

@@ -1,16 +1,18 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
+#include "syzygy/ui/uirectangle.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <glm/vec2.hpp>
+#include <imgui.h>
 #include <memory>
 #include <optional>
 #include <span>
-
-#include <imgui.h>
-
-#include "syzygy/enginetypes.hpp"
-#include "syzygy/pipelines.hpp"
-#include "uirectangle.hpp"
+#include <string>
 
 struct MeshAsset;
+enum class RenderingPipelines;
+struct UIPreferences;
 
 // Opens the context for a Dear ImGui window, allowing further calls to the
 // library to be placed within it.

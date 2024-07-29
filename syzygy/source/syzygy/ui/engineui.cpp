@@ -1,15 +1,21 @@
 #include "engineui.hpp"
-#include "imgui_internal.h"
-#include "pipelineui.hpp"
-#include "propertytable.hpp"
+
 #include "syzygy/assets.hpp"
-#include "syzygy/core/scene.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
 #include "syzygy/debuglines.hpp"
-#include "syzygy/shaders.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/pipelines.hpp"
 #include "syzygy/shadowpass.hpp"
+#include "syzygy/ui/propertytable.hpp"
+#include <algorithm>
 #include <array>
-#include <fmt/format.h>
+#include <cassert>
+#include <fmt/core.h>
+#include <imgui_internal.h>
 #include <implot.h>
+#include <utility>
+#include <vector>
 
 void imguiPerformanceDisplay(PerformanceValues const values, float& targetFPS)
 {

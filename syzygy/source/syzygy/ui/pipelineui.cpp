@@ -1,13 +1,21 @@
 #include "pipelineui.hpp"
-#include "engineui.hpp"
 
-#include <fmt/format.h>
-#include <imgui.h>
-
+#include "syzygy/core/integer.hpp"
 #include "syzygy/deferred/deferred.hpp"
 #include "syzygy/pipelines.hpp"
-
-#include "propertytable.hpp"
+#include "syzygy/shaders.hpp"
+#include "syzygy/shadowpass.hpp"
+#include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/propertytable.hpp"
+#include <cassert>
+#include <fmt/core.h>
+#include <imgui.h>
+#include <limits>
+#include <span>
+#include <string>
+#include <type_traits>
+#include <variant>
+#include <vector>
 
 namespace
 {
@@ -169,7 +177,8 @@ static void imguiPushStructureControl(
 
                 ImGui::BeginDisabled(readOnly);
                 {
-                    ImGui::PushItemWidth(-FLT_MIN); // This hides the label
+                    ImGui::PushItemWidth(-std::numeric_limits<float>::min()
+                    ); // This hides the label
                     ImGui::InputScalar(
                         memberLabel.c_str(),
                         ImGuiDataType_U64,
@@ -340,7 +349,8 @@ static void imguiPushStructureControl(
                     ImGui::BeginDisabled(readOnly);
                     {
                         // This hides the label
-                        ImGui::PushItemWidth(-FLT_MIN);
+                        ImGui::PushItemWidth(-std::numeric_limits<float>::min()
+                        );
                         ImGui::InputScalarN(
                             rowLabel.c_str(),
                             imguiDataType,

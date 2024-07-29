@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkanusage.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <VkBootstrap.h>
 #include <cassert>
 #include <filesystem>

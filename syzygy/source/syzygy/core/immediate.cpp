@@ -2,6 +2,7 @@
 #include "deletionqueue.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/initializers.hpp"
+#include <vector>
 
 auto ImmediateSubmissionQueue::operator=(ImmediateSubmissionQueue&& other
 ) noexcept -> ImmediateSubmissionQueue&

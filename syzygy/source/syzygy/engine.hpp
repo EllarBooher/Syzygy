@@ -1,23 +1,29 @@
 #pragma once
 
-#include "assets.hpp"
-#include "buffers.hpp"
-#include "core/scene.hpp"
-#include "core/scenetexture.hpp"
-#include "core/timing.hpp"
-#include "debuglines.hpp"
-#include "deferred/deferred.hpp"
-#include "descriptors.hpp"
-#include "editor/window.hpp"
-#include "enginetypes.hpp"
-#include "imgui.h"
-#include "pipelines.hpp"
-#include "shaders.hpp"
-#include "shadowpass.hpp"
-#include "ui/engineui.hpp"
-#include <functional>
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/core/scenetexture.hpp"
+#include "syzygy/debuglines.hpp"
+#include "syzygy/deferred/deferred.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <memory>
+#include <optional>
 
-struct GLFWwindow;
+class DescriptorAllocator;
+namespace gputypes
+{
+struct Atmosphere;
+struct Camera;
+} // namespace gputypes
+namespace scene
+{
+struct Scene;
+}
+struct DockingLayout;
+struct PlatformWindow;
 
 class Engine
 {

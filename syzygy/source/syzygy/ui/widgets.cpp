@@ -1,13 +1,24 @@
 #include "widgets.hpp"
 
-#include "engineui.hpp"
-#include "propertytable.hpp"
-#include "syzygy/core/deletionqueue.hpp"
-#include "syzygy/helpers.hpp"
-#include "syzygy/initializers.hpp"
-#include <fmt/format.h>
-#include <imgui_impl_vulkan.h>
+#include "syzygy/assets.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/core/scene.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/propertytable.hpp"
+#include "syzygy/ui/uirectangle.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <fmt/core.h>
+#include <format>
+#include <functional>
+#include <glm/gtc/constants.hpp>
+#include <glm/vec2.hpp>
 #include <implot.h>
+#include <memory>
+#include <span>
+#include <utility>
+#include <vector>
 
 void ui::performanceWindow(
     std::string const& title,

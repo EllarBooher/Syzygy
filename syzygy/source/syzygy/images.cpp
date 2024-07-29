@@ -1,10 +1,11 @@
 #include "images.hpp"
 
-#include "core/integer.hpp"
 #include "helpers.hpp"
 #include "initializers.hpp"
-#include <cmath>
+#include "syzygy/core/integer.hpp"
 #include <fmt/core.h>
+#include <glm/gtx/compatibility.hpp>
+#include <glm/vec2.hpp>
 
 namespace
 {
@@ -209,7 +210,7 @@ auto vkutil::aspectRatio(glm::vec2 extent) -> double
 {
     float const rawAspectRatio = extent.x / extent.y;
 
-    return std::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
+    return glm::isfinite(rawAspectRatio) ? rawAspectRatio : 1.0F;
 }
 
 AllocatedImage::~AllocatedImage() noexcept { destroy(); }

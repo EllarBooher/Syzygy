@@ -1,8 +1,15 @@
 #pragma once
 
-#include "enginetypes.hpp"
-#include "geometrystatics.hpp"
-#include "pipelines.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <glm/gtc/quaternion.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <memory>
+
+struct Vertex;
 
 struct DebugLines
 {

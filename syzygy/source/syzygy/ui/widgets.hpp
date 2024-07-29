@@ -1,10 +1,17 @@
 #pragma once
 
-#include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
-#include "syzygy/enginetypes.hpp"
-#include "uirectangle.hpp"
+#include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
+#include <optional>
+#include <string>
+
+namespace scene
+{
+struct Scene;
+}
+struct MeshAssetLibrary;
+struct RingBuffer;
 
 namespace ui
 {

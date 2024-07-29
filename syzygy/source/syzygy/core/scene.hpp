@@ -1,15 +1,18 @@
 #pragma once
 
-#include "syzygy/assets.hpp"
-#include "syzygy/geometryhelpers.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
 #include "syzygy/gputypes.hpp"
-#include "timing.hpp"
-#include <glm/gtc/matrix_inverse.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/intersect.hpp>
-#include <glm/gtx/transform.hpp>
+#include "syzygy/vulkanusage.hpp"
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <memory>
 #include <optional>
 #include <vector>
+
+struct MeshAsset;
+struct MeshAssetLibrary;
+struct TickTiming;
 
 namespace scene
 {
@@ -69,17 +72,17 @@ struct Camera
     // may depend on the drawn surface.
 
     // Rotates (but does not translate) from camera to world space
-    auto rotation() const -> glm::mat4;
+    auto rotation() const -> glm::mat4x4;
     // The matrix that transforms from camera to world space
-    auto transform() const -> glm::mat4;
+    auto transform() const -> glm::mat4x4;
     // The inverse of transform, transforms from world to camera space
-    auto view() const -> glm::mat4;
+    auto view() const -> glm::mat4x4;
     // Projects from camera space to clip space
-    auto projection(float aspectRatio) const -> glm::mat4;
+    auto projection(float aspectRatio) const -> glm::mat4x4;
 
     // Gives the projection * view matrix that transforms from world to
     // clip space.
-    auto toProjView(float aspectRatio) const -> glm::mat4;
+    auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
     auto toDeviceEquivalent(float aspectRatio) const -> gputypes::Camera;
 };

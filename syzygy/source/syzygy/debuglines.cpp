@@ -1,5 +1,11 @@
 #include "debuglines.hpp"
 
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/geometrystatics.hpp"
+#include <glm/vec4.hpp>
+#include <initializer_list>
+#include <span>
+
 // NOLINTBEGIN(readability-make-member-function-const)
 
 void DebugLines::clear()

@@ -1,8 +1,14 @@
 #include "shaders.hpp"
 
-#include "assets.hpp"
-#include "helpers.hpp"
+#include "syzygy/assets.hpp"
+#include "syzygy/helpers.hpp"
+#include <array>
+#include <cassert>
+#include <fmt/core.h>
+#include <format>
+#include <include/spirv/unified1/spirv.h>
 #include <spirv_reflect.h>
+#include <utility>
 
 auto vkutil::generateReflectionData(
     std::span<uint8_t const> const spirv_bytecode

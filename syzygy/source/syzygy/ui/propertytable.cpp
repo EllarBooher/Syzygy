@@ -1,6 +1,5 @@
 #include "propertytable.hpp"
 
-#include "syzygy/helpers.hpp"
 #include <array>
 #include <cmath>
 #include <fmt/core.h>
@@ -8,7 +7,6 @@
 #include <limits>
 #include <misc/cpp/imgui_stdlib.h>
 #include <unordered_map>
-#include <utility>
 
 void PropertyTable::nameColumn(std::string const& name)
 {

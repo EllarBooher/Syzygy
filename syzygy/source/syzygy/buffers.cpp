@@ -1,7 +1,7 @@
 #include "buffers.hpp"
 
-#include "helpers.hpp"
-#include <cstring>
+#include "syzygy/helpers.hpp"
+#include <algorithm>
 
 auto AllocatedBuffer::allocate(
     VkDevice const device,
@@ -79,7 +79,7 @@ void AllocatedBuffer::writeBytes(
     uint8_t* const start{
         reinterpret_cast<uint8_t*>(getMappedPointer_impl(*this)) + offset
     };
-    std::memcpy(start, data.data(), data.size_bytes());
+    std::copy(data.begin(), data.end(), start);
 }
 
 auto AllocatedBuffer::readBytes() const -> std::span<uint8_t const>

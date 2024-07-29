@@ -2,10 +2,16 @@
 
 #include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/core/result.hpp"
-
+#include "syzygy/editor/window.hpp"
 #include "syzygy/helpers.hpp"
 #include <GLFW/glfw3.h>
+#include <VkBootstrap.h>
+#include <fmt/core.h>
+#include <functional>
 #include <optional>
+#include <span>
+#include <vector>
+#include <vulkan/vk_enum_string_helper.h>
 
 namespace
 {

@@ -1,8 +1,10 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <functional>
 #include <optional>
+#include <utility>
 
 struct ImmediateSubmissionQueue
 {

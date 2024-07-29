@@ -6,9 +6,9 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/initializers.hpp"
 #include <array>
-#include <compare>
 #include <fmt/core.h>
 #include <functional>
+#include <utility>
 
 auto GBuffer::create(
     VkDevice const device,

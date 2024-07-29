@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/common.hpp>
 #include <glm/vec2.hpp>
 
 struct UIRectangle

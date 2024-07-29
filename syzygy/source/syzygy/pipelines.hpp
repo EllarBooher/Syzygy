@@ -1,16 +1,25 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
+#include "syzygy/helpers.hpp"
+#include "syzygy/shaders.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <fmt/core.h>
+#include <glm/mat4x4.hpp>
+#include <optional>
 #include <set>
-#include <type_traits>
+#include <span>
+#include <string>
+#include <vector>
 
-#include "enginetypes.hpp"
-
-#include "gputypes.hpp"
-
-#include "assets.hpp"
-#include "buffers.hpp"
-#include "images.hpp"
-#include "shaders.hpp"
+namespace gputypes
+{
+struct Camera;
+}
+struct AllocatedImage;
+struct MeshAsset;
+struct Vertex;
+template <typename T> struct TStagedBuffer;
 
 namespace
 {

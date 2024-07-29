@@ -1,10 +1,12 @@
 #pragma once
 
-#include "syzygy/descriptors.hpp"
 #include "syzygy/images.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
+#include <utility>
+
+class DescriptorAllocator;
 
 namespace scene
 {

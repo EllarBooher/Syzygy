@@ -1,9 +1,16 @@
 #include "shadowpass.hpp"
-#include "helpers.hpp"
-#include "images.hpp"
-#include "initializers.hpp"
 
-#include "renderpass/renderpass.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/descriptors.hpp"
+#include "syzygy/gputypes.hpp"
+#include "syzygy/helpers.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/initializers.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/renderpass/renderpass.hpp"
+#include <utility>
+
+struct MeshAsset;
 
 auto ShadowPassArray::create(
     VkDevice const device,

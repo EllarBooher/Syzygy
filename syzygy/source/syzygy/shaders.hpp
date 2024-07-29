@@ -1,7 +1,11 @@
 #pragma once
 
-#include "enginetypes.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <map>
+#include <optional>
+#include <span>
+#include <string>
 #include <variant>
 #include <vector>
 

@@ -1,11 +1,14 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
 #include "syzygy/descriptors.hpp"
 #include "syzygy/vulkanusage.hpp"
-#include "window.hpp"
 #include <memory>
 #include <optional>
-#include <vector>
+#include <utility>
+
+struct GLFWwindow;
+struct PlatformWindow;
 
 struct VulkanContext
 {

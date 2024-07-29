@@ -1,9 +1,23 @@
 #pragma once
 
-#include "descriptors.hpp"
-#include "enginetypes.hpp"
-#include "images.hpp"
-#include "pipelines.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/pipelines.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <glm/mat4x4.hpp>
+#include <memory>
+#include <optional>
+#include <span>
+#include <vector>
+
+class DescriptorAllocator;
+namespace gputypes
+{
+struct LightDirectional;
+struct LightSpot;
+} // namespace gputypes
+struct MeshAsset;
 
 struct ShadowPassParameters
 {

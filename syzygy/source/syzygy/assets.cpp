@@ -1,17 +1,25 @@
 #include "assets.hpp"
 
-#include "engine.hpp"
-#include "initializers.hpp"
-
-#include <glm/gtx/quaternion.hpp>
-
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/immediate.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/enginetypes.hpp"
+#include "syzygy/helpers.hpp"
+#include <cassert>
 #include <fastgltf/core.hpp>
-#include <fastgltf/glm_element_traits.hpp>
+#include <fastgltf/glm_element_traits.hpp> // IWYU pragma: keep
 #include <fastgltf/tools.hpp>
-
+#include <fastgltf/types.hpp>
+#include <fastgltf/util.hpp>
+#include <filesystem>
+#include <fmt/core.h>
 #include <fstream>
-
-#include "helpers.hpp"
+#include <functional>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <span>
+#include <utility>
 
 namespace
 {
@@ -174,10 +182,10 @@ auto loadGltfMeshes(
                 };
                 indices.reserve(indices.size() + indexAccessor.count);
 
-                fastgltf::iterateAccessor<std::uint32_t>(
+                fastgltf::iterateAccessor<uint32_t>(
                     gltf,
                     indexAccessor,
-                    [&](std::uint32_t index)
+                    [&](uint32_t index)
                 { indices.push_back(index + initialVertexIndex); }
                 );
             }

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/integer.hpp"
-#include "helpers.hpp"
-#include "vulkanusage.hpp"
+#include "syzygy/helpers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/vulkanusage.hpp"
 #include <cassert>
 #include <memory>
 #include <span>

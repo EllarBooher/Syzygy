@@ -14,7 +14,7 @@ find_program(
 if (IWYU_PATH)
 	set(
 		IWYU_WITH_OPTIONS
-		${IWYU_PATH};-Xiwyu;--mapping_file=${CMAKE_SOURCE_DIR}/iwyu/mappings.imp;-Xiwyu;--no_default_mappings
+		${IWYU_PATH};-Xiwyu;--mapping_file=${CMAKE_SOURCE_DIR}/iwyu/mappings.imp;
 	)
 
 	message(STATUS "iwyu enabled - using ${IWYU_WITH_OPTIONS}")

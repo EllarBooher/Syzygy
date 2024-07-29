@@ -1,11 +1,22 @@
 #pragma once
 
-#include "syzygy/core/scene.hpp"
-#include "syzygy/enginetypes.hpp"
-#include "syzygy/pipelines.hpp"
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/deferred/gbuffer.hpp"
+#include "syzygy/gputypes.hpp"
+#include "syzygy/images.hpp"
+#include "syzygy/shaders.hpp"
 #include "syzygy/shadowpass.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <glm/vec2.hpp>
+#include <memory>
+#include <span>
 
-#include "gbuffer.hpp"
+class DescriptorAllocator;
+namespace scene
+{
+struct MeshInstanced;
+} // namespace scene
 
 class DeferredShadingPipeline
 {

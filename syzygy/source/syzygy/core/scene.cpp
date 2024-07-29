@@ -1,9 +1,27 @@
 #include "scene.hpp"
 
+#include "syzygy/assets.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/core/timing.hpp"
 #include "syzygy/geometryhelpers.hpp"
 #include "syzygy/geometrystatics.hpp"
+#include "syzygy/helpers.hpp"
 #include "syzygy/lights.hpp"
+#include <glm/common.hpp>
+#include <glm/exponential.hpp>
+#include <glm/geometric.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/intersect.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/matrix.hpp>
+#include <glm/trigonometric.hpp>
+#include <glm/vec4.hpp>
+#include <span>
+#include <utility>
 
 /*
  * Values derived from:
@@ -236,7 +254,7 @@ void scene::Scene::tick(TickTiming const lastFrame)
             (position.x - (-10) + position.z - (-10)) / 3.1415
         };
 
-        double const y{std::sin(lastFrame.timeElapsedSeconds + timeOffset)};
+        double const y{glm::sin(lastFrame.timeElapsedSeconds + timeOffset)};
 
         glm::mat4x4 const translation{glm::translate(glm::vec3(0.0, y, 0.0))};
 
@@ -331,11 +349,11 @@ auto computeSunlightColor(scene::Atmosphere const& atmosphere) -> glm::vec4
     float const opticalDepthRayleigh{
         atmosphere.altitudeDecayRayleigh / surfaceCosine
         * (1.0F
-           - std::exp(-atmosphereThickness / atmosphere.altitudeDecayRayleigh))
+           - glm::exp(-atmosphereThickness / atmosphere.altitudeDecayRayleigh))
     };
     float const opticalDepthMie{
         atmosphere.altitudeDecayMie / surfaceCosine
-        * (1.0F - std::exp(-atmosphereThickness / atmosphere.altitudeDecayMie))
+        * (1.0F - glm::exp(-atmosphereThickness / atmosphere.altitudeDecayMie))
     };
 
     glm::vec3 const tau{
@@ -423,27 +441,27 @@ auto scene::Camera::toDeviceEquivalent(float const aspectRatio) const
     };
 }
 
-auto scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4
+auto scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
 {
     return projection(aspectRatio) * view();
 }
 
-auto scene::Camera::rotation() const -> glm::mat4
+auto scene::Camera::rotation() const -> glm::mat4x4
 {
     return glm::orientate4(eulerAngles);
 }
 
-auto scene::Camera::transform() const -> glm::mat4
+auto scene::Camera::transform() const -> glm::mat4x4
 {
     return geometry::transformVk(cameraPosition, eulerAngles);
 }
 
-auto scene::Camera::view() const -> glm::mat4
+auto scene::Camera::view() const -> glm::mat4x4
 {
     return geometry::viewVk(cameraPosition, eulerAngles);
 }
 
-auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4
+auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
 {
     if (orthographic)
     {

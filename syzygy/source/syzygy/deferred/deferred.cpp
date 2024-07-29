@@ -1,7 +1,21 @@
 #include "deferred.hpp"
 
+#include "syzygy/assets.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/core/scene.hpp"
+#include "syzygy/deferred/gbuffer.hpp"
+#include "syzygy/descriptors.hpp"
+#include "syzygy/helpers.hpp"
 #include "syzygy/initializers.hpp"
+#include "syzygy/pipelines.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
+#include <array>
+#include <fmt/core.h>
+#include <glm/vec2.hpp>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace
 {

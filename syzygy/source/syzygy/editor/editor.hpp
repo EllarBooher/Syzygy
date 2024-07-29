@@ -1,13 +1,11 @@
 #pragma once
 
-#include "framebuffer.hpp"
-#include "graphicscontext.hpp"
-#include "swapchain.hpp"
-#include "window.hpp"
-#include <glm/vec2.hpp>
+#include "syzygy/editor/framebuffer.hpp"
+#include "syzygy/editor/graphicscontext.hpp"
+#include "syzygy/editor/swapchain.hpp"
+#include "syzygy/editor/window.hpp"
 #include <optional>
-
-class Engine;
+#include <utility>
 
 enum class EditorResult
 {

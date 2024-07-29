@@ -1,13 +1,17 @@
 #pragma once
 
-#include "buffers.hpp"
-#include "core/immediate.hpp"
-#include "enginetypes.hpp"
-#include <filesystem>
+#include "syzygy/buffers.hpp"
+#include "syzygy/core/integer.hpp"
+#include "syzygy/vulkanusage.hpp"
+#include <memory>
 #include <optional>
+#include <string>
 #include <variant>
+#include <vector>
 
-/** An interval of indices from an index buffer. */
+struct ImmediateSubmissionQueue;
+
+// An interval of indices from an index buffer.
 struct GeometrySurface
 {
     uint32_t firstIndex;
@@ -25,8 +29,6 @@ struct MeshAssetLibrary
 {
     std::vector<std::shared_ptr<MeshAsset>> loadedMeshes;
 };
-
-class Engine;
 
 // TODO: decouple engine from this
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
