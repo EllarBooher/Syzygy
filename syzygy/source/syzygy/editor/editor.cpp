@@ -9,6 +9,7 @@
 #include "syzygy/core/timing.hpp"
 #include "syzygy/editor/framebuffer.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
+#include "syzygy/editor/input.hpp"
 #include "syzygy/editor/swapchain.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/engine.hpp"
@@ -672,9 +673,27 @@ auto Editor::run() -> EditorResult
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
+    szg_input::InputHandler inputHandler{};
+    glfwSetWindowUserPointer(
+        m_window.handle(), reinterpret_cast<void*>(&inputHandler)
+    );
+    glfwSetKeyCallback(
+        m_window.handle(),
+        szg_input::InputHandler::callback_glfw
+    );
+
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
+        inputHandler.increment();
+
         glfwPollEvents();
+
+        szg_input::InputSnapshot const inputSnapshot{inputHandler.collect()};
+
+        if (inputSnapshot.dirty)
+        {
+            Log(inputHandler.formatStatus());
+        }
 
         if (glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE)
         {
