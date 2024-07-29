@@ -1,23 +1,16 @@
 #include "input.hpp"
 
 #include <fmt/core.h>
+#include <optional>
 
 namespace
 {
 auto incrementKeyStatus(szg_input::KeyStatus const status)
     -> szg_input::KeyStatus
 {
-    switch (status)
-    {
-    case (szg_input::KeyStatus::HELD):
-    case (szg_input::KeyStatus::PRESSED):
-        return szg_input::KeyStatus::HELD;
-    case (szg_input::KeyStatus::RELEASED):
-    case (szg_input::KeyStatus::NONE):
-        return szg_input::KeyStatus::NONE;
-    }
+    return {.down = status.down, .edge = false};
 }
-auto toKeyCode_glfw(int32_t key) -> szg_input::KeyCode
+auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
 {
     switch (key)
     {
@@ -28,42 +21,47 @@ auto toKeyCode_glfw(int32_t key) -> szg_input::KeyCode
     case GLFW_KEY_S:
         return szg_input::KeyCode::S;
     case GLFW_KEY_D:
-    default:
         return szg_input::KeyCode::D;
+    default:
+        return std::nullopt;
     }
 }
 auto transitionStatus_glfw(
     szg_input::KeyStatus const status, int32_t const action
 ) -> szg_input::KeyStatus
 {
+    // TODO: I must think about what happens if we get out of sync with the GLFW
+    // state, e.g., what if GLFW_RELEASE occurs and the key is already up?
     switch (action)
     {
     case (GLFW_REPEAT):
-        if (status == szg_input::KeyStatus::HELD)
-        {
-            return szg_input::KeyStatus::HELD;
-        }
-        return szg_input::KeyStatus::PRESSED;
+        return {
+            .down = true,
+            .edge = !status.down,
+        };
     case (GLFW_PRESS):
-        return szg_input::KeyStatus::PRESSED;
+        return {
+            .down = true,
+            .edge = true,
+        };
     case (GLFW_RELEASE):
-        return szg_input::KeyStatus::RELEASED;
+        return {
+            .down = false,
+            .edge = true,
+        };
     default:
-        return szg_input::KeyStatus::NONE;
+        return status;
     }
 }
 auto toString(szg_input::KeyStatus const status) -> std::string
 {
-    switch (status)
+    if (status.down)
     {
-    case (szg_input::KeyStatus::HELD):
-        return "HELD";
-    case (szg_input::KeyStatus::PRESSED):
-        return "PRESSED";
-    case (szg_input::KeyStatus::RELEASED):
-        return "RELEASED";
-    case (szg_input::KeyStatus::NONE):
-        return "NONE";
+        return status.edge ? "PRESSED" : "HELD";
+    }
+    else
+    {
+        return status.edge ? "RELEASED" : "NONE";
     }
 }
 auto toString(szg_input::KeyCode const key) -> std::string
@@ -102,10 +100,17 @@ void szg_input::InputHandler::handle_glfw(
     int32_t key, int32_t scancode, int32_t action, int32_t mods
 )
 {
-    szg_input::KeyCode const keyCode{toKeyCode_glfw(key)};
+    std::optional<szg_input::KeyCode> const keyResult{toKeyCode_glfw(key)};
+    if (!keyResult.has_value())
+    {
+        return;
+    }
+    szg_input::KeyCode const keyCode{ keyResult.value() };
 
     szg_input::KeyStatus const oldStatus{m_snapshot.getStatus(keyCode)};
-    szg_input::KeyStatus const newStatus{transitionStatus_glfw(oldStatus, action)};
+    szg_input::KeyStatus const newStatus{
+        transitionStatus_glfw(oldStatus, action)
+    };
 
     m_snapshot.setStatus(keyCode, newStatus);
 }
@@ -174,4 +179,9 @@ void szg_input::InputSnapshot::setStatus(
 
     dirty = true;
     keys[static_cast<size_t>(key)] = status;
+}
+
+auto szg_input::KeyStatus::operator==(KeyStatus const& other) const -> bool
+{
+    return other.down == down && other.edge == edge;
 }

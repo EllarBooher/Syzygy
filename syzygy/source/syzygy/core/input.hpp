@@ -7,13 +7,14 @@
 
 namespace szg_input
 {
-enum class KeyStatus
+struct KeyStatus
 {
-    NONE,
-    PRESSED,
-    HELD,
-    RELEASED,
+    bool down;
+    bool edge;
+
+    auto operator==(KeyStatus const& other) const -> bool;
 };
+
 enum class KeyCode
 {
     W,

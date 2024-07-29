@@ -2,6 +2,7 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/core/immediate.hpp"
+#include "syzygy/core/input.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/result.hpp"
 #include "syzygy/core/scene.hpp"
@@ -9,7 +10,6 @@
 #include "syzygy/core/timing.hpp"
 #include "syzygy/editor/framebuffer.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
-#include "syzygy/editor/input.hpp"
 #include "syzygy/editor/swapchain.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/engine.hpp"
@@ -678,8 +678,7 @@ auto Editor::run() -> EditorResult
         m_window.handle(), reinterpret_cast<void*>(&inputHandler)
     );
     glfwSetKeyCallback(
-        m_window.handle(),
-        szg_input::InputHandler::callback_glfw
+        m_window.handle(), szg_input::InputHandler::callback_glfw
     );
 
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
@@ -689,11 +688,6 @@ auto Editor::run() -> EditorResult
         glfwPollEvents();
 
         szg_input::InputSnapshot const inputSnapshot{inputHandler.collect()};
-
-        if (inputSnapshot.dirty)
-        {
-            Log(inputHandler.formatStatus());
-        }
 
         if (glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE)
         {
@@ -719,6 +713,7 @@ auto Editor::run() -> EditorResult
 
         fpsHistory.write(1.0 / deltaTimeSeconds);
 
+        scene.handleInput(lastFrameTiming, inputSnapshot);
         scene.tick(lastFrameTiming);
 
         m_frameBuffer.increment();

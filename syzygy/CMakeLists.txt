@@ -32,7 +32,7 @@ add_library(
 	"source/syzygy/core/scene.cpp"
     "source/syzygy/core/immediate.cpp"
     "source/syzygy/core/scenetexture.cpp" 
-	"source/syzygy/editor/input.cpp"
+	"source/syzygy/core/input.cpp"
 )
 
 add_dependencies(syzygy Shaders)

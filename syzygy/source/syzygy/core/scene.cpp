@@ -1,6 +1,7 @@
 #include "scene.hpp"
 
 #include "syzygy/assets.hpp"
+#include "syzygy/core/input.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/geometryhelpers.hpp"
@@ -274,6 +275,29 @@ auto scene::Scene::defaultScene(
         .geometry = std::move(geometry),
         .bounds = bounds,
     };
+}
+
+void scene::Scene::handleInput(TickTiming const lastFrame, szg_input::InputSnapshot const& input)
+{
+    glm::vec3 accumulatedMovement{};
+    if (input.getStatus(szg_input::KeyCode::W).down)
+    {
+        accumulatedMovement += geometry::forward;
+    }
+    if (input.getStatus(szg_input::KeyCode::S).down)
+    {
+        accumulatedMovement -= geometry::forward;
+    }
+    if (input.getStatus(szg_input::KeyCode::D).down)
+    {
+        accumulatedMovement += geometry::right;
+    }
+    if (input.getStatus(szg_input::KeyCode::A).down)
+    {
+        accumulatedMovement -= geometry::right;
+    }
+
+    camera.cameraPosition += accumulatedMovement;
 }
 
 void scene::Scene::tick(TickTiming const lastFrame)

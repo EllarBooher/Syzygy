@@ -10,6 +10,10 @@
 #include <optional>
 #include <vector>
 
+namespace szg_input
+{
+    struct InputSnapshot;
+}
 struct MeshAsset;
 struct MeshAssetLibrary;
 struct TickTiming;
@@ -121,6 +125,7 @@ struct Scene
     static auto
     defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
         -> Scene;
+    void handleInput(TickTiming, szg_input::InputSnapshot const&);
     void tick(TickTiming);
 };
 } // namespace scene
