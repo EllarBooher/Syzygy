@@ -12,7 +12,7 @@
 
 namespace szg_input
 {
-    struct InputSnapshot;
+struct InputSnapshot;
 }
 struct MeshAsset;
 struct MeshAssetLibrary;
@@ -107,9 +107,12 @@ struct Scene
 {
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
+    static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
 
     Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
     Camera camera{DEFAULT_CAMERA};
+
+    float cameraControlledSpeed{DEFAULT_CAMERA_CONTROLLED_SPEED};
 
     bool spotlightsRender{false};
     std::vector<gputypes::LightSpot> spotlights{};

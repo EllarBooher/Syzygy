@@ -202,7 +202,12 @@ void uiAtmosphere(
         )
         .end();
 }
-void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
+void uiCamera(
+    scene::Camera& camera,
+    scene::Camera const& defaultValues,
+    float& cameraSpeed,
+    float const& defaultCameraSpeed
+)
 {
     // Stay an arbitrary distance away 0 and 180 degrees to avoid singularities
     FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
@@ -213,6 +218,15 @@ void uiCamera(scene::Camera& camera, scene::Camera const& defaultValues)
     float constexpr CLIPPING_PLANE_MARGIN{0.01F};
 
     PropertyTable::begin()
+        .rowFloat(
+            "Editor Movement Speed",
+            cameraSpeed,
+            defaultCameraSpeed,
+            PropertySliderBehavior{
+                .bounds = 0.0F,
+                100.0F,
+            }
+        )
         .rowBoolean(
             "Orthographic", camera.orthographic, defaultValues.orthographic
         )
@@ -267,7 +281,7 @@ void uiSceneGeometry(
     MeshAssetLibrary const& meshes
 )
 {
-    PropertyTable table{ PropertyTable::begin() };
+    PropertyTable table{PropertyTable::begin()};
 
     table.rowChildPropertyBegin("Scene Bounds")
         .rowVec3(
@@ -277,7 +291,7 @@ void uiSceneGeometry(
             PropertySliderBehavior{
                 .speed = 1.0F,
             }
-            )
+        )
         .rowVec3(
             "Scene Extent",
             bounds.extent,
@@ -285,7 +299,7 @@ void uiSceneGeometry(
             PropertySliderBehavior{
                 .speed = 1.0F,
             }
-            )
+        )
         .childPropertyEnd();
 
     for (scene::MeshInstanced& instance : geometry)
@@ -295,37 +309,37 @@ void uiSceneGeometry(
         table.rowCustom(
             "Mesh Used",
             [&]()
+        {
+            ImGui::BeginDisabled(meshes.loadedMeshes.empty());
+
+            std::string const previewLabel{
+                instance.mesh == nullptr ? "None" : instance.mesh->name
+            };
+            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
             {
-                ImGui::BeginDisabled(meshes.loadedMeshes.empty());
-
-                std::string const previewLabel{
-                    instance.mesh == nullptr ? "None" : instance.mesh->name
-                };
-                if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+                size_t const index{0};
+                for (std::shared_ptr<MeshAsset> const& pMesh :
+                     meshes.loadedMeshes)
                 {
-                    size_t const index{ 0 };
-                    for (std::shared_ptr<MeshAsset> const& pMesh :
-                        meshes.loadedMeshes)
+                    if (pMesh == nullptr)
                     {
-                        if (pMesh == nullptr)
-                        {
-                            continue;
-                        }
-
-                        MeshAsset const& mesh{ *pMesh };
-                        bool const selected{ pMesh == instance.mesh };
-
-                        if (ImGui::Selectable(mesh.name.c_str(), selected))
-                        {
-                            instance.mesh = pMesh;
-                            break;
-                        }
+                        continue;
                     }
-                    ImGui::EndCombo();
-                }
 
-                ImGui::EndDisabled();
+                    MeshAsset const& mesh{*pMesh};
+                    bool const selected{pMesh == instance.mesh};
+
+                    if (ImGui::Selectable(mesh.name.c_str(), selected))
+                    {
+                        instance.mesh = pMesh;
+                        break;
+                    }
+                }
+                ImGui::EndCombo();
             }
+
+            ImGui::EndDisabled();
+        }
         );
         table.childPropertyEnd();
     }
@@ -356,7 +370,12 @@ void ui::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiCamera(scene.camera, scene::Scene::DEFAULT_CAMERA);
+        uiCamera(
+            scene.camera,
+            scene::Scene::DEFAULT_CAMERA,
+            scene.cameraControlledSpeed,
+            scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
+        );
     }
 
     if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))

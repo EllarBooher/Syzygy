@@ -57,6 +57,8 @@ scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
     .far = 10000.0F,
 }};
 
+float const scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
+
 namespace
 {
 auto tickSunEulerAngles(
@@ -277,7 +279,9 @@ auto scene::Scene::defaultScene(
     };
 }
 
-void scene::Scene::handleInput(TickTiming const lastFrame, szg_input::InputSnapshot const& input)
+void scene::Scene::handleInput(
+    TickTiming const lastFrame, szg_input::InputSnapshot const& input
+)
 {
     glm::vec3 accumulatedMovement{};
     if (input.getStatus(szg_input::KeyCode::W).down)
@@ -297,7 +301,9 @@ void scene::Scene::handleInput(TickTiming const lastFrame, szg_input::InputSnaps
         accumulatedMovement -= geometry::right;
     }
 
-    camera.cameraPosition += accumulatedMovement;
+    camera.cameraPosition += cameraControlledSpeed
+                           * static_cast<float>(lastFrame.deltaTimeSeconds)
+                           * accumulatedMovement;
 }
 
 void scene::Scene::tick(TickTiming const lastFrame)
