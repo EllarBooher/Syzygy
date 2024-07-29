@@ -88,7 +88,6 @@ private:
         ShaderObjectReflected::makeInvalid()
     };
 
-    // TODO: initialize these layouts
     VkPipelineLayout m_gBufferLayout{VK_NULL_HANDLE};
 
     struct LightingPassComputePushConstant

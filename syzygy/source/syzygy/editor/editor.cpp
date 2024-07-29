@@ -200,6 +200,7 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
 
     return VK_SUCCESS;
 }
+
 auto endFrame(
     Frame const& currentFrame,
     Swapchain& swapchain,
@@ -226,13 +227,12 @@ auto endFrame(
         )};
         acquireResult != VK_SUCCESS)
     {
-        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+        if (acquireResult != VK_ERROR_OUT_OF_DATE_KHR)
         {
-            // TODO: remove this check, move ending command buffer outside of
-            // this function
-            CheckVkResult(vkEndCommandBuffer(cmd));
-            return acquireResult;
+            LogVkResult(acquireResult, "Failed to acquire swapchain image.");
         }
+        LogVkResult(vkEndCommandBuffer(cmd), "Failed to end command buffer.");
+        return acquireResult;
     }
 
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
@@ -265,7 +265,10 @@ auto endFrame(
         VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    CheckVkResult(vkEndCommandBuffer(cmd));
+    TRY_VK_RESULT(
+        vkEndCommandBuffer(cmd),
+        "Failed to end command buffer after recording copy into swapchain."
+    );
 
     // Submit commands
 
@@ -286,17 +289,12 @@ auto endFrame(
     VkSubmitInfo2 const submitInfo =
         vkinit::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
 
-    if (VkResult const submissionResult{vkQueueSubmit2(
+    TRY_VK_RESULT(
+        vkQueueSubmit2(
             submissionQueue, 1, &submitInfo, currentFrame.renderFence
-        )};
-        submissionResult != VK_SUCCESS)
-    {
-        LogVkResult(
-            submissionResult,
-            "Failed to submit command buffer before frame presentation."
-        );
-        return submissionResult;
-    }
+        ),
+        "Failed to submit command buffer before frame presentation."
+    );
 
     VkSwapchainKHR const swapchainHandle{swapchain.swapchain()};
     VkPresentInfoKHR const presentInfo = {
@@ -313,17 +311,23 @@ auto endFrame(
         .pResults = nullptr, // Only one swapchain
     };
 
-    {
-        VkResult const presentResult{
+    if (VkResult const presentResult{
             vkQueuePresentKHR(submissionQueue, &presentInfo)
         };
-        if (presentResult != VK_SUCCESS
-            && presentResult != VK_ERROR_OUT_OF_DATE_KHR)
+        presentResult != VK_SUCCESS)
+    {
+        if (presentResult != VK_ERROR_OUT_OF_DATE_KHR)
         {
-            LogVkResult(presentResult, "Failed frame presentation.");
+            LogVkResult(
+                presentResult,
+                "Failed swapchain presentation due to error that was not "
+                "OUT_OF_DATE."
+            );
         }
         return presentResult;
     }
+
+    return VK_SUCCESS;
 }
 auto uiInit(
     VkInstance const instance,
@@ -567,7 +571,7 @@ auto Editor::run() -> EditorResult
     )};
 
     // We oversize textures and use resizable subregion
-    VkExtent2D constexpr TEXTURE_MAX{4096, 4096}; 
+    VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
     std::optional<scene::SceneTexture> sceneTextureResult{
         scene::SceneTexture::create(
             m_graphics.vulkanContext().device,

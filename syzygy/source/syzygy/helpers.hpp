@@ -78,11 +78,23 @@ void LogVkResult(
     std::source_location location = std::source_location::current()
 );
 
+// Thin error propagation, logs any result that isn't VK_SUCCESS
 #define TRY_VK(result_expr, message, return_expr)                              \
-    if (VkResult const result{result_expr}; result != VK_SUCCESS)              \
+    if (VkResult const SYZYGY_result{result_expr};                             \
+        SYZYGY_result != VK_SUCCESS)                                           \
     {                                                                          \
-        LogVkResult(result, message);                                          \
+        LogVkResult(SYZYGY_result, message);                                   \
         return return_expr;                                                    \
+    }
+
+// Thin error propagation, logs any result that isn't VK_SUCCESS and propagates
+// it
+#define TRY_VK_RESULT(result_expr, message)                                    \
+    if (VkResult const SYZYGY_result{result_expr};                             \
+        SYZYGY_result != VK_SUCCESS)                                           \
+    {                                                                          \
+        LogVkResult(SYZYGY_result, message);                                   \
+        return SYZYGY_result;                                                  \
     }
 
 // Logs the message in grey,

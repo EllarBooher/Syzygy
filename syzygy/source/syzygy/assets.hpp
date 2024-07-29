@@ -30,7 +30,6 @@ struct MeshAssetLibrary
     std::vector<std::shared_ptr<MeshAsset>> loadedMeshes;
 };
 
-// TODO: decouple engine from this
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     VkDevice,
     VmaAllocator,
