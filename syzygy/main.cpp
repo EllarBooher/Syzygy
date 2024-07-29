@@ -4,9 +4,9 @@
 
 auto main() -> int
 {
-    ApplicationResult const runResult{Application::run()};
+    syzygy::RunResult const runResult{syzygy::runApplication()};
 
-    if (runResult != ApplicationResult::SUCCESS)
+    if (runResult != syzygy::RunResult::SUCCESS)
     {
         return EXIT_FAILURE;
     }

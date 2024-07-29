@@ -1,13 +1,12 @@
 #pragma once
 
-enum class ApplicationResult
+namespace syzygy
+{
+enum class RunResult
 {
     SUCCESS,
     FAILURE,
 };
 
-class Application
-{
-public:
-    static auto run() -> ApplicationResult;
-};
+auto runApplication() -> RunResult;
+} // namespace syzygy
