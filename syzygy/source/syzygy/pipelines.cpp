@@ -15,7 +15,7 @@
 namespace gputypes
 {
 struct Camera;
-}
+} // namespace gputypes
 
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout

@@ -552,6 +552,7 @@ void uiReload(VkDevice const device, UIPreferences const preferences)
 }
 } // namespace
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto Editor::run() -> EditorResult
 {
     using namespace std::chrono_literals;
@@ -565,12 +566,14 @@ auto Editor::run() -> EditorResult
         m_window.handle()
     )};
 
+    // We oversize textures and use resizable subregion
+    VkExtent2D constexpr TEXTURE_MAX{4096, 4096}; 
     std::optional<scene::SceneTexture> sceneTextureResult{
         scene::SceneTexture::create(
             m_graphics.vulkanContext().device,
             m_graphics.allocator(),
             m_graphics.descriptorAllocator(),
-            {4096U, 4096U},
+            TEXTURE_MAX,
             VK_FORMAT_R16G16B16A16_SFLOAT
         )
     };
@@ -583,13 +586,11 @@ auto Editor::run() -> EditorResult
         m_graphics.allocator(),
         m_graphics.vulkanContext().device,
         AllocatedImage::AllocationParameters{
-            .extent = {4096U, 4096U},
+            .extent = TEXTURE_MAX,
             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
             .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
-                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                        | VK_IMAGE_USAGE_STORAGE_BIT
-                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // during render
-            // passes
+                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy from scene
+                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
             .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
         }

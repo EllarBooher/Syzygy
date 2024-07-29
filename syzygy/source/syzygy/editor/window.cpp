@@ -20,7 +20,8 @@ PlatformWindow::PlatformWindow(PlatformWindow&& other) noexcept
     *this = std::move(other);
 }
 
-PlatformWindow& PlatformWindow::operator=(PlatformWindow&& other) noexcept
+auto PlatformWindow::operator=(PlatformWindow&& other) noexcept
+    -> PlatformWindow&
 {
     destroy();
 

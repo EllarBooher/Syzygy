@@ -130,7 +130,7 @@ auto DescriptorAllocator::create(
     for (PoolSizeRatio const& ratio : poolRatios)
     {
         auto const descriptorCount{static_cast<uint32_t>(
-            glm::round(ratio.ratio * static_cast<float>(maxSets)) + 0.5F
+            glm::ceil(ratio.ratio * static_cast<float>(maxSets))
         )};
 
         poolSizes.push_back(VkDescriptorPoolSize{
