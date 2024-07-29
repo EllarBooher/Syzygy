@@ -134,94 +134,143 @@ auto scene::Scene::defaultScene(
         ),
     };
 
-    MeshInstanced geometry{};
-    size_t geometryMovingCubeIndex{};
+    std::vector<MeshInstanced> geometry{};
+    geometry.reserve(2);
+    std::optional<size_t> cubesIndex{};
     SceneBounds bounds{};
     if (!meshes.loadedMeshes.empty())
     {
-        geometry.mesh = meshes.loadedMeshes[0];
-        geometry.render = true;
+        int32_t constexpr COORDINATE_MIN{-40};
+        int32_t constexpr COORDINATE_MAX{40};
 
-        // Floor
-        int32_t const coordinateMin{-40};
-        int32_t const coordinateMax{40};
+        { // Floor
+            MeshInstanced floorGeometry{};
+            floorGeometry.name = "meshInstanced_Floor";
+            floorGeometry.mesh = meshes.loadedMeshes[0];
+            floorGeometry.render = true;
 
-        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
-        {
-            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
+            for (int32_t x{COORDINATE_MIN}; x <= COORDINATE_MAX; x++)
             {
-                glm::vec3 const position{
-                    static_cast<float>(x) * 20.0F,
-                    1.0F,
-                    static_cast<float>(z) * 20.0F
-                };
-                glm::vec3 const scale{10.0F, 2.0F, 10.0F};
+                for (int32_t z{COORDINATE_MIN}; z <= COORDINATE_MAX; z++)
+                {
+                    glm::vec3 const position{
+                        static_cast<float>(x) * 20.0F,
+                        1.0F,
+                        static_cast<float>(z) * 20.0F
+                    };
+                    glm::vec3 const scale{10.0F, 2.0F, 10.0F};
 
-                geometry.originals.push_back(
-                    glm::translate(position) * glm::scale(scale)
-                );
+                    floorGeometry.originals.push_back(
+                        glm::translate(position) * glm::scale(scale)
+                    );
+                }
             }
+
+            VkDeviceSize const bufferSize{
+                static_cast<VkDeviceSize>(floorGeometry.originals.size())
+            };
+
+            floorGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    allocator,
+                    bufferSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                )
+            );
+            floorGeometry.modelInverseTransposes =
+                std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                    TStagedBuffer<glm::mat4x4>::allocate(
+                        device,
+                        allocator,
+                        bufferSize,
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                    )
+                );
+
+            std::vector<glm::mat4x4> modelInverseTransposes{};
+            modelInverseTransposes.reserve(floorGeometry.originals.size());
+            for (glm::mat4x4 const& model : floorGeometry.originals)
+            {
+                modelInverseTransposes.push_back(glm::inverseTranspose(model));
+            }
+
+            floorGeometry.models->stage(floorGeometry.originals);
+            floorGeometry.modelInverseTransposes->stage(modelInverseTransposes);
+
+            geometry.push_back(std::move(floorGeometry));
         }
 
-        geometryMovingCubeIndex = geometry.originals.size();
+        { // Cubes
+            MeshInstanced cubeGeometry{};
+            cubeGeometry.name = "meshInstanced_Cubes";
+            cubeGeometry.mesh = meshes.loadedMeshes[0];
+            cubeGeometry.render = true;
 
-        for (int32_t x{coordinateMin}; x <= coordinateMax; x++)
-        {
-            for (int32_t z{coordinateMin}; z <= coordinateMax; z++)
+            for (int32_t x{COORDINATE_MIN}; x <= COORDINATE_MAX; x++)
             {
-                glm::vec3 const position{
-                    static_cast<float>(x), -4.0, static_cast<float>(z)
-                };
-                glm::quat const orientation{geometry::randomQuat()};
-                glm::vec3 const scale{0.2F};
+                for (int32_t z{COORDINATE_MIN}; z <= COORDINATE_MAX; z++)
+                {
+                    glm::vec3 const position{
+                        static_cast<float>(x), -4.0, static_cast<float>(z)
+                    };
+                    glm::quat const orientation{geometry::randomQuat()};
+                    glm::vec3 const scale{0.2F};
 
-                geometry.originals.push_back(
-                    glm::translate(position) * glm::toMat4(orientation)
-                    * glm::scale(scale)
-                );
+                    cubeGeometry.originals.push_back(
+                        glm::translate(position) * glm::toMat4(orientation)
+                        * glm::scale(scale)
+                    );
+                }
             }
+
+            VkDeviceSize const bufferSize{
+                static_cast<VkDeviceSize>(cubeGeometry.originals.size())
+            };
+
+            cubeGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    allocator,
+                    bufferSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                )
+            );
+            cubeGeometry.modelInverseTransposes =
+                std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                    TStagedBuffer<glm::mat4x4>::allocate(
+                        device,
+                        allocator,
+                        bufferSize,
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                    )
+                );
+
+            std::vector<glm::mat4x4> modelInverseTransposes{};
+            modelInverseTransposes.reserve(cubeGeometry.originals.size());
+            for (glm::mat4x4 const& model : cubeGeometry.originals)
+            {
+                modelInverseTransposes.push_back(glm::inverseTranspose(model));
+            }
+
+            cubeGeometry.models->stage(cubeGeometry.originals);
+            cubeGeometry.modelInverseTransposes->stage(modelInverseTransposes);
+
+            cubesIndex = geometry.size();
+            geometry.push_back(std::move(cubeGeometry));
         }
 
         SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
             .center = glm::vec3{0.0, -4.0, 0.0},
-            .extent = glm::vec3{40.0, 5.0, 40.0},
+            .extent = glm::vec3{45.0, 5.0, 45.0},
         };
         bounds = DEFAULT_SCENE_BOUNDS;
-
-        VkDeviceSize const maxInstanceCount{geometry.originals.size()};
-        geometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-            TStagedBuffer<glm::mat4x4>::allocate(
-                device,
-                allocator,
-                maxInstanceCount,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            )
-        );
-        geometry.modelInverseTransposes =
-            std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                TStagedBuffer<glm::mat4x4>::allocate(
-                    device,
-                    allocator,
-                    maxInstanceCount,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                )
-            );
-
-        std::vector<glm::mat4x4> modelInverseTransposes{};
-        modelInverseTransposes.reserve(geometry.originals.size());
-        for (glm::mat4x4 const& model : geometry.originals)
-        {
-            modelInverseTransposes.push_back(glm::inverseTranspose(model));
-        }
-
-        geometry.models->stage(geometry.originals);
-        geometry.modelInverseTransposes->stage(modelInverseTransposes);
     }
 
     return Scene{
         .spotlightsRender = true,
         .spotlights = spotlights,
-        .geometryMovingCubeIndex = geometryMovingCubeIndex,
+        .cubesIndex = cubesIndex,
         .geometry = std::move(geometry),
         .bounds = bounds,
     };
@@ -231,9 +280,16 @@ void scene::Scene::tick(TickTiming const lastFrame)
 {
     atmosphere.sunEulerAngles = tickSunEulerAngles(atmosphere, lastFrame);
 
-    std::span<glm::mat4x4> const models{geometry.models->mapValidStaged()};
+    if (!cubesIndex.has_value())
+    {
+        return;
+    }
+
+    MeshInstanced& cubes{geometry[cubesIndex.value()]};
+
+    std::span<glm::mat4x4> const models{cubes.models->mapValidStaged()};
     std::span<glm::mat4x4> const modelInverseTransposes{
-        geometry.modelInverseTransposes->mapValidStaged()
+        cubes.modelInverseTransposes->mapValidStaged()
     };
 
     if (models.size() != modelInverseTransposes.size())
@@ -242,11 +298,9 @@ void scene::Scene::tick(TickTiming const lastFrame)
         return;
     }
 
-    for (size_t index{geometryMovingCubeIndex};
-         index < geometry.originals.size();
-         index++)
+    for (size_t index{0}; index < cubes.originals.size(); index++)
     {
-        glm::mat4x4 const modelOriginal{geometry.originals[index]};
+        glm::mat4x4 const modelOriginal{cubes.originals[index]};
 
         glm::vec4 const position{modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0)};
 

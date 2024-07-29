@@ -52,8 +52,8 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
-        MeshAsset const& mesh,
-        TStagedBuffer<glm::mat4x4> const& models
+        std::span<scene::MeshInstanced const> geometry,
+        std::span<RenderOverride const> renderOverrides
     );
 
     // Transitions all the shadow map VkImages, with a total memory barrier.

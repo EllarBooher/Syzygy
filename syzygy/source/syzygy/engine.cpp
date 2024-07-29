@@ -254,107 +254,115 @@ void Engine::recordDraw(
     // Begin scene drawing
 
     m_debugLines.clear();
-
-    if (sceneViewport.has_value())
+    if (!sceneViewport.has_value())
     {
-        { // Copy cameras to gpu
-            float const aspectRatio{static_cast<float>(
-                vkutil::aspectRatio(sceneViewport.value().rect.extent)
-            )};
+        return;
+    }
 
-            gputypes::Camera const mainCamera{
-                scene.camera.toDeviceEquivalent(aspectRatio)
-            };
+    { // Copy cameras to gpu
+        float const aspectRatio{static_cast<float>(
+            vkutil::aspectRatio(sceneViewport.value().rect.extent)
+        )};
 
-            m_camerasBuffer->clearStaged();
-            m_camerasBuffer->push(mainCamera);
-            m_camerasBuffer->recordCopyToDevice(cmd);
-        }
+        gputypes::Camera const mainCamera{
+            scene.camera.toDeviceEquivalent(aspectRatio)
+        };
 
-        std::vector<gputypes::LightDirectional> directionalLights{};
-        { // Copy atmospheres to gpu
-            scene::AtmosphereBaked const bakedAtmosphere{
-                scene.atmosphere.baked(scene.bounds)
-            };
-            if (bakedAtmosphere.moonlight.has_value())
-            {
-                directionalLights.push_back(bakedAtmosphere.moonlight.value());
-            }
-            if (bakedAtmosphere.sunlight.has_value())
-            {
-                directionalLights.push_back(bakedAtmosphere.sunlight.value());
-            }
+        m_camerasBuffer->clearStaged();
+        m_camerasBuffer->push(mainCamera);
+        m_camerasBuffer->recordCopyToDevice(cmd);
+    }
 
-            m_atmospheresBuffer->clearStaged();
-            m_atmospheresBuffer->push(bakedAtmosphere.atmosphere);
-            m_atmospheresBuffer->recordCopyToDevice(cmd);
-        }
-
-        { // Copy models to gpu
-            scene.geometry.models->recordCopyToDevice(cmd);
-            scene.geometry.modelInverseTransposes->recordCopyToDevice(cmd);
-        }
-
+    std::vector<gputypes::LightDirectional> directionalLights{};
+    { // Copy atmospheres to gpu
+        scene::AtmosphereBaked const bakedAtmosphere{
+            scene.atmosphere.baked(scene.bounds)
+        };
+        if (bakedAtmosphere.moonlight.has_value())
         {
+            directionalLights.push_back(bakedAtmosphere.moonlight.value());
+        }
+        if (bakedAtmosphere.sunlight.has_value())
+        {
+            directionalLights.push_back(bakedAtmosphere.sunlight.value());
+        }
+
+        m_atmospheresBuffer->clearStaged();
+        m_atmospheresBuffer->push(bakedAtmosphere.atmosphere);
+        m_atmospheresBuffer->recordCopyToDevice(cmd);
+    }
+
+    for (scene::MeshInstanced const& instance : scene.geometry)
+    {
+        if (instance.models != nullptr)
+        {
+            instance.models->recordCopyToDevice(cmd);
+        }
+        if (instance.models != nullptr)
+        {
+            instance.modelInverseTransposes->recordCopyToDevice(cmd);
+        }
+    }
+
+    {
+        sceneTexture.texture().recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_GENERAL
+        );
+
+        switch (m_activeRenderingPipeline)
+        {
+        case RenderingPipelines::DEFERRED:
+        {
+            // TODO: create a struct that contains a ref to a struct in a
+            // buffer
+            uint32_t const cameraIndex{0};
+            uint32_t const atmosphereIndex{0};
+
+            m_deferredShadingPipeline->recordDrawCommands(
+                cmd,
+                sceneViewport.value().rect,
+                sceneTexture.texture(),
+                *m_sceneDepthTexture,
+                directionalLights,
+                scene.spotlightsRender ? scene.spotlights
+                                       : std::vector<gputypes::LightSpot>{},
+                cameraIndex,
+                *m_camerasBuffer,
+                atmosphereIndex,
+                *m_atmospheresBuffer,
+                scene.geometry
+            );
+
             sceneTexture.texture().recordTransitionBarriered(
                 cmd, VK_IMAGE_LAYOUT_GENERAL
             );
 
-            switch (m_activeRenderingPipeline)
-            {
-            case RenderingPipelines::DEFERRED:
-            {
-                // TODO: create a struct that contains a ref to a struct in a
-                // buffer
-                uint32_t const cameraIndex{0};
-                uint32_t const atmosphereIndex{0};
+            m_debugLines.pushBox(
+                scene.bounds.center,
+                glm::identity<glm::quat>(),
+                scene.bounds.extent
+            );
 
-                m_deferredShadingPipeline->recordDrawCommands(
-                    cmd,
-                    sceneViewport.value().rect,
-                    sceneTexture.texture(),
-                    *m_sceneDepthTexture,
-                    directionalLights,
-                    scene.spotlightsRender ? scene.spotlights
-                                           : std::vector<gputypes::LightSpot>{},
-                    cameraIndex,
-                    *m_camerasBuffer,
-                    atmosphereIndex,
-                    *m_atmospheresBuffer,
-                    scene.geometry
-                );
+            recordDrawDebugLines(
+                cmd,
+                cameraIndex,
+                sceneTexture,
+                sceneViewport.value(),
+                *m_camerasBuffer
+            );
 
-                sceneTexture.texture().recordTransitionBarriered(
-                    cmd, VK_IMAGE_LAYOUT_GENERAL
-                );
+            break;
+        }
+        case RenderingPipelines::COMPUTE_COLLECTION:
+        {
+            m_genericComputePipeline->recordDrawCommands(
+                cmd,
+                sceneTexture.singletonDescriptor(),
+                sceneViewport.value().rect.extent
+            );
 
-                m_debugLines.pushBox(
-                    scene.bounds.center,
-                    glm::identity<glm::quat>(),
-                    scene.bounds.extent
-                );
-
-                recordDrawDebugLines(
-                    cmd,
-                    cameraIndex,
-                    sceneTexture,
-                    sceneViewport.value(),
-                    *m_camerasBuffer
-                );
-
-                break;
-            }
-            case RenderingPipelines::COMPUTE_COLLECTION:
-            {
-                m_genericComputePipeline->recordDrawCommands(
-                    cmd,
-                    sceneTexture.singletonDescriptor(),
-                    sceneViewport.value().rect.extent
-                );
-
-                break;
-            }
-            }
+            break;
+        }
         }
     }
 

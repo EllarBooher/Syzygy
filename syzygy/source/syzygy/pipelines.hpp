@@ -4,6 +4,7 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/vulkanusage.hpp"
+#include "syzygy/core/scene.hpp"
 #include <fmt/core.h>
 #include <glm/mat4x4.hpp>
 #include <optional>
@@ -20,6 +21,11 @@ struct AllocatedImage;
 struct MeshAsset;
 struct Vertex;
 template <typename T> struct TStagedBuffer;
+
+struct RenderOverride
+{
+    bool render{ false };
+};
 
 namespace
 {
@@ -132,8 +138,8 @@ public:
         AllocatedImage& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-        MeshAsset const& mesh,
-        TStagedBuffer<glm::mat4x4> const& models
+        std::span<scene::MeshInstanced const> geometry,
+        std::span<RenderOverride const> const renderOverrides
     ) const;
 
     void cleanup(VkDevice device);
@@ -154,17 +160,12 @@ private:
         uint8_t padding0[4]{};
     };
 
-    VertexPushConstant mutable m_vertexPushConstant{};
-
 public:
     ShaderModuleReflected const& vertexShader() const
     {
         return m_vertexShader;
     };
-    VertexPushConstant const& vertexPushConstant() const
-    {
-        return m_vertexPushConstant;
-    };
+
     ShaderReflectionData::PushConstant const&
     vertexPushConstantReflected() const
     {

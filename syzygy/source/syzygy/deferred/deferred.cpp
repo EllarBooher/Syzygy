@@ -442,6 +442,37 @@ void setRasterizationShaderObjectState(
 
     vkCmdSetStencilTestEnable(cmd, VK_FALSE);
 }
+
+auto collectGeometryCullFlags(
+    VkCommandBuffer const cmd,
+    VkPipelineStageFlags2 const bufferAccessStages,
+    std::span<scene::MeshInstanced const> meshes
+) -> std::vector<RenderOverride>
+{
+    std::vector<RenderOverride> renderOverrides{};
+    renderOverrides.reserve(meshes.size());
+
+    for (scene::MeshInstanced const& instance : meshes)
+    {
+        RenderOverride const override{
+            .render = instance.render && instance.mesh != nullptr
+                   && instance.mesh->meshBuffers != nullptr
+                   && instance.models != nullptr
+                   && instance.modelInverseTransposes != nullptr
+        };
+
+        instance.models->recordTotalCopyBarrier(
+            cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+        );
+        instance.modelInverseTransposes->recordTotalCopyBarrier(
+            cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+        );
+
+        renderOverrides.push_back(override);
+    }
+
+    return renderOverrides;
+}
 } // namespace
 
 void DeferredShadingPipeline::recordDrawCommands(
@@ -455,24 +486,18 @@ void DeferredShadingPipeline::recordDrawCommands(
     TStagedBuffer<gputypes::Camera> const& cameras,
     uint32_t const atmosphereIndex,
     TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
-    scene::MeshInstanced const& sceneGeometry
+    std::span<scene::MeshInstanced const> sceneGeometry
 )
 {
-    VkPipelineStageFlags2 const bufferStages{
+    VkPipelineStageFlags2 constexpr GBUFFER_ACCESS_STAGES{
         VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT
         | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
     };
     cameras.recordTotalCopyBarrier(
-        cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+        cmd, GBUFFER_ACCESS_STAGES, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
     );
     atmospheres.recordTotalCopyBarrier(
-        cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
-    );
-    sceneGeometry.models->recordTotalCopyBarrier(
-        cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
-    );
-    sceneGeometry.modelInverseTransposes->recordTotalCopyBarrier(
-        cmd, bufferStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+        cmd, GBUFFER_ACCESS_STAGES, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
     );
 
     { // Update lights
@@ -509,10 +534,10 @@ void DeferredShadingPipeline::recordDrawCommands(
         }
     }
 
-    bool const shouldRenderGeometry{
-        sceneGeometry.render || sceneGeometry.mesh == nullptr
+    std::vector<RenderOverride> renderOverrides{
+        collectGeometryCullFlags(cmd, GBUFFER_ACCESS_STAGES, sceneGeometry)
     };
-    if (shouldRenderGeometry)
+
     { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd,
@@ -522,11 +547,10 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         m_shadowPassArray.recordDrawCommands(
-            cmd, *sceneGeometry.mesh, *sceneGeometry.models
+            cmd, sceneGeometry, renderOverrides
         );
     }
 
-    if (shouldRenderGeometry)
     { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(
             cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -537,7 +561,6 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
     }
 
-    if (shouldRenderGeometry)
     { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
             cmd, VkRect2D{.extent{drawRect.extent}}
@@ -646,42 +669,66 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdBindShadersEXT(cmd, 2, stages.data(), shaders.data());
 
-        GPUMeshBuffers& meshBuffers{*sceneGeometry.mesh->meshBuffers};
+        for (size_t index{0}; index < sceneGeometry.size(); index++)
+        {
+            scene::MeshInstanced const& instance{sceneGeometry[index]};
 
-        { // Vertex push constant
-            GBufferVertexPushConstant const vertexPushConstant{
-                .vertexBuffer = meshBuffers.vertexAddress(),
-                .modelBuffer = sceneGeometry.models->deviceAddress(),
-                .modelInverseTransposeBuffer =
-                    sceneGeometry.modelInverseTransposes->deviceAddress(),
-                .cameraBuffer = cameras.deviceAddress(),
-                .cameraIndex = viewCameraIndex,
+            bool render{instance.render};
+            if (index < renderOverrides.size())
+            {
+                RenderOverride const& renderOverride{renderOverrides[index]};
+
+                render = renderOverride.render;
+            }
+
+            if (!render)
+            {
+                continue;
+            }
+
+            MeshAsset const& meshAsset{*instance.mesh};
+            TStagedBuffer<glm::mat4x4> const& models{*instance.models};
+            TStagedBuffer<glm::mat4x4> const& modelInverseTransposes{
+                *instance.modelInverseTransposes
             };
-            vkCmdPushConstants(
+
+            GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};
+
+            { // Vertex push constant
+                GBufferVertexPushConstant const vertexPushConstant{
+                    .vertexBuffer = meshBuffers.vertexAddress(),
+                    .modelBuffer = models.deviceAddress(),
+                    .modelInverseTransposeBuffer =
+                        modelInverseTransposes.deviceAddress(),
+                    .cameraBuffer = cameras.deviceAddress(),
+                    .cameraIndex = viewCameraIndex,
+                };
+                vkCmdPushConstants(
+                    cmd,
+                    m_gBufferLayout,
+                    VK_SHADER_STAGE_VERTEX_BIT,
+                    0,
+                    sizeof(GBufferVertexPushConstant),
+                    &vertexPushConstant
+                );
+            }
+
+            GeometrySurface const& drawnSurface{meshAsset.surfaces[0]};
+
+            // Bind the entire index buffer of the mesh, but only draw a single
+            // surface.
+            vkCmdBindIndexBuffer(
+                cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
+            );
+            vkCmdDrawIndexed(
                 cmd,
-                m_gBufferLayout,
-                VK_SHADER_STAGE_VERTEX_BIT,
+                drawnSurface.indexCount,
+                models.deviceSize(),
+                drawnSurface.firstIndex,
                 0,
-                sizeof(GBufferVertexPushConstant),
-                &vertexPushConstant
+                0
             );
         }
-
-        GeometrySurface const& drawnSurface{sceneGeometry.mesh->surfaces[0]};
-
-        // Bind the entire index buffer of the mesh, but only draw a single
-        // surface.
-        vkCmdBindIndexBuffer(
-            cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
-        );
-        vkCmdDrawIndexed(
-            cmd,
-            drawnSurface.indexCount,
-            sceneGeometry.models->deviceSize(),
-            drawnSurface.firstIndex,
-            0,
-            0
-        );
 
         std::array<VkShaderStageFlagBits, 2> const unboundStages{
             VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT
@@ -695,18 +742,11 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdEndRendering(cmd);
     }
-    else
-    {
-        renderpass::recordClearDepthImage(
-            cmd, depth, VkClearDepthStencilValue{.depth = renderpass::DEPTH_FAR}
-        );
-    }
 
     renderpass::recordClearColorImage(
         cmd, color, renderpass::COLOR_BLACK_OPAQUE
     );
 
-    if (shouldRenderGeometry)
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
             cmd, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL

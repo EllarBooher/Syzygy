@@ -236,10 +236,12 @@ void ShadowPassArray::recordInitialize(
     }
 }
 
+
+
 void ShadowPassArray::recordDrawCommands(
     VkCommandBuffer const cmd,
-    MeshAsset const& mesh,
-    TStagedBuffer<glm::mat4x4> const& models
+    std::span<scene::MeshInstanced const> const geometry,
+    std::span<RenderOverride const> const renderOverrides
 )
 {
     for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
@@ -252,8 +254,8 @@ void ShadowPassArray::recordDrawCommands(
             *m_textures[i],
             i,
             *m_projViewMatrices,
-            mesh,
-            models
+            geometry,
+            renderOverrides
         );
     }
 }

@@ -39,7 +39,7 @@ public:
         TStagedBuffer<gputypes::Camera> const& cameras,
         uint32_t atmosphereIndex,
         TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
-        scene::MeshInstanced const& sceneGeometry
+        std::span<scene::MeshInstanced const> sceneGeometry
     );
 
     void updateRenderTargetDescriptors(VkDevice, AllocatedImage& depthImage);

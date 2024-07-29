@@ -680,8 +680,8 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     AllocatedImage& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-    MeshAsset const& mesh,
-    TStagedBuffer<glm::mat4x4> const& models
+    std::span<scene::MeshInstanced const> const geometry,
+    std::span<RenderOverride const> const renderOverrides
 ) const
 {
     VkAttachmentLoadOp const depthLoadOp{
@@ -735,41 +735,62 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    GPUMeshBuffers& meshBuffers{*mesh.meshBuffers};
+    for (size_t index{0}; index < geometry.size(); index++)
+    {
+        scene::MeshInstanced const& instance{ geometry[index] };
 
-    { // Vertex push constant
-        VertexPushConstant const vertexPushConstant{
-            .vertexBufferAddress = meshBuffers.vertexAddress(),
-            .modelBufferAddress = models.deviceAddress(),
-            .projViewBufferAddress = projViewMatrices.deviceAddress(),
-            .projViewIndex = projViewIndex,
-        };
-        vkCmdPushConstants(
-            cmd,
-            m_graphicsPipelineLayout,
-            VK_SHADER_STAGE_VERTEX_BIT,
-            0,
-            sizeof(VertexPushConstant),
-            &vertexPushConstant
+        bool render{instance.render};
+        if (index < renderOverrides.size())
+        {
+            RenderOverride const& renderOverride{renderOverrides[index]
+            };
+
+            render = renderOverride.render;
+        }
+
+        if (!render)
+        {
+            continue;
+        }
+
+        MeshAsset const& meshAsset{*instance.mesh};
+        TStagedBuffer<glm::mat4x4> const& models{*instance.models};
+
+        GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};
+
+        { // Vertex push constant
+            VertexPushConstant const vertexPushConstant{
+                .vertexBufferAddress = meshBuffers.vertexAddress(),
+                .modelBufferAddress = models.deviceAddress(),
+                .projViewBufferAddress = projViewMatrices.deviceAddress(),
+                .projViewIndex = projViewIndex,
+            };
+            vkCmdPushConstants(
+                cmd,
+                m_graphicsPipelineLayout,
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0,
+                sizeof(VertexPushConstant),
+                &vertexPushConstant
+            );
+        }
+
+        GeometrySurface const& drawnSurface{meshAsset.surfaces[0]};
+
+        // Bind the entire index buffer of the mesh,
+        // but only draw a single surface.
+        vkCmdBindIndexBuffer(
+            cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
         );
-        m_vertexPushConstant = vertexPushConstant;
+        vkCmdDrawIndexed(
+            cmd,
+            drawnSurface.indexCount,
+            models.deviceSize(),
+            drawnSurface.firstIndex,
+            0,
+            0
+        );
     }
-
-    GeometrySurface const& drawnSurface{mesh.surfaces[0]};
-
-    // Bind the entire index buffer of the mesh,
-    // but only draw a single surface.
-    vkCmdBindIndexBuffer(
-        cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
-    );
-    vkCmdDrawIndexed(
-        cmd,
-        drawnSurface.indexCount,
-        models.deviceSize(),
-        drawnSurface.firstIndex,
-        0,
-        0
-    );
 
     vkCmdEndRendering(cmd);
 }

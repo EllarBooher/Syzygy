@@ -318,43 +318,47 @@ void ui::sceneControlsWindow(
             )
             .childPropertyEnd();
 
-        table.rowBoolean("Render Geometry", scene.geometry.render, true);
-        table.rowCustom(
-            "Mesh Used",
-            [&]()
+        for (scene::MeshInstanced& instance : scene.geometry)
         {
-            ImGui::BeginDisabled(meshes.loadedMeshes.empty());
-
-            std::string const previewLabel{
-                scene.geometry.mesh == nullptr ? "None"
-                                               : scene.geometry.mesh->name
-            };
-            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+            table.rowChildPropertyBegin(instance.name);
+            table.rowBoolean("Render", instance.render, true);
+            table.rowCustom(
+                "Mesh Used",
+                [&]()
             {
-                size_t const index{0};
-                for (std::shared_ptr<MeshAsset> const& pMesh :
-                     meshes.loadedMeshes)
+                ImGui::BeginDisabled(meshes.loadedMeshes.empty());
+
+                std::string const previewLabel{
+                    instance.mesh == nullptr ? "None" : instance.mesh->name
+                };
+                if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
                 {
-                    if (pMesh == nullptr)
+                    size_t const index{0};
+                    for (std::shared_ptr<MeshAsset> const& pMesh :
+                         meshes.loadedMeshes)
                     {
-                        continue;
-                    }
+                        if (pMesh == nullptr)
+                        {
+                            continue;
+                        }
 
-                    MeshAsset const& mesh{*pMesh};
-                    bool const selected{pMesh == scene.geometry.mesh};
+                        MeshAsset const& mesh{*pMesh};
+                        bool const selected{pMesh == instance.mesh};
 
-                    if (ImGui::Selectable(mesh.name.c_str(), selected))
-                    {
-                        scene.geometry.mesh = pMesh;
-                        break;
+                        if (ImGui::Selectable(mesh.name.c_str(), selected))
+                        {
+                            instance.mesh = pMesh;
+                            break;
+                        }
                     }
+                    ImGui::EndCombo();
                 }
-                ImGui::EndCombo();
-            }
 
-            ImGui::EndDisabled();
+                ImGui::EndDisabled();
+            }
+            );
+            table.childPropertyEnd();
         }
-        );
 
         table.end();
     }

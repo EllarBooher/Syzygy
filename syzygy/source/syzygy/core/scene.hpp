@@ -90,6 +90,7 @@ struct Camera
 struct MeshInstanced
 {
     bool render{false};
+    std::string name{};
     std::shared_ptr<MeshAsset> mesh{};
 
     std::vector<glm::mat4x4> originals{};
@@ -109,12 +110,8 @@ struct Scene
     bool spotlightsRender{false};
     std::vector<gputypes::LightSpot> spotlights{};
 
-    // TODO: we need to store this count because the rendering pipelines can't
-    // handle multiple meshes in one rendering pass. When that is added,
-    // multiple meshinstanced can be put here instead of having to pack all
-    // geometry in one.
-    size_t geometryMovingCubeIndex{};
-    MeshInstanced geometry;
+    std::optional<size_t> cubesIndex{};
+    std::vector<MeshInstanced> geometry;
 
     // TODO: compute this on demand instead of making it a tweakable parameter
     // This is used to compute the necessary dimensions of various resource e.g.
