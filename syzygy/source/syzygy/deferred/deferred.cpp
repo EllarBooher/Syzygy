@@ -461,14 +461,19 @@ auto collectGeometryCullFlags(
                    && instance.modelInverseTransposes != nullptr
         };
 
+        renderOverrides.push_back(override);
+
+        if (!override.render)
+        {
+            continue;
+        }
+
         instance.models->recordTotalCopyBarrier(
             cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
         );
         instance.modelInverseTransposes->recordTotalCopyBarrier(
             cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
         );
-
-        renderOverrides.push_back(override);
     }
 
     return renderOverrides;

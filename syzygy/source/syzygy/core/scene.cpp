@@ -287,7 +287,14 @@ void scene::Scene::tick(TickTiming const lastFrame)
 
     MeshInstanced& cubes{geometry[cubesIndex.value()]};
 
-    std::span<glm::mat4x4> const models{cubes.models->mapValidStaged()};
+    if (cubes.models == nullptr || cubes.modelInverseTransposes == nullptr)
+    {
+        return;
+    }
+
+    std::span<glm::mat4x4> const models{
+        cubes.models->mapValidStaged()
+    };
     std::span<glm::mat4x4> const modelInverseTransposes{
         cubes.modelInverseTransposes->mapValidStaged()
     };
