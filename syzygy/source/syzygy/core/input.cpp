@@ -22,6 +22,10 @@ auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
         return szg_input::KeyCode::S;
     case GLFW_KEY_D:
         return szg_input::KeyCode::D;
+    case GLFW_KEY_Q:
+        return szg_input::KeyCode::Q;
+    case GLFW_KEY_E:
+        return szg_input::KeyCode::E;
     default:
         return std::nullopt;
     }
@@ -105,7 +109,7 @@ void szg_input::InputHandler::handle_glfw(
     {
         return;
     }
-    szg_input::KeyCode const keyCode{ keyResult.value() };
+    szg_input::KeyCode const keyCode{keyResult.value()};
 
     szg_input::KeyStatus const oldStatus{m_snapshot.getStatus(keyCode)};
     szg_input::KeyStatus const newStatus{

@@ -300,6 +300,14 @@ void scene::Scene::handleInput(
     {
         accumulatedMovement -= geometry::right;
     }
+    if (input.getStatus(szg_input::KeyCode::E).down)
+    {
+        accumulatedMovement += geometry::up;
+    }
+    if (input.getStatus(szg_input::KeyCode::Q).down)
+    {
+        accumulatedMovement -= geometry::up;
+    }
 
     camera.cameraPosition += cameraControlledSpeed
                            * static_cast<float>(lastFrame.deltaTimeSeconds)
