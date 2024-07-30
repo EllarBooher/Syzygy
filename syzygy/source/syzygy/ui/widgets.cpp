@@ -223,8 +223,7 @@ void uiCamera(
             cameraSpeed,
             defaultCameraSpeed,
             PropertySliderBehavior{
-                .bounds = 0.0F,
-                100.0F,
+                .bounds = {0.0F, 100.0F},
             }
         )
         .rowBoolean(

@@ -283,30 +283,56 @@ void scene::Scene::handleInput(
     TickTiming const lastFrame, szg_input::InputSnapshot const& input
 )
 {
+    glm::vec2 const cursorDelta{input.cursor.delta()};
+
+    glm::vec2 const adjustedCursorDelta{
+        cursorDelta.x / 100.0F, cursorDelta.y / 200.0F
+    };
+
+    // left to right
+    camera.eulerAngles.z += adjustedCursorDelta.x;
+
+    // up and down, avoid flipping camera
+    camera.eulerAngles.x = glm::clamp(
+        camera.eulerAngles.x - adjustedCursorDelta.y,
+        -glm::half_pi<float>(),
+        glm::half_pi<float>()
+    );
+
+    glm::mat3x3 const transform{camera.transform()};
+
+    glm::vec3 const forward{transform * geometry::forward};
+    glm::vec3 const right{transform * geometry::right};
+    // We do not rotate up, since the controls would be disorienting
+    glm::vec3 const up{geometry::up};
+
     glm::vec3 accumulatedMovement{};
-    if (input.getStatus(szg_input::KeyCode::W).down)
+
+    szg_input::KeySnapshot const& keys{input.keys};
+
+    if (keys.getStatus(szg_input::KeyCode::W).down)
     {
-        accumulatedMovement += geometry::forward;
+        accumulatedMovement += forward;
     }
-    if (input.getStatus(szg_input::KeyCode::S).down)
+    if (keys.getStatus(szg_input::KeyCode::S).down)
     {
-        accumulatedMovement -= geometry::forward;
+        accumulatedMovement -= forward;
     }
-    if (input.getStatus(szg_input::KeyCode::D).down)
+    if (keys.getStatus(szg_input::KeyCode::D).down)
     {
-        accumulatedMovement += geometry::right;
+        accumulatedMovement += right;
     }
-    if (input.getStatus(szg_input::KeyCode::A).down)
+    if (keys.getStatus(szg_input::KeyCode::A).down)
     {
-        accumulatedMovement -= geometry::right;
+        accumulatedMovement -= right;
     }
-    if (input.getStatus(szg_input::KeyCode::E).down)
+    if (keys.getStatus(szg_input::KeyCode::E).down)
     {
-        accumulatedMovement += geometry::up;
+        accumulatedMovement += up;
     }
-    if (input.getStatus(szg_input::KeyCode::Q).down)
+    if (keys.getStatus(szg_input::KeyCode::Q).down)
     {
-        accumulatedMovement -= geometry::up;
+        accumulatedMovement -= up;
     }
 
     camera.cameraPosition += cameraControlledSpeed

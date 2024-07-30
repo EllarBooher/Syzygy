@@ -1,15 +1,12 @@
 #include "input.hpp"
 
+#include "syzygy/helpers.hpp"
 #include <fmt/core.h>
+#include <glm/gtx/string_cast.hpp>
 #include <optional>
 
 namespace
 {
-auto incrementKeyStatus(szg_input::KeyStatus const status)
-    -> szg_input::KeyStatus
-{
-    return {.down = status.down, .edge = false};
-}
 auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
 {
     switch (key)
@@ -30,31 +27,18 @@ auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
         return std::nullopt;
     }
 }
-auto transitionStatus_glfw(
-    szg_input::KeyStatus const status, int32_t const action
-) -> szg_input::KeyStatus
+auto isDown_glfw(bool const currentDown, int32_t const action) -> bool
 {
-    // TODO: I must think about what happens if we get out of sync with the GLFW
-    // state, e.g., what if GLFW_RELEASE occurs and the key is already up?
     switch (action)
     {
     case (GLFW_REPEAT):
-        return {
-            .down = true,
-            .edge = !status.down,
-        };
+        return true;
     case (GLFW_PRESS):
-        return {
-            .down = true,
-            .edge = true,
-        };
+        return true;
     case (GLFW_RELEASE):
-        return {
-            .down = false,
-            .edge = true,
-        };
+        return false;
     default:
-        return status;
+        return currentDown;
     }
 }
 auto toString(szg_input::KeyStatus const status) -> std::string
@@ -80,11 +64,18 @@ auto toString(szg_input::KeyCode const key) -> std::string
         return "S";
     case (szg_input::KeyCode::D):
         return "D";
+    case (szg_input::KeyCode::Q):
+        return "Q";
+    case (szg_input::KeyCode::E):
+        return "E";
+    case (szg_input::KeyCode::MAX):
+    default:
+        return "UNKOWN_KEY";
     }
 }
 } // namespace
 
-void szg_input::InputHandler::callback_glfw(
+void szg_input::InputHandler::callbackKey_glfw(
     GLFWwindow* window, int key, int scancode, int action, int mods
 )
 {
@@ -97,10 +88,26 @@ void szg_input::InputHandler::callback_glfw(
         return;
     }
 
-    activeHandler->handle_glfw(key, scancode, action, mods);
+    activeHandler->handleKey_glfw(key, scancode, action, mods);
 }
 
-void szg_input::InputHandler::handle_glfw(
+void szg_input::InputHandler::callbackMouse_glfw(
+    GLFWwindow* window, double xpos, double ypos
+)
+{
+    InputHandler* activeHandler{
+        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(window))
+    };
+
+    if (activeHandler == nullptr)
+    {
+        return;
+    }
+
+    activeHandler->handleMouse_glfw(xpos, ypos);
+}
+
+void szg_input::InputHandler::handleKey_glfw(
     int32_t key, int32_t scancode, int32_t action, int32_t mods
 )
 {
@@ -111,68 +118,49 @@ void szg_input::InputHandler::handle_glfw(
     }
     szg_input::KeyCode const keyCode{keyResult.value()};
 
-    szg_input::KeyStatus const oldStatus{m_snapshot.getStatus(keyCode)};
-    szg_input::KeyStatus const newStatus{
-        transitionStatus_glfw(oldStatus, action)
-    };
-
-    m_snapshot.setStatus(keyCode, newStatus);
+    bool& isDown{m_keysNew.keysDown[static_cast<size_t>(keyCode)]};
+    isDown = isDown_glfw(isDown, action);
 }
 
-void szg_input::InputHandler::increment()
+void szg_input::InputHandler::handleMouse_glfw(double xpos, double ypos)
 {
-    InputSnapshot const oldSnapshot{m_snapshot};
-
-    std::array<
-        szg_input::KeyStatus,
-        static_cast<size_t>(szg_input::KeyCode::MAX)>
-        keys{};
-
-    bool dirty{false};
-    for (size_t index{0}; index < keys.size(); index++)
-    {
-        szg_input::KeyStatus const oldStatus{oldSnapshot.keys[index]};
-        szg_input::KeyStatus const newStatus{incrementKeyStatus(oldStatus)};
-        keys[index] = newStatus;
-
-        dirty |= oldStatus != newStatus;
-    };
-
-    m_snapshot = InputSnapshot{
-        .dirty = dirty,
-        .keys = keys,
-    };
+    m_cursorNew.position =
+        glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
 }
 
-auto szg_input::InputHandler::formatStatus() -> std::string
+auto szg_input::InputHandler::collect() -> InputSnapshot
 {
-    InputSnapshot& snapshot{m_snapshot};
-
-    std::string output;
-
-    for (size_t index{0}; index < snapshot.keys.size(); index++)
+    KeySnapshot keys{};
+    for (size_t index{0}; index < m_keysNew.keysDown.size(); index++)
     {
-        szg_input::KeyCode const key{static_cast<szg_input::KeyCode>(index)};
+        bool oldDown{m_keysOld.keysDown[index]};
+        bool isDown{m_keysNew.keysDown[index]};
 
-        output += fmt::format(
-            "{}: {:9}", toString(key), toString(snapshot.getStatus(key))
-        );
+        keys.keys[index] = KeyStatus{
+            .down = isDown,
+            .edge = isDown != oldDown,
+        };
     }
 
-    return output;
+    CursorSnapshot cursor{};
+    cursor.currentPosition = m_cursorNew.position;
+    cursor.lastPosition = m_cursorOld.position;
+
+    m_cursorOld = m_cursorNew;
+    m_keysOld = m_keysNew;
+
+    return {
+        .keys = keys,
+        .cursor = cursor,
+    };
 }
 
-auto szg_input::InputHandler::collect() const -> InputSnapshot
-{
-    return m_snapshot;
-}
-
-auto szg_input::InputSnapshot::getStatus(KeyCode const key) const -> KeyStatus
+auto szg_input::KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
 {
     return keys[static_cast<size_t>(key)];
 }
 
-void szg_input::InputSnapshot::setStatus(
+void szg_input::KeySnapshot::setStatus(
     KeyCode const key, KeyStatus const status
 )
 {
@@ -181,11 +169,38 @@ void szg_input::InputSnapshot::setStatus(
         return;
     }
 
-    dirty = true;
     keys[static_cast<size_t>(key)] = status;
 }
 
 auto szg_input::KeyStatus::operator==(KeyStatus const& other) const -> bool
 {
     return other.down == down && other.edge == edge;
+}
+
+auto szg_input::CursorSnapshot::delta() const -> glm::i32vec2
+{
+    return glm::i32vec2{currentPosition} - glm::i32vec2{lastPosition};
+}
+
+auto szg_input::InputSnapshot::format() const -> std::string
+{
+    std::string output;
+
+    for (size_t index{0}; index < keys.keys.size(); index++)
+    {
+        szg_input::KeyCode const keyCode{static_cast<szg_input::KeyCode>(index)
+        };
+
+        output += fmt::format(
+            "{}: {:9}", toString(keyCode), toString(keys.getStatus(keyCode))
+        );
+    }
+
+    output += fmt::format(
+        "Cursor: Current: {} Last: {}",
+        glm::to_string(cursor.currentPosition),
+        glm::to_string(cursor.lastPosition)
+    );
+
+    return output;
 }

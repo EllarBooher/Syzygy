@@ -562,6 +562,17 @@ auto Editor::run() -> EditorResult
 {
     using namespace std::chrono_literals;
 
+    // Init input before imgui so it properly chains our callbacks
+    szg_input::InputHandler inputHandler{};
+    glfwSetWindowUserPointer(
+        m_window.handle(), reinterpret_cast<void*>(&inputHandler)
+    );
+    glfwSetKeyCallback(
+        m_window.handle(), szg_input::InputHandler::callbackKey_glfw
+    );
+    glfwSetCursorPosCallback(
+        m_window.handle(), szg_input::InputHandler::callbackMouse_glfw
+    );
     VkDescriptorPool const imguiPool{uiInit(
         m_graphics.vulkanContext().instance,
         m_graphics.vulkanContext().physicalDevice,
@@ -673,21 +684,9 @@ auto Editor::run() -> EditorResult
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
-    szg_input::InputHandler inputHandler{};
-    glfwSetWindowUserPointer(
-        m_window.handle(), reinterpret_cast<void*>(&inputHandler)
-    );
-    glfwSetKeyCallback(
-        m_window.handle(), szg_input::InputHandler::callback_glfw
-    );
-
     while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
     {
-        inputHandler.increment();
-
         glfwPollEvents();
-
-        szg_input::InputSnapshot const inputSnapshot{inputHandler.collect()};
 
         if (glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE)
         {
@@ -703,6 +702,8 @@ auto Editor::run() -> EditorResult
         {
             continue;
         }
+
+        szg_input::InputSnapshot const inputSnapshot{inputHandler.collect()};
 
         TickTiming const lastFrameTiming{
             .timeElapsedSeconds = timeSecondsCurrent,
