@@ -654,6 +654,7 @@ auto Editor::run() -> EditorResult
         return EditorResult::ERROR_EDITOR;
     }
 
+    bool inputCapturedByScene{false};
     scene::Scene scene{scene::Scene::defaultScene(
         m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
     )};
@@ -714,7 +715,10 @@ auto Editor::run() -> EditorResult
 
         fpsHistory.write(1.0 / deltaTimeSeconds);
 
-        scene.handleInput(lastFrameTiming, inputSnapshot);
+        if (inputCapturedByScene)
+        {
+            scene.handleInput(lastFrameTiming, inputSnapshot);
+        }
         scene.tick(lastFrameTiming);
 
         m_frameBuffer.increment();
@@ -744,23 +748,52 @@ auto Editor::run() -> EditorResult
             fpsHistory,
             fpsTarget
         );
-        std::optional<scene::SceneViewport> const sceneViewport{
-            ui::sceneViewportWindow(
+        ui::WindowResult<std::optional<scene::SceneViewport>> const
+            sceneViewport{ui::sceneViewportWindow(
                 "Scene Viewport",
                 uiResults.dockingLayout.centerTop,
                 uiResults.hud.maximizeSceneViewport
                     ? uiResults.hud.workArea
                     : std::optional<UIRectangle>{},
                 sceneTexture
-            )
-        };
+            )};
+        if (inputCapturedByScene != sceneViewport.focused)
+        {
+            if (sceneViewport.focused)
+            {
+                glfwSetInputMode(
+                    m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
+                );
+            }
+            else
+            {
+                glfwSetInputMode(
+                    m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
+                );
+            }
+
+            inputCapturedByScene = sceneViewport.focused;
+        }
+        if (inputCapturedByScene
+            && inputSnapshot.keys.getStatus(szg_input::KeyCode::TAB).pressed())
+        {
+            inputCapturedByScene = false;
+            glfwSetInputMode(
+                m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
+            );
+            ImGui::SetWindowFocus(NULL);
+        }
+
         ui::sceneControlsWindow(
             "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
         );
         uiEnd();
 
         renderer->recordDraw(
-            currentFrame.mainCommandBuffer, scene, sceneTexture, sceneViewport
+            currentFrame.mainCommandBuffer,
+            scene,
+            sceneTexture,
+            sceneViewport.payload
         );
 
         VkRect2D const windowTextureDrawArea{uiRecordDraw(

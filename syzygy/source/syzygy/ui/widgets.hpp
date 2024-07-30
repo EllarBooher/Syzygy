@@ -28,6 +28,12 @@ void sceneControlsWindow(
     MeshAssetLibrary const& meshes
 );
 
+template <typename T> struct WindowResult
+{
+    bool focused;
+    T payload;
+};
+
 // The returned value indicates the extent from (0,0) to (x,y) that will be read
 // from the the scene texture by ImGui when the final image is composited.
 auto sceneViewportWindow(
@@ -35,5 +41,5 @@ auto sceneViewportWindow(
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
     scene::SceneTexture const& texture
-) -> std::optional<scene::SceneViewport>;
+) -> WindowResult<std::optional<scene::SceneViewport>>;
 } // namespace ui

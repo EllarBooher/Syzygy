@@ -12,6 +12,8 @@ struct KeyStatus
     bool down;
     bool edge;
 
+    auto pressed() const -> bool;
+
     auto operator==(KeyStatus const& other) const -> bool;
 };
 
@@ -23,6 +25,7 @@ enum class KeyCode
     D,
     Q,
     E,
+    TAB,
     MAX
 };
 

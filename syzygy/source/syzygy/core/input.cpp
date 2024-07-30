@@ -23,6 +23,8 @@ auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
         return szg_input::KeyCode::Q;
     case GLFW_KEY_E:
         return szg_input::KeyCode::E;
+    case GLFW_KEY_TAB:
+        return szg_input::KeyCode::TAB;
     default:
         return std::nullopt;
     }
@@ -68,6 +70,8 @@ auto toString(szg_input::KeyCode const key) -> std::string
         return "Q";
     case (szg_input::KeyCode::E):
         return "E";
+    case (szg_input::KeyCode::TAB):
+        return "TAB";
     case (szg_input::KeyCode::MAX):
     default:
         return "UNKOWN_KEY";
@@ -171,6 +175,8 @@ void szg_input::KeySnapshot::setStatus(
 
     keys[static_cast<size_t>(key)] = status;
 }
+
+auto szg_input::KeyStatus::pressed() const -> bool { return down && edge; }
 
 auto szg_input::KeyStatus::operator==(KeyStatus const& other) const -> bool
 {

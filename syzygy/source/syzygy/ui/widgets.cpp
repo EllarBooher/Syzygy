@@ -395,7 +395,7 @@ auto ui::sceneViewportWindow(
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
     scene::SceneTexture const& texture
-) -> std::optional<scene::SceneViewport>
+) -> WindowResult<std::optional<scene::SceneViewport>>
 {
     UIWindow const sceneViewport{
         maximizeArea.has_value()
@@ -405,7 +405,10 @@ auto ui::sceneViewportWindow(
 
     if (!sceneViewport.open)
     {
-        return std::nullopt;
+        return {
+            .focused = false,
+            .payload = std::nullopt,
+        };
     }
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
@@ -417,23 +420,35 @@ auto ui::sceneViewportWindow(
         contentExtent.y / static_cast<float>(textureMax.height)
     };
 
+    float const textHeight{
+        ImGui::CalcTextSize("").y + ImGui::GetStyle().ItemSpacing.y
+    };
+
     ImGui::Image(
         reinterpret_cast<ImTextureID>(texture.imguiDescriptor()),
-        contentExtent,
+        contentExtent - glm::vec2{0.0F, textHeight},
         ImVec2{0.0, 0.0},
         uvMax,
         ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
         ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
     );
 
-    return scene::SceneViewport{
-        .rect =
-            VkRect2D{
-                .offset = {0, 0},
-                .extent =
-                    VkExtent2D{
-                        .width = static_cast<uint32_t>(contentExtent.x),
-                        .height = static_cast<uint32_t>(contentExtent.y),
+    ImGui::Text("Click Scene Viewport to capture inputs. Translate Camera: "
+                "WASD + QE. Rotate Camera: Mouse. Stop Capturing: TAB.");
+
+    return {
+        .focused = ImGui::IsWindowFocused(),
+        .payload =
+            scene::SceneViewport{
+                .rect =
+                    VkRect2D{
+                        .offset = {0, 0},
+                        .extent =
+                            VkExtent2D{
+                                .width = static_cast<uint32_t>(contentExtent.x),
+                                .height =
+                                    static_cast<uint32_t>(contentExtent.y),
+                            }
                     }
             }
     };
