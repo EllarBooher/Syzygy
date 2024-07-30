@@ -91,8 +91,6 @@ void uiAtmosphere(
     scene::Atmosphere& atmosphere, scene::Atmosphere const& defaultValues
 )
 {
-    FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{-20.0F, 20.0F};
-
     float constexpr EULER_ANGLES_SPEED{0.1F};
 
     FloatBounds constexpr RGBA_BOUNDS{0.0F, 1.0F};
@@ -109,24 +107,6 @@ void uiAtmosphere(
     FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
 
     PropertyTable::begin()
-        .rowBoolean(
-            "Animate Sun",
-            atmosphere.animation.animateSun,
-            defaultValues.animation.animateSun
-        )
-        .rowFloat(
-            "Sun Animation Speed",
-            atmosphere.animation.animationSpeed,
-            defaultValues.animation.animationSpeed,
-            PropertySliderBehavior{
-                .bounds = SUN_ANIMATION_SPEED_BOUNDS,
-            }
-        )
-        .rowBoolean(
-            "Skip Night",
-            atmosphere.animation.skipNight,
-            defaultValues.animation.skipNight
-        )
         .rowVec3(
             "Sun Euler Angles",
             atmosphere.sunEulerAngles,
@@ -360,6 +340,44 @@ void ui::sceneControlsWindow(
     if (!window.open)
     {
         return;
+    }
+
+    if (ImGui::CollapsingHeader(
+            "Sun Animation", ImGuiTreeNodeFlags_DefaultOpen
+        ))
+    {
+        scene::SunAnimation defaultAnimation{};
+
+        FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
+            -100'000.0F, 100'000.0F
+        };
+
+        PropertyTable::begin()
+            .rowBoolean(
+                "Frozen", scene.sunAnimation.frozen, defaultAnimation.frozen
+            )
+            .rowFloat(
+                "Time",
+                scene.sunAnimation.time,
+                defaultAnimation.time,
+                PropertySliderBehavior{
+                    .bounds = {0.0F, 1.0F},
+                }
+            )
+            .rowFloat(
+                "Speed",
+                scene.sunAnimation.speed,
+                defaultAnimation.speed,
+                PropertySliderBehavior{
+                    .bounds = SUN_ANIMATION_SPEED_BOUNDS,
+                }
+            )
+            .rowBoolean(
+                "Skip Night",
+                scene.sunAnimation.skipNight,
+                defaultAnimation.skipNight
+            )
+            .end();
     }
 
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))

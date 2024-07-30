@@ -35,15 +35,6 @@ struct AtmosphereBaked
 
 struct Atmosphere
 {
-    struct SunAnimation
-    {
-        bool animateSun{false};
-        float animationSpeed{0.2f};
-        bool skipNight{false};
-    };
-
-    SunAnimation animation{};
-
     glm::vec3 sunEulerAngles{0.0, 0.0, 0.0};
 
     float earthRadiusMeters{0.0};
@@ -103,11 +94,23 @@ struct MeshInstanced
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 };
 
+struct SunAnimation
+{
+    static float const DAY_LENGTH_SECONDS;
+
+    bool frozen{false};
+    float time{0.0F};
+    float speed{1.0F};
+    bool skipNight{false};
+};
+
 struct Scene
 {
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
     static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
+
+    SunAnimation sunAnimation{};
 
     Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
     Camera camera{DEFAULT_CAMERA};

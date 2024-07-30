@@ -59,50 +59,7 @@ scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
 
 float const scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
-namespace
-{
-auto tickSunEulerAngles(
-    scene::Atmosphere const& atmosphere, TickTiming const timing
-) -> glm::vec3
-{
-    scene::Atmosphere::SunAnimation const animation{atmosphere.animation};
-
-    if (!animation.animateSun)
-    {
-        return atmosphere.sunEulerAngles;
-    }
-
-    // position of sun as proxy for time
-    float const time{glm::dot(geometry::up, atmosphere.directionToSun())};
-
-    float constexpr TIME_NIGHT_COSINE{-0.11F};
-    float const SUNRISE_ANGLE_RADIANS{glm::asin(0.1F)};
-
-    bool const isNight{time < TIME_NIGHT_COSINE};
-
-    glm::vec3 finalAngles{atmosphere.sunEulerAngles};
-    if (isNight && animation.skipNight)
-    {
-        // Skip to the right horizon along the sun's great circle path
-        if (animation.animationSpeed > 0.0)
-        {
-            finalAngles.x = glm::pi<float>() - SUNRISE_ANGLE_RADIANS;
-        }
-        else
-        {
-            finalAngles.x = SUNRISE_ANGLE_RADIANS;
-        }
-    }
-    else
-    {
-        finalAngles.x += static_cast<float>(timing.deltaTimeSeconds)
-                       * animation.animationSpeed;
-    }
-
-    glm::vec3 constexpr MAX_ANGLES_RADIANS{glm::vec3(glm::two_pi<float>())};
-    return glm::mod(finalAngles, MAX_ANGLES_RADIANS);
-}
-} // namespace
+float const scene::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
 auto scene::Scene::defaultScene(
     VkDevice const device,
@@ -342,7 +299,47 @@ void scene::Scene::handleInput(
 
 void scene::Scene::tick(TickTiming const lastFrame)
 {
-    atmosphere.sunEulerAngles = tickSunEulerAngles(atmosphere, lastFrame);
+    if (!sunAnimation.frozen)
+    {
+        sunAnimation.time = glm::fract(
+            sunAnimation.time
+            + sunAnimation.speed
+                  * static_cast<float>(lastFrame.deltaTimeSeconds)
+                  / scene::SunAnimation::DAY_LENGTH_SECONDS
+        );
+    }
+
+    if (sunAnimation.skipNight && !sunAnimation.frozen)
+    {
+        float constexpr SUNSET_LENGTH_TIME{0.015F};
+
+        // The times when the sun is at the respective horizons
+        float constexpr HORIZON_A_TIME{0.25F - SUNSET_LENGTH_TIME};
+        float constexpr HORIZON_B_TIME{0.75F + SUNSET_LENGTH_TIME};
+
+        bool const isNight{
+            sunAnimation.time < HORIZON_A_TIME
+            || sunAnimation.time > HORIZON_B_TIME
+        };
+
+        if (isNight)
+        {
+            bool const sunRisesAtA{sunAnimation.speed > 0.0F};
+
+            sunAnimation.time = sunRisesAtA ? HORIZON_A_TIME : HORIZON_B_TIME;
+        }
+    }
+
+    // Sun starts straight down i.e. middle of the night
+    float constexpr SUN_START_RADIANS{glm::half_pi<float>()};
+    // Wrap around the planet once
+    float constexpr SUN_END_RADIANS{SUN_START_RADIANS + glm::two_pi<float>()};
+
+    atmosphere.sunEulerAngles = glm::vec3{
+        glm::lerp(SUN_START_RADIANS, SUN_END_RADIANS, sunAnimation.time),
+        atmosphere.sunEulerAngles.y,
+        atmosphere.sunEulerAngles.z
+    };
 
     if (!cubesIndex.has_value())
     {
