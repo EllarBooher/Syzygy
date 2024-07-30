@@ -61,7 +61,7 @@ float const scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
 scene::SunAnimation const scene::Scene::DEFAULT_SUN_ANIMATION{
     scene::SunAnimation{
-        .frozen = false, .skipNight = false, .speed = 100.0F, .time = 0.27F
+        .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
     }
 };
 
