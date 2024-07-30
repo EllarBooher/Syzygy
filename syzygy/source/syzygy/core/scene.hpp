@@ -41,6 +41,7 @@ struct Atmosphere
     float earthRadiusMeters{0.0};
     float atmosphereRadiusMeters{0.0};
 
+    // Used to attenuate sunlight to provide an estimate of ambient lighting.
     glm::vec3 groundColor{1.0};
 
     glm::vec3 scatteringCoefficientRayleigh{1.0};

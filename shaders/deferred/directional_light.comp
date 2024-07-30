@@ -3,9 +3,8 @@
 #extension GL_ARB_shading_language_include : require
 #extension GL_EXT_nonuniform_qualifier : require
 
-/*
-* Deferred Blinn-phong shading consuming a GBuffer with a single light/shadowmap
-*/
+// Deferred Blinn-phong shading consuming a GBuffer plus array of shadowmaps.
+// Supports directional and spotlights.
 
 #include "../types/camera.glsl"
 #include "../types/atmosphere.glsl"

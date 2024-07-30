@@ -16,6 +16,7 @@ struct Atmosphere {
 	vec3 sunlightColor;
 	float padding0;
 
+	// Not used anywhere.
 	vec3 groundColor;
 	float padding1;
 };

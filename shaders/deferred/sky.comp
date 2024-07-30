@@ -5,16 +5,18 @@
 #include "../types/camera.glsl"
 #include "../types/atmosphere.glsl"
 
-/*
-* A post process shader that adds atmospheric scattering.
-* The color from sunlight and attenuation due to scattering is computed for every pixel.
-* Then, the color in the image is attenuated and the sunlight contribution is added.
-*/ 
+// A post process shader that adds atmospheric scattering, plus the sky for 
+// texels whose depth are far. Convention is that depth equal to 0 is far.
+//
+// This shader does not apply any sort of secondary or primary lighting.
+// 
+// We operate under the assumption that all the atmosphere contributes is
+// attenuation of each texel plus some additional sunlight due to scattering
+// along the path segment from object to viewer.
 
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
-// Depth is used to determine which pixels are sky
 layout(set = 1, binding = 0) uniform sampler2D fragmentDepth;
 
 layout(buffer_reference, std430) readonly buffer CameraBuffer{
@@ -38,12 +40,10 @@ layout( push_constant ) uniform PushConstant
 
 bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius, out float t0, out float t1)
 {
-	/*
-	* Method taken from "Precision Improvements for Ray/Sphere Intersection"
-	* by Eric Haines, Johannes Günther, and Tomas Akenine-Möller
-	*
-	* The method includes tricks to reduce float point inaccuracy errors.
-	*/
+	// Method taken from "Precision Improvements for Ray/Sphere Intersection"
+	// by Eric Haines, Johannes Günther, and Tomas Akenine-Möller
+	//
+	// The method includes tricks to reduce float point inaccuracy errors.
 
 	const vec3 f = rayOrigin;
 	const vec3 d = rayDirectionNormalized;
@@ -89,12 +89,10 @@ float computePhase(float reflectionCosine, float anisotropy)
 		/ ((2.0 + reflectionCosine * reflectionCosine) * pow(float(1.0 + anisotropy * anisotropy - 2.0 * reflectionCosine * anisotropy), 1.5));
 }
 
-/*
-* Constants and implementation derived from:
-* https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
-* Which is based on the original paper "Display of the Earth Taking into Account Atmospheric Scattering"
-* by Tomoyuki Nishita, Takao Sirai, Katsumi Tadamura, Eihachiro Nakamae
-*/ 
+// Constants and implementation derived from:
+// https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
+// Which is based on the original paper "Display of the Earth Taking into Account Atmospheric Scattering"
+// by Tomoyuki Nishita, Takao Sirai, Katsumi Tadamura, Eihachiro Nakamae 
 
 vec3 computeAtmosphereLight(
 	const vec3 origin
