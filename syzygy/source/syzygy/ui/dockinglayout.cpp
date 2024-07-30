@@ -2,8 +2,9 @@
 
 #include <imgui_internal.h>
 
-ui::DockingLayout
-ui::buildDefaultMultiWindowLayout(ui::UIRectangle workArea, ImGuiID parentNode)
+auto ui::buildDefaultMultiWindowLayout(
+    ui::UIRectangle workArea, ImGuiID parentNode
+) -> ui::DockingLayout
 {
     ImGui::DockBuilderAddNode(parentNode);
 

@@ -784,7 +784,7 @@ auto Editor::run() -> EditorResult
             glfwSetInputMode(
                 m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
             );
-            ImGui::SetWindowFocus(NULL);
+            ImGui::SetWindowFocus(nullptr);
         }
 
         ui::sceneControlsWindow(

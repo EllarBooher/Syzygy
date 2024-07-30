@@ -34,7 +34,7 @@ void renderPreferences(
 }
 } // namespace
 
-ui::HUDState ui::renderHUD(UIPreferences& preferences)
+auto ui::renderHUD(UIPreferences& preferences) -> ui::HUDState
 {
     HUDState hud{};
 
