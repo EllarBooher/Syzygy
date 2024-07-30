@@ -50,14 +50,20 @@ scene::Atmosphere const scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
 };
 
 scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
-    .cameraPosition = glm::vec3(0.0F, -8.0F, -8.0F),
-    .eulerAngles = glm::vec3(-0.3F, 0.0F, 0.0F),
+    .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
+    .eulerAngles = glm::vec3(0.0F, 0.0F, 0.0F),
     .fovDegrees = 70.0F,
     .near = 0.1F,
     .far = 10000.0F,
 }};
 
 float const scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
+
+scene::SunAnimation const scene::Scene::DEFAULT_SUN_ANIMATION{
+    scene::SunAnimation{
+        .frozen = false, .skipNight = false, .speed = 100.0F, .time = 0.27F
+    }
+};
 
 float const scene::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 

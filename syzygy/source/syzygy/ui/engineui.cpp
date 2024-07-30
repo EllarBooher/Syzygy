@@ -211,15 +211,15 @@ auto buildDefaultMultiWindowLayout(
     ImGuiID parentID{parentNode};
 
     ImGuiID const leftID{ImGui::DockBuilderSplitNode(
-        parentID, ImGuiDir_Left, 3.0 / 10.0, nullptr, &parentID
+        parentID, ImGuiDir_Left, 0.3, nullptr, &parentID
     )};
 
     ImGuiID const rightID{ImGui::DockBuilderSplitNode(
-        parentID, ImGuiDir_Right, 3.0 / 7.0, nullptr, &parentID
+        parentID, ImGuiDir_Right, 0.2 / (1.0 - 0.3), nullptr, &parentID
     )};
 
     ImGuiID const centerBottomID{ImGui::DockBuilderSplitNode(
-        parentID, ImGuiDir_Down, 3.0 / 10.0, nullptr, &parentID
+        parentID, ImGuiDir_Down, 0.2, nullptr, &parentID
     )};
 
     ImGuiID const centerTopID{parentID};

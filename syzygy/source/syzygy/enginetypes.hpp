@@ -21,7 +21,7 @@
 
 struct UIPreferences
 {
-    float dpiScale{1.0f};
+    float dpiScale{2.0f};
 };
 
 enum class RenderingPipelines

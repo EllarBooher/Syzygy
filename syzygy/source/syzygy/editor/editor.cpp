@@ -680,6 +680,7 @@ auto Editor::run() -> EditorResult
 
     UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
+    uiReload(m_graphics.vulkanContext().device, uiPreferences);
 
     double timeSecondsPrevious{0.0};
     RingBuffer fpsHistory{};

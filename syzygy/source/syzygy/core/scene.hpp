@@ -109,8 +109,9 @@ struct Scene
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
     static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
+    static SunAnimation const DEFAULT_SUN_ANIMATION;
 
-    SunAnimation sunAnimation{};
+    SunAnimation sunAnimation{DEFAULT_SUN_ANIMATION};
 
     Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
     Camera camera{DEFAULT_CAMERA};

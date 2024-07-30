@@ -346,7 +346,9 @@ void ui::sceneControlsWindow(
             "Sun Animation", ImGuiTreeNodeFlags_DefaultOpen
         ))
     {
-        scene::SunAnimation defaultAnimation{};
+        scene::SunAnimation const& defaultAnimation{
+            scene::Scene::DEFAULT_SUN_ANIMATION
+        };
 
         FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
             -100'000.0F, 100'000.0F
