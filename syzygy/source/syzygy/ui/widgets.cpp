@@ -8,6 +8,7 @@
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
+#include "syzygy/ui/uiwindow.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <fmt/core.h>
 #include <format>
@@ -27,9 +28,9 @@ void ui::performanceWindow(
     float& targetFPS
 )
 {
-    UIWindow const window{
-        UIWindow::beginDockable(std::format("{}##performance", title), dockNode)
-    };
+    ui::UIWindow const window{ui::UIWindow::beginDockable(
+        std::format("{}##performance", title), dockNode
+    )};
     if (!window.open)
     {
         return;
@@ -334,8 +335,8 @@ void ui::sceneControlsWindow(
     MeshAssetLibrary const& meshes
 )
 {
-    UIWindow const window{
-        UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
+    ui::UIWindow const window{
+        ui::UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
     };
     if (!window.open)
     {
@@ -417,10 +418,10 @@ auto ui::sceneViewportWindow(
     scene::SceneTexture const& texture
 ) -> WindowResult<std::optional<scene::SceneViewport>>
 {
-    UIWindow const sceneViewport{
+    ui::UIWindow const sceneViewport{
         maximizeArea.has_value()
-            ? UIWindow::beginMaximized(title, maximizeArea.value())
-            : UIWindow::beginDockable(title, dockNode)
+            ? ui::UIWindow::beginMaximized(title, maximizeArea.value())
+            : ui::UIWindow::beginDockable(title, dockNode)
     };
 
     if (!sceneViewport.open)

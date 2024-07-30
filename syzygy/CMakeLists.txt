@@ -4,6 +4,7 @@ add_library(
 	syzygy
 	STATIC 
 	"source/syzygy/syzygy.cpp"
+	"source/syzygy/vulkanusage.cpp"
 	"source/syzygy/engine.cpp"
 	"source/syzygy/initializers.cpp"
 	"source/syzygy/images.cpp"
@@ -13,22 +14,29 @@ add_library(
 	"source/syzygy/shaders.cpp"
 	"source/syzygy/assets.cpp"
 	"source/syzygy/buffers.cpp"
-	"source/syzygy/ui/engineui.cpp"
-	"source/syzygy/ui/pipelineui.cpp"
-	"source/syzygy/ui/propertytable.cpp"
+	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 	"source/syzygy/shadowpass.cpp"
+
+	"source/syzygy/ui/engineui.cpp"
+	"source/syzygy/ui/pipelineui.cpp"
+	"source/syzygy/ui/hud.cpp"
+    "source/syzygy/ui/uiwindow.cpp"
+	"source/syzygy/ui/propertytable.cpp"
+	"source/syzygy/ui/widgets.cpp"
+	"source/syzygy/ui/dockinglayout.cpp"
+
 	"source/syzygy/deferred/deferred.cpp"
 	"source/syzygy/deferred/gbuffer.cpp"
-	"source/syzygy/debuglines.cpp"
+
 	"source/syzygy/editor/editor.cpp"
 	"source/syzygy/editor/window.cpp" 
 	"source/syzygy/editor/graphicscontext.cpp"
-	"source/syzygy/vulkanusage.cpp"
 	"source/syzygy/editor/swapchain.cpp"
 	"source/syzygy/editor/framebuffer.cpp"
+
     "source/syzygy/renderpass/renderpass.cpp"
-	"source/syzygy/ui/widgets.cpp"
+
 	"source/syzygy/core/scene.cpp"
     "source/syzygy/core/immediate.cpp"
     "source/syzygy/core/scenetexture.cpp" 

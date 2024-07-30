@@ -10,7 +10,9 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/uiwindow.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include "ui/pipelineui.hpp"
 #include <glm/ext/matrix_transform.hpp>
@@ -216,10 +218,10 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Engine::uiEngineControls(DockingLayout const& dockingLayout)
+void Engine::uiEngineControls(ui::DockingLayout const& dockingLayout)
 {
-    if (UIWindow const engineControls{
-            UIWindow::beginDockable("Engine Controls", dockingLayout.right)
+    if (ui::UIWindow const engineControls{
+            ui::UIWindow::beginDockable("Engine Controls", dockingLayout.right)
         };
         engineControls.open)
     {

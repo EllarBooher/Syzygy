@@ -22,7 +22,10 @@ namespace scene
 {
 struct Scene;
 }
+namespace ui
+{
 struct DockingLayout;
+}
 struct PlatformWindow;
 
 class Engine
@@ -48,7 +51,8 @@ public:
         uint32_t const generalQueueFamilyIndex
     );
 
-    void uiEngineControls(DockingLayout const&);
+    // TODO: Remove this, but right now relies on internal state.
+    void uiEngineControls(ui::DockingLayout const&);
 
     void recordDraw(
         VkCommandBuffer,

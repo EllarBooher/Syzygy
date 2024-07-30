@@ -3,6 +3,8 @@
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
 
+namespace ui
+{
 struct UIRectangle
 {
     glm::vec2 min{};
@@ -49,3 +51,4 @@ struct UIRectangle
         };
     }
 };
+} // namespace ui

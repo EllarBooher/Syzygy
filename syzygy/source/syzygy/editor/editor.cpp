@@ -17,7 +17,9 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images.hpp"
 #include "syzygy/initializers.hpp"
+#include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/hud.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -117,8 +119,8 @@ auto Editor::create() -> std::optional<Editor>
 
 struct UIResults
 {
-    HUDState hud;
-    DockingLayout dockingLayout;
+    ui::HUDState hud;
+    ui::DockingLayout dockingLayout;
     bool reloadRequested;
 };
 
@@ -440,14 +442,14 @@ auto uiInit(
     return imguiDescriptorPool;
 }
 auto uiBegin(
-    UIPreferences& preferences, UIPreferences const& defaultPreferences
+    ui::UIPreferences& preferences, ui::UIPreferences const& defaultPreferences
 ) -> UIResults
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    HUDState const hud{renderHUD(preferences)};
+    ui::HUDState const hud{renderHUD(preferences)};
 
     bool const reloadUI{
         hud.applyPreferencesRequested || hud.resetPreferencesRequested
@@ -456,7 +458,7 @@ auto uiBegin(
     {
         preferences = defaultPreferences;
     }
-    DockingLayout dockingLayout{};
+    ui::DockingLayout dockingLayout{};
 
     if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
     {
@@ -526,7 +528,7 @@ void uiCleanup()
 }
 // Resets the ImGui style and reloads other resources like fonts, then builds a
 // new style from the passed preferences.
-void uiReload(VkDevice const device, UIPreferences const preferences)
+void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 {
     float constexpr FONT_BASE_SIZE{13.0F};
 
@@ -678,7 +680,7 @@ auto Editor::run() -> EditorResult
         return EditorResult::ERROR_NO_RENDERER;
     }
 
-    UIPreferences uiPreferences{};
+    ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
     uiReload(m_graphics.vulkanContext().device, uiPreferences);
 
@@ -740,7 +742,7 @@ auto Editor::run() -> EditorResult
             uiReload(vulkanContext.device, uiPreferences);
         }
 
-        UIResults const uiResults{uiBegin(uiPreferences, UIPreferences{})};
+        UIResults const uiResults{uiBegin(uiPreferences, ui::UIPreferences{})};
         uiReloadNecessary = uiResults.reloadRequested;
         renderer->uiEngineControls(uiResults.dockingLayout);
         ui::performanceWindow(
@@ -755,7 +757,7 @@ auto Editor::run() -> EditorResult
                 uiResults.dockingLayout.centerTop,
                 uiResults.hud.maximizeSceneViewport
                     ? uiResults.hud.workArea
-                    : std::optional<UIRectangle>{},
+                    : std::optional<ui::UIRectangle>{},
                 sceneTexture
             )};
         if (inputCapturedByScene != sceneViewport.focused)

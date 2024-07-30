@@ -19,11 +19,6 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-struct UIPreferences
-{
-    float dpiScale{2.0f};
-};
-
 enum class RenderingPipelines
 {
     DEFERRED = 0,
