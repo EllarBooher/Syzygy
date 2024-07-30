@@ -10,7 +10,7 @@ For now, only Windows is known to be supported.
 
 Requires CMake 3.28 or higher.
 
-Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extensions such as `VK_EXT_shader_object` and others. Note, this fact seems to stop RenderDoc from working. NSight complains about the newer extensions, but seems to still mostly work.
+Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extensions such as `VK_EXT_shader_object` and others. Note, this fact seems to stop RenderDoc from working (as of early 2024, the latest version might work). NSight complains about the newer extensions, but seems to still mostly work.
 
 ## Dependencies
 You must download the following, or figure out a way to provide the required files yourself:
@@ -52,25 +52,24 @@ cmake path/including/Syzygy -G "Visual Studio 17 2022"
 ```
 
 Some notes on building:
-- If you have [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) installed, there is a CMake cache variable `IWYU_ENABLE` to run it alongside compilation. You can specify a path via `IWYU_PATH`, or let CMake `find_program` get it.
-- `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` is configured to run with an optional build target, while `clang-tidy` has a CMake cache variable `CLANG_TIDY_ENABLE` to integrate it with compilation.
-- Due to how heavily they impact compilation time, these options are disabled by default.
+
+- If you have [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) installed, there is a CMake cache variable `IWYU_ENABLE` to run it alongside compilation.
+- `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` can be ran via a utility target, while `clang-tidy` is enabled with `CLANG_TIDY_ENABLE` to run it through CMake's [`CMAKE_CXX_CLANG_TIDY`](https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_CLANG_TIDY.html) target property.
+- CMake is set up to `find_program` for each of these tools, but you can also set their respective `[TOOL NAME]_PATH` cache variable to override the location.
 
 ## Showcase
 
-![image](assets/screenshots/deferred_sunset.png)
-*Pictured above is an implementation (see [`shaders/deferred/sky.comp`](shaders/deferred/sky.comp)) of a volume rendering model of light scattering in the sky, alongside deferred-shaded directional lights and spot lights*
+![image](assets/screenshots/sunset_maximized.png)
+*Pictured above is a volume rendering model of light scattering in the sky, alongside deferred-shaded lighting. See [`shaders/deferred/sky.comp`](shaders/deferred/sky.comp) for the implementation of the sky's compute pass, which tints every pixel based on atmospheric scattering.*
 
-![image](assets/screenshots/deferred_night.png)
-*Here is the above scene, but at night and from a different angle.*
-
-![image](assets/screenshots/interface.png)
+![image](assets/screenshots/teal_day.png)
 *The user interface, which utilizes Dear ImGui's docking features to allow dragging, dropping, and resizing*
 
 ## Features
 
 - A deferred shading pipeline with multiple passes, including post-process
-- A dynamic sun, which drives a volume rendering model of light scattering
+- A dynamic sun with passing time, which drives a volume rendering model of light scattering
+- Free flying camera controlled by mouse and keyboard
 - Directional and spot lights
 - Runtime reflection of SPIR-V shaders for data verification, easier resource management, and to populate the UI
 - Utilizes modern Vulkan features such as Dynamic Rendering, Shader Objects, and Bindless Design via Buffer References and Runtime Descriptor Arrays
@@ -91,7 +90,7 @@ Some notes on building:
 
 ## Resources
 
-These are resources and other projects referred to in the development of this project so far.
+These are resources and other projects referred to in the development of Syzygy so far.
 
 - [Vulkan Guide](https://vkguide.dev/)
 - [Scratchapixel 4.0](https://www.scratchapixel.com/index.html)
