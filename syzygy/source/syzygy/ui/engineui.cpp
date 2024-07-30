@@ -423,6 +423,7 @@ auto UIWindow::beginMaximized(
 
     ImGuiWindowFlags constexpr MAXIMIZED_WINDOW_FLAGS{
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBringToFrontOnFocus
+        | ImGuiWindowFlags_NoFocusOnAppearing
     };
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
@@ -443,7 +444,11 @@ auto UIWindow::beginDockable(
         ImGui::SetNextWindowDockID(dockspace.value());
     }
 
-    bool const open{ImGui::Begin(name.c_str())};
+    ImGuiWindowFlags constexpr DOCKABLE_WINDOW_FLAGS{
+        ImGuiWindowFlags_NoFocusOnAppearing
+    };
+
+    bool const open{ImGui::Begin(name.c_str(), nullptr, DOCKABLE_WINDOW_FLAGS)};
 
     uint16_t constexpr styleVariables{0};
     return {getWindowContent(), open, styleVariables};
