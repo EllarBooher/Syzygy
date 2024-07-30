@@ -69,9 +69,6 @@ auto ui::renderHUD(UIPreferences& preferences) -> ui::HUDState
             ImGui::Begin("BackgroundWindow", nullptr, WINDOW_INVISIBLE_FLAGS)
         };
 
-        // Can this ever happen?
-        assert(backgroundWindow && "Background Window was closed.");
-
         ImGui::PopStyleVar(3);
 
         if (ImGui::BeginMenuBar())

@@ -1,6 +1,5 @@
 #include "input.hpp"
 
-#include "syzygy/helpers.hpp"
 #include <fmt/core.h>
 #include <glm/gtx/string_cast.hpp>
 #include <optional>

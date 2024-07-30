@@ -2,7 +2,6 @@
 
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
-#include <optional>
 
 namespace ui
 {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
 #include <glm/vec2.hpp>

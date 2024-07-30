@@ -5,7 +5,6 @@
 #include "syzygy/core/scene.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/images.hpp"
-#include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"

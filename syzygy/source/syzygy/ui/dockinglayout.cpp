@@ -1,5 +1,6 @@
 #include "dockinglayout.hpp"
 
+#include "syzygy/ui/uirectangle.hpp"
 #include <imgui_internal.h>
 
 auto ui::buildDefaultMultiWindowLayout(

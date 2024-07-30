@@ -14,12 +14,16 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/compatibility.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <span>
 #include <utility>

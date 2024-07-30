@@ -17,7 +17,10 @@ namespace gputypes
 struct LightDirectional;
 struct LightSpot;
 } // namespace gputypes
-struct MeshAsset;
+namespace scene
+{
+struct MeshInstanced;
+}
 
 struct ShadowPassParameters
 {

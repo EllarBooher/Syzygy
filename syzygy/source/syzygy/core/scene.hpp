@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace szg_input

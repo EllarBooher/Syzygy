@@ -1,7 +1,6 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/core/scene.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -18,9 +17,12 @@ namespace gputypes
 struct Camera;
 }
 struct AllocatedImage;
-struct MeshAsset;
 struct Vertex;
 template <typename T> struct TStagedBuffer;
+namespace scene
+{
+struct MeshInstanced;
+}
 
 struct RenderOverride
 {

@@ -18,7 +18,6 @@
 #include "syzygy/images.hpp"
 #include "syzygy/initializers.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
-#include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/hud.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"

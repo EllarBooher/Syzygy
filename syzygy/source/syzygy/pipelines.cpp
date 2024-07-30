@@ -2,6 +2,7 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/buffers.hpp"
+#include "syzygy/core/scene.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images.hpp"

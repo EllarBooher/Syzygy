@@ -11,6 +11,7 @@
 #include "syzygy/renderpass/renderpass.hpp"
 #include <array>
 #include <fmt/core.h>
+#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <optional>
 #include <string>

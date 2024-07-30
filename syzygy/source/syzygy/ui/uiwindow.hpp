@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/core/integer.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
 #include <optional>

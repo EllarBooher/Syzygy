@@ -1,6 +1,5 @@
 #include "engineui.hpp"
 
-#include "syzygy/assets.hpp"
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/debuglines.hpp"
@@ -10,12 +9,11 @@
 #include "syzygy/ui/propertytable.hpp"
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <fmt/core.h>
-#include <imgui_internal.h>
-#include <implot.h>
-#include <utility>
-#include <vector>
+#include <imgui.h>
+#include <memory>
+#include <span>
+#include <string>
 
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 {

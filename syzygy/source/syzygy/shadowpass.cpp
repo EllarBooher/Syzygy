@@ -10,7 +10,10 @@
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
 
-struct MeshAsset;
+namespace scene
+{
+struct MeshInstanced;
+}
 
 auto ShadowPassArray::create(
     VkDevice const device,
