@@ -112,7 +112,8 @@ auto vkinit::imageCreateInfo(
     VkFormat const format,
     VkImageLayout const initialLayout,
     VkImageUsageFlags const usageMask,
-    VkExtent3D const extent
+    VkExtent3D const extent,
+    VkImageTiling const tiling
 ) -> VkImageCreateInfo
 {
     return {
@@ -131,7 +132,7 @@ auto vkinit::imageCreateInfo(
 
         .samples = VK_SAMPLE_COUNT_1_BIT,
 
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .tiling = tiling,
         .usage = usageMask,
 
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,

@@ -3,6 +3,7 @@
 #include "syzygy/vulkanusage.hpp"
 #include <glm/vec2.hpp>
 #include <optional>
+#include <span>
 #include <utility>
 
 namespace vkutil
@@ -104,6 +105,9 @@ public:
         VkImageUsageFlags usageFlags{0};
         VkImageAspectFlags viewFlags{VK_IMAGE_ASPECT_NONE};
         VkImageLayout initialLayout{VK_IMAGE_LAYOUT_UNDEFINED};
+        VkImageTiling tiling{VK_IMAGE_TILING_OPTIMAL};
+        VmaMemoryUsage vmaUsage{VMA_MEMORY_USAGE_GPU_ONLY};
+        VmaAllocationCreateFlags vmaFlags{};
     };
 
     static auto allocate(
@@ -135,6 +139,13 @@ public:
     // TODO: deprecate this, since it allows desyncing the layout easily
     auto image() -> VkImage;
     auto view() -> VkImageView;
+
+    // As commands are recorded, this value is updated. As such, this is not
+    // necessarily the layout the image is in at any given moment, just what
+    // commands are recorded using the AllocatedImage API.
+    auto expectedLayout() const -> VkImageLayout;
+
+    auto mappedBytes() -> std::optional<std::span<uint8_t>>;
 
 private:
     void destroy();

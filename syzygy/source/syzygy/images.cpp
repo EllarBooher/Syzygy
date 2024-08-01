@@ -239,12 +239,13 @@ auto AllocatedImage::allocate(
         parameters.format,
         parameters.initialLayout,
         parameters.usageFlags,
-        extent3D
+        extent3D,
+        parameters.tiling
     )};
 
     VmaAllocationCreateInfo const imageAllocInfo{
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-        .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        .flags = parameters.vmaFlags,
+        .usage = parameters.vmaUsage,
     };
 
     VkImage image;
@@ -352,6 +353,48 @@ auto AllocatedImage::aspectRatio() const -> double
 }
 
 auto AllocatedImage::view() -> VkImageView { return view_impl(*this); }
+
+auto AllocatedImage::expectedLayout() const -> VkImageLayout
+{
+    return m_expectedLayout;
+}
+
+namespace
+{
+auto imageAllocationInfo(
+    AllocatedImage&,
+    VmaAllocator const allocator,
+    VmaAllocation const allocation
+)
+{
+    VmaAllocationInfo allocationInfo;
+
+    vmaGetAllocationInfo(allocator, allocation, &allocationInfo);
+
+    return allocationInfo;
+}
+} // namespace
+
+auto AllocatedImage::mappedBytes() -> std::optional<std::span<uint8_t>>
+{
+    if (m_allocation == VK_NULL_HANDLE)
+    {
+        return std::nullopt;
+    }
+
+    VmaAllocationInfo const info{
+        imageAllocationInfo(*this, m_allocator, m_allocation)
+    };
+
+    auto* const data{reinterpret_cast<uint8_t*>(info.pMappedData)};
+
+    if (data == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return std::span<uint8_t>{data, info.size};
+}
 
 void AllocatedImage::destroy()
 {

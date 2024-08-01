@@ -37,7 +37,8 @@ VkImageCreateInfo imageCreateInfo(
     VkFormat format,
     VkImageLayout initialLayout,
     VkImageUsageFlags usageMask,
-    VkExtent3D extent
+    VkExtent3D extent,
+    VkImageTiling tiling
 );
 
 VkSamplerCreateInfo samplerCreateInfo(
