@@ -261,11 +261,16 @@ void Engine::recordDraw(
         return;
     }
 
-    { // Copy cameras to gpu
-        float const aspectRatio{static_cast<float>(
-            vkutil::aspectRatio(sceneViewport.value().rect.extent)
-        )};
+    std::optional<double> const viewportAspectRatioResult{
+        vkutil::aspectRatio(sceneViewport.value().rect.extent)
+    };
+    if (!viewportAspectRatioResult.has_value())
+    {
+        return;
+    }
+    double const aspectRatio{viewportAspectRatioResult.value()};
 
+    { // Copy cameras to gpu
         gputypes::Camera const mainCamera{
             scene.camera.toDeviceEquivalent(aspectRatio)
         };

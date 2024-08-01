@@ -19,7 +19,7 @@ commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
 VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
 VkImageSubresourceLayers imageSubresourceLayers(
     VkImageAspectFlags aspectMask,
-    uint32_t mipLevel,
+    uint32_t mipLevel = 0,
     uint32_t baseArrayLayer = 0,
     uint32_t baseArrayCount = 1
 );
