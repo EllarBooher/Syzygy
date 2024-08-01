@@ -90,7 +90,7 @@ void vkutil::recordCopyImageToImage(
         .dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         .regionCount = 1,
         .pRegions = &blitRegion,
-        .filter = VK_FILTER_LINEAR,
+        .filter = VK_FILTER_NEAREST,
     };
 
     vkCmdBlitImage2(cmd, &blitInfo);
