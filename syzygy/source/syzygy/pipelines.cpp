@@ -678,7 +678,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const depthBias,
     float const depthBiasSlope,
-    AllocatedImage& depth,
+    szg_image::ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
     std::span<scene::MeshInstanced const> const geometry,
@@ -706,8 +706,10 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
         .clearValue = VkClearValue{.depthStencil{.depth = 0.0F}},
     };
 
+    VkExtent2D const depthExtent{depth.image().extent2D()};
+
     VkRenderingInfo const renderInfo{vkinit::renderingInfo(
-        VkRect2D{.extent = depth.extent2D()}, {}, &depthAttachment
+        VkRect2D{.extent = depthExtent}, {}, &depthAttachment
     )};
 
     vkCmdBeginRendering(cmd, &renderInfo);
@@ -718,8 +720,8 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     VkViewport const viewport{
         .x = 0,
         .y = 0,
-        .width = static_cast<float>(depth.extent2D().width),
-        .height = static_cast<float>(depth.extent2D().height),
+        .width = static_cast<float>(depthExtent.width),
+        .height = static_cast<float>(depthExtent.height),
         .minDepth = 0.0F,
         .maxDepth = 1.0F,
     };
@@ -731,7 +733,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
             .x = 0,
             .y = 0,
         },
-        .extent{depth.extent2D()},
+        .extent{depthExtent},
     };
 
     vkCmdSetScissor(cmd, 0, 1, &scissor);

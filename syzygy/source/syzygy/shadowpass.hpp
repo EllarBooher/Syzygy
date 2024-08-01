@@ -36,13 +36,13 @@ class ShadowPassArray
 public:
     static size_t constexpr SHADOWPASS_CAMERA_CAPACITY{100};
 
-    static std::optional<ShadowPassArray> create(
-        VkDevice device,
-        DescriptorAllocator& descriptorAllocator,
-        VmaAllocator allocator,
+    static auto create(
+        VkDevice,
+        DescriptorAllocator&,
+        VmaAllocator,
         VkExtent2D shadowmapExtent,
         size_t capacity
-    );
+    ) -> std::optional<ShadowPassArray>;
 
     // Prepares shadow maps for a specified number of lights.
     // Calling this twice overwrites the previous results.
@@ -60,48 +60,15 @@ public:
     );
 
     // Transitions all the shadow map VkImages, with a total memory barrier.
-    void recordTransitionActiveShadowMaps(
-        VkCommandBuffer cmd, VkImageLayout dstLayout
-    );
+    void
+    recordTransitionActiveShadowMaps(VkCommandBuffer, VkImageLayout dstLayout);
 
-    VkDescriptorSetLayout samplerSetLayout() const
-    {
-        return m_samplerSetLayout;
-    };
-    VkDescriptorSetLayout texturesSetLayout() const
-    {
-        return m_texturesSetLayout;
-    };
-    VkDescriptorSet samplerSet() const { return m_samplerSet; };
-    VkDescriptorSet textureSet() const { return m_texturesSet; };
+    auto samplerSetLayout() const -> VkDescriptorSetLayout;
+    auto texturesSetLayout() const -> VkDescriptorSetLayout;
+    auto samplerSet() const -> VkDescriptorSet;
+    auto textureSet() const -> VkDescriptorSet;
 
-    void cleanup(VkDevice const device, VmaAllocator const allocator)
-    {
-        for (auto& image : m_textures)
-        {
-            image.reset();
-        }
-
-        vkDestroySampler(device, m_sampler, nullptr);
-
-        if (m_pipeline)
-        {
-            m_pipeline->cleanup(device);
-        }
-
-        vkDestroyDescriptorSetLayout(device, m_samplerSetLayout, nullptr);
-        vkDestroyDescriptorSetLayout(device, m_texturesSetLayout, nullptr);
-
-        m_projViewMatrices.reset();
-
-        m_textures.clear();
-        m_pipeline.reset();
-        m_sampler = VK_NULL_HANDLE;
-        m_samplerSetLayout = VK_NULL_HANDLE;
-        m_samplerSet = VK_NULL_HANDLE;
-        m_texturesSetLayout = VK_NULL_HANDLE;
-        m_texturesSet = VK_NULL_HANDLE;
-    }
+    void cleanup(VkDevice, VmaAllocator);
 
 private:
     float m_depthBias{0};
@@ -116,10 +83,10 @@ private:
     VkDescriptorSetLayout m_samplerSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_samplerSet{VK_NULL_HANDLE};
 
-    std::vector<std::unique_ptr<AllocatedImage>> m_textures{};
+    std::vector<std::unique_ptr<szg_image::ImageView>> m_shadowmaps{};
 
-    VkDescriptorSetLayout m_texturesSetLayout{VK_NULL_HANDLE};
-    VkDescriptorSet m_texturesSet{VK_NULL_HANDLE};
+    VkDescriptorSetLayout m_shadowmapSetLayout{VK_NULL_HANDLE};
+    VkDescriptorSet m_shadowmapSet{VK_NULL_HANDLE};
 
     std::unique_ptr<OffscreenPassGraphicsPipeline> m_pipeline{};
 };

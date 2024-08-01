@@ -78,28 +78,32 @@ auto ShadowPassArray::create(
     { // shadow map textures
         for (size_t i{0}; i < capacity; i++)
         {
-            std::optional<AllocatedImage> imageResult{AllocatedImage::allocate(
-                allocator,
-                device,
-                AllocatedImage::AllocationParameters{
-                    .extent = shadowmapExtent,
-                    .format = VK_FORMAT_D32_SFLOAT,
-                    .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
-                                | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                                | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                    .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
-                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-                }
-            )};
+            std::optional<std::unique_ptr<szg_image::ImageView>> imageResult{
+                szg_image::ImageView::allocate(
+                    device,
+                    allocator,
+                    szg_image::ImageAllocationParameters{
+                        .extent = shadowmapExtent,
+                        .format = VK_FORMAT_D32_SFLOAT,
+                        .usageFlags =
+                            VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                            | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    },
+                    szg_image::ImageViewAllocationParameters{
+                        .subresourceRange = vkinit::imageSubresourceRange(
+                            VK_IMAGE_ASPECT_DEPTH_BIT
+                        ),
+                    }
+                )
+            };
             if (!imageResult.has_value())
             {
                 Warning("Unable to allocate ShadowPassArray texture.");
                 return {};
             }
 
-            shadowPass.m_textures.push_back(
-                std::make_unique<AllocatedImage>(std::move(imageResult).value())
-            );
+            shadowPass.m_shadowmaps.push_back(std::move(imageResult).value());
         }
     }
 
@@ -127,16 +131,16 @@ auto ShadowPassArray::create(
             return {};
         }
 
-        shadowPass.m_texturesSetLayout = buildResult.value();
+        shadowPass.m_shadowmapSetLayout = buildResult.value();
 
-        shadowPass.m_texturesSet = descriptorAllocator.allocate(
-            device, shadowPass.m_texturesSetLayout
+        shadowPass.m_shadowmapSet = descriptorAllocator.allocate(
+            device, shadowPass.m_shadowmapSetLayout
         );
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
-        mapInfos.reserve(shadowPass.m_textures.size());
-        for (std::unique_ptr<AllocatedImage> const& texture :
-             shadowPass.m_textures)
+        mapInfos.reserve(shadowPass.m_shadowmaps.size());
+        for (std::unique_ptr<szg_image::ImageView> const& texture :
+             shadowPass.m_shadowmaps)
         {
             mapInfos.push_back(VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE, // sampled images
@@ -149,7 +153,7 @@ auto ShadowPassArray::create(
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
 
-            .dstSet = shadowPass.m_texturesSet,
+            .dstSet = shadowPass.m_shadowmapSet,
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = static_cast<uint32_t>(mapInfos.size()),
@@ -208,11 +212,11 @@ void ShadowPassArray::recordInitialize(
             shadowMapCount += 1;
         }
 
-        if (projViewMatrices.stagedSize() > m_textures.size())
+        if (projViewMatrices.stagedSize() > m_shadowmaps.size())
         {
             Warning("Not enough shadow maps allocated, skipping work.");
             projViewMatrices.pop(
-                projViewMatrices.stagedSize() - m_textures.size()
+                projViewMatrices.stagedSize() - m_shadowmaps.size()
             );
         }
 
@@ -228,7 +232,9 @@ void ShadowPassArray::recordInitialize(
         for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
         {
             renderpass::recordClearDepthImage(
-                cmd, *m_textures[i], renderpass::DEPTH_FAR_STENCIL_NONE
+                cmd,
+                m_shadowmaps[i]->image(),
+                renderpass::DEPTH_FAR_STENCIL_NONE
             );
         }
 
@@ -252,7 +258,7 @@ void ShadowPassArray::recordDrawCommands(
             false,
             m_depthBias,
             m_depthBiasSlope,
-            *m_textures[i],
+            *m_shadowmaps[i],
             i,
             *m_projViewMatrices,
             geometry,
@@ -267,6 +273,50 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
 {
     for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
     {
-        m_textures[i]->recordTransitionBarriered(cmd, dstLayout);
+        m_shadowmaps[i]->recordTransitionBarriered(cmd, dstLayout);
     }
+}
+
+VkDescriptorSetLayout ShadowPassArray::samplerSetLayout() const
+{
+    return m_samplerSetLayout;
+}
+
+VkDescriptorSetLayout ShadowPassArray::texturesSetLayout() const
+{
+    return m_shadowmapSetLayout;
+}
+
+VkDescriptorSet ShadowPassArray::samplerSet() const { return m_samplerSet; }
+
+VkDescriptorSet ShadowPassArray::textureSet() const { return m_shadowmapSet; }
+
+void ShadowPassArray::cleanup(
+    VkDevice const device, VmaAllocator const allocator
+)
+{
+    for (auto& image : m_shadowmaps)
+    {
+        image.reset();
+    }
+
+    vkDestroySampler(device, m_sampler, nullptr);
+
+    if (m_pipeline)
+    {
+        m_pipeline->cleanup(device);
+    }
+
+    vkDestroyDescriptorSetLayout(device, m_samplerSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, m_shadowmapSetLayout, nullptr);
+
+    m_projViewMatrices.reset();
+
+    m_shadowmaps.clear();
+    m_pipeline.reset();
+    m_sampler = VK_NULL_HANDLE;
+    m_samplerSetLayout = VK_NULL_HANDLE;
+    m_samplerSet = VK_NULL_HANDLE;
+    m_shadowmapSetLayout = VK_NULL_HANDLE;
+    m_shadowmapSet = VK_NULL_HANDLE;
 }

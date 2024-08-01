@@ -19,6 +19,9 @@ VkClearColorValue constexpr COLOR_BLACK_OPAQUE{0.0, 0.0, 0.0, 1.0};
 void recordClearDepthImage(
     VkCommandBuffer, AllocatedImage&, VkClearDepthStencilValue
 );
+void recordClearDepthImage(
+    VkCommandBuffer, szg_image::Image&, VkClearDepthStencilValue
+);
 void recordClearColorImage(VkCommandBuffer, AllocatedImage&, VkClearColorValue);
 void recordClearColorImage(
     VkCommandBuffer, szg_image::Image&, VkClearColorValue

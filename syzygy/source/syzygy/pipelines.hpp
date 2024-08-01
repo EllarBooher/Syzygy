@@ -142,7 +142,7 @@ public:
         bool reuseDepthAttachment,
         float depthBias,
         float depthBiasSlope,
-        AllocatedImage& depth,
+        szg_image::ImageView& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
         std::span<scene::MeshInstanced const> geometry,
