@@ -361,8 +361,8 @@ public:
     auto expectedLayout() const -> VkImageLayout;
 
 private:
-    // So far is that images and views are 1 to 1. In the future this could be
-    // a shared ptr, or we make a new image class.
+    // So far, images and views are 1 to 1. In the future this could be a
+    // shared_ptr, or we make a new image view class.
     std::unique_ptr<Image> m_image{};
     ImageViewMemory m_memory{};
 };
