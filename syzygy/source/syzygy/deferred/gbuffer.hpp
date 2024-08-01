@@ -10,10 +10,10 @@ struct DescriptorAllocator;
 
 struct GBuffer
 {
-    std::unique_ptr<AllocatedImage> diffuseColor{};
-    std::unique_ptr<AllocatedImage> specularColor{};
-    std::unique_ptr<AllocatedImage> normal{};
-    std::unique_ptr<AllocatedImage> worldPosition{};
+    std::unique_ptr<szg_image::ImageView> diffuseColor{};
+    std::unique_ptr<szg_image::ImageView> specularColor{};
+    std::unique_ptr<szg_image::ImageView> normal{};
+    std::unique_ptr<szg_image::ImageView> worldPosition{};
 
     VkDescriptorSetLayout descriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet descriptors{VK_NULL_HANDLE};
@@ -28,7 +28,7 @@ struct GBuffer
         DescriptorAllocator& descriptorAllocator
     );
 
-    VkExtent2D extent() const { return diffuseColor->extent2D(); }
+    VkExtent2D extent() const;
 
     void
     recordTransitionImages(VkCommandBuffer cmd, VkImageLayout dstLayout) const;
