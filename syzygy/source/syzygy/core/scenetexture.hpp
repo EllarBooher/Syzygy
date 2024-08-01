@@ -35,7 +35,8 @@ struct SceneTexture
     ) -> std::optional<SceneTexture>;
 
     auto sampler() const -> VkSampler;
-    auto texture() const -> AllocatedImage&;
+    auto texture() -> szg_image::ImageView&;
+    auto texture() const -> szg_image::ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
@@ -49,14 +50,14 @@ private:
     SceneTexture(
         VkDevice device,
         VkSampler sampler,
-        AllocatedImage&& texture,
+        std::unique_ptr<szg_image::ImageView> texture,
         VkDescriptorSetLayout singletonLayout,
         VkDescriptorSet singletonSet,
         VkDescriptorSet imguiDescriptor
     )
         : m_device{device}
         , m_sampler{sampler}
-        , m_texture{std::make_unique<AllocatedImage>(std::move(texture))}
+        , m_texture{std::move(texture)}
         , m_singletonDescriptorLayout{singletonLayout}
         , m_singletonDescriptor{singletonSet}
         , m_imguiDescriptor{imguiDescriptor}
@@ -69,7 +70,7 @@ private:
     VkDevice m_device{VK_NULL_HANDLE};
 
     VkSampler m_sampler{VK_NULL_HANDLE};
-    std::unique_ptr<AllocatedImage> m_texture{};
+    std::unique_ptr<szg_image::ImageView> m_texture{};
 
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};

@@ -328,7 +328,7 @@ void Engine::recordDraw(
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 sceneViewport.value().rect,
-                sceneTexture.texture(),
+                sceneTexture.texture().image(),
                 *m_sceneDepthTexture,
                 directionalLights,
                 scene.spotlightsRender ? scene.spotlights

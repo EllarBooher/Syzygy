@@ -433,7 +433,7 @@ auto ui::sceneViewportWindow(
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
 
-    VkExtent2D const textureMax{texture.texture().extent2D()};
+    VkExtent2D const textureMax{texture.texture().image().extent2D()};
 
     ImVec2 const uvMax{
         contentExtent.x / static_cast<float>(textureMax.width),

@@ -1,6 +1,10 @@
 #pragma once
 
 #include "syzygy/vulkanusage.hpp"
+namespace szg_image
+{
+struct Image;
+}
 struct AllocatedImage;
 
 // All of these methods transition inputs, but not outputs
@@ -16,4 +20,7 @@ void recordClearDepthImage(
     VkCommandBuffer, AllocatedImage&, VkClearDepthStencilValue
 );
 void recordClearColorImage(VkCommandBuffer, AllocatedImage&, VkClearColorValue);
+void recordClearColorImage(
+    VkCommandBuffer, szg_image::Image&, VkClearColorValue
+);
 } // namespace renderpass

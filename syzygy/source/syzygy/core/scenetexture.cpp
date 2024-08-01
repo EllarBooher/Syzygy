@@ -60,25 +60,26 @@ auto scene::SceneTexture::create(
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT     // copy into
     };
 
-    std::optional<AllocatedImage> textureResult{AllocatedImage::allocate(
-        allocator,
-        device,
-        AllocatedImage::AllocationParameters{
-            .extent = textureMax,
-            .format = format,
-            .usageFlags = colorUsage,
-            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-        }
-    )};
+    std::optional<std::unique_ptr<szg_image::ImageView>> textureResult{
+        szg_image::ImageView::allocate(
+            device,
+            allocator,
+            szg_image::ImageAllocationParameters{
+                .extent = textureMax,
+                .format = format,
+                .usageFlags = colorUsage,
+            },
+            szg_image::ImageViewAllocationParameters{}
+        )
+    };
 
-    if (!textureResult.has_value())
+    if (!textureResult.has_value() || textureResult.value() == nullptr)
     {
         Error("Failed to allocate image.");
         return std::nullopt;
     }
     cleanupCallbacks.pushFunction([&]() { textureResult.reset(); });
-    AllocatedImage& texture{textureResult.value()};
+    szg_image::ImageView& texture{*textureResult.value()};
 
     VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
         0,
@@ -170,7 +171,12 @@ auto scene::SceneTexture::create(
 
 auto scene::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
 
-auto scene::SceneTexture::texture() const -> AllocatedImage&
+auto scene::SceneTexture::texture() -> szg_image::ImageView&
+{
+    return *m_texture;
+}
+
+auto scene::SceneTexture::texture() const -> szg_image::ImageView const&
 {
     return *m_texture;
 }

@@ -484,7 +484,7 @@ auto collectGeometryCullFlags(
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    AllocatedImage& color,
+    szg_image::Image& color,
     AllocatedImage& depth,
     std::span<gputypes::LightDirectional const> const directionalLights,
     std::span<gputypes::LightSpot const> const spotLights,
@@ -889,13 +889,14 @@ void DeferredShadingPipeline::recordDrawCommands(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         );
         color.recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
         );
 
         VkRect2D const srcRegion{.offset{}, .extent{drawRect.extent}};
         VkRect2D const dstRegion{drawRect};
-        AllocatedImage::recordCopySubregion(
-            cmd, *m_drawImage, srcRegion, color, dstRegion
+
+        vkutil::recordCopyImageToImage(
+            cmd, m_drawImage->image(), color.image(), srcRegion, dstRegion
         );
     }
 }

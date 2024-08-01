@@ -31,7 +31,7 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd,
         VkRect2D drawRect,
-        AllocatedImage& color,
+        szg_image::Image& color,
         AllocatedImage& depth,
         std::span<gputypes::LightDirectional const> directionalLights,
         std::span<gputypes::LightSpot const> spotLights,

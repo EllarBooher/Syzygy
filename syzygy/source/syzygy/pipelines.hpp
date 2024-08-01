@@ -16,6 +16,11 @@ namespace gputypes
 {
 struct Camera;
 }
+namespace szg_image
+{
+struct Image;
+struct ImageView;
+} // namespace szg_image
 struct AllocatedImage;
 struct Vertex;
 template <typename T> struct TStagedBuffer;
@@ -260,7 +265,7 @@ public:
         bool reuseDepthAttachment,
         float lineWidth,
         VkRect2D drawRect,
-        AllocatedImage& color,
+        szg_image::ImageView& color,
         AllocatedImage& depth,
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& cameras,
