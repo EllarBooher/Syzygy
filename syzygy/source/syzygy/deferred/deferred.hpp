@@ -49,7 +49,7 @@ public:
 private:
     ShadowPassArray m_shadowPassArray{};
 
-    std::unique_ptr<AllocatedImage> m_drawImage{};
+    std::unique_ptr<szg_image::ImageView> m_drawImage{};
 
     typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};

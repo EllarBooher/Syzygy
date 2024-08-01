@@ -190,27 +190,27 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                 .height = dimensionCapacity.height,
             };
 
-            if (std::optional<AllocatedImage> drawImageResult{
-                    AllocatedImage::allocate(
-                        allocator,
+            if (std::optional<std::unique_ptr<szg_image::ImageView>>
+                    drawImageResult{szg_image::ImageView::allocate(
                         device,
-                        AllocatedImage::AllocationParameters{
+                        allocator,
+                        szg_image::ImageAllocationParameters{
                             .extent = drawImageExtent,
                             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                             .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
                                         | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                                         | VK_IMAGE_USAGE_STORAGE_BIT
                                         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-                            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+                        },
+                        szg_image::ImageViewAllocationParameters{
+                            .subresourceRange = vkinit::imageSubresourceRange(
+                                VK_IMAGE_ASPECT_COLOR_BIT
+                            )
                         }
-                    )
-                };
+                    )};
                 drawImageResult.has_value())
             {
-                m_drawImage = std::make_unique<AllocatedImage>(
-                    std::move(drawImageResult).value()
-                );
+                m_drawImage = std::move(drawImageResult).value();
             }
             else
             {
@@ -892,11 +892,30 @@ void DeferredShadingPipeline::recordDrawCommands(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
         );
 
-        VkRect2D const srcRegion{.offset{}, .extent{drawRect.extent}};
-        VkRect2D const dstRegion{drawRect};
+        VkOffset3D const srcMin{};
+        VkOffset3D const srcMax{
+            .x = static_cast<int32_t>(drawRect.extent.width),
+            .y = static_cast<int32_t>(drawRect.extent.height),
+            .z = 1
+        };
+        VkOffset3D const dstMin{
+            .x = drawRect.offset.x, .y = drawRect.offset.y, .z = 0
+        };
+        VkOffset3D const dstMax{
+            .x = static_cast<int32_t>(dstMin.x + drawRect.extent.width),
+            .y = static_cast<int32_t>(dstMin.y + drawRect.extent.height),
+            .z = 1
+        };
 
-        vkutil::recordCopyImageToImage(
-            cmd, m_drawImage->image(), color.image(), srcRegion, dstRegion
+        szg_image::Image::recordCopyRect(
+            cmd,
+            m_drawImage->image(),
+            color,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            srcMin,
+            srcMax,
+            dstMin,
+            dstMax
         );
     }
 }
