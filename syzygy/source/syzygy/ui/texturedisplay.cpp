@@ -27,7 +27,7 @@ ui::TextureDisplay::~TextureDisplay() { destroy(); }
 auto ui::TextureDisplay::create(
     VkDevice const device,
     VmaAllocator const allocator,
-    VkExtent2D const textureMax,
+    VkExtent2D const displaySize,
     VkFormat const format
 ) -> std::optional<TextureDisplay>
 {
@@ -49,7 +49,7 @@ auto ui::TextureDisplay::create(
             device,
             allocator,
             szg_image::ImageAllocationParameters{
-                .extent = textureMax,
+                .extent = displaySize,
                 .format = format,
                 .usageFlags = colorUsage,
             },
@@ -135,8 +135,6 @@ void ui::TextureDisplay::uiRender(
         ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
         ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
     );
-
-    return;
 }
 
 void ui::TextureDisplay::destroy()

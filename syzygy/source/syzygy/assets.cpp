@@ -125,7 +125,7 @@ auto uploadMeshToGPU(
     );
 }
 
-auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
+auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
     -> std::optional<szg_assets::ImageRGBA>
 {
     int32_t x{0};
@@ -135,7 +135,12 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
     uint16_t constexpr RGBA_COMPONENT_COUNT{4};
 
     stbi_uc* const parsedImage{stbi_load_from_memory(
-        bytes.data(), bytes.size(), &x, &y, &components, RGBA_COMPONENT_COUNT
+        jpegBytes.data(),
+        static_cast<int32_t>(jpegBytes.size()),
+        &x,
+        &y,
+        &components,
+        RGBA_COMPONENT_COUNT
     )};
 
     if (parsedImage == nullptr)
@@ -156,9 +161,10 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
     size_t constexpr BYTES_PER_PIXEL{
         RGBA_COMPONENT_COUNT * BYTES_PER_COMPONENT
     };
-
-    std::vector<uint8_t> rgba{
-        parsedImage, parsedImage + widthPixels * heightPixels * BYTES_PER_PIXEL
+    std::vector<uint8_t> const rgba{
+        parsedImage,
+        parsedImage
+            + static_cast<size_t>(widthPixels * heightPixels) * BYTES_PER_PIXEL
     };
 
     delete parsedImage;

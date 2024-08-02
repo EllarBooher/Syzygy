@@ -580,7 +580,7 @@ auto szg_editor::run() -> EditorResult
         Error("Failed to initialize editor.");
         return EditorResult::ERROR;
     }
-    PlatformWindow& mainWindow{resourcesResult.value().window};
+    PlatformWindow const& mainWindow{resourcesResult.value().window};
     GraphicsContext& graphicsContext{resourcesResult.value().graphics};
     Swapchain& swapchain{resourcesResult.value().swapchain};
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
@@ -701,16 +701,15 @@ auto szg_editor::run() -> EditorResult
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<ui::TextureDisplay> testImageWidget{};
-    if (
-
-        std::optional<ui::TextureDisplay> textureDisplayResult{
+    if (std::optional<ui::TextureDisplay> textureDisplayResult{
             ui::TextureDisplay::create(
                 graphicsContext.vulkanContext().device,
                 graphicsContext.allocator(),
-                VkExtent2D{4096, 4096},
+                TEXTURE_MAX,
                 VK_FORMAT_R16G16B16A16_SFLOAT
             )
-        }; textureDisplayResult.has_value())
+        };
+        textureDisplayResult.has_value())
     {
         testImageWidget = std::make_unique<ui::TextureDisplay>(
             std::move(textureDisplayResult).value()

@@ -30,9 +30,9 @@ public:
 
     // imageCapacity and imageFormat can be set to ensure compatibility with the
     // textures that will be copied later on
-    static auto create(
-        VkDevice, VmaAllocator, VkExtent2D imageCapacity, VkFormat imageFormat
-    ) -> std::optional<TextureDisplay>;
+    static auto
+    create(VkDevice, VmaAllocator, VkExtent2D displaySize, VkFormat imageFormat)
+        -> std::optional<TextureDisplay>;
 
     // Records a copy of the supplied image, and draws the UI window.
     void uiRender(
