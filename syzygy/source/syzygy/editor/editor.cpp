@@ -100,10 +100,10 @@ auto initialize() -> std::optional<EditorResources>
     Log("Creating Swapchain...");
 
     std::optional<Swapchain> swapchainResult{Swapchain::create(
-        windowResult.value().extent(),
         vulkanContext.physicalDevice,
         vulkanContext.device,
         vulkanContext.surface,
+        windowResult.value().extent(),
         std::optional<VkSwapchainKHR>{}
     )};
     if (!swapchainResult.has_value())
@@ -162,7 +162,7 @@ auto rebuildSwapchain(
     ));
 
     std::optional<Swapchain> newSwapchain{Swapchain::create(
-        newExtent, physicalDevice, device, surface, old.swapchain()
+        physicalDevice, device, surface, newExtent, old.swapchain()
     )};
 
     return newSwapchain;

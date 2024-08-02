@@ -1,21 +1,66 @@
 #include "swapchain.hpp"
 
-#include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/helpers.hpp"
 #include <VkBootstrap.h>
 #include <fmt/core.h>
 #include <functional>
 
+auto Swapchain::operator=(Swapchain&& other) noexcept -> Swapchain&
+{
+    destroy();
+
+    m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
+    m_swapchain = std::exchange(other.m_swapchain, VK_NULL_HANDLE);
+    m_imageFormat = std::exchange(other.m_imageFormat, VK_FORMAT_UNDEFINED);
+    m_images = std::move(other.m_images);
+    m_imageViews = std::move(other.m_imageViews);
+    m_extent = std::exchange(other.m_extent, VkExtent2D{});
+
+    return *this;
+}
+Swapchain::Swapchain(Swapchain&& other) noexcept { *this = std::move(other); }
+
+Swapchain::~Swapchain() { destroy(); }
+
+void Swapchain::destroy()
+{
+    if (m_device == VK_NULL_HANDLE)
+    {
+        if (m_swapchain != VK_NULL_HANDLE || !m_imageViews.empty())
+        {
+            Warning("Swapchain had allocations, but device was null. Memory "
+                    "was possibly leaked.");
+        }
+        return;
+    }
+
+    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+
+    for (VkImageView const view : m_imageViews)
+    {
+        vkDestroyImageView(m_device, view, nullptr);
+    }
+}
+
 auto Swapchain::create(
-    glm::u16vec2 const extent,
     VkPhysicalDevice const physicalDevice,
     VkDevice const device,
     VkSurfaceKHR const surface,
+    glm::u16vec2 const extent,
     std::optional<VkSwapchainKHR> const old
 ) -> std::optional<Swapchain>
 {
-    DeletionQueue cleanupCallbacks{};
+    if (physicalDevice == VK_NULL_HANDLE || device == VK_NULL_HANDLE
+        || surface == VK_NULL_HANDLE)
+    {
+        Error("One or more necessary handles were null.");
+        return std::nullopt;
+    }
+
+    std::optional<Swapchain> swapchainResult{std::in_place, Swapchain{}};
+    Swapchain& swapchain{swapchainResult.value()};
+    swapchain.m_device = device;
 
     VkFormat constexpr SWAPCHAIN_IMAGE_FORMAT{VK_FORMAT_B8G8R8A8_UNORM};
 
@@ -27,7 +72,7 @@ auto Swapchain::create(
     uint32_t const width{extent.x};
     uint32_t const height{extent.y};
 
-    vkb::Result<vkb::Swapchain> const swapchainResult{
+    vkb::Result<vkb::Swapchain> vkbResult{
         vkb::SwapchainBuilder{physicalDevice, device, surface}
             .set_desired_format(surfaceFormat)
             .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
@@ -36,41 +81,43 @@ auto Swapchain::create(
             .set_old_swapchain(old.value_or(VK_NULL_HANDLE))
             .build()
     };
-    if (!swapchainResult.has_value())
+    if (!vkbResult.has_value())
     {
-        LogVkbError(swapchainResult, "Failed to build VkbSwapchain.");
+        LogVkbError(vkbResult, "Failed to build VkbSwapchain.");
         return std::nullopt;
     }
-    vkb::Swapchain swapchain{swapchainResult.value()};
-    cleanupCallbacks.pushFunction([&]() { vkb::destroy_swapchain(swapchain); });
+    vkb::Swapchain& vkbSwapchain{vkbResult.value()};
 
-    vkb::Result<std::vector<VkImage>> imagesResult{swapchain.get_images()};
-    if (!imagesResult.has_value())
+    swapchain.m_swapchain = vkbSwapchain.swapchain;
+    swapchain.m_imageFormat = vkbSwapchain.image_format;
+    swapchain.m_extent = vkbSwapchain.extent;
+
+    if (vkb::Result<std::vector<VkImage>> imagesResult{vkbSwapchain.get_images()
+        };
+        imagesResult.has_value())
+    {
+        swapchain.m_images = std::move(imagesResult).value();
+    }
+    else
     {
         LogVkbError(imagesResult, "Failed to get swapchain images.");
         return std::nullopt;
     }
 
-    vkb::Result<std::vector<VkImageView>> viewsResult{swapchain.get_image_views(
-    )};
-    if (!viewsResult.has_value())
+    if (vkb::Result<std::vector<VkImageView>> viewsResult{
+            vkbSwapchain.get_image_views()
+        };
+        viewsResult.has_value())
+    {
+        swapchain.m_imageViews = std::move(viewsResult).value();
+    }
+    else
     {
         LogVkbError(viewsResult, "Failed to get swapchain image views.");
         return std::nullopt;
     }
-    cleanupCallbacks.pushFunction([&]()
-    { swapchain.destroy_image_views(viewsResult.value()); });
 
-    cleanupCallbacks.clear();
-
-    return Swapchain{
-        device,
-        swapchain.swapchain,
-        SWAPCHAIN_IMAGE_FORMAT,
-        std::move(imagesResult).value(),
-        std::move(viewsResult).value(),
-        swapchain.extent,
-    };
+    return swapchainResult;
 }
 
 auto Swapchain::swapchain() const -> VkSwapchainKHR { return m_swapchain; }
@@ -83,24 +130,3 @@ auto Swapchain::imageViews() const -> std::span<VkImageView const>
 }
 
 auto Swapchain::extent() const -> VkExtent2D { return m_extent; }
-
-void Swapchain::destroy()
-{
-    if (m_swapchain == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    if (m_device == VK_NULL_HANDLE)
-    {
-        Warning("Device was null when trying to destroy swapchain.");
-        return;
-    }
-
-    vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-
-    for (VkImageView const view : m_imageViews)
-    {
-        vkDestroyImageView(m_device, view, nullptr);
-    }
-}

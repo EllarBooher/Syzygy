@@ -10,35 +10,23 @@
 struct Swapchain
 {
 public:
+    Swapchain(Swapchain const&) = delete;
+    Swapchain& operator=(Swapchain const&) = delete;
+
+    auto operator=(Swapchain&&) noexcept -> Swapchain&;
+    Swapchain(Swapchain&&) noexcept;
+    ~Swapchain();
+
+private:
     Swapchain() = default;
+    void destroy();
 
-    Swapchain(Swapchain&& other) noexcept { *this = std::move(other); }
-
-    Swapchain& operator=(Swapchain&& other) noexcept
-    {
-        destroy();
-
-        m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
-        m_swapchain = std::exchange(other.m_swapchain, VK_NULL_HANDLE);
-        m_imageFormat = std::exchange(other.m_imageFormat, VK_FORMAT_UNDEFINED);
-        m_images = std::move(other.m_images);
-        m_imageViews = std::move(other.m_imageViews);
-        m_extent = std::exchange(other.m_extent, VkExtent2D{});
-
-        return *this;
-    }
-
-    ~Swapchain() noexcept { destroy(); }
-
-    Swapchain(Swapchain const& other) = delete;
-    Swapchain& operator=(Swapchain const& other) = delete;
-
-    // TODO: return VkResult from swapchain creation
+public:
     static auto create(
+        VkPhysicalDevice,
+        VkDevice,
+        VkSurfaceKHR,
         glm::u16vec2 extent,
-        VkPhysicalDevice physicalDevice,
-        VkDevice device,
-        VkSurfaceKHR surface,
         std::optional<VkSwapchainKHR> old
     ) -> std::optional<Swapchain>;
 
@@ -48,31 +36,11 @@ public:
     auto extent() const -> VkExtent2D;
 
 private:
-    void destroy();
-
-    explicit Swapchain(
-        VkDevice device,
-        VkSwapchainKHR swapchain,
-        VkFormat format,
-        std::vector<VkImage>&& images,
-        std::vector<VkImageView>&& imageViews,
-        VkExtent2D extent
-    )
-        : m_device(device)
-        , m_swapchain(swapchain)
-        , m_imageFormat(format)
-        , m_images(std::move(images))
-        , m_imageViews(std::move(imageViews))
-        , m_extent(extent)
-    {
-    }
-
     VkDevice m_device{VK_NULL_HANDLE};
     VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
     VkFormat m_imageFormat{VK_FORMAT_UNDEFINED};
+    VkExtent2D m_extent{};
 
     std::vector<VkImage> m_images{};
     std::vector<VkImageView> m_imageViews{};
-
-    VkExtent2D m_extent{};
 };
