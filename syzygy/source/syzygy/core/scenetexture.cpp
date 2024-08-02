@@ -81,7 +81,7 @@ auto scene::SceneTexture::create(
         return std::nullopt;
     }
     cleanupCallbacks.pushFunction([&]() { textureResult.reset(); });
-    szg_image::ImageView const& texture{*textureResult.value()};
+    szg_image::ImageView& texture{*textureResult.value()};
 
     VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
         0,

@@ -147,7 +147,8 @@ auto szg_image::Image::format() const -> VkFormat
     return m_memory.imageCreateInfo.format;
 }
 
-auto szg_image::Image::image() const -> VkImage { return m_memory.image; }
+// NOLINTNEXTLINE(readability-make-member-function-const)
+auto szg_image::Image::image() -> VkImage { return m_memory.image; }
 
 auto szg_image::Image::expectedLayout() const -> VkImageLayout
 {

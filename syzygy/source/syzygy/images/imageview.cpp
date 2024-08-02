@@ -40,7 +40,7 @@ auto szg_image::ImageView::allocate(
     ImageView finalView{};
     finalView.m_image = std::move(imageAllocationResult).value();
 
-    Image const& image{*finalView.m_image};
+    Image& image{*finalView.m_image};
 
     VkImageViewCreateInfo const imageViewInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -70,7 +70,8 @@ auto szg_image::ImageView::allocate(
     return std::make_unique<ImageView>(std::move(finalView));
 }
 
-auto szg_image::ImageView::view() const -> VkImageView { return m_memory.view; }
+// NOLINTNEXTLINE(readability-make-member-function-const)
+auto szg_image::ImageView::view() -> VkImageView { return m_memory.view; }
 
 auto szg_image::ImageView::image() -> Image& { return *m_image; }
 

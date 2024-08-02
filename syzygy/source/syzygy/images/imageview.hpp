@@ -62,7 +62,7 @@ public:
     ) -> std::optional<std::unique_ptr<ImageView>>;
 
     // WARNING: Do not destroy this image view.
-    auto view() const -> VkImageView;
+    auto view() -> VkImageView;
 
     auto image() -> Image&;
     auto image() const -> Image const&;
