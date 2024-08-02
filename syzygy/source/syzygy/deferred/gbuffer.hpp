@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/images.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>

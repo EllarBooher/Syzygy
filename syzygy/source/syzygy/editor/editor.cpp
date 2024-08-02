@@ -15,7 +15,9 @@
 #include "syzygy/engine.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images.hpp"
+#include "syzygy/images/image.hpp"
+#include "syzygy/images/imageoperations.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
@@ -243,7 +245,7 @@ auto endFrame(
         cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    vkutil::transitionImage(
+    szg_image::transitionImage(
         cmd,
         swapchainImage,
         VK_IMAGE_LAYOUT_UNDEFINED,
@@ -251,7 +253,7 @@ auto endFrame(
         VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    vkutil::recordCopyImageToImage(
+    szg_image::recordCopyImageToImage(
         cmd,
         sourceTexture.image(),
         swapchainImage,
@@ -259,7 +261,7 @@ auto endFrame(
         VkRect2D{.extent{swapchain.extent()}}
     );
 
-    vkutil::transitionImage(
+    szg_image::transitionImage(
         cmd,
         swapchainImage,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

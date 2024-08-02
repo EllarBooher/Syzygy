@@ -7,7 +7,6 @@ add_library(
 	"source/syzygy/vulkanusage.cpp"
 	"source/syzygy/engine.cpp"
 	"source/syzygy/initializers.cpp"
-	"source/syzygy/images.cpp"
 	"source/syzygy/helpers.cpp"
 	"source/syzygy/descriptors.cpp"
 	"source/syzygy/pipelines.cpp"
@@ -17,6 +16,10 @@ add_library(
 	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 	"source/syzygy/shadowpass.cpp"
+
+	"source/syzygy/images/image.cpp"
+	"source/syzygy/images/imageview.cpp"
+	"source/syzygy/images/imageoperations.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"

@@ -1,5 +1,5 @@
 #include "renderpass.hpp"
-#include "syzygy/images.hpp"
+#include "syzygy/images/image.hpp"
 #include "syzygy/initializers.hpp"
 
 void renderpass::recordClearDepthImage(

@@ -4,13 +4,18 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/deferred/gbuffer.hpp"
 #include "syzygy/gputypes.hpp"
-#include "syzygy/images.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/shadowpass.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/vec2.hpp>
 #include <memory>
 #include <span>
+
+namespace szg_image
+{
+struct Image;
+struct ImageView;
+} // namespace szg_image
 
 class DescriptorAllocator;
 namespace scene

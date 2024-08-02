@@ -8,7 +8,9 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images.hpp"
+#include "syzygy/images/image.hpp"
+#include "syzygy/images/imageoperations.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
@@ -265,7 +267,7 @@ void Engine::recordDraw(
     }
 
     std::optional<double> const viewportAspectRatioResult{
-        vkutil::aspectRatio(sceneViewport.value().rect.extent)
+        szg_image::aspectRatio(sceneViewport.value().rect.extent)
     };
     if (!viewportAspectRatioResult.has_value())
     {

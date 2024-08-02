@@ -6,7 +6,6 @@
 #include "syzygy/debuglines.hpp"
 #include "syzygy/deferred/deferred.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/images.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>

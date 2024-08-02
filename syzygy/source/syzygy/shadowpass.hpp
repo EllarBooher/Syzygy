@@ -2,7 +2,6 @@
 
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/images.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/mat4x4.hpp>
@@ -11,6 +10,10 @@
 #include <span>
 #include <vector>
 
+namespace szg_image
+{
+struct ImageView;
+}
 class DescriptorAllocator;
 namespace gputypes
 {

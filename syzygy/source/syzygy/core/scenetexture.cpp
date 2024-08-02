@@ -3,6 +3,8 @@
 #include "deletionqueue.hpp"
 #include "syzygy/descriptors.hpp"
 #include "syzygy/helpers.hpp"
+#include "syzygy/images/image.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include <functional>
 #include <imgui.h>
