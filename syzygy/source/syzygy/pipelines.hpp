@@ -21,7 +21,6 @@ namespace szg_image
 struct Image;
 struct ImageView;
 } // namespace szg_image
-struct AllocatedImage;
 struct Vertex;
 template <typename T> struct TStagedBuffer;
 namespace scene

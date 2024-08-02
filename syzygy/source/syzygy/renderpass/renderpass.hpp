@@ -5,7 +5,6 @@ namespace szg_image
 {
 struct Image;
 }
-struct AllocatedImage;
 
 // All of these methods transition inputs, but not outputs
 namespace renderpass
@@ -17,12 +16,8 @@ VkClearDepthStencilValue constexpr DEPTH_FAR_STENCIL_NONE{
 VkClearColorValue constexpr COLOR_BLACK_OPAQUE{0.0, 0.0, 0.0, 1.0};
 
 void recordClearDepthImage(
-    VkCommandBuffer, AllocatedImage&, VkClearDepthStencilValue
-);
-void recordClearDepthImage(
     VkCommandBuffer, szg_image::Image&, VkClearDepthStencilValue
 );
-void recordClearColorImage(VkCommandBuffer, AllocatedImage&, VkClearColorValue);
 void recordClearColorImage(
     VkCommandBuffer, szg_image::Image&, VkClearColorValue
 );
