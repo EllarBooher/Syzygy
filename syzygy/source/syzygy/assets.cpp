@@ -132,7 +132,7 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
     int32_t y{0};
 
     int32_t components{0};
-    int32_t constexpr RGBA_COMPONENT_COUNT{4};
+    uint16_t constexpr RGBA_COMPONENT_COUNT{4};
 
     stbi_uc* const parsedImage{stbi_load_from_memory(
         bytes.data(), bytes.size(), &x, &y, &components, RGBA_COMPONENT_COUNT
@@ -150,13 +150,22 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
         return std::nullopt;
     }
 
-    auto ux{static_cast<uint32_t>(x)};
-    auto uy{static_cast<uint32_t>(y)};
-    std::vector<uint8_t> rgba{parsedImage, parsedImage + ux * uy};
+    auto widthPixels{static_cast<uint32_t>(x)};
+    auto heightPixels{static_cast<uint32_t>(y)};
+    size_t constexpr BYTES_PER_COMPONENT{1};
+    size_t constexpr BYTES_PER_PIXEL{
+        RGBA_COMPONENT_COUNT * BYTES_PER_COMPONENT
+    };
+
+    std::vector<uint8_t> rgba{
+        parsedImage, parsedImage + widthPixels * heightPixels * BYTES_PER_PIXEL
+    };
 
     delete parsedImage;
 
-    return szg_assets::ImageRGBA{.x = ux, .y = uy, .bytes = rgba};
+    return szg_assets::ImageRGBA{
+        .x = widthPixels, .y = heightPixels, .bytes = rgba
+    };
 }
 
 auto uploadImageToGPU(
@@ -171,7 +180,7 @@ auto uploadImageToGPU(
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
 
-    std::optional<std::unique_ptr<szg_image::Image>> const& stagingImageResult{
+    std::optional<std::unique_ptr<szg_image::Image>> stagingImageResult{
         szg_image::Image::allocate(
             device,
             allocator,
