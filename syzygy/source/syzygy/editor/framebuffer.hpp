@@ -1,8 +1,8 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/core/result.hpp"
 #include "syzygy/vulkanusage.hpp"
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -21,35 +21,27 @@ struct Frame
     // The fence that the CPU waits on to ensure the frame is not in use.
     VkFence renderFence{VK_NULL_HANDLE};
 
-    void destroy(VkDevice) const;
+    void destroy(VkDevice);
 };
 
 class FrameBuffer
 {
 public:
+    FrameBuffer& operator=(FrameBuffer&&) = delete;
+    FrameBuffer(FrameBuffer const&) = delete;
+    FrameBuffer& operator=(FrameBuffer const&) = delete;
+
+    FrameBuffer(FrameBuffer&&) noexcept;
+    ~FrameBuffer() noexcept;
+
+private:
     FrameBuffer() = default;
+    void destroy();
 
-    FrameBuffer(FrameBuffer&& other) noexcept { *this = std::move(other); }
-
-    FrameBuffer& operator=(FrameBuffer&& other) noexcept
-    {
-        destroy();
-
-        m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
-        m_frames = std::move(other.m_frames);
-        m_frameNumber = std::exchange(other.m_frameNumber, 0);
-
-        return *this;
-    }
-
-    ~FrameBuffer() noexcept { destroy(); }
-
-    FrameBuffer(FrameBuffer const& other) = delete;
-    FrameBuffer& operator=(FrameBuffer const& other) = delete;
-
+public:
     // QueueFamilyIndex should be capable of graphics/compute/transfer/present.
     static auto create(VkDevice, uint32_t const queueFamilyIndex)
-        -> VulkanResult<FrameBuffer>;
+        -> std::optional<FrameBuffer>;
 
     auto currentFrame() const -> Frame const&;
     auto frameNumber() const -> size_t;
@@ -57,15 +49,7 @@ public:
     void increment();
 
 private:
-    void destroy();
-
-    explicit FrameBuffer(VkDevice device, std::vector<Frame>&& frames)
-        : m_device{device}
-        , m_frames{std::move(frames)}
-    {
-    }
-
-    VkDevice m_device;
+    VkDevice m_device{VK_NULL_HANDLE};
     std::vector<Frame> m_frames{};
     size_t m_frameNumber{0};
 };

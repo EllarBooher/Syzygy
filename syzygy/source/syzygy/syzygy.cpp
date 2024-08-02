@@ -5,14 +5,7 @@
 
 auto syzygy::runApplication() -> syzygy::RunResult
 {
-    std::optional<Editor> editor{Editor::create()};
-
-    if (!editor.has_value())
-    {
-        return RunResult::FAILURE;
-    }
-
-    EditorResult const runResult{editor.value().run()};
+    EditorResult const runResult{szg_editor::run()};
 
     if (runResult != EditorResult::SUCCESS)
     {

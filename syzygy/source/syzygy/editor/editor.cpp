@@ -41,9 +41,26 @@
 #include <thread>
 #include <vector>
 
-auto Editor::create() -> std::optional<Editor>
+struct UIResults
 {
-    Log("Creating Editor instance.");
+    ui::HUDState hud;
+    ui::DockingLayout dockingLayout;
+    bool reloadRequested;
+};
+
+struct EditorResources
+{
+    PlatformWindow window;
+    GraphicsContext graphics;
+    Swapchain swapchain;
+    FrameBuffer frameBuffer;
+};
+
+namespace
+{
+auto initialize() -> std::optional<EditorResources>
+{
+    Log("Initializing Editor resources.");
 
     if (glfwInit() == GLFW_FALSE)
     {
@@ -99,35 +116,26 @@ auto Editor::create() -> std::optional<Editor>
 
     Log("Creating Frame Buffer...");
 
-    VulkanResult<FrameBuffer> frameBufferResult{FrameBuffer::create(
+    std::optional<FrameBuffer> frameBufferResult{FrameBuffer::create(
         vulkanContext.device, vulkanContext.graphicsQueueFamily
     )};
     if (!frameBufferResult.has_value())
     {
-        LogVkResult(
-            frameBufferResult.vk_result(), "Failed to create frame buffer."
-        );
+        Error("Failed to create FrameBuffer.");
+        return std::nullopt;
     }
 
     Log("Created Frame Buffer.");
 
-    return std::make_optional<Editor>(Editor{
-        std::move(windowResult).value(),
-        std::move(graphicsResult).value(),
-        std::move(swapchainResult).value(),
-        std::move(frameBufferResult).value()
-    });
+    Log("Successfully initialized Editor resources.");
+
+    return EditorResources{
+        .window = std::move(windowResult).value(),
+        .graphics = std::move(graphicsResult).value(),
+        .swapchain = std::move(swapchainResult).value(),
+        .frameBuffer = std::move(frameBufferResult).value(),
+    };
 }
-
-struct UIResults
-{
-    ui::HUDState hud;
-    ui::DockingLayout dockingLayout;
-    bool reloadRequested;
-};
-
-namespace
-{
 auto defaultRefreshRate() -> float
 {
     // Guess that the window is on the primary monitor, as a guess for refresh
@@ -562,37 +570,48 @@ void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 } // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Editor::run() -> EditorResult
+auto szg_editor::run() -> EditorResult
 {
     using namespace std::chrono_literals;
+
+    std::optional<EditorResources> resourcesResult{initialize()};
+    if (!resourcesResult.has_value())
+    {
+        Error("Failed to initialize editor.");
+        return EditorResult::ERROR;
+    }
+    PlatformWindow& mainWindow{resourcesResult.value().window};
+    GraphicsContext& graphicsContext{resourcesResult.value().graphics};
+    Swapchain& swapchain{resourcesResult.value().swapchain};
+    FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
 
     // Init input before imgui so it properly chains our callbacks
     szg_input::InputHandler inputHandler{};
     glfwSetWindowUserPointer(
-        m_window.handle(), reinterpret_cast<void*>(&inputHandler)
+        mainWindow.handle(), reinterpret_cast<void*>(&inputHandler)
     );
     glfwSetKeyCallback(
-        m_window.handle(), szg_input::InputHandler::callbackKey_glfw
+        mainWindow.handle(), szg_input::InputHandler::callbackKey_glfw
     );
     glfwSetCursorPosCallback(
-        m_window.handle(), szg_input::InputHandler::callbackMouse_glfw
+        mainWindow.handle(), szg_input::InputHandler::callbackMouse_glfw
     );
     VkDescriptorPool const imguiPool{uiInit(
-        m_graphics.vulkanContext().instance,
-        m_graphics.vulkanContext().physicalDevice,
-        m_graphics.vulkanContext().device,
-        m_graphics.vulkanContext().graphicsQueueFamily,
-        m_graphics.vulkanContext().graphicsQueue,
-        m_window.handle()
+        graphicsContext.vulkanContext().instance,
+        graphicsContext.vulkanContext().physicalDevice,
+        graphicsContext.vulkanContext().device,
+        graphicsContext.vulkanContext().graphicsQueueFamily,
+        graphicsContext.vulkanContext().graphicsQueue,
+        mainWindow.handle()
     )};
 
     // We oversize textures and use resizable subregion
     VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
     std::optional<scene::SceneTexture> sceneTextureResult{
         scene::SceneTexture::create(
-            m_graphics.vulkanContext().device,
-            m_graphics.allocator(),
-            m_graphics.descriptorAllocator(),
+            graphicsContext.vulkanContext().device,
+            graphicsContext.allocator(),
+            graphicsContext.descriptorAllocator(),
             TEXTURE_MAX,
             VK_FORMAT_R16G16B16A16_SFLOAT
         )
@@ -600,12 +619,12 @@ auto Editor::run() -> EditorResult
     if (!sceneTextureResult.has_value())
     {
         Error("Failed to allocate scene texture");
-        return EditorResult::ERROR_EDITOR;
+        return EditorResult::ERROR;
     }
     std::optional<std::unique_ptr<szg_image::ImageView>> windowTextureResult{
         szg_image::ImageView::allocate(
-            m_graphics.vulkanContext().device,
-            m_graphics.allocator(),
+            graphicsContext.vulkanContext().device,
+            graphicsContext.allocator(),
             szg_image::ImageAllocationParameters{
                 .extent = TEXTURE_MAX,
                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -624,13 +643,13 @@ auto Editor::run() -> EditorResult
     if (!windowTextureResult.has_value())
     {
         Warning("Failed to allocate window texture.");
-        return EditorResult::ERROR_EDITOR;
+        return EditorResult::ERROR;
     }
 
     ImmediateSubmissionQueue submissionQueue{};
     if (auto result{ImmediateSubmissionQueue::create(
-            m_graphics.vulkanContext().device,
-            m_graphics.vulkanContext().graphicsQueueFamily
+            graphicsContext.vulkanContext().device,
+            graphicsContext.vulkanContext().graphicsQueueFamily
         )};
         result.has_value())
     {
@@ -639,14 +658,14 @@ auto Editor::run() -> EditorResult
     else
     {
         Error("Failed to create immediate submission queue.");
-        return EditorResult::ERROR_EDITOR;
+        return EditorResult::ERROR;
     }
 
     MeshAssetLibrary meshAssets{};
     if (auto result{loadGltfMeshes(
-            m_graphics.vulkanContext().device,
-            m_graphics.allocator(),
-            m_graphics.vulkanContext().graphicsQueue,
+            graphicsContext.vulkanContext().device,
+            graphicsContext.allocator(),
+            graphicsContext.vulkanContext().graphicsQueue,
             submissionQueue,
             "assets/vkguide/basicmesh.glb"
         )};
@@ -661,15 +680,15 @@ auto Editor::run() -> EditorResult
     else
     {
         Error("Failed to load any meshes.");
-        return EditorResult::ERROR_EDITOR;
+        return EditorResult::ERROR;
     }
 
     // Load textures as a test of image loading functionality
     std::vector<std::unique_ptr<szg_image::Image>> testImages{};
     if (auto textureLoadResult{szg_assets::loadTextureFromFile(
-            m_graphics.vulkanContext().device,
-            m_graphics.allocator(),
-            m_graphics.vulkanContext().graphicsQueue,
+            graphicsContext.vulkanContext().device,
+            graphicsContext.allocator(),
+            graphicsContext.vulkanContext().graphicsQueue,
             submissionQueue,
             "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
             "bishop_black_base_color.jpg",
@@ -686,8 +705,8 @@ auto Editor::run() -> EditorResult
 
         std::optional<ui::TextureDisplay> textureDisplayResult{
             ui::TextureDisplay::create(
-                m_graphics.vulkanContext().device,
-                m_graphics.allocator(),
+                graphicsContext.vulkanContext().device,
+                graphicsContext.allocator(),
                 VkExtent2D{4096, 4096},
                 VK_FORMAT_R16G16B16A16_SFLOAT
             )
@@ -704,41 +723,44 @@ auto Editor::run() -> EditorResult
 
     bool inputCapturedByScene{false};
     scene::Scene scene{scene::Scene::defaultScene(
-        m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
+        graphicsContext.vulkanContext().device,
+        graphicsContext.allocator(),
+        meshAssets
     )};
 
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
     szg_image::ImageView& windowTexture = *windowTextureResult.value();
 
     Engine* const renderer = Engine::loadEngine(
-        m_window,
-        m_graphics.vulkanContext().instance,
-        m_graphics.vulkanContext().physicalDevice,
-        m_graphics.vulkanContext().device,
-        m_graphics.allocator(),
-        m_graphics.descriptorAllocator(),
+        mainWindow,
+        graphicsContext.vulkanContext().instance,
+        graphicsContext.vulkanContext().physicalDevice,
+        graphicsContext.vulkanContext().device,
+        graphicsContext.allocator(),
+        graphicsContext.descriptorAllocator(),
         sceneTexture,
-        m_graphics.vulkanContext().graphicsQueue,
-        m_graphics.vulkanContext().graphicsQueueFamily
+        graphicsContext.vulkanContext().graphicsQueue,
+        graphicsContext.vulkanContext().graphicsQueueFamily
     );
     if (renderer == nullptr)
     {
-        return EditorResult::ERROR_NO_RENDERER;
+        return EditorResult::ERROR;
     }
 
     ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
-    uiReload(m_graphics.vulkanContext().device, uiPreferences);
+    uiReload(graphicsContext.vulkanContext().device, uiPreferences);
 
     double timeSecondsPrevious{0.0};
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
 
-    while (glfwWindowShouldClose(m_window.handle()) == GLFW_FALSE)
+    while (glfwWindowShouldClose(mainWindow.handle()) == GLFW_FALSE)
     {
         glfwPollEvents();
 
-        if (glfwGetWindowAttrib(m_window.handle(), GLFW_ICONIFIED) == GLFW_TRUE)
+        if (glfwGetWindowAttrib(mainWindow.handle(), GLFW_ICONIFIED)
+            == GLFW_TRUE)
         {
             // TODO: should time pause while minified?
             std::this_thread::sleep_for(1ms);
@@ -770,9 +792,9 @@ auto Editor::run() -> EditorResult
         }
         scene.tick(lastFrameTiming);
 
-        m_frameBuffer.increment();
-        Frame const& currentFrame{m_frameBuffer.currentFrame()};
-        VulkanContext const& vulkanContext{m_graphics.vulkanContext()};
+        frameBuffer.increment();
+        Frame const& currentFrame{frameBuffer.currentFrame()};
+        VulkanContext const& vulkanContext{graphicsContext.vulkanContext()};
 
         if (VkResult const beginFrameResult{
                 beginFrame(currentFrame, vulkanContext.device)
@@ -780,7 +802,7 @@ auto Editor::run() -> EditorResult
             beginFrameResult != VK_SUCCESS)
         {
             LogVkResult(beginFrameResult, "Failed to begin frame.");
-            return EditorResult::ERROR_EDITOR;
+            return EditorResult::ERROR;
         }
 
         if (uiReloadNecessary)
@@ -811,13 +833,13 @@ auto Editor::run() -> EditorResult
             if (sceneViewport.focused)
             {
                 glfwSetInputMode(
-                    m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
+                    mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
                 );
             }
             else
             {
                 glfwSetInputMode(
-                    m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
+                    mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
                 );
             }
 
@@ -828,7 +850,7 @@ auto Editor::run() -> EditorResult
         {
             inputCapturedByScene = false;
             glfwSetInputMode(
-                m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
+                mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
             );
             ImGui::SetWindowFocus(nullptr);
         }
@@ -861,7 +883,7 @@ auto Editor::run() -> EditorResult
 
         if (VkResult const endFrameResult{endFrame(
                 currentFrame,
-                m_swapchain,
+                swapchain,
                 vulkanContext.device,
                 vulkanContext.graphicsQueue,
                 currentFrame.mainCommandBuffer,
@@ -876,61 +898,37 @@ auto Editor::run() -> EditorResult
                     endFrameResult,
                     "Failed to end frame, due to non-out-of-date error."
                 );
-                return EditorResult::ERROR_EDITOR;
+                return EditorResult::ERROR;
             }
 
             std::optional<Swapchain> newSwapchain{rebuildSwapchain(
-                m_swapchain,
+                swapchain,
                 vulkanContext.physicalDevice,
                 vulkanContext.device,
                 vulkanContext.surface,
-                m_window.extent()
+                mainWindow.extent()
             )};
 
             if (!newSwapchain.has_value())
             {
                 Error("Failed to create new swapchain for resizing");
-                return EditorResult::ERROR_EDITOR;
+                return EditorResult::ERROR;
             }
-            m_swapchain = std::move(newSwapchain).value();
+            swapchain = std::move(newSwapchain).value();
         }
     }
 
-    vkDeviceWaitIdle(m_graphics.vulkanContext().device);
+    vkDeviceWaitIdle(graphicsContext.vulkanContext().device);
     if (nullptr != renderer)
     {
         renderer->cleanup(
-            m_graphics.vulkanContext().device, m_graphics.allocator()
+            graphicsContext.vulkanContext().device, graphicsContext.allocator()
         );
     }
     uiCleanup();
     vkDestroyDescriptorPool(
-        m_graphics.vulkanContext().device, imguiPool, nullptr
+        graphicsContext.vulkanContext().device, imguiPool, nullptr
     );
 
     return EditorResult::SUCCESS;
-}
-
-void Editor::destroy()
-{
-    if (!m_initialized)
-    {
-        return;
-    }
-
-    VkDevice const device{m_graphics.vulkanContext().device};
-    if (VK_NULL_HANDLE == device)
-    {
-        Warning("At destruction time, Vulkan device was null.");
-        return;
-    }
-
-    // Ensure proper destruction order
-    m_frameBuffer = {};
-    m_swapchain = {};
-    m_graphics = {};
-
-    m_window = {};
-
-    glfwTerminate();
 }
