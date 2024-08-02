@@ -2,11 +2,13 @@
 
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <utility>
 
 szg_image::ImageView::ImageView(ImageView&& other) noexcept
 {
-    m_image = std::move(other).m_image;
-
+    m_image = std::move(other.m_image);
     m_memory = std::exchange(other.m_memory, ImageViewMemory{});
 }
 
@@ -38,7 +40,7 @@ auto szg_image::ImageView::allocate(
     ImageView finalView{};
     finalView.m_image = std::move(imageAllocationResult).value();
 
-    Image& image{*finalView.m_image};
+    Image const& image{*finalView.m_image};
 
     VkImageViewCreateInfo const imageViewInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

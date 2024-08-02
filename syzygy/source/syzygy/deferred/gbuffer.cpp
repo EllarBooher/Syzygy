@@ -229,7 +229,7 @@ auto GBuffer::create(
     };
 }
 
-VkExtent2D GBuffer::extent() const
+auto GBuffer::extent() const -> VkExtent2D
 {
     return diffuseColor != nullptr ? diffuseColor->image().extent2D()
                                    : VkExtent2D{0, 0};

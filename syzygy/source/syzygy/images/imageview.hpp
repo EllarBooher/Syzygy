@@ -8,7 +8,10 @@ namespace szg_image
 {
 struct Image;
 struct ImageAllocationParameters;
+} // namespace szg_image
 
+namespace szg_image
+{
 struct ImageViewAllocationParameters
 {
     // Views use the image's format, or optionally an override that must be
@@ -55,7 +58,7 @@ public:
         VkDevice,
         VmaAllocator,
         ImageAllocationParameters const&,
-        ImageViewAllocationParameters const& viewParams
+        ImageViewAllocationParameters const& viewParameters
     ) -> std::optional<std::unique_ptr<ImageView>>;
 
     // WARNING: Do not destroy this image view.

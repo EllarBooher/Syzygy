@@ -14,7 +14,7 @@
 namespace scene
 {
 struct MeshInstanced;
-}
+} // namespace scene
 
 auto ShadowPassArray::create(
     VkDevice const device,
@@ -278,22 +278,28 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
     }
 }
 
-VkDescriptorSetLayout ShadowPassArray::samplerSetLayout() const
+auto ShadowPassArray::samplerSetLayout() const -> VkDescriptorSetLayout
 {
     return m_samplerSetLayout;
 }
 
-VkDescriptorSetLayout ShadowPassArray::texturesSetLayout() const
+auto ShadowPassArray::texturesSetLayout() const -> VkDescriptorSetLayout
 {
     return m_shadowmapSetLayout;
 }
 
-VkDescriptorSet ShadowPassArray::samplerSet() const { return m_samplerSet; }
+auto ShadowPassArray::samplerSet() const -> VkDescriptorSet
+{
+    return m_samplerSet;
+}
 
-VkDescriptorSet ShadowPassArray::textureSet() const { return m_shadowmapSet; }
+auto ShadowPassArray::textureSet() const -> VkDescriptorSet
+{
+    return m_shadowmapSet;
+}
 
 void ShadowPassArray::cleanup(
-    VkDevice const device, VmaAllocator const allocator
+    VkDevice const device, VmaAllocator const /*allocator*/
 )
 {
     for (auto& image : m_shadowmaps)

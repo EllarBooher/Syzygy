@@ -17,6 +17,10 @@ namespace gputypes
 struct Atmosphere;
 struct Camera;
 } // namespace gputypes
+namespace szg_image
+{
+struct ImageView;
+}
 namespace scene
 {
 struct Scene;

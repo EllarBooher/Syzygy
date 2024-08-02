@@ -2,6 +2,7 @@
 
 #include <fmt/core.h>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/vec2.hpp>
 #include <optional>
 
 namespace
@@ -33,7 +34,6 @@ auto isDown_glfw(bool const currentDown, int32_t const action) -> bool
     switch (action)
     {
     case (GLFW_REPEAT):
-        return true;
     case (GLFW_PRESS):
         return true;
     case (GLFW_RELEASE):
@@ -48,10 +48,8 @@ auto toString(szg_input::KeyStatus const status) -> std::string
     {
         return status.edge ? "PRESSED" : "HELD";
     }
-    else
-    {
-        return status.edge ? "RELEASED" : "NONE";
-    }
+
+    return status.edge ? "RELEASED" : "NONE";
 }
 auto toString(szg_input::KeyCode const key) -> std::string
 {
@@ -111,7 +109,7 @@ void szg_input::InputHandler::callbackMouse_glfw(
 }
 
 void szg_input::InputHandler::handleKey_glfw(
-    int32_t key, int32_t scancode, int32_t action, int32_t mods
+    int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/
 )
 {
     std::optional<szg_input::KeyCode> const keyResult{toKeyCode_glfw(key)};
@@ -136,8 +134,8 @@ auto szg_input::InputHandler::collect() -> InputSnapshot
     KeySnapshot keys{};
     for (size_t index{0}; index < m_keysNew.keysDown.size(); index++)
     {
-        bool oldDown{m_keysOld.keysDown[index]};
-        bool isDown{m_keysNew.keysDown[index]};
+        bool const oldDown{m_keysOld.keysDown[index]};
+        bool const isDown{m_keysNew.keysDown[index]};
 
         keys.keys[index] = KeyStatus{
             .down = isDown,

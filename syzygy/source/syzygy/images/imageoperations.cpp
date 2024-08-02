@@ -1,5 +1,7 @@
 #include "imageoperations.hpp"
 
+#include "syzygy/core/integer.hpp"
+#include "syzygy/images/imageoperations.hpp"
 #include "syzygy/initializers.hpp"
 #include <glm/gtx/compatibility.hpp>
 

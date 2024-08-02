@@ -65,9 +65,7 @@ auto ui::renderHUD(UIPreferences& preferences) -> ui::HUDState
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0F);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
 
-        bool const backgroundWindow{
-            ImGui::Begin("BackgroundWindow", nullptr, WINDOW_INVISIBLE_FLAGS)
-        };
+        ImGui::Begin("BackgroundWindow", nullptr, WINDOW_INVISIBLE_FLAGS);
 
         ImGui::PopStyleVar(3);
 

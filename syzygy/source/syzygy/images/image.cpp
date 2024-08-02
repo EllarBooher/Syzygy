@@ -3,6 +3,8 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/imageoperations.hpp"
 #include <fmt/core.h>
+#include <fmt/format.h>
+#include <utility>
 
 szg_image::Image::Image(Image&& other) noexcept
 {
@@ -145,7 +147,7 @@ auto szg_image::Image::format() const -> VkFormat
     return m_memory.imageCreateInfo.format;
 }
 
-auto szg_image::Image::image() -> VkImage { return m_memory.image; }
+auto szg_image::Image::image() const -> VkImage { return m_memory.image; }
 
 auto szg_image::Image::expectedLayout() const -> VkImageLayout
 {

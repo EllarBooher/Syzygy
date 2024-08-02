@@ -277,7 +277,7 @@ void Engine::recordDraw(
 
     { // Copy cameras to gpu
         gputypes::Camera const mainCamera{
-            scene.camera.toDeviceEquivalent(aspectRatio)
+            scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
         m_camerasBuffer->clearStaged();
