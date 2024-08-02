@@ -5,6 +5,9 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
+#include "syzygy/images/image.hpp"
+#include "syzygy/images/imageoperations.hpp"
+#include "syzygy/initializers.hpp"
 #include <cassert>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp> // IWYU pragma: keep
@@ -20,6 +23,9 @@
 #include <glm/vec4.hpp>
 #include <span>
 #include <utility>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
 
 namespace
 {
@@ -117,6 +123,141 @@ auto uploadMeshToGPU(
     return std::make_unique<GPUMeshBuffers>(
         std::move(indexBuffer), std::move(vertexBuffer)
     );
+}
+
+auto RGBAfromJPEG_stbi(std::span<uint8_t const> const bytes)
+    -> std::optional<szg_assets::ImageRGBA>
+{
+    int32_t x{0};
+    int32_t y{0};
+
+    int32_t components{0};
+    int32_t constexpr RGBA_COMPONENT_COUNT{4};
+
+    stbi_uc* const parsedImage{stbi_load_from_memory(
+        bytes.data(), bytes.size(), &x, &y, &components, RGBA_COMPONENT_COUNT
+    )};
+
+    if (parsedImage == nullptr)
+    {
+        Error("Parsed image is null.");
+        return std::nullopt;
+    }
+
+    if (x < 1 || y < 1)
+    {
+        Error(fmt::format("Parsed JPEG had invalid dimensions: ({},{})", x, y));
+        return std::nullopt;
+    }
+
+    auto ux{static_cast<uint32_t>(x)};
+    auto uy{static_cast<uint32_t>(y)};
+    std::vector<uint8_t> rgba{parsedImage, parsedImage + ux * uy};
+
+    delete parsedImage;
+
+    return szg_assets::ImageRGBA{.x = ux, .y = uy, .bytes = rgba};
+}
+
+auto uploadImageToGPU(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    ImmediateSubmissionQueue const& submissionQueue,
+    VkFormat const format,
+    VkImageUsageFlags const additionalFlags,
+    szg_assets::ImageRGBA const& image
+) -> std::optional<std::unique_ptr<szg_image::Image>>
+{
+    VkExtent2D const imageExtent{.width = image.x, .height = image.y};
+
+    std::optional<std::unique_ptr<szg_image::Image>> const& stagingImageResult{
+        szg_image::Image::allocate(
+            device,
+            allocator,
+            szg_image::ImageAllocationParameters{
+                .extent = imageExtent,
+                .format = VK_FORMAT_R8G8B8A8_UNORM,
+                .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                            | VK_IMAGE_USAGE_STORAGE_BIT,
+                .initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED,
+                .tiling = VK_IMAGE_TILING_LINEAR,
+                .vmaUsage = VMA_MEMORY_USAGE_CPU_ONLY,
+                .vmaFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            }
+        )
+    };
+    if (!stagingImageResult.has_value())
+    {
+        Error("Failed to allocate staging image.");
+        return std::nullopt;
+    }
+    szg_image::Image& stagingImage{*stagingImageResult.value()};
+
+    std::optional<VmaAllocationInfo> const allocationInfo{
+        stagingImage.fetchAllocationInfo()
+    };
+
+    if (allocationInfo.has_value()
+        && allocationInfo.value().pMappedData != nullptr)
+    {
+        auto* const stagingImageData{
+            reinterpret_cast<uint8_t*>(allocationInfo.value().pMappedData)
+        };
+
+        std::copy(image.bytes.begin(), image.bytes.end(), stagingImageData);
+    }
+    else
+    {
+        Error("Failed to map bytes of staging image.");
+        return std::nullopt;
+    }
+
+    std::optional<std::unique_ptr<szg_image::Image>> finalImageResult{
+        szg_image::Image::allocate(
+            device,
+            allocator,
+            szg_image::ImageAllocationParameters{
+                .extent = imageExtent,
+                .format = format,
+                .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT | additionalFlags,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .tiling = VK_IMAGE_TILING_OPTIMAL
+            }
+        )
+    };
+    if (!finalImageResult.has_value())
+    {
+        Error("Failed to allocate final image.");
+        return std::nullopt;
+    }
+    szg_image::Image& finalImage{*finalImageResult.value()};
+
+    if (auto const submissionResult{submissionQueue.immediateSubmit(
+            transferQueue,
+            [&](VkCommandBuffer const cmd)
+    {
+        stagingImage.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        finalImage.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        szg_image::Image::recordCopyEntire(
+            cmd, stagingImage, finalImage, VK_IMAGE_ASPECT_COLOR_BIT
+        );
+    }
+        )};
+        submissionResult != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
+    {
+        Error("Failed to copy images.");
+        return std::nullopt;
+    }
+
+    return std::move(finalImageResult).value();
 }
 } // namespace
 
@@ -305,8 +446,8 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
     {
         return AssetLoadingError{
             .message = fmt::format(
-                "Unable to parse path at \"{}\", this indicates the asset "
-                "does not exist or the path is malformed",
+                "Unable to parse path at \"{}\", this indicates the asset does "
+                "not exist or the path is malformed",
                 localPath
             ),
         };
@@ -319,8 +460,8 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
     {
         return AssetLoadingError{
             .message = fmt::format(
-                "Unable to parse path at \"{}\", this indicates the asset "
-                "does not exist or the path is malformed",
+                "Unable to parse path at \"{}\", this indicates the asset does "
+                "not exist or the path is malformed",
                 localPath
             ),
         };
@@ -348,4 +489,53 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
         .fileName = path.filename().string(),
         .fileBytes = buffer,
     };
+}
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+auto szg_assets::loadTextureFromFile(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    ImmediateSubmissionQueue const& submissionQueue,
+    std::string const& localPath,
+    VkImageUsageFlags const additionalFlags
+) -> std::optional<std::unique_ptr<szg_image::Image>>
+{
+    Log(fmt::format("Loading Texture from '{}'", localPath));
+    AssetLoadingResult const fileResult{loadAssetFile(localPath)};
+    return std::visit(
+        overloaded{
+            [&](AssetFile const& file)
+    {
+        std::optional<szg_assets::ImageRGBA> imageResult{
+            RGBAfromJPEG_stbi(file.fileBytes)
+        };
+        if (!imageResult.has_value())
+        {
+            Error("Failed to convert file from JPEG.");
+            return std::optional<std::unique_ptr<szg_image::Image>>{};
+        }
+
+        return uploadImageToGPU(
+            device,
+            allocator,
+            transferQueue,
+            submissionQueue,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            additionalFlags,
+            imageResult.value()
+        );
+    },
+            [&](AssetLoadingError const& error)
+    {
+        Error(fmt::format("Failed to load asset for texture: {}", error.message)
+        );
+        return std::optional<std::unique_ptr<szg_image::Image>>{};
+    }
+        },
+        fileResult
+    );
 }

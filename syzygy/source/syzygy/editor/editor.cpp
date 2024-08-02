@@ -21,6 +21,7 @@
 #include "syzygy/initializers.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
+#include "syzygy/ui/texturedisplay.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -663,6 +664,44 @@ auto Editor::run() -> EditorResult
         return EditorResult::ERROR_EDITOR;
     }
 
+    // Load textures as a test of image loading functionality
+    std::vector<std::unique_ptr<szg_image::Image>> testImages{};
+    if (auto textureLoadResult{szg_assets::loadTextureFromFile(
+            m_graphics.vulkanContext().device,
+            m_graphics.allocator(),
+            m_graphics.vulkanContext().graphicsQueue,
+            submissionQueue,
+            "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
+            "bishop_black_base_color.jpg",
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        )};
+        textureLoadResult.has_value())
+    {
+        testImages.push_back(std::move(textureLoadResult).value());
+    }
+
+    // A test widget that can display a texture in a UI window
+    std::unique_ptr<ui::TextureDisplay> testImageWidget{};
+    if (
+
+        std::optional<ui::TextureDisplay> textureDisplayResult{
+            ui::TextureDisplay::create(
+                m_graphics.vulkanContext().device,
+                m_graphics.allocator(),
+                VkExtent2D{4096, 4096},
+                VK_FORMAT_R16G16B16A16_SFLOAT
+            )
+        }; textureDisplayResult.has_value())
+    {
+        testImageWidget = std::make_unique<ui::TextureDisplay>(
+            std::move(textureDisplayResult).value()
+        );
+    }
+    else
+    {
+        Error("Failed to create widget to display images.");
+    }
+
     bool inputCapturedByScene{false};
     scene::Scene scene{scene::Scene::defaultScene(
         m_graphics.vulkanContext().device, m_graphics.allocator(), meshAssets
@@ -792,6 +831,16 @@ auto Editor::run() -> EditorResult
                 m_window.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
             );
             ImGui::SetWindowFocus(nullptr);
+        }
+
+        if (testImageWidget != nullptr && !testImages.empty())
+        {
+            testImageWidget->uiRender(
+                "TEST IMAGE",
+                uiResults.dockingLayout.right,
+                currentFrame.mainCommandBuffer,
+                *testImages[0]
+            );
         }
 
         ui::sceneControlsWindow(

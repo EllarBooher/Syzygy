@@ -59,6 +59,7 @@ public:
     // WARNING: Do not destroy this image. Be careful of implicit layout
     // transitions, which may break the guarantee of Image::expectedLayout.
     auto image() -> VkImage;
+    auto fetchAllocationInfo() -> std::optional<VmaAllocationInfo>;
 
     auto expectedLayout() const -> VkImageLayout;
     void recordTransitionBarriered(

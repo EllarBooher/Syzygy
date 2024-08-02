@@ -9,6 +9,10 @@
 #include <variant>
 #include <vector>
 
+namespace szg_image
+{
+struct Image;
+}
 struct ImmediateSubmissionQueue;
 
 // An interval of indices from an index buffer.
@@ -52,3 +56,21 @@ struct AssetLoadingError
 using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
 
 AssetLoadingResult loadAssetFile(std::string const& localPath);
+
+namespace szg_assets
+{
+struct ImageRGBA
+{
+    uint32_t x{0};
+    uint32_t y{0};
+    std::vector<uint8_t> bytes{};
+};
+auto loadTextureFromFile(
+    VkDevice,
+    VmaAllocator,
+    VkQueue const transferQueue,
+    ImmediateSubmissionQueue const&,
+    std::string const& localPath,
+    VkImageUsageFlags const additionalFlags
+) -> std::optional<std::unique_ptr<szg_image::Image>>;
+} // namespace szg_assets

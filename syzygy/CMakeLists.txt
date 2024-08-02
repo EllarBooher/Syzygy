@@ -28,6 +28,7 @@ add_library(
 	"source/syzygy/ui/propertytable.cpp"
 	"source/syzygy/ui/widgets.cpp"
 	"source/syzygy/ui/dockinglayout.cpp"
+	"source/syzygy/ui/texturedisplay.cpp"
 
 	"source/syzygy/deferred/deferred.cpp"
 	"source/syzygy/deferred/gbuffer.cpp"
@@ -173,6 +174,17 @@ add_library(spirv-reflect
 )
 target_include_directories(spirv-reflect PUBLIC ${SPIRV-REFLECT_SOURCE_DIR})
 
+# Include a single stb header instead of the entire repo
+set(STB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/thirdparty/stb")
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE "${STB_SOURCE_DIR}/include")
+target_compile_definitions(
+	syzygy
+	PUBLIC
+	STBI_ONLY_JPEG
+	STBI_MAX_DIMENSIONS=2048
+)
+
 target_link_libraries(
 	syzygy
 	PUBLIC
@@ -186,6 +198,7 @@ target_link_libraries(
 	fastgltf
 	fmt::fmt
 	volk
+	stb
 )
 
 add_executable(Syzygy main.cpp)

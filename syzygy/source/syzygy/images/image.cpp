@@ -150,6 +150,20 @@ auto szg_image::Image::format() const -> VkFormat
 // NOLINTNEXTLINE(readability-make-member-function-const)
 auto szg_image::Image::image() -> VkImage { return m_memory.image; }
 
+// NOLINTNEXTLINE(readability-make-member-function-const)
+auto szg_image::Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
+{
+    if (m_memory.allocator == VK_NULL_HANDLE)
+    {
+        return std::nullopt;
+    }
+    VmaAllocationInfo allocationInfo;
+    vmaGetAllocationInfo(
+        m_memory.allocator, m_memory.allocation, &allocationInfo
+    );
+    return allocationInfo;
+}
+
 auto szg_image::Image::expectedLayout() const -> VkImageLayout
 {
     return m_recordedLayout;

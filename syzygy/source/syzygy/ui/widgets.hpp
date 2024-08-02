@@ -13,6 +13,8 @@ struct Scene;
 struct MeshAssetLibrary;
 struct RingBuffer;
 
+// A collection of ui widgets that are free standing functions.
+
 namespace ui
 {
 void performanceWindow(
