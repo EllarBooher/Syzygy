@@ -209,7 +209,7 @@ auto endFrame(
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
-    AllocatedImage& sourceTexture,
+    szg_image::Image& sourceTexture,
     VkRect2D const sourceSubregion
 ) -> VkResult
 {
@@ -240,7 +240,7 @@ auto endFrame(
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
 
     sourceTexture.recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
     );
 
     vkutil::transitionImage(
@@ -474,7 +474,7 @@ auto uiBegin(
 auto uiRecordDraw(
     VkCommandBuffer const cmd,
     scene::SceneTexture& sceneTexture,
-    AllocatedImage& windowTexture
+    szg_image::ImageView& windowTexture
 ) -> VkRect2D
 {
     sceneTexture.texture().recordTransitionBarriered(
@@ -599,19 +599,25 @@ auto Editor::run() -> EditorResult
         Error("Failed to allocate scene texture");
         return EditorResult::ERROR_EDITOR;
     }
-    std::optional<AllocatedImage> windowTextureResult{AllocatedImage::allocate(
-        m_graphics.allocator(),
-        m_graphics.vulkanContext().device,
-        AllocatedImage::AllocationParameters{
-            .extent = TEXTURE_MAX,
-            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT // copy to swapchain
-                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy from scene
-                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
-            .viewFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-        }
-    )};
+    std::optional<std::unique_ptr<szg_image::ImageView>> windowTextureResult{
+        szg_image::ImageView::allocate(
+            m_graphics.vulkanContext().device,
+            m_graphics.allocator(),
+            szg_image::ImageAllocationParameters{
+                .extent = TEXTURE_MAX,
+                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                .usageFlags =
+                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT        // copy to swapchain
+                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT      // copy from scene
+                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
+
+            },
+            szg_image::ImageViewAllocationParameters{
+                .subresourceRange =
+                    vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+            }
+        )
+    };
     if (!windowTextureResult.has_value())
     {
         Warning("Failed to allocate window texture.");
@@ -661,7 +667,7 @@ auto Editor::run() -> EditorResult
     )};
 
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
-    AllocatedImage& windowTexture = windowTextureResult.value();
+    szg_image::ImageView& windowTexture = *windowTextureResult.value();
 
     Engine* const renderer = Engine::loadEngine(
         m_window,
@@ -808,7 +814,7 @@ auto Editor::run() -> EditorResult
                 vulkanContext.device,
                 vulkanContext.graphicsQueue,
                 currentFrame.mainCommandBuffer,
-                windowTexture,
+                windowTexture.image(),
                 windowTextureDrawArea
             )};
             endFrameResult != VK_SUCCESS)
