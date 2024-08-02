@@ -114,7 +114,7 @@ FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept
     m_frameNumber = std::exchange(other.m_frameNumber, 0);
 }
 
-FrameBuffer::~FrameBuffer() noexcept { destroy(); }
+FrameBuffer::~FrameBuffer() { destroy(); }
 
 auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
     -> std::optional<FrameBuffer>

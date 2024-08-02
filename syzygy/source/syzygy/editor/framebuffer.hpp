@@ -32,7 +32,7 @@ public:
     FrameBuffer& operator=(FrameBuffer const&) = delete;
 
     FrameBuffer(FrameBuffer&&) noexcept;
-    ~FrameBuffer() noexcept;
+    ~FrameBuffer();
 
 private:
     FrameBuffer() = default;
