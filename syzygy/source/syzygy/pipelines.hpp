@@ -266,7 +266,7 @@ public:
         float lineWidth,
         VkRect2D drawRect,
         szg_image::ImageView& color,
-        AllocatedImage& depth,
+        szg_image::ImageView& depth,
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& cameras,
         TStagedBuffer<Vertex> const& endpoints,

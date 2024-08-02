@@ -95,7 +95,7 @@ private:
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{4096, 4096};
 
     // Depth image used for graphics passes
-    std::unique_ptr<AllocatedImage> m_sceneDepthTexture{};
+    std::unique_ptr<szg_image::ImageView> m_sceneDepthTexture{};
 
     // Pipelines
 

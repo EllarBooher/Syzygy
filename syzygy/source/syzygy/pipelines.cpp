@@ -466,7 +466,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     float const lineWidth,
     VkRect2D const drawRect,
     szg_image::ImageView& color,
-    AllocatedImage& depth,
+    szg_image::ImageView& depth,
     uint32_t const cameraIndex,
     TStagedBuffer<gputypes::Camera> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,

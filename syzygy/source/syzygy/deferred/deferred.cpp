@@ -485,7 +485,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
     szg_image::Image& color,
-    AllocatedImage& depth,
+    szg_image::ImageView& depth,
     std::span<gputypes::LightDirectional const> const directionalLights,
     std::span<gputypes::LightSpot const> const spotLights,
     uint32_t const viewCameraIndex,
@@ -921,7 +921,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, AllocatedImage& depthImage
+    VkDevice const device, szg_image::ImageView& depthImage
 )
 {
     VkDescriptorImageInfo const depthImageInfo{

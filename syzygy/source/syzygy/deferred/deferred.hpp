@@ -32,7 +32,7 @@ public:
         VkCommandBuffer cmd,
         VkRect2D drawRect,
         szg_image::Image& color,
-        AllocatedImage& depth,
+        szg_image::ImageView& depth,
         std::span<gputypes::LightDirectional const> directionalLights,
         std::span<gputypes::LightSpot const> spotLights,
         uint32_t viewCameraIndex,
@@ -42,7 +42,8 @@ public:
         std::span<scene::MeshInstanced const> sceneGeometry
     );
 
-    void updateRenderTargetDescriptors(VkDevice, AllocatedImage& depthImage);
+    void
+    updateRenderTargetDescriptors(VkDevice, szg_image::ImageView& depthImage);
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 

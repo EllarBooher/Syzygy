@@ -9,6 +9,7 @@
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images.hpp"
+#include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
@@ -89,24 +90,26 @@ void Engine::initDrawTargets(
         MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
 
-    if (std::optional<AllocatedImage> sceneDepthResult{AllocatedImage::allocate(
-            allocator,
-            device,
-            AllocatedImage::AllocationParameters{
-                .extent = RESERVED_IMAGE_EXTENT,
-                .format = VK_FORMAT_D32_SFLOAT,
-                .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-                            | VK_IMAGE_USAGE_SAMPLED_BIT
-                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                .viewFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
-                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-            }
-        )};
+    if (std::optional<std::unique_ptr<szg_image::ImageView>> sceneDepthResult{
+            szg_image::ImageView::allocate(
+                device,
+                allocator,
+                szg_image::ImageAllocationParameters{
+                    .extent = RESERVED_IMAGE_EXTENT,
+                    .format = VK_FORMAT_D32_SFLOAT,
+                    .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                                | VK_IMAGE_USAGE_SAMPLED_BIT
+                                | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                },
+                szg_image::ImageViewAllocationParameters{
+                    .subresourceRange =
+                        vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+                }
+            )
+        };
         sceneDepthResult.has_value())
     {
-        m_sceneDepthTexture =
-            std::make_unique<AllocatedImage>(std::move(sceneDepthResult).value()
-            );
+        m_sceneDepthTexture = std::move(sceneDepthResult).value();
     }
     else
     {
@@ -140,7 +143,7 @@ void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
         device,
         DebugLineGraphicsPipeline::ImageFormats{
             .color = VK_FORMAT_R16G16B16A16_SFLOAT,
-            .depth = m_sceneDepthTexture->format(),
+            .depth = m_sceneDepthTexture->image().format(),
         }
     );
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
