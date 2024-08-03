@@ -107,8 +107,6 @@ void Frame::destroy(VkDevice const device)
 
 FrameBuffer::FrameBuffer(FrameBuffer&& other) noexcept
 {
-    destroy();
-
     m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
     m_frames = std::move(other.m_frames);
     m_frameNumber = std::exchange(other.m_frameNumber, 0);

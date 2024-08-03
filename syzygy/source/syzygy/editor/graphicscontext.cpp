@@ -83,8 +83,6 @@ auto createAllocator(
 
 GraphicsContext::GraphicsContext(GraphicsContext&& other) noexcept
 {
-    destroy();
-
     m_instance = std::exchange(other.m_instance, VK_NULL_HANDLE);
     m_debugMessenger = std::exchange(other.m_debugMessenger, VK_NULL_HANDLE);
     m_surface = std::exchange(other.m_surface, VK_NULL_HANDLE);
