@@ -8,29 +8,23 @@ struct GLFWwindow;
 struct PlatformWindow
 {
 public:
-    PlatformWindow() noexcept = default;
+    PlatformWindow& operator=(PlatformWindow&&) = delete;
+    PlatformWindow(PlatformWindow const&) = delete;
+    PlatformWindow& operator=(PlatformWindow const&) = delete;
 
-    PlatformWindow(PlatformWindow&& other) noexcept;
+    PlatformWindow(PlatformWindow&&) noexcept;
+    ~PlatformWindow();
 
-    PlatformWindow& operator=(PlatformWindow&& other) noexcept;
+private:
+    PlatformWindow() = default;
+    void destroy();
 
-    ~PlatformWindow() noexcept { destroy(); }
-
-    PlatformWindow(PlatformWindow const& other) = delete;
-    PlatformWindow& operator=(PlatformWindow const& other) = delete;
-
+public:
     static auto create(glm::u16vec2 extent) -> std::optional<PlatformWindow>;
 
     auto extent() const -> glm::u16vec2;
     auto handle() const -> GLFWwindow*;
 
 private:
-    void destroy();
-
-    explicit PlatformWindow(GLFWwindow* handle)
-        : m_handle(handle)
-    {
-    }
-
     GLFWwindow* m_handle{nullptr};
 };

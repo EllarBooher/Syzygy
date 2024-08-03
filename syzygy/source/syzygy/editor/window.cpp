@@ -17,22 +17,17 @@ auto PlatformWindow::extent() const -> glm::u16vec2
 
 PlatformWindow::PlatformWindow(PlatformWindow&& other) noexcept
 {
-    *this = std::move(other);
-}
-
-auto PlatformWindow::operator=(PlatformWindow&& other) noexcept
-    -> PlatformWindow&
-{
-    destroy();
-
     m_handle = std::exchange(other.m_handle, nullptr);
-
-    return *this;
 }
+
+PlatformWindow::~PlatformWindow() { destroy(); }
 
 auto PlatformWindow::create(glm::u16vec2 const extent)
     -> std::optional<PlatformWindow>
 {
+    std::optional<PlatformWindow> windowResult{std::in_place, PlatformWindow{}};
+    PlatformWindow& window{windowResult.value()};
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
@@ -53,9 +48,15 @@ auto PlatformWindow::create(glm::u16vec2 const extent)
         return std::nullopt;
     }
 
-    return PlatformWindow{handle};
+    window.m_handle = handle;
+
+    return windowResult;
 }
 
-void PlatformWindow::destroy() { glfwDestroyWindow(m_handle); }
+void PlatformWindow::destroy()
+{
+    glfwDestroyWindow(m_handle);
+    m_handle = nullptr;
+}
 
 auto PlatformWindow::handle() const -> GLFWwindow* { return m_handle; }
