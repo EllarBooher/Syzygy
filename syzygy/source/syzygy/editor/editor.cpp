@@ -93,16 +93,16 @@ auto initialize() -> std::optional<EditorResources>
         Error("Failed to create graphics context.");
         return std::nullopt;
     }
-    VulkanContext const& vulkanContext{graphicsResult.value().vulkanContext()};
+    GraphicsContext& graphicsContext{graphicsResult.value()};
 
     Log("Created Graphics Context.");
 
     Log("Creating Swapchain...");
 
     std::optional<Swapchain> swapchainResult{Swapchain::create(
-        vulkanContext.physicalDevice,
-        vulkanContext.device,
-        vulkanContext.surface,
+        graphicsContext.physicalDevice(),
+        graphicsContext.device(),
+        graphicsContext.surface(),
         windowResult.value().extent(),
         std::optional<VkSwapchainKHR>{}
     )};
@@ -117,7 +117,7 @@ auto initialize() -> std::optional<EditorResources>
     Log("Creating Frame Buffer...");
 
     std::optional<FrameBuffer> frameBufferResult{FrameBuffer::create(
-        vulkanContext.device, vulkanContext.graphicsQueueFamily
+        graphicsContext.device(), graphicsContext.universalQueueFamily()
     )};
     if (!frameBufferResult.has_value())
     {
@@ -597,11 +597,11 @@ auto szg_editor::run() -> EditorResult
         mainWindow.handle(), szg_input::InputHandler::callbackMouse_glfw
     );
     VkDescriptorPool const imguiPool{uiInit(
-        graphicsContext.vulkanContext().instance,
-        graphicsContext.vulkanContext().physicalDevice,
-        graphicsContext.vulkanContext().device,
-        graphicsContext.vulkanContext().graphicsQueueFamily,
-        graphicsContext.vulkanContext().graphicsQueue,
+        graphicsContext.instance(),
+        graphicsContext.physicalDevice(),
+        graphicsContext.device(),
+        graphicsContext.universalQueueFamily(),
+        graphicsContext.universalQueue(),
         mainWindow.handle()
     )};
 
@@ -609,7 +609,7 @@ auto szg_editor::run() -> EditorResult
     VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
     std::optional<scene::SceneTexture> sceneTextureResult{
         scene::SceneTexture::create(
-            graphicsContext.vulkanContext().device,
+            graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.descriptorAllocator(),
             TEXTURE_MAX,
@@ -623,7 +623,7 @@ auto szg_editor::run() -> EditorResult
     }
     std::optional<std::unique_ptr<szg_image::ImageView>> windowTextureResult{
         szg_image::ImageView::allocate(
-            graphicsContext.vulkanContext().device,
+            graphicsContext.device(),
             graphicsContext.allocator(),
             szg_image::ImageAllocationParameters{
                 .extent = TEXTURE_MAX,
@@ -648,8 +648,7 @@ auto szg_editor::run() -> EditorResult
 
     ImmediateSubmissionQueue submissionQueue{};
     if (auto result{ImmediateSubmissionQueue::create(
-            graphicsContext.vulkanContext().device,
-            graphicsContext.vulkanContext().graphicsQueueFamily
+            graphicsContext.device(), graphicsContext.universalQueueFamily()
         )};
         result.has_value())
     {
@@ -663,9 +662,9 @@ auto szg_editor::run() -> EditorResult
 
     MeshAssetLibrary meshAssets{};
     if (auto result{loadGltfMeshes(
-            graphicsContext.vulkanContext().device,
+            graphicsContext.device(),
             graphicsContext.allocator(),
-            graphicsContext.vulkanContext().graphicsQueue,
+            graphicsContext.universalQueue(),
             submissionQueue,
             "assets/vkguide/basicmesh.glb"
         )};
@@ -686,9 +685,9 @@ auto szg_editor::run() -> EditorResult
     // Load textures as a test of image loading functionality
     std::vector<std::unique_ptr<szg_image::Image>> testImages{};
     if (auto textureLoadResult{szg_assets::loadTextureFromFile(
-            graphicsContext.vulkanContext().device,
+            graphicsContext.device(),
             graphicsContext.allocator(),
-            graphicsContext.vulkanContext().graphicsQueue,
+            graphicsContext.universalQueue(),
             submissionQueue,
             "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
             "bishop_black_base_color.jpg",
@@ -703,7 +702,7 @@ auto szg_editor::run() -> EditorResult
     std::unique_ptr<ui::TextureDisplay> testImageWidget{};
     if (std::optional<ui::TextureDisplay> textureDisplayResult{
             ui::TextureDisplay::create(
-                graphicsContext.vulkanContext().device,
+                graphicsContext.device(),
                 graphicsContext.allocator(),
                 TEXTURE_MAX,
                 VK_FORMAT_R16G16B16A16_SFLOAT
@@ -722,9 +721,7 @@ auto szg_editor::run() -> EditorResult
 
     bool inputCapturedByScene{false};
     scene::Scene scene{scene::Scene::defaultScene(
-        graphicsContext.vulkanContext().device,
-        graphicsContext.allocator(),
-        meshAssets
+        graphicsContext.device(), graphicsContext.allocator(), meshAssets
     )};
 
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
@@ -732,14 +729,14 @@ auto szg_editor::run() -> EditorResult
 
     Engine* const renderer = Engine::loadEngine(
         mainWindow,
-        graphicsContext.vulkanContext().instance,
-        graphicsContext.vulkanContext().physicalDevice,
-        graphicsContext.vulkanContext().device,
+        graphicsContext.instance(),
+        graphicsContext.physicalDevice(),
+        graphicsContext.device(),
         graphicsContext.allocator(),
         graphicsContext.descriptorAllocator(),
         sceneTexture,
-        graphicsContext.vulkanContext().graphicsQueue,
-        graphicsContext.vulkanContext().graphicsQueueFamily
+        graphicsContext.universalQueue(),
+        graphicsContext.universalQueueFamily()
     );
     if (renderer == nullptr)
     {
@@ -748,7 +745,7 @@ auto szg_editor::run() -> EditorResult
 
     ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
-    uiReload(graphicsContext.vulkanContext().device, uiPreferences);
+    uiReload(graphicsContext.device(), uiPreferences);
 
     double timeSecondsPrevious{0.0};
     RingBuffer fpsHistory{};
@@ -793,10 +790,9 @@ auto szg_editor::run() -> EditorResult
 
         frameBuffer.increment();
         Frame const& currentFrame{frameBuffer.currentFrame()};
-        VulkanContext const& vulkanContext{graphicsContext.vulkanContext()};
 
         if (VkResult const beginFrameResult{
-                beginFrame(currentFrame, vulkanContext.device)
+                beginFrame(currentFrame, graphicsContext.device())
             };
             beginFrameResult != VK_SUCCESS)
         {
@@ -806,7 +802,7 @@ auto szg_editor::run() -> EditorResult
 
         if (uiReloadNecessary)
         {
-            uiReload(vulkanContext.device, uiPreferences);
+            uiReload(graphicsContext.device(), uiPreferences);
         }
 
         UIResults const uiResults{uiBegin(uiPreferences, ui::UIPreferences{})};
@@ -883,8 +879,8 @@ auto szg_editor::run() -> EditorResult
         if (VkResult const endFrameResult{endFrame(
                 currentFrame,
                 swapchain,
-                vulkanContext.device,
-                vulkanContext.graphicsQueue,
+                graphicsContext.device(),
+                graphicsContext.universalQueue(),
                 currentFrame.mainCommandBuffer,
                 windowTexture.image(),
                 windowTextureDrawArea
@@ -902,9 +898,9 @@ auto szg_editor::run() -> EditorResult
 
             std::optional<Swapchain> newSwapchain{rebuildSwapchain(
                 swapchain,
-                vulkanContext.physicalDevice,
-                vulkanContext.device,
-                vulkanContext.surface,
+                graphicsContext.physicalDevice(),
+                graphicsContext.device(),
+                graphicsContext.surface(),
                 mainWindow.extent()
             )};
 
@@ -917,17 +913,15 @@ auto szg_editor::run() -> EditorResult
         }
     }
 
-    vkDeviceWaitIdle(graphicsContext.vulkanContext().device);
+    vkDeviceWaitIdle(graphicsContext.device());
     if (nullptr != renderer)
     {
         renderer->cleanup(
-            graphicsContext.vulkanContext().device, graphicsContext.allocator()
+            graphicsContext.device(), graphicsContext.allocator()
         );
     }
     uiCleanup();
-    vkDestroyDescriptorPool(
-        graphicsContext.vulkanContext().device, imguiPool, nullptr
-    );
+    vkDestroyDescriptorPool(graphicsContext.device(), imguiPool, nullptr);
 
     return EditorResult::SUCCESS;
 }

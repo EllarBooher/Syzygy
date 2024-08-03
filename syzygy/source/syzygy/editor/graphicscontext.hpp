@@ -10,69 +10,42 @@
 struct GLFWwindow;
 struct PlatformWindow;
 
-struct VulkanContext
-{
-    VkInstance instance{VK_NULL_HANDLE};
-    VkDebugUtilsMessengerEXT debugMessenger{VK_NULL_HANDLE};
-    VkSurfaceKHR surface{VK_NULL_HANDLE};
-    VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
-    VkDevice device{VK_NULL_HANDLE};
-
-    VkQueue graphicsQueue{VK_NULL_HANDLE};
-    uint32_t graphicsQueueFamily{};
-
-    static auto create(GLFWwindow* window) -> std::optional<VulkanContext>;
-    void destroy() const;
-};
-
 // Holds the fundamental Vulkan resources.
 struct GraphicsContext
 {
 public:
-    GraphicsContext() = default;
+    GraphicsContext& operator=(GraphicsContext&&) = delete;
+    GraphicsContext(GraphicsContext const&) = delete;
+    GraphicsContext& operator=(GraphicsContext const&) = delete;
 
-    GraphicsContext(GraphicsContext&& other) { *this = std::move(other); }
+    GraphicsContext(GraphicsContext&&) noexcept;
+    ~GraphicsContext();
 
-    GraphicsContext& operator=(GraphicsContext&& other)
-    {
-        destroy();
+    static auto create(PlatformWindow const&) -> std::optional<GraphicsContext>;
 
-        m_vulkan = std::exchange(other.m_vulkan, VulkanContext{});
-        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
-        m_descriptorAllocator = std::move(other.m_descriptorAllocator);
+    auto instance() -> VkInstance;
+    auto surface() -> VkSurfaceKHR;
+    auto physicalDevice() -> VkPhysicalDevice;
+    auto device() -> VkDevice;
+    auto universalQueue() -> VkQueue;
+    auto universalQueueFamily() const -> uint32_t;
 
-        return *this;
-    }
-
-    ~GraphicsContext() noexcept { destroy(); }
-
-    GraphicsContext(GraphicsContext const& other) = delete;
-    GraphicsContext& operator=(GraphicsContext const& other) = delete;
-
-    static auto create(PlatformWindow const& window)
-        -> std::optional<GraphicsContext>;
-
-    auto vulkanContext() const -> VulkanContext const&;
-    auto allocator() const -> VmaAllocator const&;
+    auto allocator() -> VmaAllocator;
     auto descriptorAllocator() -> DescriptorAllocator&;
 
 private:
+    GraphicsContext() = default;
     void destroy();
 
-    explicit GraphicsContext(
-        VulkanContext const& vulkan,
-        VmaAllocator allocator,
-        DescriptorAllocator&& descriptorAllocator
-    )
-        : m_vulkan(vulkan)
-        , m_allocator(allocator)
-        , m_descriptorAllocator{std::make_unique<DescriptorAllocator>(
-              std::move(descriptorAllocator)
-          )}
-    {
-    }
+    VkInstance m_instance{VK_NULL_HANDLE};
+    VkDebugUtilsMessengerEXT m_debugMessenger{VK_NULL_HANDLE};
+    VkSurfaceKHR m_surface{VK_NULL_HANDLE};
+    VkPhysicalDevice m_physicalDevice{VK_NULL_HANDLE};
+    VkDevice m_device{VK_NULL_HANDLE};
 
-    VulkanContext m_vulkan{};
+    VkQueue m_universalQueue{VK_NULL_HANDLE};
+    uint32_t m_universalQueueFamily{};
+
     VmaAllocator m_allocator{VK_NULL_HANDLE};
     std::unique_ptr<DescriptorAllocator> m_descriptorAllocator{};
 };
