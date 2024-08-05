@@ -181,8 +181,7 @@ auto uploadImageToGPU(
     ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
-    szg_assets::ImageRGBA const& image,
-    szg_image::AssetInfo const assetInfo
+    szg_assets::ImageRGBA const& image
 ) -> std::optional<std::unique_ptr<szg_image::Image>>
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
@@ -240,8 +239,7 @@ auto uploadImageToGPU(
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT | additionalFlags,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .tiling = VK_IMAGE_TILING_OPTIMAL
-            },
-            std::move(assetInfo)
+            }
         )
     };
     if (!finalImageResult.has_value())
@@ -519,7 +517,7 @@ auto szg_assets::loadTextureFromFile(
     ImmediateSubmissionQueue const& submissionQueue,
     std::string const& localPath,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<std::unique_ptr<szg_image::Image>>
+) -> std::optional<Asset<szg_image::Image>>
 {
     Log(fmt::format("Loading Texture from '{}'", localPath));
     AssetLoadingResult const fileResult{loadAssetFile(localPath)};
@@ -533,30 +531,61 @@ auto szg_assets::loadTextureFromFile(
         if (!imageResult.has_value())
         {
             Error("Failed to convert file from JPEG.");
-            return std::optional<std::unique_ptr<szg_image::Image>>{};
+            return std::optional<Asset<szg_image::Image>>{};
         }
 
-        return uploadImageToGPU(
-            device,
-            allocator,
-            transferQueue,
-            submissionQueue,
-            VK_FORMAT_R8G8B8A8_UNORM,
-            additionalFlags,
-            imageResult.value(),
-            szg_image::AssetInfo{
-                .displayName = fmt::format("image_{}", file.fileName),
-                .fileLocalPath = localPath,
-            }
-        );
+        std::optional<std::unique_ptr<szg_image::Image>> uploadResult{
+            uploadImageToGPU(
+                device,
+                allocator,
+                transferQueue,
+                submissionQueue,
+                VK_FORMAT_R8G8B8A8_UNORM,
+                additionalFlags,
+                imageResult.value()
+            )
+        };
+        if (!uploadResult.has_value())
+        {
+            Error("Failed to upload image to GPU.");
+            return std::optional<Asset<szg_image::Image>>{};
+        }
+
+        return std::optional<Asset<szg_image::Image>>{Asset<szg_image::Image>{
+            .metadata =
+                AssetMetadata{
+                    .displayName = file.fileName,
+                    .fileLocalPath = localPath,
+                    .id = szg::UUID::createNew(),
+                },
+            .data = std::move(uploadResult).value(),
+        }};
     },
             [&](AssetLoadingError const& error)
     {
         Error(fmt::format("Failed to load asset for texture: {}", error.message)
         );
-        return std::optional<std::unique_ptr<szg_image::Image>>{};
+        return std::optional<Asset<szg_image::Image>>{};
     }
         },
         fileResult
     );
+}
+
+void szg_assets::AssetLibrary::registerAsset(Asset<szg_image::Image>&& asset)
+{
+    m_textures.push_back(std::move(asset));
+}
+
+auto szg_assets::AssetLibrary::fetchAssets()
+    -> std::vector<AssetRef<szg_image::Image>>
+{
+    std::vector<AssetRef<szg_image::Image>> assets{};
+
+    for (auto& texture : m_textures)
+    {
+        assets.push_back(texture);
+    }
+
+    return assets;
 }

@@ -1,12 +1,15 @@
 #include "texturedisplay.hpp"
 
+#include "syzygy/assets.hpp"
 #include "syzygy/core/deletionqueue.hpp"
+#include "syzygy/core/immediate.hpp"
 #include "syzygy/descriptors.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageoperations.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
+#include "syzygy/renderpass/renderpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uiwindow.hpp"
 #include <imgui.h>
@@ -28,6 +31,8 @@ ui::TextureDisplay::~TextureDisplay() { destroy(); }
 auto ui::TextureDisplay::create(
     VkDevice const device,
     VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    ImmediateSubmissionQueue& submissionQueue,
     VkExtent2D const displaySize,
     VkFormat const format
 ) -> std::optional<TextureDisplay>
@@ -68,6 +73,20 @@ auto ui::TextureDisplay::create(
     }
     szg_image::ImageView& texture{*textureResult.value()};
 
+    submissionQueue.immediateSubmit(
+        transferQueue,
+        [&](VkCommandBuffer const cmd)
+    {
+        renderpass::recordClearColorImage(
+            cmd, texture.image(), renderpass::COLOR_BLACK_OPAQUE
+        );
+
+        texture.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    }
+    );
+
     VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
@@ -95,7 +114,7 @@ void ui::TextureDisplay::uiRender(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     VkCommandBuffer const cmd,
-    szg_image::Image& sourceTexture
+    std::span<szg_assets::AssetRef<szg_image::Image> const> const textures
 )
 {
     ui::UIWindow const sceneViewport{
@@ -107,35 +126,97 @@ void ui::TextureDisplay::uiRender(
         return;
     }
 
-    m_image->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-    );
-
-    sourceTexture.recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
-    );
-
-    szg_image::Image::recordCopyEntire(
-        cmd, sourceTexture, m_image->image(), VK_IMAGE_ASPECT_COLOR_BIT
-    );
-
-    m_image->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
-
     glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
 
-    if (std::optional<szg_image::AssetInfo> assetInfo{sourceTexture.assetInfo()
-        };
-        assetInfo.has_value())
+    PropertyTable table{PropertyTable::begin()};
+    table.rowCustom(
+        "Texture to Display",
+        [&]()
     {
-        PropertyTable::begin(title.c_str())
-            .rowReadOnlyText("Name", assetInfo.value().displayName)
-            .rowReadOnlyText(
-                "Local Path on Disk", assetInfo.value().fileLocalPath
-            )
-            .end();
+        ImGui::BeginDisabled(textures.empty());
+
+        std::string const& defaultLabel{"None"};
+
+        if (ImGui::BeginCombo(
+                "##meshSelection",
+                m_cachedMetadata.has_value()
+                    ? m_cachedMetadata.value().displayName.c_str()
+                    : defaultLabel.c_str()
+            ))
+        {
+            size_t const index{0};
+            if (ImGui::Selectable(
+                    defaultLabel.c_str(), !m_cachedMetadata.has_value()
+                ))
+            {
+                if (m_image != nullptr)
+                {
+                    renderpass::recordClearColorImage(
+                        cmd, m_image->image(), renderpass::COLOR_BLACK_OPAQUE
+                    );
+
+                    m_image->recordTransitionBarriered(
+                        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    );
+                }
+
+                m_cachedMetadata = std::nullopt;
+            }
+
+            for (szg_assets::Asset<szg_image::Image> const& texture : textures)
+            {
+                bool const selected{
+                    m_cachedMetadata.has_value()
+                    && texture.metadata.id == m_cachedMetadata.value().id
+                };
+
+                if (ImGui::Selectable(
+                        texture.metadata.displayName.c_str(), selected
+                    )
+                    && texture.data != nullptr)
+                {
+                    if (m_image != nullptr)
+                    {
+                        m_image->recordTransitionBarriered(
+                            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        );
+
+                        texture.data->recordTransitionBarriered(
+                            cmd,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            VK_IMAGE_ASPECT_COLOR_BIT
+                        );
+
+                        szg_image::Image::recordCopyEntire(
+                            cmd,
+                            *texture.data,
+                            m_image->image(),
+                            VK_IMAGE_ASPECT_COLOR_BIT
+                        );
+
+                        m_image->recordTransitionBarriered(
+                            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                        );
+                    }
+
+                    m_cachedMetadata = texture.metadata;
+                    break;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::EndDisabled();
     }
+    );
+    if (m_cachedMetadata.has_value())
+    {
+        szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
+
+        table.rowReadOnlyText("Name", metadata.displayName);
+        table.rowReadOnlyText("Local Path on Disk", metadata.fileLocalPath);
+    }
+    table.end();
 
     double const imageHeight{
         m_image->image().aspectRatio().value_or(1.0) * contentExtent.x

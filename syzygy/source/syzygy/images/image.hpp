@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/core/uuid.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
@@ -7,16 +8,6 @@
 
 namespace szg_image
 {
-
-// Optional information about an image's name, where it was loaded from etc.
-// TODO: this should be moved to the szg_assets namespace and images themselves
-// should not reference this type
-struct AssetInfo
-{
-    std::string displayName;
-    std::string fileLocalPath;
-};
-
 struct ImageMemory
 {
     VkDevice device{VK_NULL_HANDLE};
@@ -56,12 +47,9 @@ private:
     void destroy();
 
 public:
-    static auto allocate(
-        VkDevice,
-        VmaAllocator,
-        ImageAllocationParameters const&,
-        std::optional<AssetInfo> = std::nullopt
-    ) -> std::optional<std::unique_ptr<Image>>;
+    static auto
+    allocate(VkDevice, VmaAllocator, ImageAllocationParameters const&)
+        -> std::optional<std::unique_ptr<Image>>;
 
     // For now, all images are 2D (depth of 1)
     auto extent3D() const -> VkExtent3D;
@@ -69,8 +57,6 @@ public:
 
     auto aspectRatio() const -> std::optional<double>;
     auto format() const -> VkFormat;
-
-    auto assetInfo() const -> std::optional<AssetInfo> const&;
 
     // WARNING: Do not destroy this image. Be careful of implicit layout
     // transitions, which may break the guarantee of Image::expectedLayout.
@@ -100,7 +86,6 @@ public:
     );
 
 private:
-    std::optional<AssetInfo> m_assetInfo{};
     ImageMemory m_memory{};
     VkImageLayout m_recordedLayout{};
 };

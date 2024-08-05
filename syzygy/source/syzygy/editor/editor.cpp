@@ -567,6 +567,36 @@ void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 
     ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
 }
+auto loadDefaultTextures(
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue& submissionQueue,
+    szg_assets::AssetLibrary& library
+)
+{
+    std::vector<std::string> defaultAssets{
+        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
+        "bishop_black_base_color.jpg",
+        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
+        "bishop_black_normal.jpg",
+        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
+        "bishop_black_ORM.jpg",
+    };
+    for (std::string const& path : defaultAssets)
+    {
+        if (auto textureLoadResult{szg_assets::loadTextureFromFile(
+                graphicsContext.device(),
+                graphicsContext.allocator(),
+                graphicsContext.universalQueue(),
+                submissionQueue,
+                path,
+                VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+            )};
+            textureLoadResult.has_value())
+        {
+            library.registerAsset(std::move(textureLoadResult).value());
+        }
+    }
+}
 } // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -682,21 +712,8 @@ auto szg_editor::run() -> EditorResult
         return EditorResult::ERROR;
     }
 
-    // Load textures as a test of image loading functionality
-    std::vector<std::unique_ptr<szg_image::Image>> testImages{};
-    if (auto textureLoadResult{szg_assets::loadTextureFromFile(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
-            "bishop_black_base_color.jpg",
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-        )};
-        textureLoadResult.has_value())
-    {
-        testImages.push_back(std::move(textureLoadResult).value());
-    }
+    szg_assets::AssetLibrary assetLibrary{};
+    loadDefaultTextures(graphicsContext, submissionQueue, assetLibrary);
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<ui::TextureDisplay> testImageWidget{};
@@ -704,6 +721,8 @@ auto szg_editor::run() -> EditorResult
             ui::TextureDisplay::create(
                 graphicsContext.device(),
                 graphicsContext.allocator(),
+                graphicsContext.universalQueue(),
+                submissionQueue,
                 TEXTURE_MAX,
                 VK_FORMAT_R16G16B16A16_SFLOAT
             )
@@ -850,13 +869,14 @@ auto szg_editor::run() -> EditorResult
             ImGui::SetWindowFocus(nullptr);
         }
 
-        if (testImageWidget != nullptr && !testImages.empty())
         {
+            auto const loadedTextures{assetLibrary.fetchAssets()};
+
             testImageWidget->uiRender(
-                "TEST IMAGE",
+                "Texture Viewer",
                 uiResults.dockingLayout.right,
                 currentFrame.mainCommandBuffer,
-                *testImages[0]
+                loadedTextures
             );
         }
 

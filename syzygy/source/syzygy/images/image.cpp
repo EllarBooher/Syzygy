@@ -60,8 +60,7 @@ void szg_image::Image::destroy()
 auto szg_image::Image::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
-    ImageAllocationParameters const& parameters,
-    std::optional<AssetInfo> const assetInfo
+    ImageAllocationParameters const& parameters
 ) -> std::optional<std::unique_ptr<Image>>
 {
     VkExtent3D const extent3D{
@@ -105,8 +104,6 @@ auto szg_image::Image::allocate(
         std::in_place, std::make_unique<Image>(Image{})
     };
     Image& image{*imageResult.value()};
-
-    image.m_assetInfo = std::move(assetInfo);
 
     VkImage imageHandle;
     VmaAllocation allocation;
@@ -156,11 +153,6 @@ auto szg_image::Image::aspectRatio() const -> std::optional<double>
 auto szg_image::Image::format() const -> VkFormat
 {
     return m_memory.imageCreateInfo.format;
-}
-
-auto szg_image::Image::assetInfo() const -> std::optional<AssetInfo> const&
-{
-    return m_assetInfo;
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)

@@ -45,6 +45,7 @@ add_library(
     "source/syzygy/core/immediate.cpp"
     "source/syzygy/core/scenetexture.cpp" 
 	"source/syzygy/core/input.cpp"
+	"source/syzygy/core/uuid.cpp"
 )
 
 add_dependencies(syzygy Shaders)

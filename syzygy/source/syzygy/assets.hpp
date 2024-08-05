@@ -2,6 +2,7 @@
 
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
+#include "syzygy/core/uuid.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
@@ -59,6 +60,31 @@ AssetLoadingResult loadAssetFile(std::string const& localPath);
 
 namespace szg_assets
 {
+struct AssetMetadata
+{
+    std::string displayName{};
+    std::string fileLocalPath{};
+    szg::UUID id{};
+};
+
+template <typename T> struct Asset
+{
+    AssetMetadata metadata{};
+    std::unique_ptr<T> data{};
+};
+
+template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
+
+class AssetLibrary
+{
+public:
+    void registerAsset(Asset<szg_image::Image>&& asset);
+    auto fetchAssets() -> std::vector<AssetRef<szg_image::Image>>;
+
+private:
+    std::vector<Asset<szg_image::Image>> m_textures{};
+};
+
 struct ImageRGBA
 {
     uint32_t x{0};
@@ -72,5 +98,5 @@ auto loadTextureFromFile(
     ImmediateSubmissionQueue const&,
     std::string const& localPath,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<std::unique_ptr<szg_image::Image>>;
+) -> std::optional<Asset<szg_image::Image>>;
 } // namespace szg_assets
