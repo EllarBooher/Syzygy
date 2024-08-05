@@ -181,7 +181,8 @@ auto uploadImageToGPU(
     ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
-    szg_assets::ImageRGBA const& image
+    szg_assets::ImageRGBA const& image,
+    szg_image::AssetInfo const assetInfo
 ) -> std::optional<std::unique_ptr<szg_image::Image>>
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
@@ -239,7 +240,8 @@ auto uploadImageToGPU(
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT | additionalFlags,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .tiling = VK_IMAGE_TILING_OPTIMAL
-            }
+            },
+            std::move(assetInfo)
         )
     };
     if (!finalImageResult.has_value())
@@ -541,7 +543,11 @@ auto szg_assets::loadTextureFromFile(
             submissionQueue,
             VK_FORMAT_R8G8B8A8_UNORM,
             additionalFlags,
-            imageResult.value()
+            imageResult.value(),
+            szg_image::AssetInfo{
+                .displayName = fmt::format("image_{}", file.fileName),
+                .fileLocalPath = localPath,
+            }
         );
     },
             [&](AssetLoadingError const& error)

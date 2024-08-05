@@ -60,7 +60,8 @@ void szg_image::Image::destroy()
 auto szg_image::Image::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
-    ImageAllocationParameters const& parameters
+    ImageAllocationParameters const& parameters,
+    std::optional<AssetInfo> const assetInfo
 ) -> std::optional<std::unique_ptr<Image>>
 {
     VkExtent3D const extent3D{
@@ -100,12 +101,22 @@ auto szg_image::Image::allocate(
         .usage = parameters.vmaUsage,
     };
 
-    Image finalImage{};
+    std::optional<std::unique_ptr<Image>> imageResult{
+        std::in_place, std::make_unique<Image>(Image{})
+    };
+    Image& image{*imageResult.value()};
 
-    VkImage image;
+    image.m_assetInfo = std::move(assetInfo);
+
+    VkImage imageHandle;
     VmaAllocation allocation;
     VkResult const createImageResult{vmaCreateImage(
-        allocator, &imageInfo, &imageAllocInfo, &image, &allocation, nullptr
+        allocator,
+        &imageInfo,
+        &imageAllocInfo,
+        &imageHandle,
+        &allocation,
+        nullptr
     )};
     if (createImageResult != VK_SUCCESS)
     {
@@ -113,18 +124,18 @@ auto szg_image::Image::allocate(
         return std::nullopt;
     }
 
-    finalImage.m_memory = ImageMemory{
+    image.m_memory = ImageMemory{
         .device = device,
         .allocator = allocator,
         .allocationCreateInfo = imageAllocInfo,
         .allocation = allocation,
         .imageCreateInfo = imageInfo,
-        .image = image,
+        .image = imageHandle,
     };
 
-    finalImage.m_recordedLayout = imageInfo.initialLayout;
+    image.m_recordedLayout = imageInfo.initialLayout;
 
-    return std::make_unique<Image>(std::move(finalImage));
+    return imageResult;
 }
 
 auto szg_image::Image::extent3D() const -> VkExtent3D
@@ -145,6 +156,11 @@ auto szg_image::Image::aspectRatio() const -> std::optional<double>
 auto szg_image::Image::format() const -> VkFormat
 {
     return m_memory.imageCreateInfo.format;
+}
+
+auto szg_image::Image::assetInfo() const -> std::optional<AssetInfo> const&
+{
+    return m_assetInfo;
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)

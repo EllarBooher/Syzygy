@@ -7,6 +7,7 @@
 #include "syzygy/images/imageoperations.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
+#include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uiwindow.hpp"
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
@@ -123,6 +124,19 @@ void ui::TextureDisplay::uiRender(
     );
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+
+    if (std::optional<szg_image::AssetInfo> assetInfo{sourceTexture.assetInfo()
+        };
+        assetInfo.has_value())
+    {
+        PropertyTable::begin(title.c_str())
+            .rowReadOnlyText("Name", assetInfo.value().displayName)
+            .rowReadOnlyText(
+                "Local Path on Disk", assetInfo.value().fileLocalPath
+            )
+            .end();
+    }
+
     double const imageHeight{
         m_image->image().aspectRatio().value_or(1.0) * contentExtent.x
     };
