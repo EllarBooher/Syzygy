@@ -3,9 +3,12 @@
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/integer.hpp"
+#include "syzygy/editor/graphicscontext.hpp"
+#include "syzygy/editor/window.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
+#include "syzygy/utils/platformutils.hpp"
 #include <algorithm>
 #include <cassert>
 #include <fastgltf/core.hpp>
@@ -500,7 +503,46 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
     file.close();
 
     return AssetFile{
-        .fileName = path.filename().string(),
+        .path = path,
+        .fileBytes = buffer,
+    };
+}
+
+auto szg_assets::loadAssetFile(std::filesystem::path const& path)
+    -> std::optional<AssetFile>
+{
+    std::filesystem::path const absolutePath =
+        path.is_absolute()
+            ? path
+            : DebugUtils::getLoadedDebugUtils().makeAbsolutePath(path);
+
+    std::ifstream file(absolutePath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+    {
+        Error(fmt::format("Unable to open file at {}", absolutePath.string()));
+        return std::nullopt;
+    }
+
+    size_t const fileSizeBytes = static_cast<size_t>(file.tellg());
+    if (fileSizeBytes == 0)
+    {
+        Error(fmt::format("File at empty at {}", absolutePath.string()));
+        return std::nullopt;
+    }
+
+    std::vector<uint8_t> buffer(fileSizeBytes);
+
+    file.seekg(0, std::ios::beg);
+    file.read(
+        reinterpret_cast<char*>(buffer.data()),
+        static_cast<std::streamsize>(fileSizeBytes)
+    );
+
+    file.close();
+
+    return AssetFile{
+        .path = absolutePath,
         .fileBytes = buffer,
     };
 }
@@ -509,66 +551,70 @@ template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
+
 auto szg_assets::loadTextureFromFile(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
-    std::string const& localPath,
+    std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
 ) -> std::optional<Asset<szg_image::Image>>
 {
-    Log(fmt::format("Loading Texture from '{}'", localPath));
-    AssetLoadingResult const fileResult{loadAssetFile(localPath)};
-    return std::visit(
-        overloaded{
-            [&](AssetFile const& file)
+    Log(fmt::format("Loading Texture from '{}'", path.string()));
+    std::optional<AssetFile> const fileResult{loadAssetFile(path)};
+    if (!fileResult.has_value())
     {
-        std::optional<szg_assets::ImageRGBA> imageResult{
-            RGBAfromJPEG_stbi(file.fileBytes)
-        };
-        if (!imageResult.has_value())
-        {
-            Error("Failed to convert file from JPEG.");
-            return std::optional<Asset<szg_image::Image>>{};
-        }
-
-        std::optional<std::unique_ptr<szg_image::Image>> uploadResult{
-            uploadImageToGPU(
-                device,
-                allocator,
-                transferQueue,
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                additionalFlags,
-                imageResult.value()
-            )
-        };
-        if (!uploadResult.has_value())
-        {
-            Error("Failed to upload image to GPU.");
-            return std::optional<Asset<szg_image::Image>>{};
-        }
-
-        return std::optional<Asset<szg_image::Image>>{Asset<szg_image::Image>{
-            .metadata =
-                AssetMetadata{
-                    .displayName = file.fileName,
-                    .fileLocalPath = localPath,
-                    .id = szg::UUID::createNew(),
-                },
-            .data = std::move(uploadResult).value(),
-        }};
-    },
-            [&](AssetLoadingError const& error)
-    {
-        Error(fmt::format("Failed to load asset for texture: {}", error.message)
-        );
-        return std::optional<Asset<szg_image::Image>>{};
+        Error(fmt::format(
+            "Failed to load file for texture at '{}'", path.string()
+        ));
+        return std::nullopt;
     }
-        },
-        fileResult
-    );
+
+    AssetFile const& file{fileResult.value()};
+
+    if (std::filesystem::path const extension{file.path.extension()};
+        extension != ".jpg" && extension != ".jpeg")
+    {
+        Warning("Only JPEGs are supported for loading textures.");
+        return std::nullopt;
+    }
+
+    std::optional<szg_assets::ImageRGBA> imageResult{
+        RGBAfromJPEG_stbi(file.fileBytes)
+    };
+    if (!imageResult.has_value())
+    {
+        Error("Failed to convert file from JPEG.");
+        return std::nullopt;
+    }
+
+    std::optional<std::unique_ptr<szg_image::Image>> uploadResult{
+        uploadImageToGPU(
+            device,
+            allocator,
+            transferQueue,
+            submissionQueue,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            additionalFlags,
+            imageResult.value()
+        )
+    };
+    if (!uploadResult.has_value())
+    {
+        Error("Failed to upload image to GPU.");
+        return std::nullopt;
+    }
+
+    return std::optional<Asset<szg_image::Image>>{Asset<szg_image::Image>{
+        .metadata =
+            AssetMetadata{
+                .displayName = file.path.filename().string(),
+                .fileLocalPath = file.path.string(),
+                .id = szg::UUID::createNew(),
+            },
+        .data = std::move(uploadResult).value(),
+    }};
 }
 
 void szg_assets::AssetLibrary::registerAsset(Asset<szg_image::Image>&& asset)
@@ -588,4 +634,33 @@ auto szg_assets::AssetLibrary::fetchAssets()
     }
 
     return assets;
+}
+
+void szg_assets::AssetLibrary::loadTexturesDialog(
+    PlatformWindow const& window,
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue& submissionQueue
+)
+{
+    if (auto const paths{szg_utils::openFiles(window)}; !paths.empty())
+    {
+        for (auto const& path : paths)
+        {
+            auto textureLoadResult{szg_assets::loadTextureFromFile(
+                graphicsContext.device(),
+                graphicsContext.allocator(),
+                graphicsContext.universalQueue(),
+                submissionQueue,
+                DebugUtils::getLoadedDebugUtils().makeRelativePath(path).string(
+                ),
+                VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+            )};
+            if (!textureLoadResult.has_value())
+            {
+                continue;
+            }
+
+            registerAsset(std::move(textureLoadResult).value());
+        }
+    }
 }

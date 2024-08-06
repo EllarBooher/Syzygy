@@ -43,13 +43,17 @@ public:
         VkFormat imageFormat
     ) -> std::optional<TextureDisplay>;
 
+    struct UIResult
+    {
+        bool loadTexturesRequested{false};
+    };
     // Records a copy of the supplied image, and draws the UI window.
-    void uiRender(
+    auto uiRender(
         std::string const& title,
         std::optional<ImGuiID> dockNode,
         VkCommandBuffer,
         std::span<szg_assets::AssetRef<szg_image::Image> const> textures
-    );
+    ) -> UIResult;
 
 private:
     void destroy();

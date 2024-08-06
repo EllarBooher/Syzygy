@@ -555,7 +555,7 @@ auto vkutil::loadShaderObject(
         return std::optional<ShaderObjectReflected>{
             ShaderObjectReflected::fromBytecodeReflected(
                 device,
-                file.fileName,
+                file.path.filename().string(),
                 file.fileBytes,
                 stage,
                 nextStage,
@@ -595,7 +595,7 @@ auto vkutil::loadShaderObject(
         return std::optional<ShaderObjectReflected>{
             ShaderObjectReflected::fromBytecode(
                 device,
-                file.fileName,
+                file.path.filename().string(),
                 file.fileBytes,
                 stage,
                 nextStage,
@@ -652,7 +652,7 @@ auto vkutil::loadShaderModule(VkDevice const device, std::string const& path)
     {
         return std::optional<ShaderModuleReflected>{
             ShaderModuleReflected::FromBytecode(
-                device, file.fileName, file.fileBytes
+                device, file.path.filename().string(), file.fileBytes
             )
         };
     },

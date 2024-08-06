@@ -109,23 +109,25 @@ auto ui::TextureDisplay::create(
     };
 }
 
-void ui::TextureDisplay::uiRender(
+auto ui::TextureDisplay::uiRender(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     VkCommandBuffer const cmd,
     std::span<szg_assets::AssetRef<szg_image::Image> const> const textures
-)
+) -> TextureDisplay::UIResult
 {
     ui::UIWindow const sceneViewport{
         ui::UIWindow::beginDockable(title, dockNode)
     };
 
+    TextureDisplay::UIResult result{};
+
     if (!sceneViewport.open)
     {
-        return;
+        return result;
     }
 
-    glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+    result.loadTexturesRequested = ImGui::Button("Open Files to Load Textures");
 
     auto clearImageCallback = [&]()
     {
@@ -188,7 +190,7 @@ void ui::TextureDisplay::uiRender(
                 ImGui::InputTextWithHint(
                     "##searchBar", "Search", &m_nameFilter
                 );
-                std::regex searchPattern{
+                std::regex const searchPattern{
                     m_nameFilter, std::regex_constants::icase
                 };
 
@@ -247,18 +249,24 @@ void ui::TextureDisplay::uiRender(
         }
     }
 
-    double const imageHeight{
-        m_displayImage->image().aspectRatio().value_or(1.0) * contentExtent.x
-    };
+    {
+        glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+        double const imageHeight{
+            m_displayImage->image().aspectRatio().value_or(1.0)
+            * contentExtent.x
+        };
 
-    ImGui::Image(
-        reinterpret_cast<ImTextureID>(m_imguiDescriptor),
-        ImVec2{contentExtent.x, static_cast<float>(imageHeight)},
-        ImVec2{0.0, 0.0},
-        ImVec2{1.0, 1.0},
-        ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
-        ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-    );
+        ImGui::Image(
+            reinterpret_cast<ImTextureID>(m_imguiDescriptor),
+            ImVec2{contentExtent.x, static_cast<float>(imageHeight)},
+            ImVec2{0.0, 0.0},
+            ImVec2{1.0, 1.0},
+            ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
+            ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        );
+    }
+
+    return result;
 }
 
 void ui::TextureDisplay::destroy()

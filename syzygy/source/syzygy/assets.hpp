@@ -15,6 +15,8 @@ namespace szg_image
 {
 struct Image;
 }
+struct GraphicsContext;
+struct PlatformWindow;
 struct ImmediateSubmissionQueue;
 
 // An interval of indices from an index buffer.
@@ -46,7 +48,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
 
 struct AssetFile
 {
-    std::string fileName{};
+    std::filesystem::path path{};
     std::vector<uint8_t> fileBytes{};
 };
 
@@ -61,6 +63,8 @@ AssetLoadingResult loadAssetFile(std::string const& localPath);
 
 namespace szg_assets
 {
+auto loadAssetFile(std::filesystem::path const& path)
+    -> std::optional<AssetFile>;
 struct AssetMetadata
 {
     std::string displayName{};
@@ -81,6 +85,11 @@ class AssetLibrary
 public:
     void registerAsset(Asset<szg_image::Image>&& asset);
     auto fetchAssets() -> std::vector<AssetRef<szg_image::Image>>;
+    void loadTexturesDialog(
+        PlatformWindow const&,
+        GraphicsContext&,
+        ImmediateSubmissionQueue& submissionQueue
+    );
 
 private:
     std::vector<Asset<szg_image::Image>> m_textures{};
@@ -97,7 +106,7 @@ auto loadTextureFromFile(
     VmaAllocator,
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const&,
-    std::string const& localPath,
+    std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
 ) -> std::optional<Asset<szg_image::Image>>;
 } // namespace szg_assets

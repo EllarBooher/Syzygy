@@ -569,47 +569,6 @@ void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 
     ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
 }
-void loadDefaultTextures(
-    GraphicsContext& graphicsContext,
-    ImmediateSubmissionQueue& submissionQueue,
-    szg_assets::AssetLibrary& library
-)
-{
-    auto const absolutePath{
-        DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(
-            "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF"
-        ))
-    };
-    if (absolutePath == nullptr)
-    {
-        Warning("Failed to load default textures path.");
-        return;
-    }
-
-    for (auto const& entry : std::filesystem::directory_iterator{*absolutePath})
-    {
-        std::filesystem::path const& path{entry.path()};
-        if (path.extension() != ".jpg")
-        {
-            continue;
-        }
-
-        auto textureLoadResult{szg_assets::loadTextureFromFile(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            DebugUtils::getLoadedDebugUtils().makeRelativePath(path).string(),
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-        )};
-        if (!textureLoadResult.has_value())
-        {
-            continue;
-        }
-
-        library.registerAsset(std::move(textureLoadResult).value());
-    }
-}
 } // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -726,7 +685,6 @@ auto szg_editor::run() -> EditorResult
     }
 
     szg_assets::AssetLibrary assetLibrary{};
-    loadDefaultTextures(graphicsContext, submissionQueue, assetLibrary);
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<ui::TextureDisplay> testImageWidget{};
@@ -883,14 +841,18 @@ auto szg_editor::run() -> EditorResult
         }
 
         {
-            auto const loadedTextures{assetLibrary.fetchAssets()};
-
-            testImageWidget->uiRender(
+            auto const textureDisplayResult{testImageWidget->uiRender(
                 "Texture Viewer",
                 uiResults.dockingLayout.right,
                 currentFrame.mainCommandBuffer,
-                loadedTextures
-            );
+                assetLibrary.fetchAssets()
+            )};
+            if (textureDisplayResult.loadTexturesRequested)
+            {
+                assetLibrary.loadTexturesDialog(
+                    mainWindow, graphicsContext, submissionQueue
+                );
+            }
         }
 
         ui::sceneControlsWindow(
