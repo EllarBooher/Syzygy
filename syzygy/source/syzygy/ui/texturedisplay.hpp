@@ -73,6 +73,7 @@ private:
     VkSampler m_sampler{VK_NULL_HANDLE};
     VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 
+    std::string m_nameFilter{};
     std::optional<szg_assets::AssetMetadata> m_cachedMetadata{};
 };
 } // namespace ui

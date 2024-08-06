@@ -569,34 +569,45 @@ void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 
     ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
 }
-auto loadDefaultTextures(
+void loadDefaultTextures(
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue& submissionQueue,
     szg_assets::AssetLibrary& library
 )
 {
-    std::vector<std::string> const defaultAssets{
-        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
-        "bishop_black_base_color.jpg",
-        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
-        "bishop_black_normal.jpg",
-        "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
-        "bishop_black_ORM.jpg",
+    auto const absolutePath{
+        DebugUtils::getLoadedDebugUtils().loadAssetPath(std::filesystem::path(
+            "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF"
+        ))
     };
-    for (std::string const& path : defaultAssets)
+    if (absolutePath == nullptr)
     {
-        if (auto textureLoadResult{szg_assets::loadTextureFromFile(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                path,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-            )};
-            textureLoadResult.has_value())
+        Warning("Failed to load default textures path.");
+        return;
+    }
+
+    for (auto const& entry : std::filesystem::directory_iterator{*absolutePath})
+    {
+        std::filesystem::path const& path{entry.path()};
+        if (path.extension() != ".jpg")
         {
-            library.registerAsset(std::move(textureLoadResult).value());
+            continue;
         }
+
+        auto textureLoadResult{szg_assets::loadTextureFromFile(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.universalQueue(),
+            submissionQueue,
+            DebugUtils::getLoadedDebugUtils().makeRelativePath(path).string(),
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        )};
+        if (!textureLoadResult.has_value())
+        {
+            continue;
+        }
+
+        library.registerAsset(std::move(textureLoadResult).value());
     }
 }
 } // namespace

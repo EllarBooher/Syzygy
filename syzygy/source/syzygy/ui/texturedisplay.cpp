@@ -11,6 +11,8 @@
 #include "syzygy/ui/uiwindow.hpp"
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <regex>
 #include <utility>
 
 ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
@@ -167,7 +169,6 @@ void ui::TextureDisplay::uiRender(
         );
     };
 
-    PropertyTable table{PropertyTable::begin()};
     {
         std::string const& defaultLabel{"None"};
         std::string const& previewLabel{
@@ -176,15 +177,21 @@ void ui::TextureDisplay::uiRender(
                 : defaultLabel.c_str()
         };
 
-        table.rowCustom(
-            "Texture to Display",
-            [&]()
         {
             ImGui::BeginDisabled(textures.empty());
 
-            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+            if (ImGui::BeginListBox(
+                    "##textureSelection", ImVec2{-FLT_MIN, 0.0}
+                ))
             {
-                size_t const index{0};
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputTextWithHint(
+                    "##searchBar", "Search", &m_nameFilter
+                );
+                std::regex searchPattern{
+                    m_nameFilter, std::regex_constants::icase
+                };
+
                 if (ImGui::Selectable(
                         defaultLabel.c_str(), !m_cachedMetadata.has_value()
                     ))
@@ -197,13 +204,20 @@ void ui::TextureDisplay::uiRender(
                 for (szg_assets::Asset<szg_image::Image> const& texture :
                      textures)
                 {
+                    szg_assets::AssetMetadata const& metaData{texture.metadata};
+
+                    if (!std::regex_search(metaData.displayName, searchPattern))
+                    {
+                        continue;
+                    }
+
                     bool const selected{
                         m_cachedMetadata.has_value()
-                        && texture.metadata.id == m_cachedMetadata.value().id
+                        && metaData.id == m_cachedMetadata.value().id
                     };
 
                     if (ImGui::Selectable(
-                            texture.metadata.displayName.c_str(), selected
+                            metaData.displayName.c_str(), selected
                         ))
                     {
                         if (texture.data != nullptr)
@@ -211,24 +225,27 @@ void ui::TextureDisplay::uiRender(
                             copyIntoImageCallback(*texture.data);
                         }
 
-                        m_cachedMetadata = texture.metadata;
+                        m_cachedMetadata = metaData;
                     }
                 }
-                ImGui::EndCombo();
+                ImGui::EndListBox();
             }
 
             ImGui::EndDisabled();
         }
-        );
     }
-    if (m_cachedMetadata.has_value())
     {
-        szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
+        if (m_cachedMetadata.has_value())
+        {
+            PropertyTable table{PropertyTable::begin()};
+            szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
 
-        table.rowReadOnlyText("Name", metadata.displayName);
-        table.rowReadOnlyText("Local Path on Disk", metadata.fileLocalPath);
+            table.rowReadOnlyText("Name", metadata.displayName);
+            table.rowReadOnlyText("Local Path on Disk", metadata.fileLocalPath);
+
+            table.end();
+        }
     }
-    table.end();
 
     double const imageHeight{
         m_displayImage->image().aspectRatio().value_or(1.0) * contentExtent.x
