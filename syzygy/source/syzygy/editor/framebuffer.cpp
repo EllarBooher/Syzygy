@@ -4,6 +4,7 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/initializers.hpp"
 #include <functional>
+#include <utility>
 
 namespace
 {

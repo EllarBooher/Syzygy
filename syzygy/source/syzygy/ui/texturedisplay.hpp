@@ -8,13 +8,13 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 namespace szg_image
 {
 struct Image;
 struct ImageView;
 } // namespace szg_image
-struct DescriptorAllocator;
 struct ImmediateSubmissionQueue;
 
 namespace ui
@@ -61,7 +61,7 @@ private:
         VkDescriptorSet imguiDescriptor
     )
         : m_device{device}
-        , m_image{std::move(imageView)}
+        , m_displayImage{std::move(imageView)}
         , m_sampler{sampler}
         , m_imguiDescriptor{imguiDescriptor}
     {
@@ -69,7 +69,7 @@ private:
 
     VkDevice m_device{VK_NULL_HANDLE};
 
-    std::unique_ptr<szg_image::ImageView> m_image{};
+    std::unique_ptr<szg_image::ImageView> m_displayImage{};
     VkSampler m_sampler{VK_NULL_HANDLE};
     VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 

@@ -1,12 +1,9 @@
 #include "texturedisplay.hpp"
 
 #include "syzygy/assets.hpp"
-#include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/core/immediate.hpp"
-#include "syzygy/descriptors.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
-#include "syzygy/images/imageoperations.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
@@ -21,7 +18,7 @@ ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
     destroy();
 
     m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
-    m_image = std::move(other.m_image);
+    m_displayImage = std::move(other.m_displayImage);
     m_sampler = std::exchange(other.m_sampler, VK_NULL_HANDLE);
     m_imguiDescriptor = std::exchange(other.m_imguiDescriptor, VK_NULL_HANDLE);
 }
@@ -128,87 +125,102 @@ void ui::TextureDisplay::uiRender(
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
 
-    PropertyTable table{PropertyTable::begin()};
-    table.rowCustom(
-        "Texture to Display",
-        [&]()
+    auto clearImageCallback = [&]()
     {
-        ImGui::BeginDisabled(textures.empty());
-
-        std::string const& defaultLabel{"None"};
-
-        if (ImGui::BeginCombo(
-                "##meshSelection",
-                m_cachedMetadata.has_value()
-                    ? m_cachedMetadata.value().displayName.c_str()
-                    : defaultLabel.c_str()
-            ))
+        if (m_displayImage == nullptr)
         {
-            size_t const index{0};
-            if (ImGui::Selectable(
-                    defaultLabel.c_str(), !m_cachedMetadata.has_value()
-                ))
-            {
-                if (m_image != nullptr)
-                {
-                    renderpass::recordClearColorImage(
-                        cmd, m_image->image(), renderpass::COLOR_BLACK_OPAQUE
-                    );
-
-                    m_image->recordTransitionBarriered(
-                        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                    );
-                }
-
-                m_cachedMetadata = std::nullopt;
-            }
-
-            for (szg_assets::Asset<szg_image::Image> const& texture : textures)
-            {
-                bool const selected{
-                    m_cachedMetadata.has_value()
-                    && texture.metadata.id == m_cachedMetadata.value().id
-                };
-
-                if (ImGui::Selectable(
-                        texture.metadata.displayName.c_str(), selected
-                    )
-                    && texture.data != nullptr)
-                {
-                    if (m_image != nullptr)
-                    {
-                        m_image->recordTransitionBarriered(
-                            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                        );
-
-                        texture.data->recordTransitionBarriered(
-                            cmd,
-                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                            VK_IMAGE_ASPECT_COLOR_BIT
-                        );
-
-                        szg_image::Image::recordCopyEntire(
-                            cmd,
-                            *texture.data,
-                            m_image->image(),
-                            VK_IMAGE_ASPECT_COLOR_BIT
-                        );
-
-                        m_image->recordTransitionBarriered(
-                            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                        );
-                    }
-
-                    m_cachedMetadata = texture.metadata;
-                    break;
-                }
-            }
-            ImGui::EndCombo();
+            return;
         }
+        szg_image::ImageView& displayImage{*m_displayImage};
 
-        ImGui::EndDisabled();
+        renderpass::recordClearColorImage(
+            cmd, displayImage.image(), renderpass::COLOR_BLACK_OPAQUE
+        );
+
+        displayImage.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    };
+
+    auto copyIntoImageCallback = [&](szg_image::Image& other)
+    {
+        if (m_displayImage == nullptr)
+        {
+            return;
+        }
+        szg_image::ImageView& displayImage{*m_displayImage};
+
+        displayImage.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        );
+
+        other.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        szg_image::Image::recordCopyEntire(
+            cmd, other, displayImage.image(), VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        displayImage.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    };
+
+    PropertyTable table{PropertyTable::begin()};
+    {
+        std::string const& defaultLabel{"None"};
+        std::string const& previewLabel{
+            m_cachedMetadata.has_value()
+                ? m_cachedMetadata.value().displayName.c_str()
+                : defaultLabel.c_str()
+        };
+
+        table.rowCustom(
+            "Texture to Display",
+            [&]()
+        {
+            ImGui::BeginDisabled(textures.empty());
+
+            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+            {
+                size_t const index{0};
+                if (ImGui::Selectable(
+                        defaultLabel.c_str(), !m_cachedMetadata.has_value()
+                    ))
+                {
+                    clearImageCallback();
+
+                    m_cachedMetadata = std::nullopt;
+                }
+
+                for (szg_assets::Asset<szg_image::Image> const& texture :
+                     textures)
+                {
+                    bool const selected{
+                        m_cachedMetadata.has_value()
+                        && texture.metadata.id == m_cachedMetadata.value().id
+                    };
+
+                    if (ImGui::Selectable(
+                            texture.metadata.displayName.c_str(), selected
+                        ))
+                    {
+                        if (texture.data != nullptr)
+                        {
+                            copyIntoImageCallback(*texture.data);
+                        }
+
+                        m_cachedMetadata = texture.metadata;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::EndDisabled();
+        }
+        );
     }
-    );
     if (m_cachedMetadata.has_value())
     {
         szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
@@ -219,7 +231,7 @@ void ui::TextureDisplay::uiRender(
     table.end();
 
     double const imageHeight{
-        m_image->image().aspectRatio().value_or(1.0) * contentExtent.x
+        m_displayImage->image().aspectRatio().value_or(1.0) * contentExtent.x
     };
 
     ImGui::Image(
@@ -240,7 +252,7 @@ void ui::TextureDisplay::destroy()
     }
 
     m_device = VK_NULL_HANDLE;
-    m_image.reset();
+    m_displayImage.reset();
     m_sampler = VK_NULL_HANDLE;
     m_imguiDescriptor = VK_NULL_HANDLE;
 }

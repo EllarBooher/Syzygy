@@ -167,6 +167,7 @@
   { "symbol": [ "std::monostate", "private", "<variant>", "public" ] },
   { "symbol": [ "std::copy", "private", "<algorithm>", "public" ] },
   { "symbol": [ "std::is_same", "private", "<type_traits>", "public" ] },
+  { "symbol": [ "std::reference_wrapper", "private", "<functional>", "public" ] },
 
 
   { "symbol": [ "size_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },

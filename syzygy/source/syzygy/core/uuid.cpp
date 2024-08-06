@@ -16,8 +16,6 @@ auto szg::UUID::createNew() -> UUID
     UUID uuid{};
     uuid.m_uuid = distribution(rngEngine);
 
-    distribution.min();
-
     return uuid;
 }
 

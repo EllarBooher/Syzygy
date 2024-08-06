@@ -4,6 +4,7 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/vulkanusage.hpp"
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>

@@ -3,7 +3,6 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <optional>
-#include <utility>
 #include <vector>
 
 struct Frame

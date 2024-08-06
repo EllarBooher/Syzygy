@@ -6,8 +6,7 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
-#include "syzygy/images/imageoperations.hpp"
-#include "syzygy/initializers.hpp"
+#include <algorithm>
 #include <cassert>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp> // IWYU pragma: keep
@@ -582,9 +581,10 @@ auto szg_assets::AssetLibrary::fetchAssets()
 {
     std::vector<AssetRef<szg_image::Image>> assets{};
 
+    assets.reserve(m_textures.size());
     for (auto& texture : m_textures)
     {
-        assets.push_back(texture);
+        assets.emplace_back(texture);
     }
 
     return assets;

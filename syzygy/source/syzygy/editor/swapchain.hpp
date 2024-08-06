@@ -4,7 +4,6 @@
 #include <glm/vec2.hpp>
 #include <optional>
 #include <span>
-#include <utility>
 #include <vector>
 
 struct Swapchain

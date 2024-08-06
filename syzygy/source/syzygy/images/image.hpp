@@ -1,10 +1,8 @@
 #pragma once
 
-#include "syzygy/core/uuid.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
-#include <string>
 
 namespace szg_image
 {

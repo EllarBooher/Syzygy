@@ -4,7 +4,7 @@
 #include "syzygy/helpers.hpp"
 #include <VkBootstrap.h>
 #include <fmt/core.h>
-#include <functional>
+#include <utility>
 
 auto Swapchain::operator=(Swapchain&& other) noexcept -> Swapchain&
 {

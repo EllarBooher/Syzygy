@@ -1,8 +1,6 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include <iostream>
-#include <random>
 
 namespace szg
 {

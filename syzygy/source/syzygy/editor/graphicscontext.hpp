@@ -5,9 +5,7 @@
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
-#include <utility>
 
-struct GLFWwindow;
 struct PlatformWindow;
 
 // Holds the fundamental Vulkan resources.

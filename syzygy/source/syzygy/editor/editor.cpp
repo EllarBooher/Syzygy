@@ -4,7 +4,6 @@
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/input.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/core/result.hpp"
 #include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/core/timing.hpp"
@@ -37,8 +36,11 @@
 #include <implot.h>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <span>
+#include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 struct UIResults
@@ -573,7 +575,7 @@ auto loadDefaultTextures(
     szg_assets::AssetLibrary& library
 )
 {
-    std::vector<std::string> defaultAssets{
+    std::vector<std::string> const defaultAssets{
         "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
         "bishop_black_base_color.jpg",
         "assets/khronos-gltf-sample-assets/ABeautifulGame/glTF/"
