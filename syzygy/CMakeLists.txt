@@ -203,5 +203,5 @@ target_link_libraries(
 	stb
 )
 
-add_executable(Syzygy main.cpp)
-target_link_libraries(Syzygy syzygy)
+add_executable(SyzygyApp main.cpp)
+target_link_libraries(SyzygyApp syzygy)
