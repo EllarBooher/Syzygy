@@ -10,18 +10,38 @@ if (CLANG_FORMAT_PATH)
 	file(
 		GLOB_RECURSE
 		ALL_CXX_SOURCE_FILES
+		RELATIVE ${CMAKE_SOURCE_DIR}
 		${SOURCE_DIR}/*.[chi]pp 
 	)
 
 	message(STATUS "clang-format - using ${CLANG_FORMAT_PATH}")
-	message(VERBOSE "clang-format - formatting files matching ${SOURCE_DIR}/*.[chi]pp")
-	
+	message(STATUS "clang-format - formatting files matching ${SOURCE_DIR}/*.[chi]pp")
+
 	add_custom_target(
-		clang-format
-		COMMAND ${CLANG_FORMAT_PATH} -i -style=file ${ALL_CXX_SOURCE_FILES}
-		DEPENDS ${ALL_CXX_SOURCE_FILES}
+		clang-format-fix
+		COMMAND 
+			${CLANG_FORMAT_PATH} 
+			-i 
+			${ALL_CXX_SOURCE_FILES}
+			-style=file 
+		WORKING_DIRECTORY 
+			${CMAKE_SOURCE_DIR}
+		COMMENT
+			"clang-format: Formatting with ${CLANG_FORMAT_PATH}. Applying fixes in-place."
 	)
-	set_target_properties(clang-format PROPERTIES EXCLUDE_FROM_ALL true)
+	add_custom_target(
+		clang-format-check
+		COMMAND 
+			${CLANG_FORMAT_PATH} 
+			${ALL_CXX_SOURCE_FILES}
+			-style=file 
+			--dry-run
+		WORKING_DIRECTORY 
+			${CMAKE_SOURCE_DIR}
+		COMMENT
+			"clang-format: Formatting with ${CLANG_FORMAT_PATH}. Dry run only, printing suggested fixes."
+	)
+	set_target_properties(clang-format-fix PROPERTIES EXCLUDE_FROM_ALL true)
 else()
 	message(STATUS "clang-format - NOT found, skipping")
 endif()
