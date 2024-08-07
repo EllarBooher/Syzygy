@@ -1,14 +1,9 @@
 #pragma once
 
+#include "syzygy/images/image.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
-
-namespace szg_image
-{
-struct Image;
-struct ImageAllocationParameters;
-} // namespace szg_image
 
 namespace szg_image
 {

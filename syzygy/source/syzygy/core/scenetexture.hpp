@@ -1,14 +1,11 @@
 #pragma once
 
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
 #include <utility>
 
-namespace szg_image
-{
-struct ImageView;
-}
 class DescriptorAllocator;
 
 namespace scene

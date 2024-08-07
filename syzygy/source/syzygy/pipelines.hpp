@@ -18,7 +18,6 @@ struct Camera;
 }
 namespace szg_image
 {
-struct Image;
 struct ImageView;
 } // namespace szg_image
 struct Vertex;

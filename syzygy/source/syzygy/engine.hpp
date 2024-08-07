@@ -6,6 +6,7 @@
 #include "syzygy/debuglines.hpp"
 #include "syzygy/deferred/deferred.hpp"
 #include "syzygy/enginetypes.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
@@ -17,10 +18,6 @@ namespace gputypes
 struct Atmosphere;
 struct Camera;
 } // namespace gputypes
-namespace szg_image
-{
-struct ImageView;
-}
 namespace scene
 {
 struct Scene;

@@ -3,6 +3,7 @@
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/uuid.hpp"
+#include "syzygy/images/image.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <functional>
 #include <memory>
@@ -11,10 +12,6 @@
 #include <variant>
 #include <vector>
 
-namespace szg_image
-{
-struct Image;
-}
 struct GraphicsContext;
 struct PlatformWindow;
 struct ImmediateSubmissionQueue;

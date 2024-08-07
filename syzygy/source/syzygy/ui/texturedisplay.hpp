@@ -2,6 +2,7 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/core/uuid.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <imgui.h>
 #include <memory>
@@ -13,7 +14,6 @@
 namespace szg_image
 {
 struct Image;
-struct ImageView;
 } // namespace szg_image
 struct ImmediateSubmissionQueue;
 

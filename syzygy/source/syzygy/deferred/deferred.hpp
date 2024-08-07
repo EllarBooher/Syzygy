@@ -4,6 +4,7 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/deferred/gbuffer.hpp"
 #include "syzygy/gputypes.hpp"
+#include "syzygy/images/imageview.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/shadowpass.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -14,7 +15,6 @@
 namespace szg_image
 {
 struct Image;
-struct ImageView;
 } // namespace szg_image
 
 class DescriptorAllocator;
