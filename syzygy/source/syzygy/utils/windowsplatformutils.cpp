@@ -3,119 +3,91 @@
 #include "syzygy/helpers.hpp"
 #include <GLFW/glfw3.h>
 #include <ShObjIdl.h>
-#include <Windows.h>
-#include <combaseapi.h>
-#include <commdlg.h>
+#include <windows.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
-#include <codecvt>
-#include <iostream>
-#include <locale>
 
 namespace
 {
-template <class T = IFileOpenDialog> struct ComPtr
-{
-    static_assert(
-        std::is_base_of_v<IUnknown, T>,
-        "Pointer type parameter of ComPtr must derive from IUnknown"
-    );
-    ComPtr() {}
-    ComPtr(T* ptr) { m_ptr = ptr; }
-    auto operator->() const -> T* { return m_ptr; }
-
-    ComPtr(ComPtr<T> const&) = delete;
-    ComPtr(ComPtr<T>&&) = delete;
-    auto operator=(ComPtr<T> const&) -> ComPtr<T>& = delete;
-    auto operator=(ComPtr<T>&&) -> ComPtr<T>& = delete;
-
-    ~ComPtr()
-    {
-        if (m_ptr != nullptr)
-        {
-            m_ptr->Release();
-        }
-    }
-
-private:
-    T* m_ptr{};
-};
-
-auto openDialog(
-    PlatformWindow const& parent, bool const pickFolders, bool const multiselect
-) -> std::vector<std::filesystem::path>
+auto getPathsFromDialog(HWND const parent, DWORD const additionalOptions)
+    -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{};
-
-    // TODO: I am not very familiar with Windows API code. I am not sure if this
-    // is okay to call each time here, or if it should be called earlier and
-    // only once.
-    if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
-    {
-        return paths;
-    }
-
-    IFileOpenDialog* pFileDialog;
+    IFileOpenDialog* fileDialog;
     if (FAILED(CoCreateInstance(
             CLSID_FileOpenDialog,
             nullptr,
             CLSCTX_INPROC_SERVER,
-            IID_PPV_ARGS(&pFileDialog)
+            IID_PPV_ARGS(&fileDialog)
         )))
     {
         return paths;
     }
-    ComPtr<IFileOpenDialog> const fileDialog{pFileDialog};
 
     DWORD dwOptions;
     if (SUCCEEDED(fileDialog->GetOptions(&dwOptions)))
     {
+        fileDialog->SetOptions(dwOptions | additionalOptions);
+    }
+
+    if (SUCCEEDED(fileDialog->Show(parent)))
+    {
+        IShellItemArray* items;
+        if (SUCCEEDED(fileDialog->GetResults(&items)))
+        {
+            IEnumShellItems* itemsEnum;
+            if (SUCCEEDED(items->EnumItems(&itemsEnum)))
+            {
+                do
+                {
+                    IShellItem* child;
+                    ULONG fetched;
+                    itemsEnum->Next(1, &child, &fetched);
+                    if (fetched == FALSE)
+                    {
+                        break;
+                    }
+
+                    WCHAR* path;
+                    child->GetDisplayName(SIGDN_FILESYSPATH, &path);
+                    paths.emplace_back(path);
+                    CoTaskMemFree(path);
+                } while (TRUE);
+                itemsEnum->Release();
+            }
+            items->Release();
+        }
+    }
+    fileDialog->Release();
+
+    return paths;
+}
+auto openDialog(
+    PlatformWindow const& parent, bool const pickFolders, bool const multiselect
+) -> std::vector<std::filesystem::path>
+{
+    HRESULT const initResult{CoInitializeEx(
+        nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE
+    )};
+
+    std::vector<std::filesystem::path> paths{};
+    if (SUCCEEDED(initResult))
+    {
+        DWORD additionalOptions{FOS_NOCHANGEDIR};
         if (pickFolders)
         {
-            dwOptions |= FOS_PICKFOLDERS;
+            additionalOptions |= FOS_PICKFOLDERS;
         }
         if (multiselect)
         {
-            dwOptions |= FOS_ALLOWMULTISELECT;
+            additionalOptions |= FOS_ALLOWMULTISELECT;
         }
-
-        fileDialog->SetOptions(dwOptions | FOS_NOCHANGEDIR);
+        paths = getPathsFromDialog(
+            glfwGetWin32Window(parent.handle()), additionalOptions
+        );
     }
 
-    HWND const nativeWindow{glfwGetWin32Window(parent.handle())};
-    if (FAILED(fileDialog->Show(nativeWindow)))
-    {
-        return paths;
-    }
-
-    IShellItemArray* pItems;
-    if (FAILED(fileDialog->GetResults(&pItems)))
-    {
-        return paths;
-    }
-    ComPtr<IShellItemArray> const items{pItems};
-
-    IEnumShellItems* pItemsEnum;
-    if (FAILED(items->EnumItems(&pItemsEnum)))
-    {
-        return paths;
-    }
-    ComPtr<IEnumShellItems> const itemsEnum{pItemsEnum};
-
-    do
-    {
-        IShellItem* child;
-        ULONG fetched;
-        itemsEnum->Next(1, &child, &fetched);
-        if (fetched == FALSE)
-        {
-            break;
-        }
-
-        WCHAR* path;
-        child->GetDisplayName(SIGDN_FILESYSPATH, &path);
-        paths.emplace_back(path);
-    } while (TRUE);
+    CoUninitialize();
 
     return paths;
 }
