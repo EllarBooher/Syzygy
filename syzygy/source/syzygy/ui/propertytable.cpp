@@ -278,7 +278,7 @@ auto PropertyTable::rowCustom(
     return *this;
 }
 
-auto PropertyTable::rowText(
+auto PropertyTable::rowTextInput(
     std::string const& name, std::string& value, std::string const& resetValue
 ) -> PropertyTable&
 {
@@ -303,10 +303,42 @@ auto PropertyTable::rowText(
     return *this;
 }
 
+PropertyTable& PropertyTable::rowReadOnlyTextInput(
+    std::string const& name, std::string const& value, bool const multiline
+)
+{
+    if (!Self::rowBegin(name))
+    {
+        return *this;
+    }
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
+
+    ImGuiInputTextFlags flags{
+        ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoHorizontalScroll
+    };
+
+    std::string local{value};
+    std::string const label{fmt::format("##{}{}", name, m_propertyCount)};
+    if (multiline)
+    {
+        ImGui::InputTextMultiline(label.c_str(), &local, {}, flags);
+    }
+    else
+    {
+        ImGui::InputText(label.c_str(), &local, flags);
+    }
+
+    Self::rowEnd();
+
+    return *this;
+}
+
 // NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
 // up the parameters, since name is first across all Property table row methods.
 
-auto PropertyTable::rowReadOnlyText(
+auto PropertyTable::rowTextLabel(
     std::string const& name, std::string const& value
 ) -> PropertyTable&
 {
@@ -620,14 +652,14 @@ void PropertyTable::demoWindow(bool& open)
     PropertyTable::begin("Demo Table")
         .rowChildPropertyBegin("Available Fields")
         .rowDropdown("Dropdown", dropdownIndex, 0, dropdownLabels)
-        .rowText("Text", valueText, "Default Text Value")
+        .rowTextInput("Text", valueText, "Default Text Value")
         .childPropertyBegin()
         .rowReadOnlyInteger("Text Size", static_cast<int32_t>(valueText.size()))
         .rowReadOnlyInteger(
             "Text Capacity", static_cast<int32_t>(valueText.capacity())
         )
         .childPropertyEnd()
-        .rowReadOnlyText("Read-Only Text", "Hello!")
+        .rowTextLabel("Read-Only Text", "Hello!")
         .rowBoolean("Boolean", valueBoolean, false)
         .rowReadOnlyBoolean("Read-Only Boolean", true)
         .rowFloat(
@@ -698,17 +730,17 @@ void PropertyTable::demoWindow(bool& open)
         .rowReadOnlyVec3("Read-Only Vec3", glm::vec3{1.0F})
         .rowReadOnlyInteger("Read-Only Integer", 592181)
         .childPropertyEnd() // Available Fields
-        .rowReadOnlyText(
+        .rowTextLabel(
             "Child Properties",
             "Child Properties remember their collapse status."
         )
         .childPropertyBegin()
         .rowChildPropertyBegin("Child")
         .rowChildPropertyBegin("Child")
-        .rowReadOnlyText("Hello", "")
+        .rowTextLabel("Hello", "")
         .childPropertyEnd()
         .rowChildPropertyBegin("Child")
-        .rowReadOnlyText("Hello", "")
+        .rowTextLabel("Hello", "")
         .childPropertyEnd()
         .childPropertyEnd()
         .childPropertyEnd()
@@ -721,7 +753,7 @@ void PropertyTable::demoWindow(bool& open)
             }
         )
         .childPropertyBegin()
-        .rowReadOnlyText("Some Child Property", "")
+        .rowTextLabel("Some Child Property", "")
         .childPropertyEnd()
         .end();
     // NOLINTEND(readability-magic-numbers)

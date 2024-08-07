@@ -32,7 +32,7 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
         // If we can't find what index this pipeline should be,
         // don't mess with it, since the engine may have set it.
         PropertyTable::begin()
-            .rowReadOnlyText("", "Unknown pipeline selected")
+            .rowTextLabel("", "Unknown pipeline selected")
             .end();
     }
     else
@@ -67,7 +67,7 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
     auto table{PropertyTable::begin()};
 
     table
-        .rowReadOnlyText(
+        .rowTextLabel(
             "Pipeline",
             fmt::format(
                 "0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get())

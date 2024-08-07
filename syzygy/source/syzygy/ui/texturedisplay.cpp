@@ -248,8 +248,17 @@ auto ui::TextureDisplay::uiRender(
             PropertyTable table{PropertyTable::begin()};
             szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
 
-            table.rowReadOnlyText("Name", metadata.displayName);
-            table.rowReadOnlyText("Local Path on Disk", metadata.fileLocalPath);
+            table.rowReadOnlyTextInput(
+                "Display Name", metadata.displayName, false
+            );
+            table.rowReadOnlyTextInput(
+                "Global Identifier",
+                fmt::format("{:x}", static_cast<uint64_t>(metadata.id)),
+                false
+            );
+            table.rowReadOnlyTextInput(
+                "Local Path on Disk", metadata.fileLocalPath, false
+            );
 
             table.end();
         }

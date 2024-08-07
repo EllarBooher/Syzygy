@@ -135,15 +135,20 @@ public:
 
     // Adds a row that contains an interactable text entry,
     // alongside a reset button.
-    PropertyTable& rowText(
+    PropertyTable& rowTextInput(
         std::string const& name,
         std::string& value,
         std::string const& resetValue
     );
 
+    // Adds a row that contains text that is interactable, but readonly.
+    PropertyTable& rowReadOnlyTextInput(
+        std::string const& name, std::string const& value, bool multiline
+    );
+
     // Adds a row that contains some read only text.
     PropertyTable&
-    rowReadOnlyText(std::string const& name, std::string const& value);
+    rowTextLabel(std::string const& name, std::string const& value);
 
     // Adds a row that contains an interactable 32-bit signed integer entry,
     // alongside a reset button.

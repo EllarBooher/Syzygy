@@ -414,7 +414,7 @@ template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
     }
     else
     {
-        table.rowReadOnlyText("", "No push constants.");
+        table.rowTextLabel("", "No push constants.");
         table.end();
     }
 }
