@@ -219,7 +219,13 @@ auto ui::TextureDisplay::uiRender(
                     };
 
                     if (ImGui::Selectable(
-                            metaData.displayName.c_str(), selected
+                            fmt::format(
+                                "{}##{}",
+                                metaData.displayName,
+                                static_cast<uint64_t>(metaData.id)
+                            )
+                                .c_str(),
+                            selected
                         ))
                     {
                         if (texture.data != nullptr)
