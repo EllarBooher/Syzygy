@@ -823,6 +823,7 @@ auto szg_editor::run() -> EditorResult
                     mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
                 );
                 ImGui::SetWindowFocus(nullptr);
+                inputHandler.setSkipNextCursorDelta(true);
                 inputCapturedByScene = true;
             }
         }
@@ -835,6 +836,7 @@ auto szg_editor::run() -> EditorResult
                     mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
                 );
                 ImGui::SetWindowFocus(nullptr);
+                inputHandler.setSkipNextCursorDelta(true);
                 inputCapturedByScene = false;
             }
         }

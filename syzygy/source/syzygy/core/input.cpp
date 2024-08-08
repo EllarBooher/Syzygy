@@ -1,5 +1,6 @@
 #include "input.hpp"
 
+#include "syzygy/helpers.hpp"
 #include <fmt/core.h>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
@@ -127,6 +128,12 @@ void szg_input::InputHandler::handleMouse_glfw(double xpos, double ypos)
 {
     m_cursorNew.position =
         glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
+    if (m_skipNextCursorDelta)
+    {
+        m_cursorOld.position = m_cursorNew.position;
+        m_skipNextCursorDelta = false;
+        return;
+    }
 }
 
 auto szg_input::InputHandler::collect() -> InputSnapshot
@@ -154,6 +161,11 @@ auto szg_input::InputHandler::collect() -> InputSnapshot
         .keys = keys,
         .cursor = cursor,
     };
+}
+
+void szg_input::InputHandler::setSkipNextCursorDelta(bool const skip)
+{
+    m_skipNextCursorDelta = skip;
 }
 
 auto szg_input::KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus

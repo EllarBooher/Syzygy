@@ -68,6 +68,13 @@ public:
 
     auto collect() -> InputSnapshot;
 
+    // This sets a flag such that upon the next time a cursor position is
+    // reported, that position is set as the previous AND new positions for the
+    // mouse. This way, if a large jump is expected (such as when focus is
+    // captured or the cursor is otherwise teleported), we can ignore that noisy
+    // jump which does not indicate any real input by the user.
+    void setSkipNextCursorDelta(bool skip = true);
+
 private:
     struct KeysState
     {
@@ -77,6 +84,8 @@ private:
     {
         glm::u16vec2 position;
     };
+
+    bool m_skipNextCursorDelta{};
 
     KeysState m_keysOld;
     CursorState m_cursorOld;
