@@ -34,7 +34,7 @@ endforeach()
 source_group("Shaders GLSL" FILES ${GLSL_SOURCE_FILES})
 
 add_custom_target(
-    Shaders 
+    syzygy-shaders 
     DEPENDS ${SPIRV_BINARY_FILES}
     SOURCES ${GLSL_SOURCE_FILES}
 )

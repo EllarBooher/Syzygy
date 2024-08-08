@@ -1,7 +1,9 @@
 find_program(
 	CLANG_FORMAT_PATH 
-	NAMES "clang-format"
-	DOC "The path of clang-format to use. Produces a utility-target that runs on the entirety of '/source'."
+	NAMES 
+		"clang-format"
+	DOC 
+		"The path of clang-format to use. Produces a utility-target that runs on the entirety of '/source'."
 )
 
 if (CLANG_FORMAT_PATH)
@@ -9,9 +11,11 @@ if (CLANG_FORMAT_PATH)
 
 	file(
 		GLOB_RECURSE
-		ALL_CXX_SOURCE_FILES
-		RELATIVE ${CMAKE_SOURCE_DIR}
-		${SOURCE_DIR}/*.[chi]pp 
+			ALL_CXX_SOURCE_FILES
+		RELATIVE 
+			${CMAKE_SOURCE_DIR}
+		CONFIGURE_DEPENDS
+			${SOURCE_DIR}/*.[chi]pp 
 	)
 
 	message(STATUS "clang-format - using ${CLANG_FORMAT_PATH}")
@@ -41,7 +45,12 @@ if (CLANG_FORMAT_PATH)
 		COMMENT
 			"clang-format: Formatting with ${CLANG_FORMAT_PATH}. Dry run only, printing suggested fixes."
 	)
-	set_target_properties(clang-format-fix PROPERTIES EXCLUDE_FROM_ALL true)
+	set_target_properties(
+		clang-format-fix 
+		PROPERTIES 
+			EXCLUDE_FROM_ALL 
+				true
+	)
 else()
 	message(STATUS "clang-format - NOT found, skipping")
 endif()
