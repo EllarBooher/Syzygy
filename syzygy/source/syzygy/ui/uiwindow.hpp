@@ -25,6 +25,7 @@ struct UIWindow
     UIWindow(UIWindow&& other) noexcept;
 
     ~UIWindow();
+    void end();
 
     ui::UIRectangle screenRectangle{};
     bool open{false};

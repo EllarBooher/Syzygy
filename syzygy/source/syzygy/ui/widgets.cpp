@@ -415,10 +415,21 @@ auto ui::sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    scene::SceneTexture const& texture
+    scene::SceneTexture const& texture,
+    bool const focused
 ) -> WindowResult<std::optional<scene::SceneViewport>>
 {
-    ui::UIWindow const sceneViewport{
+    size_t pushedStyleColors{0};
+    if (focused)
+    {
+        ImVec4 const activeTitleColor{
+            ImGui::GetStyleColorVec4(ImGuiCol_TitleBgActive)
+        };
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, activeTitleColor);
+        pushedStyleColors += 1;
+    }
+
+    ui::UIWindow sceneViewport{
         maximizeArea.has_value()
             ? ui::UIWindow::beginMaximized(title, maximizeArea.value())
             : ui::UIWindow::beginDockable(title, dockNode)
@@ -445,20 +456,26 @@ auto ui::sceneViewportWindow(
         ImGui::CalcTextSize("").y + ImGui::GetStyle().ItemSpacing.y
     };
 
-    ImGui::Image(
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{});
+    bool const clicked = ImGui::ImageButton(
+        "##viewport",
         reinterpret_cast<ImTextureID>(texture.imguiDescriptor()),
         contentExtent - glm::vec2{0.0F, textHeight},
         ImVec2{0.0, 0.0},
         uvMax,
-        ImVec4{1.0F, 1.0F, 1.0F, 1.0F},
-        ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        ImVec4{0.0F, 0.0F, 0.0F, 0.0F},
+        ImVec4{1.0F, 1.0F, 1.0F, 1.0F}
     );
+    ImGui::PopStyleVar();
 
     ImGui::Text("Click Scene Viewport to capture inputs. Translate Camera: "
                 "WASD + QE. Rotate Camera: Mouse. Stop Capturing: TAB.");
+    sceneViewport.end();
+
+    ImGui::PopStyleColor(pushedStyleColors);
 
     return {
-        .focused = ImGui::IsWindowFocused(),
+        .focused = clicked,
         .payload =
             scene::SceneViewport{
                 .rect =

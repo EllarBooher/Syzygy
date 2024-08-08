@@ -811,33 +811,32 @@ auto szg_editor::run() -> EditorResult
                 uiResults.hud.maximizeSceneViewport
                     ? uiResults.hud.workArea
                     : std::optional<ui::UIRectangle>{},
-                sceneTexture
+                sceneTexture,
+                inputCapturedByScene
             )};
-        if (inputCapturedByScene != sceneViewport.focused)
+        if (!inputCapturedByScene)
         {
             if (sceneViewport.focused)
             {
+                ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
                 glfwSetInputMode(
                     mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
                 );
+                ImGui::SetWindowFocus(nullptr);
+                inputCapturedByScene = true;
             }
-            else
+        }
+        else
+        {
+            if (inputSnapshot.keys.getStatus(szg_input::KeyCode::TAB).pressed())
             {
+                ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
                 glfwSetInputMode(
                     mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
                 );
+                ImGui::SetWindowFocus(nullptr);
+                inputCapturedByScene = false;
             }
-
-            inputCapturedByScene = sceneViewport.focused;
-        }
-        if (inputCapturedByScene
-            && inputSnapshot.keys.getStatus(szg_input::KeyCode::TAB).pressed())
-        {
-            inputCapturedByScene = false;
-            glfwSetInputMode(
-                mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
-            );
-            ImGui::SetWindowFocus(nullptr);
         }
 
         {

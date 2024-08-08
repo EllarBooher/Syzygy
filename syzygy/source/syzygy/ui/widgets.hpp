@@ -42,6 +42,7 @@ auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    scene::SceneTexture const& texture
+    scene::SceneTexture const& texture,
+    bool focused
 ) -> WindowResult<std::optional<scene::SceneViewport>>;
 } // namespace ui

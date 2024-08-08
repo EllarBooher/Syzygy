@@ -62,13 +62,16 @@ ui::UIWindow::UIWindow(UIWindow&& other) noexcept
     m_initialized = std::exchange(other.m_initialized, false);
 }
 
-ui::UIWindow::~UIWindow()
+ui::UIWindow::~UIWindow() { end(); }
+
+void ui::UIWindow::end()
 {
     if (!m_initialized)
     {
         return;
     }
-
     ImGui::End();
     ImGui::PopStyleVar(m_styleVariables);
+    m_initialized = false;
+    m_styleVariables = 0;
 }
