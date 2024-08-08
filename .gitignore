@@ -9,3 +9,5 @@ build/
 # Local build configurations
 
 CMakeUserPresets.json
+
+imgui.ini
