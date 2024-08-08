@@ -202,6 +202,3 @@ target_link_libraries(
 	volk
 	stb
 )
-
-add_executable(SyzygyApp main.cpp)
-target_link_libraries(SyzygyApp syzygy)

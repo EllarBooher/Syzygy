@@ -2,9 +2,9 @@
 
 #include <cstdlib>
 
-auto main() -> int
+int main(int argc, char** argv)
 {
-    syzygy::RunResult const runResult{syzygy::runApplication()};
+    auto const runResult{syzygy::runApplication()};
 
     if (runResult != syzygy::RunResult::SUCCESS)
     {

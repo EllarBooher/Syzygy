@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD 20)
 add_subdirectory("shaders")
 add_subdirectory("syzygy")
 
+add_subdirectory("application")
+
 include(cmake/include-what-you-use.cmake)
 include(cmake/clang-format.cmake)
 include(cmake/clang-tidy.cmake)
