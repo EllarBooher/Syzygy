@@ -5,6 +5,7 @@
 #include <cassert>
 #include <filesystem>
 #include <fmt/color.h>
+#include <fmt/core.h>
 #include <memory>
 #include <source_location>
 #include <stdexcept>
@@ -17,46 +18,8 @@
 class DebugUtils
 {
 public:
-    static void init();
-    static DebugUtils const& getLoadedDebugUtils()
-    {
-        if (m_loadedDebugUtils == nullptr)
-        {
-            init();
-        }
-
-        return *m_loadedDebugUtils;
-    }
-
-private:
-    std::filesystem::path m_sourcePath{};
-
-    inline static std::unique_ptr<DebugUtils> m_loadedDebugUtils{nullptr};
-
-public:
-    // Returns whether or not a relative path is valid.
-    // A relative path is valid when:
-    // - As an std::filesystem::path, it is relative.
-    // - Appending it to an absolute path does not escape the directory
-    // defined by that absolute path.
-    static bool validateRelativePath(std::filesystem::path const& path);
-
-    // Returns the absolute path to a file on disk specified by the path
-    // relative to the project's root.
-    // Asserts that the path is valid as defined by validateRelativePath.
-    std::filesystem::path
-    makeAbsolutePath(std::filesystem::path const& localPath) const;
-
-    // Returns the absolute path to an (assumed) source relative path.
-    // The absolute path to the file when it exists, nullptr otherwise.
-    std::unique_ptr<std::filesystem::path>
-    loadAssetPath(std::filesystem::path const& localPath) const;
-
-    // Given an absolute path on disk, returns the portion relative
-    // to the project's root.
-    // Asserts that the path is valid as defined by validateRelativePath.
-    std::filesystem::path
-    makeRelativePath(std::filesystem::path const& absolutePath) const;
+    static auto ensureAbsoluteFromWorking(std::filesystem::path const& path)
+        -> std::filesystem::path;
 };
 
 consteval auto sourceLocationRelative(

@@ -40,7 +40,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     VmaAllocator,
     VkQueue transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
-    std::string const& localPath
+    std::filesystem::path const& path
 );
 
 struct AssetFile
@@ -56,7 +56,7 @@ struct AssetLoadingError
 
 using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
 
-AssetLoadingResult loadAssetFile(std::string const& localPath);
+AssetLoadingResult loadAssetFile(std::filesystem::path const& path);
 
 namespace szg_assets
 {

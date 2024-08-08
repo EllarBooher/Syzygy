@@ -544,14 +544,14 @@ void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 {
     float constexpr FONT_BASE_SIZE{13.0F};
 
-    std::filesystem::path const fontPath{
-        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(
-            std::filesystem::path{"assets/proggyfonts/ProggyClean.ttf"}
-        )
-    };
     ImGui::GetIO().Fonts->Clear();
     ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        fontPath.string().c_str(), FONT_BASE_SIZE * preferences.dpiScale
+        DebugUtils::ensureAbsoluteFromWorking(
+            "assets/proggyfonts/ProggyClean.ttf"
+        )
+            .string()
+            .c_str(),
+        FONT_BASE_SIZE * preferences.dpiScale
     );
 
     // Wait for idle since we are modifying backend resources
@@ -678,7 +678,7 @@ auto szg_editor::run() -> EditorResult
             std::end(result.value())
         );
     }
-    else
+    if (meshAssets.loadedMeshes.empty())
     {
         SZG_ERROR("Failed to load any meshes.");
         return EditorResult::ERROR;

@@ -542,7 +542,7 @@ auto vkutil::compileShaderObject(
 
 auto vkutil::loadShaderObject(
     VkDevice const device,
-    std::string const& path,
+    std::filesystem::path const& path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const layouts,
@@ -581,7 +581,7 @@ auto vkutil::loadShaderObject(
 
 auto vkutil::loadShaderObject(
     VkDevice const device,
-    std::string const& path,
+    std::filesystem::path const& path,
     VkShaderStageFlagBits const stage,
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const layouts,

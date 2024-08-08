@@ -2,6 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/vulkanusage.hpp"
+#include <filesystem>
 #include <map>
 #include <optional>
 #include <span>
@@ -286,7 +287,7 @@ compileShaderModule(VkDevice device, std::span<uint8_t const> spirvBytecode);
 
 std::optional<ShaderObjectReflected> loadShaderObject(
     VkDevice device,
-    std::string const& path,
+    std::filesystem::path const& path,
     VkShaderStageFlagBits stage,
     VkShaderStageFlags nextStage,
     std::span<VkDescriptorSetLayout const> layouts,
@@ -294,7 +295,7 @@ std::optional<ShaderObjectReflected> loadShaderObject(
 );
 std::optional<ShaderObjectReflected> loadShaderObject(
     VkDevice device,
-    std::string const& path,
+    std::filesystem::path const& path,
     VkShaderStageFlagBits stage,
     VkShaderStageFlags nextStage,
     std::span<VkDescriptorSetLayout const> layouts,

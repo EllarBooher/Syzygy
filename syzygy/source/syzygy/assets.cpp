@@ -119,7 +119,7 @@ auto uploadMeshToGPU(
         result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
     {
         SZG_WARNING("Command submission for mesh upload failed, buffers will "
-                "likely contain junk or no data.");
+                    "likely contain junk or no data.");
     }
 
     return std::make_unique<GPUMeshBuffers>(
@@ -285,11 +285,10 @@ auto loadGltfMeshes(
     VmaAllocator const allocator,
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
-    std::string const& localPath
+    std::filesystem::path const& path
 ) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
-    std::filesystem::path const assetPath{
-        DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath)
+    std::filesystem::path assetPath{DebugUtils::ensureAbsoluteFromWorking(path)
     };
 
     SZG_LOG(fmt::format("Loading glTF: {}", assetPath.string()));
@@ -454,34 +453,35 @@ auto loadGltfMeshes(
     return newMeshes;
 }
 
-auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
+namespace
 {
-    std::unique_ptr<std::filesystem::path> const pPath{
-        DebugUtils::getLoadedDebugUtils().loadAssetPath(
-            std::filesystem::path(localPath)
-        )
-    };
-    if (pPath == nullptr)
+auto ensureAbsolute(
+    std::filesystem::path const& relative, std::filesystem::path const& root
+) -> std::filesystem::path
+{
+    if (relative.is_absolute())
     {
-        return AssetLoadingError{
-            .message = fmt::format(
-                "Unable to parse path at \"{}\", this indicates the asset does "
-                "not exist or the path is malformed",
-                localPath
-            ),
-        };
+        return relative;
     }
-    std::filesystem::path const path = *pPath;
 
-    std::ifstream file(path, std::ios::ate | std::ios::binary);
+    return root / relative;
+}
+} // namespace
+
+auto loadAssetFile(std::filesystem::path const& path) -> AssetLoadingResult
+{
+    auto const workingDir{std::filesystem::current_path()};
+    std::filesystem::path const assetPath{ensureAbsolute(path, workingDir)};
+
+    std::ifstream file(assetPath, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
     {
         return AssetLoadingError{
             .message = fmt::format(
-                "Unable to parse path at \"{}\", this indicates the asset does "
+                "Unable to parse file at \"{}\", this indicates the asset does "
                 "not exist or the path is malformed",
-                localPath
+                assetPath.string()
             ),
         };
     }
@@ -490,7 +490,9 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
     if (fileSizeBytes == 0)
     {
         return AssetLoadingError{
-            .message = fmt::format("Shader file is empty at \"{}\"", localPath),
+            .message = fmt::format(
+                "Shader file is empty at \"{}\"", assetPath.string()
+            ),
         };
     }
 
@@ -513,12 +515,7 @@ auto loadAssetFile(std::string const& localPath) -> AssetLoadingResult
 auto szg_assets::loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
-    std::filesystem::path const absolutePath =
-        path.is_absolute()
-            ? path
-            : DebugUtils::getLoadedDebugUtils().makeAbsolutePath(path);
-
-    std::ifstream file(absolutePath, std::ios::ate | std::ios::binary);
+    std::ifstream file(path, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
     {
@@ -544,7 +541,7 @@ auto szg_assets::loadAssetFile(std::filesystem::path const& path)
     file.close();
 
     return AssetFile{
-        .path = absolutePath,
+        .path = path,
         .fileBytes = buffer,
     };
 }
@@ -653,8 +650,7 @@ void szg_assets::AssetLibrary::loadTexturesDialog(
                 graphicsContext.allocator(),
                 graphicsContext.universalQueue(),
                 submissionQueue,
-                DebugUtils::getLoadedDebugUtils().makeRelativePath(path).string(
-                ),
+                path,
                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT
             )};
             if (!textureLoadResult.has_value())

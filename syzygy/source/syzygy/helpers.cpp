@@ -4,10 +4,13 @@
 
 auto MakeLogPrefix(std::source_location const location) -> std::string
 {
+    /*
     std::string const relativePath{DebugUtils::getLoadedDebugUtils()
                                        .makeRelativePath(location.file_name())
                                        .string()};
     return fmt::format("[ {}:{} ]", relativePath, location.line());
+    */
+    return fmt::format("[ {} ]", "HI :)");
 }
 
 namespace
@@ -60,70 +63,13 @@ void LogVkResult(
     SZG_ERROR(fmt::format("{} error: {}", message, string_VkResult(result)));
 }
 
-void DebugUtils::init()
-{
-    std::filesystem::path const sourcePath{
-        std::filesystem::weakly_canonical(std::filesystem::path{SOURCE_DIR})
-    };
-
-    if (!std::filesystem::exists(sourcePath)
-        || !std::filesystem::is_directory(sourcePath))
-    {
-        throw std::runtime_error(
-            "DebugUtils::Init failure: "
-            "Source path does not point to valid directory."
-        );
-    }
-
-    m_loadedDebugUtils = std::make_unique<DebugUtils>();
-    m_loadedDebugUtils->m_sourcePath = sourcePath;
-
-    PrintLine(
-        fmt::format(
-            "DebugUtils::Init success: Source path is \"{}\"",
-            m_loadedDebugUtils->m_sourcePath.string()
-        ),
-        fmt::color::gray
-    );
-}
-
-auto DebugUtils::validateRelativePath(std::filesystem::path const& path) -> bool
-{
-    if (!path.is_relative())
-    {
-        return false;
-    }
-
-    std::string const firstDir{(*path.lexically_normal().begin()).string()};
-    return firstDir != "..";
-}
-
-auto DebugUtils::makeAbsolutePath(std::filesystem::path const& localPath) const
+auto DebugUtils::ensureAbsoluteFromWorking(std::filesystem::path const& path)
     -> std::filesystem::path
 {
-    return (m_sourcePath / localPath).lexically_normal();
-}
-
-auto DebugUtils::loadAssetPath(std::filesystem::path const& localPath) const
-    -> std::unique_ptr<std::filesystem::path>
-{
-    if (!validateRelativePath(localPath))
+    if (path.is_absolute())
     {
-        return nullptr;
+        return path;
     }
-    return std::make_unique<std::filesystem::path>(makeAbsolutePath(localPath));
-}
 
-auto DebugUtils::makeRelativePath(std::filesystem::path const& absolutePath
-) const -> std::filesystem::path
-{
-    assert(absolutePath.is_absolute());
-
-    std::filesystem::path const relativePortion{
-        absolutePath.lexically_relative(m_sourcePath).lexically_normal()
-    };
-
-    assert(validateRelativePath(relativePortion));
-
-    return relativePortion.lexically_normal();
+    return std::filesystem::current_path() / path;
 }
