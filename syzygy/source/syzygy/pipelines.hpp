@@ -222,7 +222,7 @@ public:
         }
         else if (index >= count)
         {
-            Warning(fmt::format(
+            SZG_WARNING(fmt::format(
                 "Shader index {} is out of bounds of {}", index, count
             ));
             return;

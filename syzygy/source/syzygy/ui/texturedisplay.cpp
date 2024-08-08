@@ -38,7 +38,7 @@ auto ui::TextureDisplay::create(
 {
     if (ImGui::GetIO().BackendRendererUserData == nullptr)
     {
-        Error("ImGui backend not initialized.");
+        SZG_ERROR("ImGui backend not initialized.");
         return std::nullopt;
     }
 
@@ -67,7 +67,7 @@ auto ui::TextureDisplay::create(
 
     if (!textureResult.has_value())
     {
-        Error("Failed to allocate image.");
+        SZG_ERROR("Failed to allocate image.");
         return std::nullopt;
     }
     szg_image::ImageView& texture{*textureResult.value()};

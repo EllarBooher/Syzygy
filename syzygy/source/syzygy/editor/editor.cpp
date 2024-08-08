@@ -62,15 +62,15 @@ namespace
 {
 auto initialize() -> std::optional<EditorResources>
 {
-    Log("Initializing Editor resources.");
+    SZG_LOG("Initializing Editor resources.");
 
     if (glfwInit() == GLFW_FALSE)
     {
-        Error("Failed to initialize GLFW.");
+        SZG_ERROR("Failed to initialize GLFW.");
         return std::nullopt;
     }
 
-    Log("Creating window...");
+    SZG_LOG("Creating window...");
 
     glm::u16vec2 constexpr DEFAULT_WINDOW_EXTENT{1920, 1080};
 
@@ -79,27 +79,27 @@ auto initialize() -> std::optional<EditorResources>
     };
     if (!windowResult.has_value())
     {
-        Error("Failed to create window.");
+        SZG_ERROR("Failed to create window.");
         return std::nullopt;
     }
 
-    Log("Window created.");
+    SZG_LOG("Window created.");
 
-    Log("Creating Graphics Context...");
+    SZG_LOG("Creating Graphics Context...");
 
     std::optional<GraphicsContext> graphicsResult{
         GraphicsContext::create(windowResult.value())
     };
     if (!graphicsResult.has_value())
     {
-        Error("Failed to create graphics context.");
+        SZG_ERROR("Failed to create graphics context.");
         return std::nullopt;
     }
     GraphicsContext& graphicsContext{graphicsResult.value()};
 
-    Log("Created Graphics Context.");
+    SZG_LOG("Created Graphics Context.");
 
-    Log("Creating Swapchain...");
+    SZG_LOG("Creating Swapchain...");
 
     std::optional<Swapchain> swapchainResult{Swapchain::create(
         graphicsContext.physicalDevice(),
@@ -110,26 +110,26 @@ auto initialize() -> std::optional<EditorResources>
     )};
     if (!swapchainResult.has_value())
     {
-        Error("Failed to create swapchain.");
+        SZG_ERROR("Failed to create swapchain.");
         return std::nullopt;
     }
 
-    Log("Created Swapchain.");
+    SZG_LOG("Created Swapchain.");
 
-    Log("Creating Frame Buffer...");
+    SZG_LOG("Creating Frame Buffer...");
 
     std::optional<FrameBuffer> frameBufferResult{FrameBuffer::create(
         graphicsContext.device(), graphicsContext.universalQueueFamily()
     )};
     if (!frameBufferResult.has_value())
     {
-        Error("Failed to create FrameBuffer.");
+        SZG_ERROR("Failed to create FrameBuffer.");
         return std::nullopt;
     }
 
-    Log("Created Frame Buffer.");
+    SZG_LOG("Created Frame Buffer.");
 
-    Log("Successfully initialized Editor resources.");
+    SZG_LOG("Successfully initialized Editor resources.");
 
     return EditorResources{
         .window = std::move(windowResult).value(),
@@ -155,7 +155,7 @@ auto rebuildSwapchain(
     glm::u16vec2 const newExtent
 ) -> std::optional<Swapchain>
 {
-    Log(fmt::format(
+    SZG_LOG(fmt::format(
         "Resizing swapchain: ({},{}) -> ({},{})",
         old.extent().width,
         old.extent().height,
@@ -353,7 +353,7 @@ auto uiInit(
     GLFWwindow* const window
 ) -> VkDescriptorPool
 {
-    Log("Initializing ImGui...");
+    SZG_LOG("Initializing ImGui...");
 
     std::vector<VkDescriptorPoolSize> const poolSizes{
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
@@ -449,7 +449,7 @@ auto uiInit(
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    Log("ImGui initialized.");
+    SZG_LOG("ImGui initialized.");
 
     return imguiDescriptorPool;
 }
@@ -579,7 +579,7 @@ auto szg_editor::run() -> EditorResult
     std::optional<EditorResources> resourcesResult{initialize()};
     if (!resourcesResult.has_value())
     {
-        Error("Failed to initialize editor.");
+        SZG_ERROR("Failed to initialize editor.");
         return EditorResult::ERROR;
     }
     PlatformWindow const& mainWindow{resourcesResult.value().window};
@@ -620,7 +620,7 @@ auto szg_editor::run() -> EditorResult
     };
     if (!sceneTextureResult.has_value())
     {
-        Error("Failed to allocate scene texture");
+        SZG_ERROR("Failed to allocate scene texture");
         return EditorResult::ERROR;
     }
     std::optional<std::unique_ptr<szg_image::ImageView>> windowTextureResult{
@@ -644,7 +644,7 @@ auto szg_editor::run() -> EditorResult
     };
     if (!windowTextureResult.has_value())
     {
-        Warning("Failed to allocate window texture.");
+        SZG_ERROR("Failed to allocate window texture.");
         return EditorResult::ERROR;
     }
 
@@ -658,7 +658,7 @@ auto szg_editor::run() -> EditorResult
     }
     else
     {
-        Error("Failed to create immediate submission queue.");
+        SZG_ERROR("Failed to create immediate submission queue.");
         return EditorResult::ERROR;
     }
 
@@ -680,7 +680,7 @@ auto szg_editor::run() -> EditorResult
     }
     else
     {
-        Error("Failed to load any meshes.");
+        SZG_ERROR("Failed to load any meshes.");
         return EditorResult::ERROR;
     }
 
@@ -706,7 +706,7 @@ auto szg_editor::run() -> EditorResult
     }
     else
     {
-        Error("Failed to create widget to display images.");
+        SZG_ERROR("Failed to create widget to display images.");
     }
 
     bool inputCapturedByScene{false};
@@ -902,7 +902,7 @@ auto szg_editor::run() -> EditorResult
 
             if (!newSwapchain.has_value())
             {
-                Error("Failed to create new swapchain for resizing");
+                SZG_ERROR("Failed to create new swapchain for resizing");
                 return EditorResult::ERROR;
             }
             swapchain = std::move(newSwapchain).value();

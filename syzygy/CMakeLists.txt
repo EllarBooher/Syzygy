@@ -71,6 +71,9 @@ endif()
 target_compile_definitions(
 	syzygy
 	PRIVATE
+		SZG_LOGGING_SOURCE_DIR="syzygy\\\\source"
+# TODO: remove adding the source directory like this once all 
+# legacy code relying on it is gone
 		SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 		GLFW_INCLUDE_VULKAN
 		GLM_ENABLE_EXPERIMENTAL

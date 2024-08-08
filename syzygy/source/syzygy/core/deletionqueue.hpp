@@ -27,7 +27,7 @@ public:
     {
         if (!cleanupCallbacks.empty())
         {
-            Warning("Cleanup callbacks was flushed.");
+            SZG_WARNING("Cleanup callbacks was flushed.");
             flush();
         }
     }

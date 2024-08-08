@@ -38,7 +38,7 @@ Engine::Engine(
     scene::SceneTexture const& scene
 )
 {
-    Log("Initializing Engine...");
+    SZG_LOG("Initializing Engine...");
 
     initDrawTargets(device, allocator);
 
@@ -48,11 +48,11 @@ Engine::Engine(
 
     initDeferredShadingPipeline(device, allocator, descriptorAllocator);
 
-    Log("Vulkan Initialized.");
+    SZG_LOG("Vulkan Initialized.");
 
     m_initialized = true;
 
-    Log("Engine Initialized.");
+    SZG_LOG("Engine Initialized.");
 }
 
 auto Engine::loadEngine(
@@ -69,14 +69,16 @@ auto Engine::loadEngine(
 {
     if (m_loadedEngine == nullptr)
     {
-        Log("Loading Engine.");
+        SZG_LOG("Loading Engine.");
         m_loadedEngine =
             new Engine(device, allocator, descriptorAllocator, sceneTexture);
     }
     else
     {
-        Warning("Called loadEngine when one was already loaded. No new engine "
-                "was loaded.");
+        SZG_WARNING(
+            "Called loadEngine when one was already loaded. No new engine "
+            "was loaded."
+        );
     }
 
     return m_loadedEngine;
@@ -115,7 +117,7 @@ void Engine::initDrawTargets(
     }
     else
     {
-        Warning("Failed to allocate scene depth texture.");
+        SZG_WARNING("Failed to allocate scene depth texture.");
     }
 }
 
@@ -421,7 +423,7 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
         return;
     }
 
-    Log("Engine cleaning up.");
+    SZG_LOG("Engine cleaning up.");
 
     CheckVkResult(vkDeviceWaitIdle(device));
 
@@ -437,5 +439,5 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
 
     m_initialized = false;
 
-    Log("Engine cleaned up.");
+    SZG_LOG("Engine cleaned up.");
 }

@@ -29,8 +29,10 @@ void Swapchain::destroy()
     {
         if (m_swapchain != VK_NULL_HANDLE || !m_imageViews.empty())
         {
-            Warning("Swapchain had allocations, but device was null. Memory "
-                    "was possibly leaked.");
+            SZG_WARNING(
+                "Swapchain had allocations, but device was null. Memory "
+                "was possibly leaked."
+            );
         }
         return;
     }
@@ -54,7 +56,7 @@ auto Swapchain::create(
     if (physicalDevice == VK_NULL_HANDLE || device == VK_NULL_HANDLE
         || surface == VK_NULL_HANDLE)
     {
-        Error("One or more necessary handles were null.");
+        SZG_ERROR("One or more necessary handles were null.");
         return std::nullopt;
     }
 

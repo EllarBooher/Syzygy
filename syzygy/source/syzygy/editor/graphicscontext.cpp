@@ -106,7 +106,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
 
     if (volkInitialize() != VK_SUCCESS)
     {
-        Error("Failed to initialize Volk.");
+        SZG_ERROR("Failed to initialize Volk.");
         return std::nullopt;
     }
 
@@ -202,7 +202,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
     else
     {
-        Error("Failed to create VMA Allocator.");
+        SZG_ERROR("Failed to create VMA Allocator.");
         return std::nullopt;
     }
 
@@ -229,7 +229,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
     else
     {
-        Error("Failed to create Descriptor Allocator.");
+        SZG_ERROR("Failed to create Descriptor Allocator.");
         return std::nullopt;
     }
 
@@ -294,8 +294,8 @@ void GraphicsContext::destroy()
     }
     else if (m_surface != VK_NULL_HANDLE || m_debugMessenger != VK_NULL_HANDLE)
     {
-        Warning("Surface and Debug Messenger were allocated while instance "
-                "was null. Memory was possibly leaked.");
+        SZG_WARNING("Surface and Debug Messenger were allocated while instance "
+                    "was null. Memory was possibly leaked.");
     }
 
     m_instance = VK_NULL_HANDLE;

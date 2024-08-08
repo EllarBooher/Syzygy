@@ -408,7 +408,7 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 
         if (vertexPushConstantSize != vertexPushConstantSizeExpected)
         {
-            Warning(fmt::format(
+            SZG_WARNING(fmt::format(
                 "Loaded vertex push constant had "
                 "a push constant of size {}, "
                 "while implementation expects {}.",
@@ -617,7 +617,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 
         if (vertexPushConstantSize != vertexPushConstantSizeExpected)
         {
-            Warning(fmt::format(
+            SZG_WARNING(fmt::format(
                 "Loaded vertex push constant had "
                 "a push constant of size {}, "
                 "while implementation expects {}.",

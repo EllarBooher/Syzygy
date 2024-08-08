@@ -22,7 +22,7 @@ auto vkutil::generateReflectionData(
             );
         if (reflectionModuleCreationResult != SPV_REFLECT_RESULT_SUCCESS)
         {
-            Warning(std::format(
+            SZG_WARNING(std::format(
                 "spvReflectCreateShaderModule failed. SpvReflectResult: {}",
                 static_cast<int32_t>(reflectionModuleCreationResult)
             ));
@@ -150,7 +150,7 @@ auto vkutil::generateReflectionData(
                     componentType = ShaderReflectionData::Float{};
                     break;
                 default:
-                    Warning(fmt::format(
+                    SZG_WARNING(fmt::format(
                         "Unsupported push constant member type \"{}\" "
                         "for \"{}\"",
                         std::to_string(
@@ -183,7 +183,7 @@ auto vkutil::generateReflectionData(
                     };
                     break;
                 default:
-                    Warning(fmt::format(
+                    SZG_WARNING(fmt::format(
                         "Unsupported push constant member format \"{}\" "
                         "for \"{}\"",
                         std::to_string(
@@ -215,7 +215,7 @@ auto vkutil::generateReflectionData(
             }
             else
             {
-                Warning(fmt::format(
+                SZG_WARNING(fmt::format(
                     "Unsupported push constant member flag types \"{}\" "
                     "for \"{}\"",
                     std::to_string(typeDescription.type_flags),
@@ -322,7 +322,7 @@ auto ShaderReflectionData::Structure::logicallyCompatible(Structure const& other
             otherMemberIndex += 1;
         }
     }
-    Error(fmt::format(
+    SZG_ERROR(fmt::format(
         "Ran out of iterations while checking shader structure "
         "compatibility between {} and {}.",
         name,
@@ -389,7 +389,8 @@ auto ShaderObjectReflected::fromBytecode(
         return {};
     }
 
-    Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
+    SZG_LOG(fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
+    );
     return ShaderObjectReflected(
         name, reflectionData, compilationResult.shader
     );
@@ -439,7 +440,8 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         return {};
     }
 
-    Log(fmt::format("Successfully compiled ShaderObjectReflected: {}", name));
+    SZG_LOG(fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
+    );
     return ShaderObjectReflected(
         name, reflectionData, compilationResult.shader
     );
@@ -468,7 +470,8 @@ auto ShaderModuleReflected::FromBytecode(
         vkutil::generateReflectionData(spirvBytecode)
     };
 
-    Log(fmt::format("Successfully compiled ShaderModuleReflected: {}", name));
+    SZG_LOG(fmt::format("Successfully compiled ShaderModuleReflected: {}", name)
+    );
     return ShaderModuleReflected(
         name, reflectionData, compilationResult.shader
     );
@@ -566,7 +569,8 @@ auto vkutil::loadShaderObject(
     },
             [&](AssetLoadingError const& error)
     {
-        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        SZG_ERROR(
+            fmt::format("Failed to load asset for shader: {}", error.message)
         );
         return std::optional<ShaderObjectReflected>{};
     }
@@ -607,7 +611,8 @@ auto vkutil::loadShaderObject(
     },
             [&](AssetLoadingError const& error)
     {
-        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        SZG_ERROR(
+            fmt::format("Failed to load asset for shader: {}", error.message)
         );
         return std::optional<ShaderObjectReflected>{};
     }
@@ -658,7 +663,8 @@ auto vkutil::loadShaderModule(VkDevice const device, std::string const& path)
     },
             [&](AssetLoadingError const& error)
     {
-        Error(fmt::format("Failed to load asset for shader: {}", error.message)
+        SZG_ERROR(
+            fmt::format("Failed to load asset for shader: {}", error.message)
         );
         return std::optional<ShaderModuleReflected>{};
     }

@@ -164,7 +164,7 @@ auto DescriptorAllocator::allocate(
 {
     if (m_pool == VK_NULL_HANDLE)
     {
-        Error("Descriptor Allocator pool is null.");
+        SZG_ERROR("Descriptor Allocator pool is null.");
         return VK_NULL_HANDLE;
     }
 

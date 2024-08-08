@@ -59,6 +59,48 @@ public:
     makeRelativePath(std::filesystem::path const& absolutePath) const;
 };
 
+consteval auto sourceLocationRelative(
+    std::source_location const location = std::source_location::current()
+) -> std::string_view
+{
+    std::string_view filename{location.file_name()};
+    size_t position{filename.find(SZG_LOGGING_SOURCE_DIR)};
+    bool const found{position != std::string_view::npos};
+    if (found)
+    {
+        filename.remove_prefix(position);
+    }
+
+    return filename;
+}
+
+#define SZG_LOG(msg)                                                           \
+    {                                                                          \
+        fmt::print(                                                            \
+            fg(fmt::color::gray),                                              \
+            "[ {} ] {} \n",                                                    \
+            sourceLocationRelative(),                                          \
+            msg                                                                \
+        );                                                                     \
+    }
+
+#define SZG_WARNING(msg)                                                       \
+    {                                                                          \
+        fmt::print(                                                            \
+            fg(fmt::color::yellow),                                            \
+            "[ {} ] {} \n",                                                    \
+            sourceLocationRelative(),                                          \
+            msg                                                                \
+        );                                                                     \
+    }
+
+#define SZG_ERROR(msg)                                                         \
+    {                                                                          \
+        fmt::print(                                                            \
+            fg(fmt::color::red), "[ {} ] {} \n", sourceLocationRelative(), msg \
+        );                                                                     \
+    }
+
 // Makes a pretty prefix to prepend to log messages.
 std::string MakeLogPrefix(std::source_location location);
 
@@ -97,59 +139,14 @@ void LogVkResult(
         return SYZYGY_result;                                                  \
     }
 
-// Logs the message in grey,
-// alongside a prefix that indicates the code location.
-void Log(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);
-
-// Logs the message in grey,
-// alongside a prefix that indicates the code location.
-void Warning(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);
-
-// Logs the message in red,
-// alongside a prefix that indicates the code location.
-void Error(
-    std::string const& message,
-    std::source_location location = std::source_location::current()
-);
-
 template <typename T>
 inline void
 LogVkbError(vkb::Result<T> const& result, std::string const& message)
 {
-    assert(!result.has_value());
-
-    Error(fmt::format(
+    SZG_ERROR(fmt::format(
         "{}. Error: {}. VkResult: {}.",
         message,
         result.error().message(),
         string_VkResult(result.vk_result())
     ));
-}
-
-// Returns the value inside a vkb::Result if it is a success
-// and throws a runtime error if not.
-template <typename T>
-inline T UnwrapVkbResult(
-    vkb::Result<T> const result,
-    std::source_location const location = std::source_location::current()
-)
-{
-    if (result.has_value())
-    {
-        return result.value();
-    }
-
-    auto const message = fmt::format(
-        fmt::fg(fmt::color::red),
-        "Detected Vulkan Bootstrap Error: {}, {}",
-        result.error().message(),
-        string_VkResult(result.vk_result())
-    );
-    throw std::runtime_error(MakeLogPrefix(location) + message);
 }

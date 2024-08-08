@@ -120,7 +120,7 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
 {
     if (device == VK_NULL_HANDLE)
     {
-        Error("Device is null.");
+        SZG_ERROR("Device is null.");
         return std::nullopt;
     }
 
@@ -137,7 +137,7 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
         };
         if (!frameResult.has_value())
         {
-            Error("Failed to allocate frame for framebuffer.");
+            SZG_ERROR("Failed to allocate frame for framebuffer.");
             return std::nullopt;
         }
         frameBuffer.m_frames.push_back(frameResult.value());
@@ -162,8 +162,8 @@ void FrameBuffer::destroy()
     {
         if (!m_frames.empty())
         {
-            Warning("FrameBuffer destroyed with no device, but allocated "
-                    "frames. Memory was maybe leaked.");
+            SZG_WARNING("FrameBuffer destroyed with no device, but allocated "
+                        "frames. Memory was maybe leaked.");
         }
         return;
     }

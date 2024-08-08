@@ -63,7 +63,7 @@ auto ShadowPassArray::create(
         };
         if (!buildResult.has_value())
         {
-            Warning("Unable to build ShadowPassArray sampler descriptor layout."
+            SZG_WARNING("Unable to build ShadowPassArray sampler descriptor layout."
             );
             return {};
         }
@@ -100,7 +100,7 @@ auto ShadowPassArray::create(
             };
             if (!imageResult.has_value())
             {
-                Warning("Unable to allocate ShadowPassArray texture.");
+                SZG_WARNING("Unable to allocate ShadowPassArray texture.");
                 return {};
             }
 
@@ -126,7 +126,7 @@ auto ShadowPassArray::create(
         };
         if (!buildResult.has_value())
         {
-            Warning(
+            SZG_WARNING(
                 "Unable to build ShadowPassArray textures descriptor layout."
             );
             return {};
@@ -215,7 +215,7 @@ void ShadowPassArray::recordInitialize(
 
         if (projViewMatrices.stagedSize() > m_shadowmaps.size())
         {
-            Warning("Not enough shadow maps allocated, skipping work.");
+            SZG_WARNING("Not enough shadow maps allocated, skipping work.");
             projViewMatrices.pop(
                 projViewMatrices.stagedSize() - m_shadowmaps.size()
             );

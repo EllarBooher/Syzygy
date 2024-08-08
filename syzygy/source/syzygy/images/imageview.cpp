@@ -23,7 +23,7 @@ auto szg_image::ImageView::allocate(
 {
     if (device == VK_NULL_HANDLE || allocator == VK_NULL_HANDLE)
     {
-        Error("Device or allocator were null.");
+        SZG_ERROR("Device or allocator were null.");
         return std::nullopt;
     }
 
@@ -33,7 +33,7 @@ auto szg_image::ImageView::allocate(
     if (!imageAllocationResult.has_value()
         || imageAllocationResult.value() == nullptr)
     {
-        Error("Failed to allocate Image.");
+        SZG_ERROR("Failed to allocate Image.");
         return std::nullopt;
     }
 
@@ -109,7 +109,7 @@ void szg_image::ImageView::destroy()
 
     if (leaked)
     {
-        Warning(fmt::format(
+        SZG_WARNING(fmt::format(
             "Leak detected in image view. Device: {}. VkImageView: {}.",
             fmt::ptr(m_memory.device),
             fmt::ptr(m_memory.view)

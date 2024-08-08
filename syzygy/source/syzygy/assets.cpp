@@ -118,7 +118,7 @@ auto uploadMeshToGPU(
         )};
         result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
     {
-        Warning("Command submission for mesh upload failed, buffers will "
+        SZG_WARNING("Command submission for mesh upload failed, buffers will "
                 "likely contain junk or no data.");
     }
 
@@ -147,13 +147,15 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
 
     if (parsedImage == nullptr)
     {
-        Error("Parsed image is null.");
+        SZG_ERROR("Parsed image is null.");
         return std::nullopt;
     }
 
     if (x < 1 || y < 1)
     {
-        Error(fmt::format("Parsed JPEG had invalid dimensions: ({},{})", x, y));
+        SZG_ERROR(
+            fmt::format("Parsed JPEG had invalid dimensions: ({},{})", x, y)
+        );
         return std::nullopt;
     }
 
@@ -206,7 +208,7 @@ auto uploadImageToGPU(
     };
     if (!stagingImageResult.has_value())
     {
-        Error("Failed to allocate staging image.");
+        SZG_ERROR("Failed to allocate staging image.");
         return std::nullopt;
     }
     szg_image::Image& stagingImage{*stagingImageResult.value()};
@@ -226,7 +228,7 @@ auto uploadImageToGPU(
     }
     else
     {
-        Error("Failed to map bytes of staging image.");
+        SZG_ERROR("Failed to map bytes of staging image.");
         return std::nullopt;
     }
 
@@ -246,7 +248,7 @@ auto uploadImageToGPU(
     };
     if (!finalImageResult.has_value())
     {
-        Error("Failed to allocate final image.");
+        SZG_ERROR("Failed to allocate final image.");
         return std::nullopt;
     }
     szg_image::Image& finalImage{*finalImageResult.value()};
@@ -270,7 +272,7 @@ auto uploadImageToGPU(
         )};
         submissionResult != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
     {
-        Error("Failed to copy images.");
+        SZG_ERROR("Failed to copy images.");
         return std::nullopt;
     }
 
@@ -290,7 +292,7 @@ auto loadGltfMeshes(
         DebugUtils::getLoadedDebugUtils().makeAbsolutePath(localPath)
     };
 
-    Log(fmt::format("Loading glTF: {}", assetPath.string()));
+    SZG_LOG(fmt::format("Loading glTF: {}", assetPath.string()));
 
     fastgltf::GltfDataBuffer data;
     data.loadFromFile(assetPath);
@@ -307,7 +309,7 @@ auto loadGltfMeshes(
     };
     if (!load)
     {
-        Error(fmt::format(
+        SZG_ERROR(fmt::format(
             "Failed to load glTF: {}", fastgltf::to_underlying(load.error())
         ));
         return {};
@@ -520,14 +522,14 @@ auto szg_assets::loadAssetFile(std::filesystem::path const& path)
 
     if (!file.is_open())
     {
-        Error(fmt::format("Unable to open file at {}", absolutePath.string()));
+        SZG_ERROR(fmt::format("Unable to open file at {}", path.string()));
         return std::nullopt;
     }
 
     size_t const fileSizeBytes = static_cast<size_t>(file.tellg());
     if (fileSizeBytes == 0)
     {
-        Error(fmt::format("File at empty at {}", absolutePath.string()));
+        SZG_ERROR(fmt::format("File at empty at {}", path.string()));
         return std::nullopt;
     }
 
@@ -561,11 +563,11 @@ auto szg_assets::loadTextureFromFile(
     VkImageUsageFlags const additionalFlags
 ) -> std::optional<Asset<szg_image::Image>>
 {
-    Log(fmt::format("Loading Texture from '{}'", path.string()));
+    SZG_LOG(fmt::format("Loading Texture from '{}'", path.string()));
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {
-        Error(fmt::format(
+        SZG_ERROR(fmt::format(
             "Failed to load file for texture at '{}'", path.string()
         ));
         return std::nullopt;
@@ -576,7 +578,7 @@ auto szg_assets::loadTextureFromFile(
     if (std::filesystem::path const extension{file.path.extension()};
         extension != ".jpg" && extension != ".jpeg")
     {
-        Warning("Only JPEGs are supported for loading textures.");
+        SZG_ERROR("Only JPEGs are supported for loading textures.");
         return std::nullopt;
     }
 
@@ -585,7 +587,7 @@ auto szg_assets::loadTextureFromFile(
     };
     if (!imageResult.has_value())
     {
-        Error("Failed to convert file from JPEG.");
+        SZG_ERROR("Failed to convert file from JPEG.");
         return std::nullopt;
     }
 
@@ -602,7 +604,7 @@ auto szg_assets::loadTextureFromFile(
     };
     if (!uploadResult.has_value())
     {
-        Error("Failed to upload image to GPU.");
+        SZG_ERROR("Failed to upload image to GPU.");
         return std::nullopt;
     }
 

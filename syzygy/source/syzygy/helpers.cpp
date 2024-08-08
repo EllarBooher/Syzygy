@@ -57,33 +57,7 @@ void LogVkResult(
         return;
     }
 
-    Error(
-        fmt::format("{} error: {}", message, string_VkResult(result)), location
-    );
-}
-
-void LogBase(
-    std::string const& message,
-    std::source_location const location,
-    fmt::color const color
-)
-{
-    PrintLine(fmt::format("{} {}", MakeLogPrefix(location), message), color);
-}
-
-void Log(std::string const& message, std::source_location const location)
-{
-    LogBase(message, location, fmt::color::gray);
-}
-
-void Warning(std::string const& message, std::source_location const location)
-{
-    LogBase(message, location, fmt::color::yellow);
-}
-
-void Error(std::string const& message, std::source_location const location)
-{
-    LogBase(message, location, fmt::color::red);
+    SZG_ERROR(fmt::format("{} error: {}", message, string_VkResult(result)));
 }
 
 void DebugUtils::init()

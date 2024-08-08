@@ -105,7 +105,7 @@ auto szg_utils::openFile(PlatformWindow const& parent)
 
     if (paths.size() > 1)
     {
-        Warning("Dialog box returned more than 1 path, ignoring the rest.");
+        SZG_WARNING("Dialog box returned more than 1 path, ignoring the rest.");
     }
 
     return paths[0];
@@ -131,7 +131,7 @@ auto szg_utils::openDirectory(PlatformWindow const& parent)
 
     if (paths.size() > 1)
     {
-        Warning("Dialog box returned more than 1 path, ignoring the rest.");
+        SZG_WARNING("Dialog box returned more than 1 path, ignoring the rest.");
     }
 
     return paths[0];

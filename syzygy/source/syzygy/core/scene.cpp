@@ -370,7 +370,7 @@ void scene::Scene::tick(TickTiming const lastFrame)
 
     if (models.size() != modelInverseTransposes.size())
     {
-        Warning("models and modelInverseTransposes out of sync");
+        SZG_WARNING("models and modelInverseTransposes out of sync");
         return;
     }
 

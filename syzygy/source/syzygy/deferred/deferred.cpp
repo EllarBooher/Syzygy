@@ -36,7 +36,7 @@ void validatePushConstant(
 
         if (loadedPushConstantSize != expectedSize)
         {
-            Warning(fmt::format(
+            SZG_WARNING(fmt::format(
                 "Loaded Shader \"{}\" had a push constant of size {}, "
                 "while implementation expects {}.",
                 shaderObject.name(),
@@ -47,7 +47,7 @@ void validatePushConstant(
     }
     else if (expectedSize > 0)
     {
-        Warning(fmt::format(
+        SZG_WARNING(fmt::format(
             "Loaded Shader \"{}\" had no push constant, "
             "while implementation expects one of size {}.",
             shaderObject.name(),
@@ -149,7 +149,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     }
     else
     {
-        Warning("Failed to create GBuffer for deferred shading pipeline.");
+        SZG_WARNING("Failed to create GBuffer for deferred shading pipeline.");
     }
 
     { // Lights used during the pass
@@ -216,8 +216,10 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             }
             else
             {
-                Warning("Failed to allocate draw image for deferred shading "
-                        "pipeline.");
+                SZG_WARNING(
+                    "Failed to allocate draw image for deferred shading "
+                    "pipeline."
+                );
             }
 
             VkDescriptorImageInfo const drawImageInfo{

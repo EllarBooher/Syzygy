@@ -43,7 +43,7 @@ void szg_image::Image::destroy()
 
     if (leaked)
     {
-        Warning(fmt::format(
+        SZG_WARNING(fmt::format(
             "Leak detected in image. Allocator: {}. "
             "Allocation: {}. Device: {}. VkImage: {}.",
             fmt::ptr(m_memory.allocator),

@@ -252,8 +252,10 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
     {
         if (isDirty())
         {
-            Warning("Dirty buffer was accessed with a read, these are not the "
-                    "values from the last recorded copy.");
+            SZG_WARNING(
+                "Dirty buffer was accessed with a read, these are not the "
+                "values from the last recorded copy."
+            );
         }
 
         std::span<uint8_t const> byteSpan{readStagedBytes()};

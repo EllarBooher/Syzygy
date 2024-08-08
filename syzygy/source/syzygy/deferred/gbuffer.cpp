@@ -45,7 +45,7 @@ auto GBuffer::create(
     };
     if (!diffuseResult.has_value() || diffuseResult.value() == nullptr)
     {
-        Error("Failed to create GBuffer diffuse color image.");
+        SZG_ERROR("Failed to create GBuffer diffuse color image.");
         return std::nullopt;
     }
 
@@ -56,7 +56,7 @@ auto GBuffer::create(
     };
     if (!specularResult.has_value() || specularResult.value() == nullptr)
     {
-        Error("Failed to create GBuffer specular color image.");
+        SZG_ERROR("Failed to create GBuffer specular color image.");
         return std::nullopt;
     }
 
@@ -67,7 +67,7 @@ auto GBuffer::create(
     };
     if (!normalResult.has_value() || normalResult.value() == nullptr)
     {
-        Error("Failed to create GBuffer normal image.");
+        SZG_ERROR("Failed to create GBuffer normal image.");
         return std::nullopt;
     }
 
@@ -78,7 +78,7 @@ auto GBuffer::create(
     };
     if (!positionResult.has_value() || positionResult.value() == nullptr)
     {
-        Error("Failed to create GBuffer worldPosition image.");
+        SZG_ERROR("Failed to create GBuffer worldPosition image.");
         return std::nullopt;
     }
 
@@ -109,7 +109,7 @@ auto GBuffer::create(
             )};
             if (samplerResult != VK_SUCCESS)
             {
-                Error(fmt::format(
+                SZG_ERROR(fmt::format(
                     "Failed to create GBuffer immutable sampler {}", i
                 ));
                 cleanupCallbacks.flush();
@@ -166,7 +166,7 @@ auto GBuffer::create(
     };
     if (!descriptorLayoutResult.has_value())
     {
-        Error("Failed to create GBuffer descriptor set layout.");
+        SZG_ERROR("Failed to create GBuffer descriptor set layout.");
         return std::nullopt;
     }
 

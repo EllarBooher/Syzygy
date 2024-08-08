@@ -106,8 +106,10 @@ auto AllocatedBuffer::deviceAddress() const -> VkDeviceAddress
 {
     if ((m_vkCreateInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) == 0)
     {
-        Warning("Accessed device address of buffer that was not created with "
-                "address flag set.");
+        SZG_WARNING(
+            "Accessed device address of buffer that was not created with "
+            "address flag set."
+        );
     }
 
     return m_deviceAddress;
@@ -122,8 +124,10 @@ void AllocatedBuffer::destroy() const
     if (m_allocator == VK_NULL_HANDLE
         && (m_allocation != VK_NULL_HANDLE || m_buffer != VK_NULL_HANDLE))
     {
-        Warning("Allocator was null when attempting to destroy buffer and/or "
-                "memory.");
+        SZG_WARNING(
+            "Allocator was null when attempting to destroy buffer and/or "
+            "memory."
+        );
         return;
     }
 
@@ -192,8 +196,10 @@ auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
 {
     if (isDirty())
     {
-        Warning("Dirty buffer's device address was accessed, "
-                "the buffer may have unexpected values at command execution.");
+        SZG_WARNING(
+            "Dirty buffer's device address was accessed, "
+            "the buffer may have unexpected values at command execution."
+        );
     }
 
     return m_deviceBuffer->deviceAddress();

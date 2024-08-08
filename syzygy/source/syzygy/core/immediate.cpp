@@ -80,7 +80,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
 {
     if (m_device == VK_NULL_HANDLE)
     {
-        Error("Immediate submission queue not initialized.");
+        SZG_ERROR("Immediate submission queue not initialized.");
         return SubmissionResult::NOT_INITIALZIED;
     }
 
