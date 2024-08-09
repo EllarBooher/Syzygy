@@ -120,7 +120,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     };
     if (!instanceBuildResult.has_value())
     {
-        LogVkbError(
+        SZG_LOG_VKB(
             instanceBuildResult, "Failed to create VkBootstrap instance."
         );
         return std::nullopt;
@@ -137,7 +137,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
         )};
         surfaceResult != VK_SUCCESS)
     {
-        LogVkResult(surfaceResult, "Failed to create surface via GLFW.");
+        SZG_LOG_VK(surfaceResult, "Failed to create surface via GLFW.");
         return std::nullopt;
     }
 
@@ -146,7 +146,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     };
     if (!physicalDeviceResult.has_value())
     {
-        LogVkbError(physicalDeviceResult, "Failed to select physical device.");
+        SZG_LOG_VKB(physicalDeviceResult, "Failed to select physical device.");
         return std::nullopt;
     }
     vkb::PhysicalDevice const& physicalDevice{physicalDeviceResult.value()};
@@ -157,7 +157,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     };
     if (!deviceBuildResult.has_value())
     {
-        LogVkbError(deviceBuildResult, "Failed to build logical device.");
+        SZG_LOG_VKB(deviceBuildResult, "Failed to build logical device.");
         return std::nullopt;
     }
     vkb::Device const& device{deviceBuildResult.value()};
@@ -174,7 +174,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
     else
     {
-        LogVkbError(graphicsQueueResult, "Failed to get graphics queue.");
+        SZG_LOG_VKB(graphicsQueueResult, "Failed to get graphics queue.");
         return std::nullopt;
     }
 
@@ -187,7 +187,7 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
     else
     {
-        LogVkbError(
+        SZG_LOG_VKB(
             graphicsQueueFamilyResult, "Failed to get graphics queue family."
         );
         return std::nullopt;

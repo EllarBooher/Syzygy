@@ -31,7 +31,7 @@ auto ImmediateSubmissionQueue::create(
     };
 
     VkCommandPool pool{VK_NULL_HANDLE};
-    TRY_VK(
+    SZG_TRY_VK(
         vkCreateCommandPool(device, &commandPoolInfo, nullptr, &pool),
         "Failed to allocate command pool.",
         std::nullopt
@@ -49,7 +49,7 @@ auto ImmediateSubmissionQueue::create(
     };
 
     VkCommandBuffer cmd{VK_NULL_HANDLE};
-    TRY_VK(
+    SZG_TRY_VK(
         vkAllocateCommandBuffers(device, &commandBufferInfo, &cmd),
         "Failed to allocate command buffers.",
         std::nullopt
@@ -60,7 +60,7 @@ auto ImmediateSubmissionQueue::create(
     };
 
     VkFence busyFence{VK_NULL_HANDLE};
-    TRY_VK(
+    SZG_TRY_VK(
         vkCreateFence(device, &fenceCreateInfo, nullptr, &busyFence),
         "Failed to create fence.",
         std::nullopt
@@ -84,12 +84,12 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         return SubmissionResult::NOT_INITIALZIED;
     }
 
-    TRY_VK(
+    SZG_TRY_VK(
         vkResetFences(m_device, 1, &m_busyFence),
         "Failed to reset fences",
         SubmissionResult::FAILED
     );
-    TRY_VK(
+    SZG_TRY_VK(
         vkResetCommandBuffer(m_commandBuffer, 0),
         "Failed to reset command buffer",
         SubmissionResult::FAILED
@@ -99,7 +99,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
     )};
 
-    TRY_VK(
+    SZG_TRY_VK(
         vkBeginCommandBuffer(m_commandBuffer, &cmdBeginInfo),
         "Failed to begin command buffer",
         SubmissionResult::FAILED
@@ -107,7 +107,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
 
     recordingCallback(m_commandBuffer);
 
-    TRY_VK(
+    SZG_TRY_VK(
         vkEndCommandBuffer(m_commandBuffer),
         "Failed to end command buffer",
         SubmissionResult::FAILED
@@ -119,7 +119,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
     VkSubmitInfo2 const submitInfo{vkinit::submitInfo(cmdSubmitInfos, {}, {})};
 
-    TRY_VK(
+    SZG_TRY_VK(
         vkQueueSubmit2(queue, 1, &submitInfo, m_busyFence),
         "Failed to submit command buffer",
         SubmissionResult::FAILED
@@ -141,7 +141,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         return SubmissionResult::TIMEOUT;
         break;
     default:
-        LogVkResult(
+        SZG_LOG_VK(
             waitResult, "Failed to wait on fences with unexpected error"
         );
         return SubmissionResult::FAILED;

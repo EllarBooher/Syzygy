@@ -288,8 +288,7 @@ auto loadGltfMeshes(
     std::filesystem::path const& path
 ) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
-    std::filesystem::path assetPath{DebugUtils::ensureAbsoluteFromWorking(path)
-    };
+    std::filesystem::path const assetPath{szg_utils::ensureAbsolutePath(path)};
 
     SZG_LOG(fmt::format("Loading glTF: {}", assetPath.string()));
 

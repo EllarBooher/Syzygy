@@ -114,7 +114,7 @@ auto PipelineBuilder::buildPipeline(
     };
 
     VkPipeline pipeline{VK_NULL_HANDLE};
-    LogVkResult(
+    SZG_LOG_VK(
         vkCreateGraphicsPipelines(
             device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline
         ),
@@ -281,7 +281,7 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
         };
 
         VkPipelineLayout layout{VK_NULL_HANDLE};
-        LogVkResult(
+        SZG_LOG_VK(
             vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout),
             "Creating shader object pipeline layout"
         );
@@ -437,7 +437,7 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
     };
 
     VkPipelineLayout pipelineLayout{VK_NULL_HANDLE};
-    CheckVkResult(
+    SZG_CHECK_VK(
         vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout)
     );
 
@@ -646,7 +646,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
     };
 
     VkPipelineLayout pipelineLayout{VK_NULL_HANDLE};
-    CheckVkResult(
+    SZG_CHECK_VK(
         vkCreatePipelineLayout(device, &layoutInfo, nullptr, &pipelineLayout)
     );
 

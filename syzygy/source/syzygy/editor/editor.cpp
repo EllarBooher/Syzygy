@@ -181,7 +181,7 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
         )};
         waitResult != VK_SUCCESS)
     {
-        LogVkResult(waitResult, "Failed to wait on frame in-use fence.");
+        SZG_LOG_VK(waitResult, "Failed to wait on frame in-use fence.");
         return waitResult;
     }
 
@@ -190,7 +190,7 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
         };
         resetResult != VK_SUCCESS)
     {
-        LogVkResult(resetResult, "Failed to reset frame fences.");
+        SZG_LOG_VK(resetResult, "Failed to reset frame fences.");
         return resetResult;
     }
 
@@ -199,7 +199,7 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
     if (VkResult const resetCmdResult{vkResetCommandBuffer(cmd, 0)};
         resetCmdResult != VK_SUCCESS)
     {
-        LogVkResult(resetCmdResult, "Failed to reset frame command buffer.");
+        SZG_LOG_VK(resetCmdResult, "Failed to reset frame command buffer.");
         return resetCmdResult;
     }
 
@@ -209,7 +209,7 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
     if (VkResult const beginCmdResult{vkBeginCommandBuffer(cmd, &cmdBeginInfo)};
         beginCmdResult != VK_SUCCESS)
     {
-        LogVkResult(beginCmdResult, "Failed to begin frame command buffer.");
+        SZG_LOG_VK(beginCmdResult, "Failed to begin frame command buffer.");
         return beginCmdResult;
     }
 
@@ -244,9 +244,9 @@ auto endFrame(
     {
         if (acquireResult != VK_ERROR_OUT_OF_DATE_KHR)
         {
-            LogVkResult(acquireResult, "Failed to acquire swapchain image.");
+            SZG_LOG_VK(acquireResult, "Failed to acquire swapchain image.");
         }
-        LogVkResult(vkEndCommandBuffer(cmd), "Failed to end command buffer.");
+        SZG_LOG_VK(vkEndCommandBuffer(cmd), "Failed to end command buffer.");
         return acquireResult;
     }
 
@@ -280,7 +280,7 @@ auto endFrame(
         VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    TRY_VK_RESULT(
+    SZG_PROPAGATE_VK(
         vkEndCommandBuffer(cmd),
         "Failed to end command buffer after recording copy into swapchain."
     );
@@ -304,7 +304,7 @@ auto endFrame(
     VkSubmitInfo2 const submitInfo =
         vkinit::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
 
-    TRY_VK_RESULT(
+    SZG_PROPAGATE_VK(
         vkQueueSubmit2(
             submissionQueue, 1, &submitInfo, currentFrame.renderFence
         ),
@@ -333,7 +333,7 @@ auto endFrame(
     {
         if (presentResult != VK_ERROR_OUT_OF_DATE_KHR)
         {
-            LogVkResult(
+            SZG_LOG_VK(
                 presentResult,
                 "Failed swapchain presentation due to error that was not "
                 "OUT_OF_DATE."
@@ -379,7 +379,7 @@ auto uiInit(
     };
 
     VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
-    CheckVkResult(
+    SZG_CHECK_VK(
         vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiDescriptorPool)
     );
 
@@ -421,6 +421,21 @@ auto uiInit(
     // a little wasteful
     VkDeviceSize constexpr IMGUI_MIN_ALLOCATION_SIZE{1024ULL * 1024ULL};
 
+    auto const checkVkResult_imgui{
+        [](VkResult const result)
+    {
+        if (result == VK_SUCCESS)
+        {
+            return;
+        }
+
+        std::string const message{
+            fmt::format("Detected Vulkan Error : {}", string_VkResult(result))
+        };
+        fmt::print(fg(fmt::color::red), "[ IMGUI ] {} \n", message);
+    },
+    };
+
     ImGui_ImplVulkan_InitInfo initInfo{
         .Instance = instance,
         .PhysicalDevice = physicalDevice,
@@ -441,7 +456,7 @@ auto uiInit(
 
         // Allocation/Debug
         .Allocator = nullptr,
-        .CheckVkResultFn = CheckVkResult_Imgui,
+        .CheckVkResultFn = checkVkResult_imgui,
         .MinAllocationSize = IMGUI_MIN_ALLOCATION_SIZE,
     };
 
@@ -538,17 +553,15 @@ void uiCleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
-// Resets the ImGui style and reloads other resources like fonts, then builds a
-// new style from the passed preferences.
+// Resets the ImGui style and reloads other resources like fonts, then
+// builds a new style from the passed preferences.
 void uiReload(VkDevice const device, ui::UIPreferences const preferences)
 {
     float constexpr FONT_BASE_SIZE{13.0F};
 
     ImGui::GetIO().Fonts->Clear();
     ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        DebugUtils::ensureAbsoluteFromWorking(
-            "assets/proggyfonts/ProggyClean.ttf"
-        )
+        szg_utils::ensureAbsolutePath("assets/proggyfonts/ProggyClean.ttf")
             .string()
             .c_str(),
         FONT_BASE_SIZE * preferences.dpiScale
@@ -786,7 +799,7 @@ auto szg_editor::run() -> EditorResult
             };
             beginFrameResult != VK_SUCCESS)
         {
-            LogVkResult(beginFrameResult, "Failed to begin frame.");
+            SZG_LOG_VK(beginFrameResult, "Failed to begin frame.");
             return EditorResult::ERROR;
         }
 
@@ -885,7 +898,7 @@ auto szg_editor::run() -> EditorResult
         {
             if (endFrameResult != VK_ERROR_OUT_OF_DATE_KHR)
             {
-                LogVkResult(
+                SZG_LOG_VK(
                     endFrameResult,
                     "Failed to end frame, due to non-out-of-date error."
                 );

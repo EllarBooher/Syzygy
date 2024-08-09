@@ -94,7 +94,7 @@ auto ui::TextureDisplay::create(
     )};
 
     VkSampler sampler{VK_NULL_HANDLE};
-    TRY_VK(
+    SZG_TRY_VK(
         vkCreateSampler(device, &samplerInfo, nullptr, &sampler),
         "Failed to allocate sampler.",
         std::nullopt

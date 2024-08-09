@@ -28,7 +28,7 @@ auto AllocatedBuffer::allocate(
     VkBuffer buffer;
     VmaAllocation allocation;
     VmaAllocationInfo allocationInfo;
-    CheckVkResult(vmaCreateBuffer(
+    SZG_CHECK_VK(vmaCreateBuffer(
         allocator,
         &vkCreateInfo,
         &vmaCreateInfo,
@@ -176,7 +176,7 @@ auto AllocatedBuffer::allocationInfo_impl(AllocatedBuffer const& buffer)
 
 void StagedBuffer::recordCopyToDevice(VkCommandBuffer const cmd)
 {
-    CheckVkResult(m_stagingBuffer->flush());
+    SZG_CHECK_VK(m_stagingBuffer->flush());
 
     markDirty(false);
 

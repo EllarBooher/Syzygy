@@ -1,6 +1,7 @@
 #include "syzygy/syzygy.hpp"
 
 #include "syzygy/editor/editor.hpp"
+#include <spdlog/spdlog.h>
 
 auto syzygy::runApplication() -> syzygy::RunResult
 {

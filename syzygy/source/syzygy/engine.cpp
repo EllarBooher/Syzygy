@@ -425,7 +425,7 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
 
     SZG_LOG("Engine cleaning up.");
 
-    CheckVkResult(vkDeviceWaitIdle(device));
+    SZG_CHECK_VK(vkDeviceWaitIdle(device));
 
     m_genericComputePipeline->cleanup(device);
     m_deferredShadingPipeline->cleanup(device, allocator);

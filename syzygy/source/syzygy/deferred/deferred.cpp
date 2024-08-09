@@ -126,7 +126,7 @@ auto createLayout(
     };
     if (result != VK_SUCCESS)
     {
-        LogVkResult(result, "Creating shader object pipeline layout");
+        SZG_LOG_VK(result, "Creating shader object pipeline layout");
         return VK_NULL_HANDLE;
     }
     return layout;
@@ -257,7 +257,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             )
         };
 
-        LogVkResult(
+        SZG_LOG_VK(
             vkCreateSampler(
                 device,
                 &depthImageImmutableSamplerInfo,

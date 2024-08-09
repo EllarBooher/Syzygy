@@ -85,7 +85,7 @@ auto Swapchain::create(
     };
     if (!vkbResult.has_value())
     {
-        LogVkbError(vkbResult, "Failed to build VkbSwapchain.");
+        SZG_LOG_VKB(vkbResult, "Failed to build VkbSwapchain.");
         return std::nullopt;
     }
     vkb::Swapchain& vkbSwapchain{vkbResult.value()};
@@ -102,7 +102,7 @@ auto Swapchain::create(
     }
     else
     {
-        LogVkbError(imagesResult, "Failed to get swapchain images.");
+        SZG_LOG_VKB(imagesResult, "Failed to get swapchain images.");
         return std::nullopt;
     }
 
@@ -115,7 +115,7 @@ auto Swapchain::create(
     }
     else
     {
-        LogVkbError(viewsResult, "Failed to get swapchain image views.");
+        SZG_LOG_VKB(viewsResult, "Failed to get swapchain image views.");
         return std::nullopt;
     }
 

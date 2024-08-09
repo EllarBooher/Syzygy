@@ -55,7 +55,7 @@ auto szg_image::ImageView::allocate(
     };
 
     VkImageView view;
-    TRY_VK(
+    SZG_TRY_VK(
         vkCreateImageView(device, &imageViewInfo, nullptr, &view),
         "Failed to create VkImageView.",
         std::nullopt

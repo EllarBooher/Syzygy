@@ -381,9 +381,7 @@ auto ShaderObjectReflected::fromBytecode(
         )
     };
 
-    LogVkResult(
-        compilationResult.result, fmt::format("Created Shader Object {}", name)
-    );
+    SZG_LOG_VK(compilationResult.result, "Created Shader Object {}", name);
     if (compilationResult.result != VK_SUCCESS)
     {
         return {};
@@ -432,9 +430,7 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         )
     };
 
-    LogVkResult(
-        compilationResult.result, fmt::format("Created Shader Object {}", name)
-    );
+    SZG_LOG_VK(compilationResult.result, "Created Shader Object {}", name);
     if (compilationResult.result != VK_SUCCESS)
     {
         return {};
@@ -459,9 +455,8 @@ auto ShaderModuleReflected::FromBytecode(
 
     if (compilationResult.result != VK_SUCCESS)
     {
-        LogVkResult(
-            compilationResult.result,
-            fmt::format("Failed to create shader module {}", name)
+        SZG_LOG_VK(
+            compilationResult.result, "Failed to create shader module {}", name
         );
         return {};
     }
@@ -470,8 +465,7 @@ auto ShaderModuleReflected::FromBytecode(
         vkutil::generateReflectionData(spirvBytecode)
     };
 
-    SZG_LOG(fmt::format("Successfully compiled ShaderModuleReflected: {}", name)
-    );
+    SZG_LOG("Successfully compiled ShaderModuleReflected: {}", name);
     return ShaderModuleReflected(
         name, reflectionData, compilationResult.shader
     );

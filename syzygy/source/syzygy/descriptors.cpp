@@ -94,7 +94,7 @@ auto DescriptorLayoutBuilder::build(
     };
     if (result != VK_SUCCESS)
     {
-        LogVkResult(result, "Creating Descriptor Set Layout");
+        SZG_LOG_VK(result, "Creating Descriptor Set Layout");
         return {};
     }
 
@@ -148,14 +148,14 @@ auto DescriptorAllocator::create(
     };
 
     VkDescriptorPool pool{VK_NULL_HANDLE};
-    CheckVkResult(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
+    SZG_CHECK_VK(vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool));
 
     return DescriptorAllocator{device, pool};
 }
 
 void DescriptorAllocator::clearDescriptors(VkDevice const device)
 {
-    CheckVkResult(vkResetDescriptorPool(device, m_pool, 0));
+    SZG_CHECK_VK(vkResetDescriptorPool(device, m_pool, 0));
 }
 
 auto DescriptorAllocator::allocate(
@@ -177,7 +177,7 @@ auto DescriptorAllocator::allocate(
     };
 
     VkDescriptorSet set;
-    CheckVkResult(vkAllocateDescriptorSets(device, &allocInfo, &set));
+    SZG_CHECK_VK(vkAllocateDescriptorSets(device, &allocInfo, &set));
 
     return set;
 }

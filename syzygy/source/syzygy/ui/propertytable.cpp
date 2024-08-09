@@ -303,9 +303,12 @@ auto PropertyTable::rowTextInput(
     return *this;
 }
 
-PropertyTable& PropertyTable::rowReadOnlyTextInput(
+// NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
+// up the parameters, since name is first across all Property table row methods.
+
+auto PropertyTable::rowReadOnlyTextInput(
     std::string const& name, std::string const& value, bool const multiline
-)
+) -> PropertyTable&
 {
     if (!Self::rowBegin(name))
     {
@@ -315,7 +318,7 @@ PropertyTable& PropertyTable::rowReadOnlyTextInput(
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
 
-    ImGuiInputTextFlags flags{
+    ImGuiInputTextFlags const flags{
         ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoHorizontalScroll
     };
 
@@ -334,9 +337,6 @@ PropertyTable& PropertyTable::rowReadOnlyTextInput(
 
     return *this;
 }
-
-// NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
-// up the parameters, since name is first across all Property table row methods.
 
 auto PropertyTable::rowTextLabel(
     std::string const& name, std::string const& value

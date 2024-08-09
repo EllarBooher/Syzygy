@@ -29,7 +29,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         )};
         result != VK_SUCCESS)
     {
-        LogVkResult(result, "Failed to allocate frame command pool.");
+        SZG_LOG_VK(result, "Failed to allocate frame command pool.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }
@@ -47,7 +47,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         )};
         result != VK_SUCCESS)
     {
-        LogVkResult(result, "Failed to allocate frame command buffer.");
+        SZG_LOG_VK(result, "Failed to allocate frame command buffer.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }
@@ -62,7 +62,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         };
         result != VK_SUCCESS)
     {
-        LogVkResult(result, "Failed to allocate frame in-use fence.");
+        SZG_LOG_VK(result, "Failed to allocate frame in-use fence.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }
@@ -75,7 +75,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         )};
         result != VK_SUCCESS)
     {
-        LogVkResult(result, "Failed to allocate frame swapchain semaphore.");
+        SZG_LOG_VK(result, "Failed to allocate frame swapchain semaphore.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }
@@ -85,7 +85,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         )};
         result != VK_SUCCESS)
     {
-        LogVkResult(result, "Failed to allocate frame render semaphore.");
+        SZG_LOG_VK(result, "Failed to allocate frame render semaphore.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }

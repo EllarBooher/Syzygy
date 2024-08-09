@@ -41,7 +41,7 @@ auto ShadowPassArray::create(
 
         if (samplerResult != VK_SUCCESS)
         {
-            LogVkResult(samplerResult, "Creating Shadow Pass Sampler");
+            SZG_LOG_VK(samplerResult, "Creating Shadow Pass Sampler");
             return {};
         }
 
@@ -63,7 +63,8 @@ auto ShadowPassArray::create(
         };
         if (!buildResult.has_value())
         {
-            SZG_WARNING("Unable to build ShadowPassArray sampler descriptor layout."
+            SZG_WARNING(
+                "Unable to build ShadowPassArray sampler descriptor layout."
             );
             return {};
         }

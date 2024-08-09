@@ -117,7 +117,7 @@ auto szg_image::Image::allocate(
     )};
     if (createImageResult != VK_SUCCESS)
     {
-        LogVkResult(createImageResult, "VMA Allocation for image failed.");
+        SZG_LOG_VK(createImageResult, "VMA Allocation for image failed.");
         return std::nullopt;
     }
 

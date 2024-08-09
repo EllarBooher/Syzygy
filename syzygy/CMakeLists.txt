@@ -71,7 +71,6 @@ endif()
 target_compile_definitions(
 	syzygy
 	PRIVATE
-		SZG_LOGGING_SOURCE_DIR="syzygy\\\\source"
 		GLFW_INCLUDE_VULKAN
 		GLM_ENABLE_EXPERIMENTAL
 		GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -214,6 +213,7 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(vk-bootstrap)
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(volk)
+FetchContent_MakeAvailable(spdlog)
 
 target_link_libraries(
 	syzygy
@@ -229,4 +229,5 @@ target_link_libraries(
 		fmt::fmt
 		volk
 		stb
+		spdlog::spdlog
 )
