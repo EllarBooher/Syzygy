@@ -59,8 +59,8 @@ auto ensureAbsolutePath(
             SZG_ERROR(                                                         \
                 "VkError {} detected.", string_VkResult(SZG_CHECK_result)      \
             )                                                                  \
+            assert(SZG_CHECK_result == VK_SUCCESS);                            \
         }                                                                      \
-        assert(SZG_CHECK_result == VK_SUCCESS);                                \
     }
 
 // Thin error propagation, logs any result that isn't VK_SUCCESS
