@@ -17,7 +17,7 @@ find_program(
 if (CLANG_TIDY_PATH)
 	set(
 		CLANG_TIDY_WITH_OPTIONS 
-			"${CLANG_TIDY_PATH} ${CLANG_TIDY_OPTIONS}"
+			"${CLANG_TIDY_PATH}" "${CLANG_TIDY_OPTIONS}"
 	)
 	message(STATUS "clang-tidy enabled - using ${CLANG_TIDY_WITH_OPTIONS}")
 
