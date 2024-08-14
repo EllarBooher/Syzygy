@@ -13,6 +13,9 @@ add_library(
 	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 
+	"source/syzygy/renderer/pipelines/deferred.cpp"
+
+	"source/syzygy/renderer/gbuffer.cpp"
 	"source/syzygy/renderer/shadowpass.cpp"
 	"source/syzygy/renderer/shaders.cpp"
 	"source/syzygy/renderer/descriptors.cpp"
@@ -30,9 +33,6 @@ add_library(
 	"source/syzygy/ui/widgets.cpp"
 	"source/syzygy/ui/dockinglayout.cpp"
 	"source/syzygy/ui/texturedisplay.cpp"
-
-	"source/syzygy/deferred/deferred.cpp"
-	"source/syzygy/deferred/gbuffer.cpp"
 
 	"source/syzygy/editor/editor.cpp"
 	"source/syzygy/editor/window.cpp" 

@@ -1,7 +1,7 @@
 #include "pipelineui.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/deferred/deferred.hpp"
+#include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"

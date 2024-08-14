@@ -3,11 +3,11 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/debuglines.hpp"
-#include "syzygy/deferred/deferred.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
