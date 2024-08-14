@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
-#include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/engineui.hpp"

@@ -6,7 +6,6 @@ add_library(
 	"source/syzygy/syzygy.cpp"
 	"source/syzygy/vulkanusage.cpp"
 	"source/syzygy/helpers.cpp"
-	"source/syzygy/pipelines.cpp"
 	"source/syzygy/assets.cpp"
 
 	"source/syzygy/geometry/geometryhelpers.cpp"
@@ -14,6 +13,7 @@ add_library(
 	"source/syzygy/renderer/pipelines/debuglines.cpp"
 	"source/syzygy/renderer/pipelines/deferred.cpp"
 
+	"source/syzygy/renderer/pipelines.cpp"
 	"source/syzygy/renderer/renderer.cpp"
 	"source/syzygy/renderer/vulkanstructs.cpp"
 	"source/syzygy/renderer/gbuffer.cpp"

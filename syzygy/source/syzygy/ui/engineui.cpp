@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
