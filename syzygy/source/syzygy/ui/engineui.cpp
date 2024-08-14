@@ -1,10 +1,10 @@
 #include "engineui.hpp"
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/debuglines.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/shadowpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include <algorithm>

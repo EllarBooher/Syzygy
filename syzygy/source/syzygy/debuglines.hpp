@@ -1,8 +1,8 @@
 #pragma once
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec2.hpp>

@@ -1,6 +1,5 @@
 #include "assets.hpp"
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/log.hpp"
@@ -9,6 +8,7 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/utils/platformutils.hpp"
 #include <algorithm>
 #include <cassert>

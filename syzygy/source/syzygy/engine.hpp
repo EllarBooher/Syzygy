@@ -1,6 +1,5 @@
 #pragma once
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/debuglines.hpp"
@@ -8,6 +7,7 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/deferred/gbuffer.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/images/imageview.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/shadowpass.hpp"
 #include "syzygy/vulkanusage.hpp"

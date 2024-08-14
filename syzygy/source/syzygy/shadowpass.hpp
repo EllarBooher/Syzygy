@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/buffers.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"

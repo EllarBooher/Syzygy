@@ -12,10 +12,11 @@ add_library(
 	"source/syzygy/pipelines.cpp"
 	"source/syzygy/shaders.cpp"
 	"source/syzygy/assets.cpp"
-	"source/syzygy/buffers.cpp"
 	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 	"source/syzygy/shadowpass.cpp"
+
+	"source/syzygy/renderer/buffers.cpp"
 
 	"source/syzygy/images/image.cpp"
 	"source/syzygy/images/imageview.cpp"

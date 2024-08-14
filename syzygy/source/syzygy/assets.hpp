@@ -1,9 +1,9 @@
 #pragma once
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/images/image.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <filesystem>
 #include <functional>

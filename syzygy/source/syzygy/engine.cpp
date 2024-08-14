@@ -1,6 +1,5 @@
 #include "engine.hpp"
 
-#include "syzygy/buffers.hpp"
 #include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/debuglines.hpp"
@@ -13,6 +12,7 @@
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/uiwindow.hpp"
