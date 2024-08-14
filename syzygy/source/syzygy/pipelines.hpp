@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace gputypes
+namespace szg_renderer
 {
 struct Camera;
 }
@@ -263,7 +263,7 @@ public:
         szg_renderer::ImageView& color,
         szg_renderer::ImageView& depth,
         uint32_t cameraIndex,
-        TStagedBuffer<gputypes::Camera> const& cameras,
+        TStagedBuffer<szg_renderer::Camera> const& cameras,
         TStagedBuffer<Vertex> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
     ) const;

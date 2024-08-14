@@ -3,11 +3,12 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-// This namespace contains types that are used in shaders on the GPU.
+// These types are used in shaders on the GPU.
 // They contain padding and must faithfully represent their counterparts.
-// These are intended for byte-wise copying to the GPU, not for manipulation
-// by UI or the engine.
-namespace gputypes
+// These are intended to be trivially copyable to GPU memory, not for
+// manipulation by UI or the engine.
+
+namespace szg_renderer
 {
 // For ease of reading, group members by 16 bytes, which is a size of
 // a single-precision vec4.
@@ -89,4 +90,4 @@ struct LightSpot
     float falloffDistance;
     uint8_t padding0[4]{};
 };
-} // namespace gputypes
+} // namespace szg_renderer

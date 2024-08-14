@@ -12,11 +12,11 @@
 #include <vector>
 
 class DescriptorAllocator;
-namespace gputypes
+namespace szg_renderer
 {
 struct LightDirectional;
 struct LightSpot;
-} // namespace gputypes
+} // namespace szg_renderer
 namespace scene
 {
 struct MeshInstanced;
@@ -49,8 +49,8 @@ public:
     void recordInitialize(
         VkCommandBuffer cmd,
         ShadowPassParameters parameters,
-        std::span<gputypes::LightDirectional const> directionalLights,
-        std::span<gputypes::LightSpot const> spotLights
+        std::span<szg_renderer::LightDirectional const> directionalLights,
+        std::span<szg_renderer::LightSpot const> spotLights
     );
 
     void recordDrawCommands(

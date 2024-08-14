@@ -2,12 +2,11 @@
 
 #include "enginetypes.hpp"
 #include "syzygy/geometry/geometryhelpers.hpp"
-
-#include "gputypes.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 
 namespace lights
 {
-static gputypes::LightDirectional makeDirectional(
+static szg_renderer::LightDirectional makeDirectional(
     glm::vec4 const color,
     float const strength,
     glm::vec3 const eulerAngles,
@@ -21,7 +20,7 @@ static gputypes::LightDirectional makeDirectional(
         view, geometryCenter, geometryExtent
     )};
 
-    return gputypes::LightDirectional{
+    return szg_renderer::LightDirectional{
         .color = color,
         .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
         .projection = projection,
@@ -31,7 +30,7 @@ static gputypes::LightDirectional makeDirectional(
 }
 
 // TODO: less parameters constructor
-static gputypes::LightSpot makeSpot(
+static szg_renderer::LightSpot makeSpot(
     glm::vec4 const color,
     float const strength,
     float const falloffFactor,
@@ -44,7 +43,7 @@ static gputypes::LightSpot makeSpot(
     float const far
 )
 {
-    return gputypes::LightSpot{
+    return szg_renderer::LightSpot{
         .color = color,
         .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
         .projection = szg_geometry::projectionVk(

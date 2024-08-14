@@ -1,8 +1,8 @@
 #pragma once
 
-#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/gputypes.hpp"
+#include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -29,9 +29,9 @@ struct SceneBounds
 
 struct AtmosphereBaked
 {
-    gputypes::Atmosphere atmosphere{};
-    std::optional<gputypes::LightDirectional> sunlight{};
-    std::optional<gputypes::LightDirectional> moonlight{};
+    szg_renderer::Atmosphere atmosphere{};
+    std::optional<szg_renderer::LightDirectional> sunlight{};
+    std::optional<szg_renderer::LightDirectional> moonlight{};
 };
 
 struct Atmosphere
@@ -52,7 +52,7 @@ struct Atmosphere
 
     auto directionToSun() const -> glm::vec3;
 
-    auto toDeviceEquivalent() const -> gputypes::Atmosphere;
+    auto toDeviceEquivalent() const -> szg_renderer::Atmosphere;
     auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
@@ -81,7 +81,7 @@ struct Camera
     // clip space.
     auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
-    auto toDeviceEquivalent(float aspectRatio) const -> gputypes::Camera;
+    auto toDeviceEquivalent(float aspectRatio) const -> szg_renderer::Camera;
 };
 
 struct MeshInstanced
@@ -121,7 +121,7 @@ struct Scene
     float cameraControlledSpeed{DEFAULT_CAMERA_CONTROLLED_SPEED};
 
     bool spotlightsRender{false};
-    std::vector<gputypes::LightSpot> spotlights{};
+    std::vector<szg_renderer::LightSpot> spotlights{};
 
     std::optional<size_t> cubesIndex{};
     std::vector<MeshInstanced> geometry;

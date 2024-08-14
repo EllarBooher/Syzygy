@@ -3,10 +3,10 @@
 #include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/imageview.hpp"
@@ -122,22 +122,23 @@ void Engine::initDrawTargets(
 
 void Engine::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
-    m_camerasBuffer = std::make_unique<TStagedBuffer<gputypes::Camera>>(
-        TStagedBuffer<gputypes::Camera>::allocate(
+    m_camerasBuffer = std::make_unique<TStagedBuffer<szg_renderer::Camera>>(
+        TStagedBuffer<szg_renderer::Camera>::allocate(
             device,
             allocator,
             CAMERA_CAPACITY,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         )
     );
-    m_atmospheresBuffer = std::make_unique<TStagedBuffer<gputypes::Atmosphere>>(
-        TStagedBuffer<gputypes::Atmosphere>::allocate(
-            device,
-            allocator,
-            ATMOSPHERE_CAPACITY,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        )
-    );
+    m_atmospheresBuffer =
+        std::make_unique<TStagedBuffer<szg_renderer::Atmosphere>>(
+            TStagedBuffer<szg_renderer::Atmosphere>::allocate(
+                device,
+                allocator,
+                ATMOSPHERE_CAPACITY,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
 }
 
 void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
@@ -277,7 +278,7 @@ void Engine::recordDraw(
     double const aspectRatio{viewportAspectRatioResult.value()};
 
     { // Copy cameras to gpu
-        gputypes::Camera const mainCamera{
+        szg_renderer::Camera const mainCamera{
             scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
@@ -286,7 +287,7 @@ void Engine::recordDraw(
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
-    std::vector<gputypes::LightDirectional> directionalLights{};
+    std::vector<szg_renderer::LightDirectional> directionalLights{};
     { // Copy atmospheres to gpu
         scene::AtmosphereBaked const bakedAtmosphere{
             scene.atmosphere.baked(scene.bounds)
@@ -338,7 +339,7 @@ void Engine::recordDraw(
                 *m_sceneDepthTexture,
                 directionalLights,
                 scene.spotlightsRender ? scene.spotlights
-                                       : std::vector<gputypes::LightSpot>{},
+                                       : std::vector<szg_renderer::LightSpot>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
@@ -387,7 +388,7 @@ void Engine::recordDrawDebugLines(
     uint32_t const cameraIndex,
     scene::SceneTexture& sceneTexture,
     scene::SceneViewport const& sceneViewport,
-    TStagedBuffer<gputypes::Camera> const& camerasBuffer
+    TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};

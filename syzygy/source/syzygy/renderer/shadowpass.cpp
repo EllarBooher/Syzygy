@@ -1,10 +1,10 @@
 #include "shadowpass.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
@@ -186,8 +186,8 @@ auto ShadowPassArray::create(
 void ShadowPassArray::recordInitialize(
     VkCommandBuffer const cmd,
     ShadowPassParameters parameters,
-    std::span<gputypes::LightDirectional const> const directionalLights,
-    std::span<gputypes::LightSpot const> const spotLights
+    std::span<szg_renderer::LightDirectional const> const directionalLights,
+    std::span<szg_renderer::LightSpot const> const spotLights
 )
 {
     m_depthBias = parameters.depthBiasConstant;
@@ -201,13 +201,13 @@ void ShadowPassArray::recordInitialize(
         projViewMatrices.clearStaged();
 
         size_t shadowMapCount{0};
-        for (gputypes::LightDirectional const& light : directionalLights)
+        for (szg_renderer::LightDirectional const& light : directionalLights)
         {
             projViewMatrices.push(light.projection * light.view);
 
             shadowMapCount += 1;
         }
-        for (gputypes::LightSpot const& light : spotLights)
+        for (szg_renderer::LightSpot const& light : spotLights)
         {
             projViewMatrices.push(light.projection * light.view);
 

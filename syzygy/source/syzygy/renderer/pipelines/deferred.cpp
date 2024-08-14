@@ -156,13 +156,13 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         VkDeviceSize constexpr LIGHT_CAPACITY{16};
 
         m_directionalLights =
-            std::make_unique<TStagedBuffer<gputypes::LightDirectional>>(
-                TStagedBuffer<gputypes::LightDirectional>::allocate(
+            std::make_unique<TStagedBuffer<szg_renderer::LightDirectional>>(
+                TStagedBuffer<szg_renderer::LightDirectional>::allocate(
                     device, allocator, LIGHT_CAPACITY, 0
                 )
             );
-        m_spotLights = std::make_unique<TStagedBuffer<gputypes::LightSpot>>(
-            TStagedBuffer<gputypes::LightSpot>::allocate(
+        m_spotLights = std::make_unique<TStagedBuffer<szg_renderer::LightSpot>>(
+            TStagedBuffer<szg_renderer::LightSpot>::allocate(
                 device, allocator, LIGHT_CAPACITY, 0
             )
         );
@@ -491,12 +491,12 @@ void DeferredShadingPipeline::recordDrawCommands(
     VkRect2D const drawRect,
     szg_renderer::Image& color,
     szg_renderer::ImageView& depth,
-    std::span<gputypes::LightDirectional const> const directionalLights,
-    std::span<gputypes::LightSpot const> const spotLights,
+    std::span<szg_renderer::LightDirectional const> const directionalLights,
+    std::span<szg_renderer::LightSpot const> const spotLights,
     uint32_t const viewCameraIndex,
-    TStagedBuffer<gputypes::Camera> const& cameras,
+    TStagedBuffer<szg_renderer::Camera> const& cameras,
     uint32_t const atmosphereIndex,
-    TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
+    TStagedBuffer<szg_renderer::Atmosphere> const& atmospheres,
     std::span<scene::MeshInstanced const> sceneGeometry
 )
 {

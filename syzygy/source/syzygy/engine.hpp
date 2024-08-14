@@ -13,11 +13,11 @@
 #include <optional>
 
 class DescriptorAllocator;
-namespace gputypes
+namespace szg_renderer
 {
 struct Atmosphere;
 struct Camera;
-} // namespace gputypes
+} // namespace szg_renderer
 namespace scene
 {
 struct Scene;
@@ -69,7 +69,7 @@ private:
         uint32_t cameraIndex,
         scene::SceneTexture& sceneTexture,
         scene::SceneViewport const& sceneViewport,
-        TStagedBuffer<gputypes::Camera> const& camerasBuffer
+        TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
     );
 
     bool m_initialized{false};
@@ -110,10 +110,11 @@ private:
     // Scene
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
-    std::unique_ptr<TStagedBuffer<gputypes::Camera>> m_camerasBuffer{};
+    std::unique_ptr<TStagedBuffer<szg_renderer::Camera>> m_camerasBuffer{};
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
-    std::unique_ptr<TStagedBuffer<gputypes::Atmosphere>> m_atmospheresBuffer{};
+    std::unique_ptr<TStagedBuffer<szg_renderer::Atmosphere>>
+        m_atmospheresBuffer{};
 
     // End Vulkan
 };

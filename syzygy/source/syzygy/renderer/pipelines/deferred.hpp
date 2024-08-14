@@ -1,9 +1,9 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/gputypes.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
@@ -38,12 +38,12 @@ public:
         VkRect2D drawRect,
         szg_renderer::Image& color,
         szg_renderer::ImageView& depth,
-        std::span<gputypes::LightDirectional const> directionalLights,
-        std::span<gputypes::LightSpot const> spotLights,
+        std::span<szg_renderer::LightDirectional const> directionalLights,
+        std::span<szg_renderer::LightSpot const> spotLights,
         uint32_t viewCameraIndex,
-        TStagedBuffer<gputypes::Camera> const& cameras,
+        TStagedBuffer<szg_renderer::Camera> const& cameras,
         uint32_t atmosphereIndex,
-        TStagedBuffer<gputypes::Atmosphere> const& atmospheres,
+        TStagedBuffer<szg_renderer::Atmosphere> const& atmospheres,
         std::span<scene::MeshInstanced const> sceneGeometry
     );
 
@@ -58,10 +58,11 @@ private:
 
     std::unique_ptr<szg_renderer::ImageView> m_drawImage{};
 
-    typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
+    typedef TStagedBuffer<szg_renderer::LightDirectional>
+        LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
-    typedef TStagedBuffer<gputypes::LightSpot> LightSpotBuffer;
+    typedef TStagedBuffer<szg_renderer::LightSpot> LightSpotBuffer;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};

@@ -14,10 +14,10 @@
 #include <memory>
 #include <utility>
 
-namespace gputypes
+namespace szg_renderer
 {
 struct Camera;
-} // namespace gputypes
+} // namespace szg_renderer
 
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout
@@ -469,7 +469,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     szg_renderer::ImageView& color,
     szg_renderer::ImageView& depth,
     uint32_t const cameraIndex,
-    TStagedBuffer<gputypes::Camera> const& cameras,
+    TStagedBuffer<szg_renderer::Camera> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
     TStagedBuffer<uint32_t> const& indices
 ) const -> DrawResultsGraphics
