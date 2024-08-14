@@ -1,4 +1,4 @@
-#include "engine.hpp"
+#include "renderer.hpp"
 
 #include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
@@ -14,9 +14,9 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
+#include "syzygy/ui/pipelineui.hpp"
 #include "syzygy/ui/uiwindow.hpp"
 #include "syzygy/vulkanusage.hpp"
-#include "ui/pipelineui.hpp"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
@@ -30,60 +30,88 @@
 class DescriptorAllocator;
 struct PlatformWindow;
 
-Engine::Engine(
+Renderer::Renderer(Renderer&& other) noexcept
+{
+    destroy();
+
+    m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
+    m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+    m_initialized = std::exchange(other.m_initialized, false);
+
+    m_sceneDepthTexture = std::move(other.m_sceneDepthTexture);
+
+    m_debugLines = std::exchange(other.m_debugLines, {});
+
+    m_activeRenderingPipeline = std::exchange(
+        other.m_activeRenderingPipeline, RenderingPipelines::DEFERRED
+    );
+
+    m_genericComputePipeline = std::move(other.m_genericComputePipeline);
+    m_deferredShadingPipeline = std::move(other.m_deferredShadingPipeline);
+
+    m_camerasBuffer = std::move(other.m_camerasBuffer);
+    m_atmospheresBuffer = std::move(other.m_atmospheresBuffer);
+}
+
+Renderer::~Renderer() { destroy(); }
+
+void Renderer::destroy()
+{
+    if (m_device == VK_NULL_HANDLE || m_allocator == VK_NULL_HANDLE)
+    {
+        if (m_initialized)
+        {
+            SZG_WARNING("Initialized renderer being destroyed had NULL device "
+                        "and/or allocator handles.");
+        }
+        return;
+    }
+
+    m_sceneDepthTexture.reset();
+
+    m_debugLines.cleanup(m_device, m_allocator);
+    m_debugLines = {};
+
+    m_activeRenderingPipeline = RenderingPipelines::DEFERRED;
+    m_genericComputePipeline->cleanup(m_device);
+    m_deferredShadingPipeline->cleanup(m_device, m_allocator);
+
+    m_camerasBuffer.reset();
+    m_atmospheresBuffer.reset();
+
+    m_device = VK_NULL_HANDLE;
+    m_allocator = VK_NULL_HANDLE;
+
+    m_initialized = false;
+}
+
+auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    scene::SceneTexture const& scene
-)
+    scene::SceneTexture const& sceneTexture
+) -> std::optional<Renderer>
 {
-    SZG_INFO("Initializing Engine...");
+    std::optional<Renderer> rendererResult{Renderer{}};
+    Renderer& renderer{rendererResult.value()};
+    renderer.m_device = device;
+    renderer.m_allocator = allocator;
+    renderer.m_initialized = true;
 
-    initDrawTargets(device, allocator);
+    renderer.initDrawTargets(device, allocator);
 
-    initWorld(device, allocator);
-    initDebug(device, allocator);
-    initGenericComputePipelines(device, scene);
+    renderer.initWorld(device, allocator);
+    renderer.initDebug(device, allocator);
+    renderer.initGenericComputePipelines(device, sceneTexture);
 
-    initDeferredShadingPipeline(device, allocator, descriptorAllocator);
+    renderer.initDeferredShadingPipeline(
+        device, allocator, descriptorAllocator
+    );
 
-    SZG_INFO("Vulkan Initialized.");
-
-    m_initialized = true;
-
-    SZG_INFO("Engine Initialized.");
+    return rendererResult;
 }
 
-auto Engine::loadEngine(
-    PlatformWindow const& /*window*/,
-    VkInstance const /*instance*/,
-    VkPhysicalDevice const /*physicalDevice*/,
-    VkDevice const device,
-    VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
-    scene::SceneTexture const& sceneTexture,
-    VkQueue const /*generalQueue*/,
-    uint32_t const /*generalQueueFamilyIndex*/
-) -> Engine*
-{
-    if (m_loadedEngine == nullptr)
-    {
-        SZG_INFO("Loading Engine.");
-        m_loadedEngine =
-            new Engine(device, allocator, descriptorAllocator, sceneTexture);
-    }
-    else
-    {
-        SZG_WARNING(
-            "Called loadEngine when one was already loaded. No new engine "
-            "was loaded."
-        );
-    }
-
-    return m_loadedEngine;
-}
-
-void Engine::initDrawTargets(
+void Renderer::initDrawTargets(
     VkDevice const device, VmaAllocator const allocator
 )
 {
@@ -120,7 +148,7 @@ void Engine::initDrawTargets(
     }
 }
 
-void Engine::initWorld(VkDevice const device, VmaAllocator const allocator)
+void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
     m_camerasBuffer = std::make_unique<TStagedBuffer<szg_renderer::Camera>>(
         TStagedBuffer<szg_renderer::Camera>::allocate(
@@ -141,7 +169,7 @@ void Engine::initWorld(VkDevice const device, VmaAllocator const allocator)
         );
 }
 
-void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
+void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
 {
     m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
         device,
@@ -167,7 +195,7 @@ void Engine::initDebug(VkDevice const device, VmaAllocator const allocator)
         ));
 }
 
-void Engine::initDeferredShadingPipeline(
+void Renderer::initDeferredShadingPipeline(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator
@@ -182,7 +210,7 @@ void Engine::initDeferredShadingPipeline(
     );
 }
 
-void Engine::initGenericComputePipelines(
+void Renderer::initGenericComputePipelines(
     VkDevice const device, scene::SceneTexture const& sceneTexture
 )
 {
@@ -225,7 +253,7 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Engine::uiEngineControls(ui::DockingLayout const& dockingLayout)
+void Renderer::uiEngineControls(ui::DockingLayout const& dockingLayout)
 {
     if (ui::UIWindow const engineControls{
             ui::UIWindow::beginDockable("Engine Controls", dockingLayout.right)
@@ -253,7 +281,7 @@ void Engine::uiEngineControls(ui::DockingLayout const& dockingLayout)
     }
 }
 
-void Engine::recordDraw(
+void Renderer::recordDraw(
     VkCommandBuffer const cmd,
     scene::Scene const& scene,
     scene::SceneTexture& sceneTexture,
@@ -383,7 +411,7 @@ void Engine::recordDraw(
     // End scene drawing
 }
 
-void Engine::recordDrawDebugLines(
+void Renderer::recordDrawDebugLines(
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
     scene::SceneTexture& sceneTexture,
@@ -414,30 +442,4 @@ void Engine::recordDrawDebugLines(
 
         m_debugLines.lastFrameDrawResults = drawResults;
     }
-}
-
-void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
-{
-    if (!m_initialized)
-    {
-        return;
-    }
-
-    SZG_INFO("Engine cleaning up.");
-
-    SZG_CHECK_VK(vkDeviceWaitIdle(device));
-
-    m_genericComputePipeline->cleanup(device);
-    m_deferredShadingPipeline->cleanup(device, allocator);
-
-    m_atmospheresBuffer.reset();
-    m_camerasBuffer.reset();
-
-    m_debugLines.cleanup(device, allocator);
-
-    m_sceneDepthTexture.reset();
-
-    m_initialized = false;
-
-    SZG_INFO("Engine cleaned up.");
 }

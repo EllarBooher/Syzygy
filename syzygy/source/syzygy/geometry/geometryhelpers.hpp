@@ -6,7 +6,7 @@
 #include <glm/vec3.hpp>
 
 // These functions help decide handed-ness and coordinate system.
-// Engine code generally still needs to consider handedness, but deciding
+// Renderer code generally still needs to consider handedness, but deciding
 // which glm methods to use can be confusing. These helpers aid in that.
 //
 // The convention throughout this engine for world and view space is:

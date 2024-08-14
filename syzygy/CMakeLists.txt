@@ -5,7 +5,6 @@ add_library(
 	STATIC 
 	"source/syzygy/syzygy.cpp"
 	"source/syzygy/vulkanusage.cpp"
-	"source/syzygy/engine.cpp"
 	"source/syzygy/helpers.cpp"
 	"source/syzygy/pipelines.cpp"
 	"source/syzygy/assets.cpp"
@@ -15,6 +14,7 @@ add_library(
 	"source/syzygy/renderer/pipelines/debuglines.cpp"
 	"source/syzygy/renderer/pipelines/deferred.cpp"
 
+	"source/syzygy/renderer/renderer.cpp"
 	"source/syzygy/renderer/vulkanstructs.cpp"
 	"source/syzygy/renderer/gbuffer.cpp"
 	"source/syzygy/renderer/shadowpass.cpp"

@@ -28,28 +28,27 @@ struct DockingLayout;
 }
 struct PlatformWindow;
 
-class Engine
+class Renderer
 {
+public:
+    Renderer& operator=(Renderer&&) = delete;
+    Renderer(Renderer const&) = delete;
+    Renderer& operator=(Renderer const&) = delete;
+
+    Renderer(Renderer&&) noexcept;
+    ~Renderer();
+
 private:
-    Engine(
-        VkDevice,
-        VmaAllocator,
-        DescriptorAllocator&,
-        scene::SceneTexture const& scene
-    );
+    Renderer() = default;
+    void destroy();
 
 public:
-    static Engine* loadEngine(
-        PlatformWindow const&,
-        VkInstance,
-        VkPhysicalDevice,
+    static auto create(
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        scene::SceneTexture const&,
-        VkQueue const generalQueue,
-        uint32_t const generalQueueFamilyIndex
-    );
+        scene::SceneTexture const& sceneTexture
+    ) -> std::optional<Renderer>;
 
     // TODO: Remove this, but right now relies on internal state.
     void uiEngineControls(ui::DockingLayout const&);
@@ -61,8 +60,6 @@ public:
         std::optional<scene::SceneViewport> const& sceneViewport
     );
 
-    void cleanup(VkDevice, VmaAllocator);
-
 private:
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
@@ -71,9 +68,6 @@ private:
         scene::SceneViewport const& sceneViewport,
         TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
     );
-
-    bool m_initialized{false};
-    inline static Engine* m_loadedEngine{nullptr};
 
     // Begin Vulkan
 
@@ -86,6 +80,10 @@ private:
     initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
 
     void initGenericComputePipelines(VkDevice, scene::SceneTexture const&);
+
+    VkDevice m_device{VK_NULL_HANDLE};
+    VmaAllocator m_allocator{VK_NULL_HANDLE};
+    bool m_initialized{false};
 
     // Draw Resources
 

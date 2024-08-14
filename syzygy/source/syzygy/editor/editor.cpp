@@ -11,12 +11,12 @@
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/swapchain.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/engine.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/renderer.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
@@ -739,21 +739,18 @@ auto szg_editor::run() -> EditorResult
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
     szg_renderer::ImageView& windowTexture = *windowTextureResult.value();
 
-    Engine* const renderer = Engine::loadEngine(
-        mainWindow,
-        graphicsContext.instance(),
-        graphicsContext.physicalDevice(),
+    std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
         graphicsContext.descriptorAllocator(),
-        sceneTexture,
-        graphicsContext.universalQueue(),
-        graphicsContext.universalQueueFamily()
-    );
-    if (renderer == nullptr)
+        sceneTexture
+    )};
+    if (!rendererResult.has_value())
     {
+        SZG_ERROR("Unable to create Renderer.");
         return EditorResult::ERROR;
     }
+    Renderer& renderer{rendererResult.value()};
 
     ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
@@ -821,7 +818,7 @@ auto szg_editor::run() -> EditorResult
 
         UIResults const uiResults{uiBegin(uiPreferences, ui::UIPreferences{})};
         uiReloadNecessary = uiResults.reloadRequested;
-        renderer->uiEngineControls(uiResults.dockingLayout);
+        renderer.uiEngineControls(uiResults.dockingLayout);
         ui::performanceWindow(
             "Engine Performance",
             uiResults.dockingLayout.centerBottom,
@@ -885,7 +882,7 @@ auto szg_editor::run() -> EditorResult
         );
         uiEnd();
 
-        renderer->recordDraw(
+        renderer.recordDraw(
             currentFrame.mainCommandBuffer,
             scene,
             sceneTexture,
@@ -933,12 +930,6 @@ auto szg_editor::run() -> EditorResult
     }
 
     vkDeviceWaitIdle(graphicsContext.device());
-    if (nullptr != renderer)
-    {
-        renderer->cleanup(
-            graphicsContext.device(), graphicsContext.allocator()
-        );
-    }
     uiCleanup();
     vkDestroyDescriptorPool(graphicsContext.device(), imguiPool, nullptr);
 
