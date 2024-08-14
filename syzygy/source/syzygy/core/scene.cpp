@@ -7,7 +7,7 @@
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/lights.hpp"
+#include "syzygy/renderer/lights.hpp"
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
 #include <glm/geometric.hpp>
@@ -78,7 +78,7 @@ auto scene::Scene::defaultScene(
 ) -> Scene
 {
     std::vector<szg_renderer::LightSpot> const spotlights{
-        lights::makeSpot(
+        szg_renderer::makeSpot(
             glm::vec4(0.0, 1.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -90,7 +90,7 @@ auto scene::Scene::defaultScene(
             0.1,
             1000.0
         ),
-        lights::makeSpot(
+        szg_renderer::makeSpot(
             glm::vec4(1.0, 0.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -408,7 +408,7 @@ auto createSunlight(
 {
     float constexpr SUNLIGHT_STRENGTH{0.5F};
 
-    return lights::makeDirectional(
+    return szg_renderer::makeDirectional(
         glm::vec4(sunlightRGB, 1.0),
         SUNLIGHT_STRENGTH,
         sunEulerAngles,
@@ -436,7 +436,7 @@ auto createMoonlight(
         -glm::half_pi<float>(), 0.0F, 0.0F
     };
 
-    return lights::makeDirectional(
+    return szg_renderer::makeDirectional(
         MOONLIGHT_COLOR_RGBA,
         moonlightStrength,
         STRAIGHT_DOWN_EULER_ANGLES,

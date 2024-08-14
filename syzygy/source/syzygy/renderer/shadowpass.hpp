@@ -1,9 +1,9 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/mat4x4.hpp>
 #include <memory>
@@ -44,7 +44,7 @@ public:
         size_t capacity
     ) -> std::optional<ShadowPassArray>;
 
-    // Prepares shadow maps for a specified number of lights.
+    // Prepares shadow maps for a specified number of szg_renderer.
     // Calling this twice overwrites the previous results.
     void recordInitialize(
         VkCommandBuffer cmd,
