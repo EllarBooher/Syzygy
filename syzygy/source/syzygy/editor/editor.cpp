@@ -145,10 +145,24 @@ auto rebuildSwapchain(
     Swapchain& old,
     VkPhysicalDevice const physicalDevice,
     VkDevice const device,
-    VkSurfaceKHR const surface,
-    glm::u16vec2 const newExtent
+    VkSurfaceKHR const surface
 ) -> std::optional<Swapchain>
 {
+    VkSurfaceCapabilitiesKHR surfaceCapabilities;
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+            physicalDevice, surface, &surfaceCapabilities
+        )
+        != VK_SUCCESS)
+    {
+        SZG_ERROR("Failed to get surface capabilities for swapchain creation.");
+        return std::nullopt;
+    }
+
+    glm::u16vec2 const newExtent{
+        surfaceCapabilities.currentExtent.width,
+        surfaceCapabilities.currentExtent.height
+    };
+
     SZG_LOG(fmt::format(
         "Resizing swapchain: ({},{}) -> ({},{})",
         old.extent().width,
@@ -905,8 +919,7 @@ auto szg_editor::run() -> EditorResult
                 swapchain,
                 graphicsContext.physicalDevice(),
                 graphicsContext.device(),
-                graphicsContext.surface(),
-                mainWindow.extent()
+                graphicsContext.surface()
             )};
 
             if (!newSwapchain.has_value())

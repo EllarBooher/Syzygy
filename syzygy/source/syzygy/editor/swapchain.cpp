@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/helpers.hpp"
-#include <VkBootstrap.h>
+#include "syzygy/initializers.hpp"
 #include <fmt/core.h>
 #include <utility>
 
@@ -74,49 +74,83 @@ auto Swapchain::create(
     uint32_t const width{extent.x};
     uint32_t const height{extent.y};
 
-    vkb::Result<vkb::Swapchain> vkbResult{
-        vkb::SwapchainBuilder{physicalDevice, device, surface}
-            .set_desired_format(surfaceFormat)
-            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-            .set_desired_extent(width, height)
-            .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-            .set_old_swapchain(old.value_or(VK_NULL_HANDLE))
-            .build()
+    VkExtent2D const swapchainExtent{.width = width, .height = height};
+
+    VkSwapchainCreateInfoKHR const swapchainCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = nullptr,
+
+        .flags = 0,
+        .surface = surface,
+
+        .minImageCount = 3,
+        .imageFormat = SWAPCHAIN_IMAGE_FORMAT,
+        .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+        .imageExtent = swapchainExtent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+
+        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
+
+        .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+        .clipped = 1,
+        .oldSwapchain = old.value_or(VK_NULL_HANDLE),
     };
-    if (!vkbResult.has_value())
-    {
-        SZG_LOG_VKB(vkbResult, "Failed to build VkbSwapchain.");
-        return std::nullopt;
-    }
-    vkb::Swapchain& vkbSwapchain{vkbResult.value()};
 
-    swapchain.m_swapchain = vkbSwapchain.swapchain;
-    swapchain.m_imageFormat = vkbSwapchain.image_format;
-    swapchain.m_extent = vkbSwapchain.extent;
-
-    if (vkb::Result<std::vector<VkImage>> imagesResult{vkbSwapchain.get_images()
-        };
-        imagesResult.has_value())
+    if (VkResult const swapchainResult{vkCreateSwapchainKHR(
+            device, &swapchainCreateInfo, nullptr, &swapchain.m_swapchain
+        )})
     {
-        swapchain.m_images = std::move(imagesResult).value();
-    }
-    else
-    {
-        SZG_LOG_VKB(imagesResult, "Failed to get swapchain images.");
+        SZG_ERROR("Failed to create swapchain.");
         return std::nullopt;
     }
 
-    if (vkb::Result<std::vector<VkImageView>> viewsResult{
-            vkbSwapchain.get_image_views()
-        };
-        viewsResult.has_value())
+    swapchain.m_imageFormat = SWAPCHAIN_IMAGE_FORMAT;
+    swapchain.m_extent = swapchainExtent;
+
+    uint32_t swapchainImageCount{0};
+    if (vkGetSwapchainImagesKHR(
+            device, swapchain.m_swapchain, &swapchainImageCount, nullptr
+        ) != VK_SUCCESS
+        || swapchainImageCount == 0)
     {
-        swapchain.m_imageViews = std::move(viewsResult).value();
-    }
-    else
-    {
-        SZG_LOG_VKB(viewsResult, "Failed to get swapchain image views.");
+        SZG_ERROR("Failed to get swapchain images.");
         return std::nullopt;
+    }
+
+    swapchain.m_images.resize(swapchainImageCount);
+    if (vkGetSwapchainImagesKHR(
+            device,
+            swapchain.m_swapchain,
+            &swapchainImageCount,
+            swapchain.m_images.data()
+        )
+        != VK_SUCCESS)
+    {
+        SZG_ERROR("Failed to get swapchain images.");
+        return std::nullopt;
+    }
+
+    for (size_t index{0}; index < swapchain.m_images.size(); index++)
+    {
+        VkImage const image{swapchain.m_images[index]};
+
+        VkImageViewCreateInfo const viewInfo{vkinit::imageViewCreateInfo(
+            swapchain.m_imageFormat, image, VK_IMAGE_ASPECT_COLOR_BIT
+        )};
+
+        VkImageView view;
+        if (vkCreateImageView(device, &viewInfo, nullptr, &view) != VK_SUCCESS)
+        {
+            SZG_ERROR("Failed to create swapchain image view.");
+            return std::nullopt;
+        }
+        swapchain.m_imageViews.push_back(view);
     }
 
     return swapchainResult;
