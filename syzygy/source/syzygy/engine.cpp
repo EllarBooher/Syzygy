@@ -38,7 +38,7 @@ Engine::Engine(
     scene::SceneTexture const& scene
 )
 {
-    SZG_LOG("Initializing Engine...");
+    SZG_INFO("Initializing Engine...");
 
     initDrawTargets(device, allocator);
 
@@ -48,11 +48,11 @@ Engine::Engine(
 
     initDeferredShadingPipeline(device, allocator, descriptorAllocator);
 
-    SZG_LOG("Vulkan Initialized.");
+    SZG_INFO("Vulkan Initialized.");
 
     m_initialized = true;
 
-    SZG_LOG("Engine Initialized.");
+    SZG_INFO("Engine Initialized.");
 }
 
 auto Engine::loadEngine(
@@ -69,7 +69,7 @@ auto Engine::loadEngine(
 {
     if (m_loadedEngine == nullptr)
     {
-        SZG_LOG("Loading Engine.");
+        SZG_INFO("Loading Engine.");
         m_loadedEngine =
             new Engine(device, allocator, descriptorAllocator, sceneTexture);
     }
@@ -423,7 +423,7 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
         return;
     }
 
-    SZG_LOG("Engine cleaning up.");
+    SZG_INFO("Engine cleaning up.");
 
     SZG_CHECK_VK(vkDeviceWaitIdle(device));
 
@@ -439,5 +439,5 @@ void Engine::cleanup(VkDevice const device, VmaAllocator const allocator)
 
     m_initialized = false;
 
-    SZG_LOG("Engine cleaned up.");
+    SZG_INFO("Engine cleaned up.");
 }

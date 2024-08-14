@@ -291,7 +291,7 @@ auto loadGltfMeshes(
 {
     std::filesystem::path const assetPath{szg_utils::ensureAbsolutePath(path)};
 
-    SZG_LOG(fmt::format("Loading glTF: {}", assetPath.string()));
+    SZG_INFO(fmt::format("Loading glTF: {}", assetPath.string()));
 
     fastgltf::GltfDataBuffer data;
     data.loadFromFile(assetPath);
@@ -560,7 +560,7 @@ auto szg_assets::loadTextureFromFile(
     VkImageUsageFlags const additionalFlags
 ) -> std::optional<Asset<szg_image::Image>>
 {
-    SZG_LOG(fmt::format("Loading Texture from '{}'", path.string()));
+    SZG_INFO(fmt::format("Loading Texture from '{}'", path.string()));
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {

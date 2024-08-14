@@ -62,9 +62,9 @@ namespace
 {
 auto initialize() -> std::optional<EditorResources>
 {
-    SZG_LOG("Initializing Editor resources.");
+    SZG_INFO("Initializing Editor resources.");
 
-    SZG_LOG("Creating window...");
+    SZG_INFO("Creating window...");
 
     glm::u16vec2 constexpr DEFAULT_WINDOW_EXTENT{1920, 1080};
 
@@ -77,9 +77,9 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_LOG("Window created.");
+    SZG_INFO("Window created.");
 
-    SZG_LOG("Creating Graphics Context...");
+    SZG_INFO("Creating Graphics Context...");
 
     std::optional<GraphicsContext> graphicsResult{
         GraphicsContext::create(windowResult.value())
@@ -91,9 +91,9 @@ auto initialize() -> std::optional<EditorResources>
     }
     GraphicsContext& graphicsContext{graphicsResult.value()};
 
-    SZG_LOG("Created Graphics Context.");
+    SZG_INFO("Created Graphics Context.");
 
-    SZG_LOG("Creating Swapchain...");
+    SZG_INFO("Creating Swapchain...");
 
     std::optional<Swapchain> swapchainResult{Swapchain::create(
         graphicsContext.physicalDevice(),
@@ -108,9 +108,9 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_LOG("Created Swapchain.");
+    SZG_INFO("Created Swapchain.");
 
-    SZG_LOG("Creating Frame Buffer...");
+    SZG_INFO("Creating Frame Buffer...");
 
     std::optional<FrameBuffer> frameBufferResult{FrameBuffer::create(
         graphicsContext.device(), graphicsContext.universalQueueFamily()
@@ -121,9 +121,9 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_LOG("Created Frame Buffer.");
+    SZG_INFO("Created Frame Buffer.");
 
-    SZG_LOG("Successfully initialized Editor resources.");
+    SZG_INFO("Successfully initialized Editor resources.");
 
     return EditorResources{
         .window = std::move(windowResult).value(),
@@ -163,7 +163,7 @@ auto rebuildSwapchain(
         surfaceCapabilities.currentExtent.height
     };
 
-    SZG_LOG(fmt::format(
+    SZG_INFO(fmt::format(
         "Resizing swapchain: ({},{}) -> ({},{})",
         old.extent().width,
         old.extent().height,
@@ -361,7 +361,7 @@ auto uiInit(
     GLFWwindow* const window
 ) -> VkDescriptorPool
 {
-    SZG_LOG("Initializing ImGui...");
+    SZG_INFO("Initializing ImGui...");
 
     std::vector<VkDescriptorPoolSize> const poolSizes{
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
@@ -472,7 +472,7 @@ auto uiInit(
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    SZG_LOG("ImGui initialized.");
+    SZG_INFO("ImGui initialized.");
 
     return imguiDescriptorPool;
 }

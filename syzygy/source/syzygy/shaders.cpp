@@ -388,7 +388,8 @@ auto ShaderObjectReflected::fromBytecode(
         return {};
     }
 
-    SZG_LOG(fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
+    SZG_INFO(
+        fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
     );
     return ShaderObjectReflected(
         name, reflectionData, compilationResult.shader
@@ -437,7 +438,8 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         return {};
     }
 
-    SZG_LOG(fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
+    SZG_INFO(
+        fmt::format("Successfully compiled ShaderObjectReflected: {}", name)
     );
     return ShaderObjectReflected(
         name, reflectionData, compilationResult.shader
@@ -466,7 +468,7 @@ auto ShaderModuleReflected::FromBytecode(
         vkutil::generateReflectionData(spirvBytecode)
     };
 
-    SZG_LOG("Successfully compiled ShaderModuleReflected: {}", name);
+    SZG_INFO("Successfully compiled ShaderModuleReflected: {}", name);
     return ShaderModuleReflected(
         name, reflectionData, compilationResult.shader
     );
