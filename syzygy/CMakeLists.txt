@@ -12,8 +12,8 @@ add_library(
 	"source/syzygy/assets.cpp"
 	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
-	"source/syzygy/shadowpass.cpp"
 
+	"source/syzygy/renderer/shadowpass.cpp"
 	"source/syzygy/renderer/shaders.cpp"
 	"source/syzygy/renderer/descriptors.cpp"
 	"source/syzygy/renderer/buffers.cpp"

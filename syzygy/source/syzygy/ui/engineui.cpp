@@ -5,7 +5,7 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
-#include "syzygy/shadowpass.hpp"
+#include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include <algorithm>
 #include <array>

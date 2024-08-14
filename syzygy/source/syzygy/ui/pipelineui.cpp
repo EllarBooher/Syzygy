@@ -4,7 +4,7 @@
 #include "syzygy/deferred/deferred.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/shaders.hpp"
-#include "syzygy/shadowpass.hpp"
+#include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include <cassert>

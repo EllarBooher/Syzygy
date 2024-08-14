@@ -6,7 +6,7 @@
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/shaders.hpp"
-#include "syzygy/shadowpass.hpp"
+#include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/vec2.hpp>
 #include <memory>
