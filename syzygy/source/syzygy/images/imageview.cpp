@@ -1,5 +1,6 @@
 #include "imageview.hpp"
 
+#include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include <fmt/core.h>

@@ -22,10 +22,6 @@ auto ensureAbsolutePath(
 ) -> std::filesystem::path;
 }
 
-#define SZG_LOG(...) spdlog::info(__VA_ARGS__);
-#define SZG_WARNING(...) spdlog::warn(__VA_ARGS__);
-#define SZG_ERROR(...) spdlog::error(__VA_ARGS__);
-
 // TODO: Support zero variadic arguments
 #define SZG_LOG_VK(result_expr, ...)                                           \
     if (VkResult const& SZG_LOG_result{result_expr};                           \

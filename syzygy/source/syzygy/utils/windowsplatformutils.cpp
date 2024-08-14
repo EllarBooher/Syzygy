@@ -1,6 +1,6 @@
 #include "platformutils.hpp"
 
-#include "syzygy/helpers.hpp"
+#include "syzygy/core/log.hpp"
 #include <GLFW/glfw3.h>
 #include <ShObjIdl.h>
 #include <windows.h>

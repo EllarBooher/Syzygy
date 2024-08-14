@@ -3,6 +3,7 @@
 #include "syzygy/buffers.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/integer.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/enginetypes.hpp"

@@ -1,9 +1,8 @@
 #include "swapchain.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/initializers.hpp"
-#include <fmt/core.h>
 #include <utility>
 
 auto Swapchain::operator=(Swapchain&& other) noexcept -> Swapchain&
@@ -73,7 +72,6 @@ auto Swapchain::create(
 
     uint32_t const width{extent.x};
     uint32_t const height{extent.y};
-
     VkExtent2D const swapchainExtent{.width = width, .height = height};
 
     VkSwapchainCreateInfoKHR const swapchainCreateInfo{

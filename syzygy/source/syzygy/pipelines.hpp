@@ -1,7 +1,7 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <fmt/core.h>

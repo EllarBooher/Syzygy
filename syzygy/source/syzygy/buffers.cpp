@@ -1,5 +1,6 @@
 #include "buffers.hpp"
 
+#include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
 #include <algorithm>
 

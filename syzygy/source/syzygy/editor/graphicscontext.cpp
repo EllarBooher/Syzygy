@@ -1,5 +1,6 @@
 #include "graphicscontext.hpp"
 
+#include "syzygy/core/log.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/helpers.hpp"
 #include <GLFW/glfw3.h>

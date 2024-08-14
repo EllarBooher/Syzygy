@@ -2,6 +2,10 @@
 
 .vs/
 
+# Log Files
+
+**/*.log
+
 # CMake build folder
 
 build/

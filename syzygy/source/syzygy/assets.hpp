@@ -5,6 +5,7 @@
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/vulkanusage.hpp"
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>

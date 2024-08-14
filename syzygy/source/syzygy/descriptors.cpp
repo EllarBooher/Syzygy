@@ -1,5 +1,7 @@
 #include "descriptors.hpp"
-#include "helpers.hpp"
+
+#include "syzygy/core/log.hpp"
+#include "syzygy/helpers.hpp"
 #include <cmath>
 #include <glm/common.hpp>
 #include <utility>

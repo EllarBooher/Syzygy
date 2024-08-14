@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/helpers.hpp"
+#include "syzygy/core/log.hpp"
 #include <deque>
 #include <functional>
 

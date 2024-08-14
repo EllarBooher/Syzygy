@@ -42,6 +42,7 @@ add_library(
     "source/syzygy/renderpass/renderpass.cpp"
 
 	"source/syzygy/core/scene.cpp"
+	"source/syzygy/core/log.cpp"
     "source/syzygy/core/immediate.cpp"
     "source/syzygy/core/scenetexture.cpp" 
 	"source/syzygy/core/input.cpp"
