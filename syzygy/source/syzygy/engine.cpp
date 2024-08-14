@@ -2,7 +2,6 @@
 
 #include "syzygy/core/scene.hpp"
 #include "syzygy/core/scenetexture.hpp"
-#include "syzygy/debuglines.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"

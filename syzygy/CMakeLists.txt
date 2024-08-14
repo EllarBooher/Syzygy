@@ -10,9 +10,9 @@ add_library(
 	"source/syzygy/helpers.cpp"
 	"source/syzygy/pipelines.cpp"
 	"source/syzygy/assets.cpp"
-	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 
+	"source/syzygy/renderer/pipelines/debuglines.cpp"
 	"source/syzygy/renderer/pipelines/deferred.cpp"
 
 	"source/syzygy/renderer/gbuffer.cpp"
