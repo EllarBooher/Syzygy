@@ -9,7 +9,7 @@
 #include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
-#include "syzygy/shaders.hpp"
+#include "syzygy/renderer/shaders.hpp"
 #include <glm/vec2.hpp>
 #include <memory>
 #include <utility>

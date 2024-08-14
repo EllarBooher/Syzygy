@@ -9,12 +9,12 @@ add_library(
 	"source/syzygy/initializers.cpp"
 	"source/syzygy/helpers.cpp"
 	"source/syzygy/pipelines.cpp"
-	"source/syzygy/shaders.cpp"
 	"source/syzygy/assets.cpp"
 	"source/syzygy/debuglines.cpp"
 	"source/syzygy/geometryhelpers.cpp"
 	"source/syzygy/shadowpass.cpp"
 
+	"source/syzygy/renderer/shaders.cpp"
 	"source/syzygy/renderer/descriptors.cpp"
 	"source/syzygy/renderer/buffers.cpp"
 
