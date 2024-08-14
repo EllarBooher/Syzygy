@@ -1,7 +1,7 @@
 #pragma once
 
 #include "enginetypes.hpp"
-#include "geometryhelpers.hpp"
+#include "syzygy/geometry/geometryhelpers.hpp"
 
 #include "gputypes.hpp"
 
@@ -15,15 +15,15 @@ static gputypes::LightDirectional makeDirectional(
     glm::vec3 const geometryExtent
 )
 {
-    glm::mat4x4 const view{geometry::viewVk(glm::vec3{0.0}, eulerAngles)};
+    glm::mat4x4 const view{szg_geometry::viewVk(glm::vec3{0.0}, eulerAngles)};
 
-    glm::mat4x4 const projection{
-        geometry::projectionOrthoAABBVk(view, geometryCenter, geometryExtent)
-    };
+    glm::mat4x4 const projection{szg_geometry::projectionOrthoAABBVk(
+        view, geometryCenter, geometryExtent
+    )};
 
     return gputypes::LightDirectional{
         .color = color,
-        .forward = glm::vec4{geometry::forwardFromEulers(eulerAngles), 0.0},
+        .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
         .projection = projection,
         .view = view,
         .strength = strength,
@@ -46,15 +46,16 @@ static gputypes::LightSpot makeSpot(
 {
     return gputypes::LightSpot{
         .color = color,
-        .forward = glm::vec4{geometry::forwardFromEulers(eulerAngles), 0.0},
-        .projection =
-            geometry::projectionVk(geometry::PerspectiveProjectionParameters{
+        .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
+        .projection = szg_geometry::projectionVk(
+            szg_geometry::PerspectiveProjectionParameters{
                 .fov_y = verticalFOV,
                 .aspectRatio = horizontalScale,
                 .near = near,
                 .far = far,
-            }),
-        .view = geometry::viewVk(position, eulerAngles),
+            }
+        ),
+        .view = szg_geometry::viewVk(position, eulerAngles),
         .position = glm::vec4(position, 1.0),
         .strength = strength,
         .falloffFactor = falloffFactor,

@@ -4,8 +4,8 @@
 #include "syzygy/core/input.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/timing.hpp"
-#include "syzygy/geometryhelpers.hpp"
-#include "syzygy/geometrystatics.hpp"
+#include "syzygy/geometry/geometryhelpers.hpp"
+#include "syzygy/geometry/geometrystatics.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/lights.hpp"
 #include <glm/common.hpp>
@@ -184,7 +184,7 @@ auto scene::Scene::defaultScene(
                     glm::vec3 const position{
                         static_cast<float>(x), -4.0, static_cast<float>(z)
                     };
-                    glm::quat const orientation{geometry::randomQuat()};
+                    glm::quat const orientation{szg_geometry::randomQuat()};
                     glm::vec3 const scale{0.2F};
 
                     cubeGeometry.originals.push_back(
@@ -268,10 +268,10 @@ void scene::Scene::handleInput(
 
     glm::mat3x3 const transform{camera.transform()};
 
-    glm::vec3 const forward{transform * geometry::forward};
-    glm::vec3 const right{transform * geometry::right};
+    glm::vec3 const forward{transform * szg_geometry::forward};
+    glm::vec3 const right{transform * szg_geometry::right};
     // We do not rotate up, since the controls would be disorienting
-    glm::vec3 const up{geometry::up};
+    glm::vec3 const up{szg_geometry::up};
 
     glm::vec3 accumulatedMovement{};
 
@@ -498,7 +498,7 @@ auto computeSunlightColor(scene::Atmosphere const& atmosphere) -> glm::vec4
 
 auto scene::Atmosphere::directionToSun() const -> glm::vec3
 {
-    return -geometry::forwardFromEulers(sunEulerAngles);
+    return -szg_geometry::forwardFromEulers(sunEulerAngles);
 }
 
 auto scene::Atmosphere::toDeviceEquivalent() const -> gputypes::Atmosphere
@@ -529,7 +529,8 @@ auto scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     gputypes::Atmosphere const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
-    float const sunCosine{glm::dot(geometry::up, atmosphere.directionToSun)};
+    float const sunCosine{glm::dot(szg_geometry::up, atmosphere.directionToSun)
+    };
     float constexpr SUNSET_COSINE{0.06};
 
     std::optional<gputypes::LightDirectional> sunlight{};
@@ -566,7 +567,7 @@ auto scene::Camera::toDeviceEquivalent(float const aspectRatio) const
         .viewInverseTranspose = glm::inverseTranspose(view()),
         .rotation = rotation(),
         .projViewInverse = projViewInverse,
-        .forwardWorld = rotation() * glm::vec4(geometry::forward, 0.0),
+        .forwardWorld = rotation() * glm::vec4(szg_geometry::forward, 0.0),
         .position = glm::vec4(cameraPosition, 1.0),
     };
 }
@@ -583,12 +584,12 @@ auto scene::Camera::rotation() const -> glm::mat4x4
 
 auto scene::Camera::transform() const -> glm::mat4x4
 {
-    return geometry::transformVk(cameraPosition, eulerAngles);
+    return szg_geometry::transformVk(cameraPosition, eulerAngles);
 }
 
 auto scene::Camera::view() const -> glm::mat4x4
 {
-    return geometry::viewVk(cameraPosition, eulerAngles);
+    return szg_geometry::viewVk(cameraPosition, eulerAngles);
 }
 
 auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
@@ -600,13 +601,15 @@ auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
         glm::vec3 const min{-aspectRatio * height, -height, near};
         glm::vec3 const max{aspectRatio * height, height, far};
 
-        return geometry::projectionOrthoVk(min, max);
+        return szg_geometry::projectionOrthoVk(min, max);
     }
 
-    return geometry::projectionVk(geometry::PerspectiveProjectionParameters{
-        .fov_y = fovDegrees,
-        .aspectRatio = aspectRatio,
-        .near = near,
-        .far = far,
-    });
+    return szg_geometry::projectionVk(
+        szg_geometry::PerspectiveProjectionParameters{
+            .fov_y = fovDegrees,
+            .aspectRatio = aspectRatio,
+            .near = near,
+            .far = far,
+        }
+    );
 }

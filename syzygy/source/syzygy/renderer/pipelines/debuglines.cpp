@@ -1,7 +1,7 @@
 #include "debuglines.hpp"
 
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/geometrystatics.hpp"
+#include "syzygy/geometry/geometrystatics.hpp"
 #include <glm/vec4.hpp>
 #include <initializer_list>
 #include <span>
@@ -67,8 +67,8 @@ void DebugLines::pushRectangleOriented(
 {
     glm::vec3 const scale{extents.x, 1.0F, extents.y};
 
-    glm::vec3 const right{orientation * (scale * geometry::right)};
-    glm::vec3 const forward{orientation * (scale * geometry::forward)};
+    glm::vec3 const right{orientation * (scale * szg_geometry::right)};
+    glm::vec3 const forward{orientation * (scale * szg_geometry::forward)};
 
     pushRectangleAxes(center, right, forward);
 }
@@ -77,9 +77,9 @@ void DebugLines::pushBox(
     glm::vec3 const center, glm::quat const orientation, glm::vec3 const extents
 )
 {
-    glm::vec3 const right{orientation * (extents * geometry::right)};
-    glm::vec3 const forward{orientation * (extents * geometry::forward)};
-    glm::vec3 const up{orientation * (extents * geometry::up)};
+    glm::vec3 const right{orientation * (extents * szg_geometry::right)};
+    glm::vec3 const forward{orientation * (extents * szg_geometry::forward)};
+    glm::vec3 const up{orientation * (extents * szg_geometry::up)};
 
     pushRectangleAxes(center - up, right, forward);
     pushRectangleAxes(center + up, right, forward);
