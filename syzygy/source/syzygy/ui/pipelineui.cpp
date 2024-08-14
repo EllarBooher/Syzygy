@@ -8,10 +8,10 @@
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include <cassert>
-#include <fmt/core.h>
 #include <imgui.h>
 #include <limits>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <string>
 #include <type_traits>
 #include <variant>

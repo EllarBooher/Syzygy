@@ -28,7 +28,6 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
-#include <fmt/core.h>
 #include <glm/vec2.hpp>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -163,13 +162,13 @@ auto rebuildSwapchain(
         surfaceCapabilities.currentExtent.height
     };
 
-    SZG_INFO(fmt::format(
+    SZG_INFO(
         "Resizing swapchain: ({},{}) -> ({},{})",
         old.extent().width,
         old.extent().height,
         newExtent.x,
         newExtent.y
-    ));
+    );
 
     std::optional<Swapchain> newSwapchain{Swapchain::create(
         physicalDevice, device, surface, newExtent, old.swapchain()
@@ -437,10 +436,9 @@ auto uiInit(
             return;
         }
 
-        std::string const message{
-            fmt::format("Detected Vulkan Error : {}", string_VkResult(result))
-        };
-        fmt::print(fg(fmt::color::red), "[ IMGUI ] {} \n", message);
+        SZG_ERROR(
+            "Dear ImGui Detected Vulkan Error : {}", string_VkResult(result)
+        );
     },
     };
 

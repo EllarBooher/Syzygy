@@ -3,8 +3,8 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
-#include <fmt/core.h>
-#include <fmt/format.h>
+#include <spdlog/fmt/bundled/core.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <utility>
 
 szg_image::ImageView::ImageView(ImageView&& other) noexcept

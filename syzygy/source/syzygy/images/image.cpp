@@ -3,8 +3,6 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/imageoperations.hpp"
-#include <fmt/core.h>
-#include <fmt/format.h>
 #include <utility>
 
 szg_image::Image::Image(Image&& other) noexcept

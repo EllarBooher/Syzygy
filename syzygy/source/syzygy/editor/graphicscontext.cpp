@@ -5,9 +5,9 @@
 #include "syzygy/helpers.hpp"
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
-#include <fmt/core.h>
 #include <optional>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 #include <vector>
 

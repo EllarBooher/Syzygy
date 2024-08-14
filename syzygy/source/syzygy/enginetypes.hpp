@@ -11,8 +11,6 @@
 #include "syzygy/vulkanusage.hpp"
 #include <vulkan/vk_enum_string_helper.h>
 
-#include <fmt/core.h>
-
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>

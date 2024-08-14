@@ -1,6 +1,7 @@
 #pragma once
 
-#include <spdlog/spdlog.h>
+#include <memory>
+#include <spdlog/logger.h>
 
 namespace szg_log
 {

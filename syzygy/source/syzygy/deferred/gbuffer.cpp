@@ -8,8 +8,8 @@
 #include "syzygy/images/imageview.hpp"
 #include "syzygy/initializers.hpp"
 #include <array>
-#include <fmt/core.h>
 #include <functional>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
 auto GBuffer::create(

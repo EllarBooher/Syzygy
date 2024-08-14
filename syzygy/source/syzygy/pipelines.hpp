@@ -4,7 +4,6 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/shaders.hpp"
 #include "syzygy/vulkanusage.hpp"
-#include <fmt/core.h>
 #include <glm/mat4x4.hpp>
 #include <optional>
 #include <set>
@@ -222,9 +221,7 @@ public:
         }
         else if (index >= count)
         {
-            SZG_WARNING(fmt::format(
-                "Shader index {} is out of bounds of {}", index, count
-            ));
+            SZG_WARNING("Shader index {} is out of bounds of {}", index, count);
             return;
         }
 

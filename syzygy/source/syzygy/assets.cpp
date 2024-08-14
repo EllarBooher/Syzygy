@@ -18,13 +18,13 @@
 #include <fastgltf/types.hpp>
 #include <fastgltf/util.hpp>
 #include <filesystem>
-#include <fmt/core.h>
 #include <fstream>
 #include <functional>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -291,7 +291,7 @@ auto loadGltfMeshes(
 {
     std::filesystem::path const assetPath{szg_utils::ensureAbsolutePath(path)};
 
-    SZG_INFO(fmt::format("Loading glTF: {}", assetPath.string()));
+    SZG_INFO("Loading glTF: {}", assetPath.string());
 
     fastgltf::GltfDataBuffer data;
     data.loadFromFile(assetPath);
@@ -308,9 +308,9 @@ auto loadGltfMeshes(
     };
     if (!load)
     {
-        SZG_ERROR(fmt::format(
+        SZG_ERROR(
             "Failed to load glTF: {}", fastgltf::to_underlying(load.error())
-        ));
+        );
         return {};
     }
     fastgltf::Asset const gltf{std::move(load.get())};
@@ -519,14 +519,14 @@ auto szg_assets::loadAssetFile(std::filesystem::path const& path)
 
     if (!file.is_open())
     {
-        SZG_ERROR(fmt::format("Unable to open file at {}", path.string()));
+        SZG_ERROR("Unable to open file at {}", path.string());
         return std::nullopt;
     }
 
     size_t const fileSizeBytes = static_cast<size_t>(file.tellg());
     if (fileSizeBytes == 0)
     {
-        SZG_ERROR(fmt::format("File at empty at {}", path.string()));
+        SZG_ERROR("File at empty at {}", path.string());
         return std::nullopt;
     }
 
@@ -560,13 +560,11 @@ auto szg_assets::loadTextureFromFile(
     VkImageUsageFlags const additionalFlags
 ) -> std::optional<Asset<szg_image::Image>>
 {
-    SZG_INFO(fmt::format("Loading Texture from '{}'", path.string()));
+    SZG_INFO("Loading Texture from '{}'", path.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {
-        SZG_ERROR(fmt::format(
-            "Failed to load file for texture at '{}'", path.string()
-        ));
+        SZG_ERROR("Failed to load file for texture at '{}'", path.string());
         return std::nullopt;
     }
 

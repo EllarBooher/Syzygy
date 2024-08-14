@@ -9,10 +9,10 @@
 #include "syzygy/ui/propertytable.hpp"
 #include <algorithm>
 #include <array>
-#include <fmt/core.h>
 #include <imgui.h>
 #include <memory>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <string>
 
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)

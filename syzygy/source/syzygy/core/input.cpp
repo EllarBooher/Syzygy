@@ -1,10 +1,10 @@
 #include "input.hpp"
 
 #include "syzygy/helpers.hpp"
-#include <fmt/core.h>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <optional>
+#include <spdlog/fmt/bundled/core.h>
 
 namespace
 {

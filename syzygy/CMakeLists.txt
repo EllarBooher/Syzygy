@@ -212,7 +212,6 @@ FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
 FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(vk-bootstrap)
-FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(volk)
 FetchContent_MakeAvailable(spdlog)
 
@@ -227,7 +226,6 @@ target_link_libraries(
 		implot
 		vk-bootstrap
 		fastgltf
-		fmt::fmt
 		volk
 		stb
 		spdlog::spdlog

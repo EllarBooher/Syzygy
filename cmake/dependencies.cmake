@@ -7,15 +7,6 @@ set(FETCHCONTENT_QUIET ON)
 message(STATUS "Fetching dependencies - FetchContent quieting is ${FETCHCONTENT_QUIET}")
 
 FetchContent_Declare(
-	fmt
-	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-	GIT_TAG 10.2.1
-	GIT_SHALLOW ON
-	GIT_PROGRESS ON
-	SYSTEM
-)
-
-FetchContent_Declare(
 	spdlog
 	GIT_REPOSITORY https://github.com/gabime/spdlog.git
 	GIT_TAG v1.14.1

@@ -10,7 +10,6 @@
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
 #include "syzygy/vulkanusage.hpp"
-#include <fmt/core.h>
 #include <format>
 #include <functional>
 #include <glm/gtc/constants.hpp>
@@ -18,6 +17,7 @@
 #include <implot.h>
 #include <memory>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 #include <vector>
 

@@ -5,9 +5,9 @@
 #include "syzygy/helpers.hpp"
 #include <array>
 #include <cassert>
-#include <fmt/core.h>
 #include <format>
 #include <include/spirv/unified1/spirv.h>
+#include <spdlog/fmt/bundled/core.h>
 #include <spirv_reflect.h>
 #include <utility>
 

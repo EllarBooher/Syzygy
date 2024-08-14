@@ -2,10 +2,10 @@
 
 #include <array>
 #include <cmath>
-#include <fmt/core.h>
 #include <imgui_internal.h>
 #include <limits>
 #include <misc/cpp/imgui_stdlib.h>
+#include <spdlog/fmt/bundled/core.h>
 #include <unordered_map>
 
 void PropertyTable::nameColumn(std::string const& name)
