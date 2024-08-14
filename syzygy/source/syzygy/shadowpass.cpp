@@ -1,7 +1,7 @@
 #include "shadowpass.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/descriptors.hpp"
+#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"

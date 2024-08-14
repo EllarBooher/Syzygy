@@ -8,7 +8,6 @@ add_library(
 	"source/syzygy/engine.cpp"
 	"source/syzygy/initializers.cpp"
 	"source/syzygy/helpers.cpp"
-	"source/syzygy/descriptors.cpp"
 	"source/syzygy/pipelines.cpp"
 	"source/syzygy/shaders.cpp"
 	"source/syzygy/assets.cpp"
@@ -16,6 +15,7 @@ add_library(
 	"source/syzygy/geometryhelpers.cpp"
 	"source/syzygy/shadowpass.cpp"
 
+	"source/syzygy/renderer/descriptors.cpp"
 	"source/syzygy/renderer/buffers.cpp"
 
 	"source/syzygy/images/image.cpp"

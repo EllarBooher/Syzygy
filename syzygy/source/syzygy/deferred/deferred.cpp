@@ -4,7 +4,7 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scene.hpp"
 #include "syzygy/deferred/gbuffer.hpp"
-#include "syzygy/descriptors.hpp"
+#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"

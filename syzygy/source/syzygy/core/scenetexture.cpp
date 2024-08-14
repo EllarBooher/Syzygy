@@ -1,7 +1,7 @@
 #include "scenetexture.hpp"
 
 #include "deletionqueue.hpp"
-#include "syzygy/descriptors.hpp"
+#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
