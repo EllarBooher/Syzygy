@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/images/imageoperations.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/gtx/compatibility.hpp>
 
 void szg_image::transitionImage(
@@ -27,7 +27,7 @@ void szg_image::transitionImage(
         .newLayout = newLayout,
 
         .image = image,
-        .subresourceRange = vkinit::imageSubresourceRange(aspects),
+        .subresourceRange = szg_renderer::imageSubresourceRange(aspects),
     };
 
     VkDependencyInfo const depInfo{
@@ -54,14 +54,14 @@ void szg_image::recordCopyImageToImage(
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
         .srcSubresource =
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+            szg_renderer::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .srcOffsets =
             {
                 srcMin,
                 srcMax,
             },
         .dstSubresource =
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+            szg_renderer::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .dstOffsets =
             {
                 dstMin,
@@ -152,10 +152,10 @@ void szg_image::recordCopyImageToImage(
     VkImageBlit2 const blitRegion{
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
-        .srcSubresource = vkinit::imageSubresourceLayers(aspectMask),
+        .srcSubresource = szg_renderer::imageSubresourceLayers(aspectMask),
         .srcOffsets = {srcMin, srcMax},
         .dstSubresource =
-            vkinit::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+            szg_renderer::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .dstOffsets = {dstMin, dstMax},
     };
 

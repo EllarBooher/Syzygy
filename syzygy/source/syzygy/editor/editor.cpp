@@ -17,7 +17,7 @@
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageoperations.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
 #include "syzygy/ui/texturedisplay.hpp"
@@ -210,9 +210,11 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
         return resetCmdResult;
     }
 
-    VkCommandBufferBeginInfo const cmdBeginInfo{vkinit::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
+    VkCommandBufferBeginInfo const cmdBeginInfo{
+        szg_renderer::commandBufferBeginInfo(
+            VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+        )
+    };
     if (VkResult const beginCmdResult{vkBeginCommandBuffer(cmd, &cmdBeginInfo)};
         beginCmdResult != VK_SUCCESS)
     {
@@ -295,13 +297,13 @@ auto endFrame(
     // Submit commands
 
     VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        vkinit::commandBufferSubmitInfo(cmd)
+        szg_renderer::commandBufferSubmitInfo(cmd)
     };
-    VkSemaphoreSubmitInfo const waitInfo{vkinit::semaphoreSubmitInfo(
+    VkSemaphoreSubmitInfo const waitInfo{szg_renderer::semaphoreSubmitInfo(
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         currentFrame.swapchainSemaphore
     )};
-    VkSemaphoreSubmitInfo const signalInfo{vkinit::semaphoreSubmitInfo(
+    VkSemaphoreSubmitInfo const signalInfo{szg_renderer::semaphoreSubmitInfo(
         VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, currentFrame.renderSemaphore
     )};
 
@@ -309,7 +311,7 @@ auto endFrame(
     std::vector<VkSemaphoreSubmitInfo> const waitInfos{waitInfo};
     std::vector<VkSemaphoreSubmitInfo> const signalInfos{signalInfo};
     VkSubmitInfo2 const submitInfo =
-        vkinit::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
+        szg_renderer::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
 
     SZG_PROPAGATE_VK(
         vkQueueSubmit2(
@@ -532,7 +534,7 @@ auto uiRecordDraw(
     };
 
     VkRenderingAttachmentInfo const colorAttachmentInfo{
-        vkinit::renderingAttachmentInfo(
+        szg_renderer::renderingAttachmentInfo(
             windowTexture.view(), VK_IMAGE_LAYOUT_GENERAL
         )
     };
@@ -540,7 +542,7 @@ auto uiRecordDraw(
         colorAttachmentInfo
     };
     VkRenderingInfo const renderingInfo{
-        vkinit::renderingInfo(renderedArea, colorAttachments, nullptr)
+        szg_renderer::renderingInfo(renderedArea, colorAttachments, nullptr)
     };
     vkCmdBeginRendering(cmd, &renderingInfo);
 
@@ -656,8 +658,9 @@ auto szg_editor::run() -> EditorResult
 
             },
             szg_image::ImageViewAllocationParameters{
-                .subresourceRange =
-                    vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+                .subresourceRange = szg_renderer::imageSubresourceRange(
+                    VK_IMAGE_ASPECT_COLOR_BIT
+                )
             }
         )
     };

@@ -6,10 +6,10 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/shaders.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/vec2.hpp>
 #include <memory>
 #include <utility>
@@ -127,7 +127,7 @@ void PipelineBuilder::pushShader(
     ShaderModuleReflected const& shader, VkShaderStageFlagBits const stage
 )
 {
-    m_shaderStages.push_back(vkinit::pipelineShaderStageCreateInfo(
+    m_shaderStages.push_back(szg_renderer::pipelineShaderStageCreateInfo(
         stage, shader.shaderModule(), shader.reflectionData().defaultEntryPoint
     ));
 }
@@ -512,9 +512,9 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     std::vector<VkRenderingAttachmentInfo> const colorAttachments{
         colorAttachment
     };
-    VkRenderingInfo const renderInfo{
-        vkinit::renderingInfo(drawRect, colorAttachments, &depthAttachment)
-    };
+    VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
+        drawRect, colorAttachments, &depthAttachment
+    )};
 
     cameras.recordTotalCopyBarrier(
         cmd,
@@ -709,7 +709,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     VkExtent2D const depthExtent{depth.image().extent2D()};
 
-    VkRenderingInfo const renderInfo{vkinit::renderingInfo(
+    VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
         VkRect2D{.extent = depthExtent}, {}, &depthAttachment
     )};
 

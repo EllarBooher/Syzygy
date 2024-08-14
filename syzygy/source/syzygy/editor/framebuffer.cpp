@@ -2,7 +2,7 @@
 
 #include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <functional>
 #include <utility>
 
@@ -54,7 +54,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
 
     // Frames start signaled so they can be initially used
     VkFenceCreateInfo const fenceCreateInfo{
-        vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
+        szg_renderer::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
     };
 
     if (VkResult const result{
@@ -67,8 +67,9 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         return std::nullopt;
     }
 
-    VkSemaphoreCreateInfo const semaphoreCreateInfo{vkinit::semaphoreCreateInfo(
-    )};
+    VkSemaphoreCreateInfo const semaphoreCreateInfo{
+        szg_renderer::semaphoreCreateInfo()
+    };
 
     if (VkResult const result{vkCreateSemaphore(
             device, &semaphoreCreateInfo, nullptr, &frame.swapchainSemaphore

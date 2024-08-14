@@ -1,11 +1,11 @@
 #include "scenetexture.hpp"
 
 #include "deletionqueue.hpp"
-#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <functional>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
@@ -83,7 +83,7 @@ auto scene::SceneTexture::create(
     cleanupCallbacks.pushFunction([&]() { textureResult.reset(); });
     szg_image::ImageView& texture{*textureResult.value()};
 
-    VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
         VK_FILTER_NEAREST,

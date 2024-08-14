@@ -9,7 +9,8 @@
 
 // Shorthand factory methods for data-holding Vulkan structs, with reasonable
 // defaults.
-namespace vkinit
+
+namespace szg_renderer
 {
 VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
 VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
@@ -76,4 +77,4 @@ VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
     std::span<VkPushConstantRange const> ranges
 );
 
-} // namespace vkinit
+} // namespace szg_renderer

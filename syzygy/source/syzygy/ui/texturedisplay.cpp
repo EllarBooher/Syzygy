@@ -5,7 +5,7 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uiwindow.hpp"
@@ -59,8 +59,9 @@ auto ui::TextureDisplay::create(
                 .usageFlags = colorUsage,
             },
             szg_image::ImageViewAllocationParameters{
-                .subresourceRange =
-                    vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+                .subresourceRange = szg_renderer::imageSubresourceRange(
+                    VK_IMAGE_ASPECT_COLOR_BIT
+                )
             }
         )
     };
@@ -86,7 +87,7 @@ auto ui::TextureDisplay::create(
     }
     );
 
-    VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
         VK_FILTER_NEAREST,

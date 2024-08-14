@@ -1,6 +1,6 @@
-#include "initializers.hpp"
+#include "vulkanstructs.hpp"
 
-auto vkinit::fenceCreateInfo(VkFenceCreateFlags const flags)
+auto szg_renderer::fenceCreateInfo(VkFenceCreateFlags const flags)
     -> VkFenceCreateInfo
 {
     return {
@@ -10,7 +10,7 @@ auto vkinit::fenceCreateInfo(VkFenceCreateFlags const flags)
     };
 }
 
-auto vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
+auto szg_renderer::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     -> VkSemaphoreCreateInfo
 {
     return {
@@ -20,7 +20,7 @@ auto vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     };
 }
 
-auto vkinit::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
+auto szg_renderer::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     -> VkCommandBufferBeginInfo
 {
     return {
@@ -31,7 +31,7 @@ auto vkinit::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     };
 }
 
-auto vkinit::imageSubresourceRange(VkImageAspectFlags const aspectMask)
+auto szg_renderer::imageSubresourceRange(VkImageAspectFlags const aspectMask)
     -> VkImageSubresourceRange
 {
     return {
@@ -43,7 +43,7 @@ auto vkinit::imageSubresourceRange(VkImageAspectFlags const aspectMask)
     };
 }
 
-auto vkinit::imageSubresourceLayers(
+auto szg_renderer::imageSubresourceLayers(
     VkImageAspectFlags const aspectMask,
     uint32_t const mipLevel,
     uint32_t const baseArrayLayer,
@@ -58,7 +58,7 @@ auto vkinit::imageSubresourceLayers(
     };
 }
 
-auto vkinit::semaphoreSubmitInfo(
+auto szg_renderer::semaphoreSubmitInfo(
     VkPipelineStageFlags2 const stageMask, VkSemaphore const semaphore
 ) -> VkSemaphoreSubmitInfo
 {
@@ -72,7 +72,7 @@ auto vkinit::semaphoreSubmitInfo(
     };
 }
 
-auto vkinit::commandBufferSubmitInfo(VkCommandBuffer const cmd)
+auto szg_renderer::commandBufferSubmitInfo(VkCommandBuffer const cmd)
     -> VkCommandBufferSubmitInfo
 {
     return {
@@ -83,7 +83,7 @@ auto vkinit::commandBufferSubmitInfo(VkCommandBuffer const cmd)
     };
 }
 
-auto vkinit::submitInfo(
+auto szg_renderer::submitInfo(
     std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
     std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
     std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
@@ -108,7 +108,7 @@ auto vkinit::submitInfo(
     };
 }
 
-auto vkinit::imageCreateInfo(
+auto szg_renderer::imageCreateInfo(
     VkFormat const format,
     VkImageLayout const initialLayout,
     VkImageUsageFlags const usageMask,
@@ -143,7 +143,7 @@ auto vkinit::imageCreateInfo(
     };
 }
 
-auto vkinit::samplerCreateInfo(
+auto szg_renderer::samplerCreateInfo(
     VkSamplerCreateFlags const flags,
     VkBorderColor const borderColor,
     VkFilter const filter,
@@ -182,7 +182,7 @@ auto vkinit::samplerCreateInfo(
     };
 }
 
-auto vkinit::imageViewCreateInfo(
+auto szg_renderer::imageViewCreateInfo(
     VkFormat const format,
     VkImage const image,
     VkImageAspectFlags const aspectFlags
@@ -197,11 +197,11 @@ auto vkinit::imageViewCreateInfo(
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
-        .subresourceRange = vkinit::imageSubresourceRange(aspectFlags),
+        .subresourceRange = szg_renderer::imageSubresourceRange(aspectFlags),
     };
 }
 
-auto vkinit::renderingAttachmentInfo(
+auto szg_renderer::renderingAttachmentInfo(
     VkImageView const view,
     VkImageLayout const layout,
     std::optional<VkClearValue> const clearValue
@@ -220,7 +220,7 @@ auto vkinit::renderingAttachmentInfo(
     };
 }
 
-auto vkinit::renderingInfo(
+auto szg_renderer::renderingInfo(
     VkRect2D const drawRect,
     std::span<VkRenderingAttachmentInfo const> const colorAttachments,
     VkRenderingAttachmentInfo const* const pDepthAttachment
@@ -243,7 +243,7 @@ auto vkinit::renderingInfo(
     };
 }
 
-auto vkinit::pipelineShaderStageCreateInfo(
+auto szg_renderer::pipelineShaderStageCreateInfo(
     VkShaderStageFlagBits const stage,
     VkShaderModule const module,
     std::string const& entryPoint
@@ -261,7 +261,7 @@ auto vkinit::pipelineShaderStageCreateInfo(
     };
 }
 
-auto vkinit::pipelineLayoutCreateInfo(
+auto szg_renderer::pipelineLayoutCreateInfo(
     VkPipelineLayoutCreateFlags const flags,
     std::span<VkDescriptorSetLayout const> const layouts,
     std::span<VkPushConstantRange const> const ranges

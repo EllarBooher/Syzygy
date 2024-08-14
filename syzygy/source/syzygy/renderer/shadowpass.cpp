@@ -1,13 +1,13 @@
 #include "shadowpass.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
 
@@ -24,7 +24,7 @@ auto ShadowPassArray::create(
     size_t const capacity
 ) -> std::optional<ShadowPassArray>
 {
-    VkSamplerCreateInfo const samplerInfo{vkinit::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
         VK_FILTER_NEAREST,
@@ -93,7 +93,7 @@ auto ShadowPassArray::create(
                             | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                     },
                     szg_image::ImageViewAllocationParameters{
-                        .subresourceRange = vkinit::imageSubresourceRange(
+                        .subresourceRange = szg_renderer::imageSubresourceRange(
                             VK_IMAGE_ASPECT_DEPTH_BIT
                         ),
                     }

@@ -1,6 +1,6 @@
 #include "renderpass.hpp"
 #include "syzygy/images/image.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 
 void renderpass::recordClearDepthImage(
     VkCommandBuffer const cmd,
@@ -13,7 +13,7 @@ void renderpass::recordClearDepthImage(
     );
 
     VkImageSubresourceRange const range{
-        vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+        szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
     };
     vkCmdClearDepthStencilImage(
         cmd, depth.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range
@@ -31,7 +31,7 @@ void renderpass::recordClearColorImage(
     );
 
     VkImageSubresourceRange const range{
-        vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+        szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
     vkCmdClearColorImage(
         cmd, color.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range

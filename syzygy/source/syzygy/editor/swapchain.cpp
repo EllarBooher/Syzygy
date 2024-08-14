@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/log.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <utility>
 
 auto Swapchain::operator=(Swapchain&& other) noexcept -> Swapchain&
@@ -138,7 +138,7 @@ auto Swapchain::create(
     {
         VkImage const image{swapchain.m_images[index]};
 
-        VkImageViewCreateInfo const viewInfo{vkinit::imageViewCreateInfo(
+        VkImageViewCreateInfo const viewInfo{szg_renderer::imageViewCreateInfo(
             swapchain.m_imageFormat, image, VK_IMAGE_ASPECT_COLOR_BIT
         )};
 

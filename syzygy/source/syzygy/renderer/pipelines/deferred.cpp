@@ -6,10 +6,10 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <array>
 #include <glm/mat4x4.hpp>
@@ -205,9 +205,10 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                                         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                         },
                         szg_image::ImageViewAllocationParameters{
-                            .subresourceRange = vkinit::imageSubresourceRange(
-                                VK_IMAGE_ASPECT_COLOR_BIT
-                            )
+                            .subresourceRange =
+                                szg_renderer::imageSubresourceRange(
+                                    VK_IMAGE_ASPECT_COLOR_BIT
+                                )
                         }
                     )};
                 drawImageResult.has_value())
@@ -249,7 +250,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         }
 
         VkSamplerCreateInfo const depthImageImmutableSamplerInfo{
-            vkinit::samplerCreateInfo(
+            szg_renderer::samplerCreateInfo(
                 0,
                 VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
                 VK_FILTER_NEAREST,
@@ -579,19 +580,19 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
 
         std::array<VkRenderingAttachmentInfo, 4> const gBufferAttachments{
-            vkinit::renderingAttachmentInfo(
+            szg_renderer::renderingAttachmentInfo(
                 m_gBuffer.diffuseColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            vkinit::renderingAttachmentInfo(
+            szg_renderer::renderingAttachmentInfo(
                 m_gBuffer.specularColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            vkinit::renderingAttachmentInfo(
+            szg_renderer::renderingAttachmentInfo(
                 m_gBuffer.normal->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            vkinit::renderingAttachmentInfo(
+            szg_renderer::renderingAttachmentInfo(
                 m_gBuffer.worldPosition->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             )
@@ -631,7 +632,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
-        VkRenderingInfo const renderInfo{vkinit::renderingInfo(
+        VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
             VkRect2D{.extent{drawRect.extent}},
             gBufferAttachments,
             &depthAttachment

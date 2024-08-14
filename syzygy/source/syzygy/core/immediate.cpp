@@ -1,7 +1,7 @@
 #include "immediate.hpp"
 #include "deletionqueue.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/initializers.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include <vector>
 
 auto ImmediateSubmissionQueue::operator=(ImmediateSubmissionQueue&& other
@@ -56,7 +56,7 @@ auto ImmediateSubmissionQueue::create(
     );
 
     VkFenceCreateInfo const fenceCreateInfo{
-        vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
+        szg_renderer::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
     };
 
     VkFence busyFence{VK_NULL_HANDLE};
@@ -95,9 +95,11 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         SubmissionResult::FAILED
     );
 
-    VkCommandBufferBeginInfo const cmdBeginInfo{vkinit::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
+    VkCommandBufferBeginInfo const cmdBeginInfo{
+        szg_renderer::commandBufferBeginInfo(
+            VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+        )
+    };
 
     SZG_TRY_VK(
         vkBeginCommandBuffer(m_commandBuffer, &cmdBeginInfo),
@@ -114,10 +116,12 @@ auto ImmediateSubmissionQueue::immediateSubmit(
     );
 
     VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        vkinit::commandBufferSubmitInfo(m_commandBuffer)
+        szg_renderer::commandBufferSubmitInfo(m_commandBuffer)
     };
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
-    VkSubmitInfo2 const submitInfo{vkinit::submitInfo(cmdSubmitInfos, {}, {})};
+    VkSubmitInfo2 const submitInfo{
+        szg_renderer::submitInfo(cmdSubmitInfos, {}, {})
+    };
 
     SZG_TRY_VK(
         vkQueueSubmit2(queue, 1, &submitInfo, m_busyFence),

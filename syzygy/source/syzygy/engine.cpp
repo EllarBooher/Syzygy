@@ -8,10 +8,10 @@
 #include "syzygy/images/image.hpp"
 #include "syzygy/images/imageoperations.hpp"
 #include "syzygy/images/imageview.hpp"
-#include "syzygy/initializers.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
+#include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/uiwindow.hpp"
@@ -105,8 +105,9 @@ void Engine::initDrawTargets(
                                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 },
                 szg_image::ImageViewAllocationParameters{
-                    .subresourceRange =
-                        vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+                    .subresourceRange = szg_renderer::imageSubresourceRange(
+                        VK_IMAGE_ASPECT_DEPTH_BIT
+                    )
                 }
             )
         };
