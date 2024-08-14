@@ -15,10 +15,10 @@ namespace gputypes
 {
 struct Camera;
 }
-namespace szg_image
+namespace szg_renderer
 {
 struct ImageView;
-} // namespace szg_image
+} // namespace szg_renderer
 struct Vertex;
 template <typename T> struct TStagedBuffer;
 namespace scene
@@ -139,7 +139,7 @@ public:
         bool reuseDepthAttachment,
         float depthBias,
         float depthBiasSlope,
-        szg_image::ImageView& depth,
+        szg_renderer::ImageView& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
         std::span<scene::MeshInstanced const> geometry,
@@ -260,8 +260,8 @@ public:
         bool reuseDepthAttachment,
         float lineWidth,
         VkRect2D drawRect,
-        szg_image::ImageView& color,
-        szg_image::ImageView& depth,
+        szg_renderer::ImageView& color,
+        szg_renderer::ImageView& depth,
         uint32_t cameraIndex,
         TStagedBuffer<gputypes::Camera> const& cameras,
         TStagedBuffer<Vertex> const& endpoints,

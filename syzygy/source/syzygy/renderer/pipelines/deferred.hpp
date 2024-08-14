@@ -2,9 +2,9 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/gputypes.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -12,10 +12,10 @@
 #include <memory>
 #include <span>
 
-namespace szg_image
+namespace szg_renderer
 {
 struct Image;
-} // namespace szg_image
+} // namespace szg_renderer
 
 class DescriptorAllocator;
 namespace scene
@@ -36,8 +36,8 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd,
         VkRect2D drawRect,
-        szg_image::Image& color,
-        szg_image::ImageView& depth,
+        szg_renderer::Image& color,
+        szg_renderer::ImageView& depth,
         std::span<gputypes::LightDirectional const> directionalLights,
         std::span<gputypes::LightSpot const> spotLights,
         uint32_t viewCameraIndex,
@@ -47,15 +47,16 @@ public:
         std::span<scene::MeshInstanced const> sceneGeometry
     );
 
-    void
-    updateRenderTargetDescriptors(VkDevice, szg_image::ImageView& depthImage);
+    void updateRenderTargetDescriptors(
+        VkDevice, szg_renderer::ImageView& depthImage
+    );
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:
     ShadowPassArray m_shadowPassArray{};
 
-    std::unique_ptr<szg_image::ImageView> m_drawImage{};
+    std::unique_ptr<szg_renderer::ImageView> m_drawImage{};
 
     typedef TStagedBuffer<gputypes::LightDirectional> LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};

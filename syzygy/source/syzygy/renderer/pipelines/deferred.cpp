@@ -4,11 +4,11 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scene.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <array>
@@ -192,11 +192,11 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                 .height = dimensionCapacity.height,
             };
 
-            if (std::optional<std::unique_ptr<szg_image::ImageView>>
-                    drawImageResult{szg_image::ImageView::allocate(
+            if (std::optional<std::unique_ptr<szg_renderer::ImageView>>
+                    drawImageResult{szg_renderer::ImageView::allocate(
                         device,
                         allocator,
-                        szg_image::ImageAllocationParameters{
+                        szg_renderer::ImageAllocationParameters{
                             .extent = drawImageExtent,
                             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                             .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -204,7 +204,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                                         | VK_IMAGE_USAGE_STORAGE_BIT
                                         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                         },
-                        szg_image::ImageViewAllocationParameters{
+                        szg_renderer::ImageViewAllocationParameters{
                             .subresourceRange =
                                 szg_renderer::imageSubresourceRange(
                                     VK_IMAGE_ASPECT_COLOR_BIT
@@ -489,8 +489,8 @@ auto collectGeometryCullFlags(
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    szg_image::Image& color,
-    szg_image::ImageView& depth,
+    szg_renderer::Image& color,
+    szg_renderer::ImageView& depth,
     std::span<gputypes::LightDirectional const> const directionalLights,
     std::span<gputypes::LightSpot const> const spotLights,
     uint32_t const viewCameraIndex,
@@ -912,7 +912,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .z = 1
         };
 
-        szg_image::Image::recordCopyRect(
+        szg_renderer::Image::recordCopyRect(
             cmd,
             m_drawImage->image(),
             color,
@@ -926,7 +926,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, szg_image::ImageView& depthImage
+    VkDevice const device, szg_renderer::ImageView& depthImage
 )
 {
     VkDescriptorImageInfo const depthImageInfo{

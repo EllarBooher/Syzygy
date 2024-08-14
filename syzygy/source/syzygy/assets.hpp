@@ -2,8 +2,8 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/uuid.hpp"
-#include "syzygy/images/image.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/image.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <filesystem>
 #include <functional>
@@ -81,8 +81,8 @@ template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
 class AssetLibrary
 {
 public:
-    void registerAsset(Asset<szg_image::Image>&& asset);
-    auto fetchAssets() -> std::vector<AssetRef<szg_image::Image>>;
+    void registerAsset(Asset<szg_renderer::Image>&& asset);
+    auto fetchAssets() -> std::vector<AssetRef<szg_renderer::Image>>;
     void loadTexturesDialog(
         PlatformWindow const&,
         GraphicsContext&,
@@ -90,7 +90,7 @@ public:
     );
 
 private:
-    std::vector<Asset<szg_image::Image>> m_textures{};
+    std::vector<Asset<szg_renderer::Image>> m_textures{};
 };
 
 struct ImageRGBA
@@ -106,5 +106,5 @@ auto loadTextureFromFile(
     ImmediateSubmissionQueue const&,
     std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<szg_image::Image>>;
+) -> std::optional<Asset<szg_renderer::Image>>;
 } // namespace szg_assets

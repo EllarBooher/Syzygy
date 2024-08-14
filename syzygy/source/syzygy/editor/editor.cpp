@@ -14,9 +14,9 @@
 #include "syzygy/engine.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageoperations.hpp"
-#include "syzygy/images/imageview.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageoperations.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
@@ -231,7 +231,7 @@ auto endFrame(
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
-    szg_image::Image& sourceTexture,
+    szg_renderer::Image& sourceTexture,
     VkRect2D const sourceSubregion
 ) -> VkResult
 {
@@ -265,7 +265,7 @@ auto endFrame(
         cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    szg_image::transitionImage(
+    szg_renderer::transitionImage(
         cmd,
         swapchainImage,
         VK_IMAGE_LAYOUT_UNDEFINED,
@@ -273,7 +273,7 @@ auto endFrame(
         VK_IMAGE_ASPECT_COLOR_BIT
     );
 
-    szg_image::recordCopyImageToImage(
+    szg_renderer::recordCopyImageToImage(
         cmd,
         sourceTexture.image(),
         swapchainImage,
@@ -281,7 +281,7 @@ auto endFrame(
         VkRect2D{.extent{swapchain.extent()}}
     );
 
-    szg_image::transitionImage(
+    szg_renderer::transitionImage(
         cmd,
         swapchainImage,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -510,7 +510,7 @@ auto uiBegin(
 auto uiRecordDraw(
     VkCommandBuffer const cmd,
     scene::SceneTexture& sceneTexture,
-    szg_image::ImageView& windowTexture
+    szg_renderer::ImageView& windowTexture
 ) -> VkRect2D
 {
     sceneTexture.texture().recordTransitionBarriered(
@@ -644,11 +644,11 @@ auto szg_editor::run() -> EditorResult
         SZG_ERROR("Failed to allocate scene texture");
         return EditorResult::ERROR;
     }
-    std::optional<std::unique_ptr<szg_image::ImageView>> windowTextureResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> windowTextureResult{
+        szg_renderer::ImageView::allocate(
             graphicsContext.device(),
             graphicsContext.allocator(),
-            szg_image::ImageAllocationParameters{
+            szg_renderer::ImageAllocationParameters{
                 .extent = TEXTURE_MAX,
                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usageFlags =
@@ -657,7 +657,7 @@ auto szg_editor::run() -> EditorResult
                     | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
 
             },
-            szg_image::ImageViewAllocationParameters{
+            szg_renderer::ImageViewAllocationParameters{
                 .subresourceRange = szg_renderer::imageSubresourceRange(
                     VK_IMAGE_ASPECT_COLOR_BIT
                 )
@@ -737,7 +737,7 @@ auto szg_editor::run() -> EditorResult
     )};
 
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
-    szg_image::ImageView& windowTexture = *windowTextureResult.value();
+    szg_renderer::ImageView& windowTexture = *windowTextureResult.value();
 
     Engine* const renderer = Engine::loadEngine(
         mainWindow,

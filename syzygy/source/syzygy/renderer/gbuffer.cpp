@@ -3,9 +3,9 @@
 #include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
 #include <functional>
@@ -21,25 +21,25 @@ auto GBuffer::create(
 {
     DeletionQueue cleanupCallbacks{};
 
-    szg_image::ImageAllocationParameters const imageParameters{
+    szg_renderer::ImageAllocationParameters const imageParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    szg_image::ImageAllocationParameters const worldPositionParameters{
+    szg_renderer::ImageAllocationParameters const worldPositionParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    szg_image::ImageViewAllocationParameters const viewParameters{
+    szg_renderer::ImageViewAllocationParameters const viewParameters{
         .subresourceRange =
             szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
 
-    std::optional<std::unique_ptr<szg_image::ImageView>> diffuseResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> diffuseResult{
+        szg_renderer::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -49,8 +49,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_image::ImageView>> specularResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> specularResult{
+        szg_renderer::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -60,8 +60,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_image::ImageView>> normalResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> normalResult{
+        szg_renderer::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -71,8 +71,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_image::ImageView>> positionResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> positionResult{
+        szg_renderer::ImageView::allocate(
             device, allocator, worldPositionParameters, viewParameters
         )
     };

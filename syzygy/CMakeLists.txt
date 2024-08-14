@@ -21,10 +21,9 @@ add_library(
 	"source/syzygy/renderer/shaders.cpp"
 	"source/syzygy/renderer/descriptors.cpp"
 	"source/syzygy/renderer/buffers.cpp"
-
-	"source/syzygy/images/image.cpp"
-	"source/syzygy/images/imageview.cpp"
-	"source/syzygy/images/imageoperations.cpp"
+	"source/syzygy/renderer/image.cpp"
+	"source/syzygy/renderer/imageview.cpp"
+	"source/syzygy/renderer/imageoperations.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"

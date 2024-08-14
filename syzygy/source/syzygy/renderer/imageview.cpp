@@ -2,20 +2,20 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
+#include "syzygy/renderer/image.hpp"
 #include <spdlog/fmt/bundled/core.h>
 #include <spdlog/fmt/bundled/format.h>
 #include <utility>
 
-szg_image::ImageView::ImageView(ImageView&& other) noexcept
+szg_renderer::ImageView::ImageView(ImageView&& other) noexcept
 {
     m_image = std::move(other.m_image);
     m_memory = std::exchange(other.m_memory, ImageViewMemory{});
 }
 
-szg_image::ImageView::~ImageView() { destroy(); }
+szg_renderer::ImageView::~ImageView() { destroy(); }
 
-auto szg_image::ImageView::allocate(
+auto szg_renderer::ImageView::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
     ImageAllocationParameters const& imageParameters,
@@ -72,13 +72,13 @@ auto szg_image::ImageView::allocate(
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto szg_image::ImageView::view() -> VkImageView { return m_memory.view; }
+auto szg_renderer::ImageView::view() -> VkImageView { return m_memory.view; }
 
-auto szg_image::ImageView::image() -> Image& { return *m_image; }
+auto szg_renderer::ImageView::image() -> Image& { return *m_image; }
 
-auto szg_image::ImageView::image() const -> Image const& { return *m_image; }
+auto szg_renderer::ImageView::image() const -> Image const& { return *m_image; }
 
-void szg_image::ImageView::recordTransitionBarriered(
+void szg_renderer::ImageView::recordTransitionBarriered(
     VkCommandBuffer const cmd, VkImageLayout const dst
 )
 {
@@ -87,13 +87,13 @@ void szg_image::ImageView::recordTransitionBarriered(
     );
 }
 
-auto szg_image::ImageView::expectedLayout() const -> VkImageLayout
+auto szg_renderer::ImageView::expectedLayout() const -> VkImageLayout
 {
     return m_image != nullptr ? m_image->expectedLayout()
                               : VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-void szg_image::ImageView::destroy()
+void szg_renderer::ImageView::destroy()
 {
     bool leaked{false};
     if (m_memory.view != VK_NULL_HANDLE)

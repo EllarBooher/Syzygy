@@ -1,9 +1,9 @@
 #pragma once
 
-#include "syzygy/renderer/buffers.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
+#include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/mat4x4.hpp>
 #include <memory>
@@ -83,7 +83,7 @@ private:
     VkDescriptorSetLayout m_samplerSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_samplerSet{VK_NULL_HANDLE};
 
-    std::vector<std::unique_ptr<szg_image::ImageView>> m_shadowmaps{};
+    std::vector<std::unique_ptr<szg_renderer::ImageView>> m_shadowmaps{};
 
     VkDescriptorSetLayout m_shadowmapSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_shadowmapSet{VK_NULL_HANDLE};

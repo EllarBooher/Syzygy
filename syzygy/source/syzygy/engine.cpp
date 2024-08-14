@@ -5,11 +5,11 @@
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageoperations.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageoperations.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
@@ -93,24 +93,23 @@ void Engine::initDrawTargets(
         MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
 
-    if (std::optional<std::unique_ptr<szg_image::ImageView>> sceneDepthResult{
-            szg_image::ImageView::allocate(
+    if (std::optional<std::unique_ptr<szg_renderer::ImageView>>
+            sceneDepthResult{szg_renderer::ImageView::allocate(
                 device,
                 allocator,
-                szg_image::ImageAllocationParameters{
+                szg_renderer::ImageAllocationParameters{
                     .extent = RESERVED_IMAGE_EXTENT,
                     .format = VK_FORMAT_D32_SFLOAT,
                     .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
                                 | VK_IMAGE_USAGE_SAMPLED_BIT
                                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 },
-                szg_image::ImageViewAllocationParameters{
+                szg_renderer::ImageViewAllocationParameters{
                     .subresourceRange = szg_renderer::imageSubresourceRange(
                         VK_IMAGE_ASPECT_DEPTH_BIT
                     )
                 }
-            )
-        };
+            )};
         sceneDepthResult.has_value())
     {
         m_sceneDepthTexture = std::move(sceneDepthResult).value();
@@ -269,7 +268,7 @@ void Engine::recordDraw(
     }
 
     std::optional<double> const viewportAspectRatioResult{
-        szg_image::aspectRatio(sceneViewport.value().rect.extent)
+        szg_renderer::aspectRatio(sceneViewport.value().rect.extent)
     };
     if (!viewportAspectRatioResult.has_value())
     {

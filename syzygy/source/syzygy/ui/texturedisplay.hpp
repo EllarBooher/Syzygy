@@ -2,7 +2,7 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/core/uuid.hpp"
-#include "syzygy/images/imageview.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <imgui.h>
 #include <memory>
@@ -11,10 +11,10 @@
 #include <string>
 #include <utility>
 
-namespace szg_image
+namespace szg_renderer
 {
 struct Image;
-} // namespace szg_image
+} // namespace szg_renderer
 struct ImmediateSubmissionQueue;
 
 namespace ui
@@ -52,7 +52,7 @@ public:
         std::string const& title,
         std::optional<ImGuiID> dockNode,
         VkCommandBuffer,
-        std::span<szg_assets::AssetRef<szg_image::Image> const> textures
+        std::span<szg_assets::AssetRef<szg_renderer::Image> const> textures
     ) -> UIResult;
 
 private:
@@ -60,7 +60,7 @@ private:
 
     TextureDisplay(
         VkDevice device,
-        std::unique_ptr<szg_image::ImageView> imageView,
+        std::unique_ptr<szg_renderer::ImageView> imageView,
         VkSampler sampler,
         VkDescriptorSet imguiDescriptor
     )
@@ -73,7 +73,7 @@ private:
 
     VkDevice m_device{VK_NULL_HANDLE};
 
-    std::unique_ptr<szg_image::ImageView> m_displayImage{};
+    std::unique_ptr<szg_renderer::ImageView> m_displayImage{};
     VkSampler m_sampler{VK_NULL_HANDLE};
     VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 

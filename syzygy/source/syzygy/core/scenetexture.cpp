@@ -2,9 +2,9 @@
 
 #include "deletionqueue.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <functional>
 #include <imgui.h>
@@ -62,16 +62,16 @@ auto scene::SceneTexture::create(
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT     // copy into
     };
 
-    std::optional<std::unique_ptr<szg_image::ImageView>> textureResult{
-        szg_image::ImageView::allocate(
+    std::optional<std::unique_ptr<szg_renderer::ImageView>> textureResult{
+        szg_renderer::ImageView::allocate(
             device,
             allocator,
-            szg_image::ImageAllocationParameters{
+            szg_renderer::ImageAllocationParameters{
                 .extent = textureMax,
                 .format = format,
                 .usageFlags = colorUsage,
             },
-            szg_image::ImageViewAllocationParameters{}
+            szg_renderer::ImageViewAllocationParameters{}
         )
     };
 
@@ -81,7 +81,7 @@ auto scene::SceneTexture::create(
         return std::nullopt;
     }
     cleanupCallbacks.pushFunction([&]() { textureResult.reset(); });
-    szg_image::ImageView& texture{*textureResult.value()};
+    szg_renderer::ImageView& texture{*textureResult.value()};
 
     VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
         0,
@@ -173,12 +173,12 @@ auto scene::SceneTexture::create(
 
 auto scene::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
 
-auto scene::SceneTexture::texture() -> szg_image::ImageView&
+auto scene::SceneTexture::texture() -> szg_renderer::ImageView&
 {
     return *m_texture;
 }
 
-auto scene::SceneTexture::texture() const -> szg_image::ImageView const&
+auto scene::SceneTexture::texture() const -> szg_renderer::ImageView const&
 {
     return *m_texture;
 }

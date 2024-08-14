@@ -1,11 +1,11 @@
 #include "imageoperations.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/images/imageoperations.hpp"
+#include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/gtx/compatibility.hpp>
 
-void szg_image::transitionImage(
+void szg_renderer::transitionImage(
     VkCommandBuffer const cmd,
     VkImage const image,
     VkImageLayout const oldLayout,
@@ -40,7 +40,7 @@ void szg_image::transitionImage(
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-void szg_image::recordCopyImageToImage(
+void szg_renderer::recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const source,
     VkImage const destination,
@@ -84,7 +84,7 @@ void szg_image::recordCopyImageToImage(
     vkCmdBlitImage2(cmd, &blitInfo);
 }
 
-void szg_image::recordCopyImageToImage(
+void szg_renderer::recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const source,
     VkImage const destination,
@@ -113,12 +113,12 @@ void szg_image::recordCopyImageToImage(
         .z = 1,
     };
 
-    szg_image::recordCopyImageToImage(
+    szg_renderer::recordCopyImageToImage(
         cmd, source, destination, srcMin, srcMax, dstMin, dstMax
     );
 }
 
-auto szg_image::aspectRatio(VkExtent2D const extent) -> std::optional<double>
+auto szg_renderer::aspectRatio(VkExtent2D const extent) -> std::optional<double>
 {
     auto const width{static_cast<float>(extent.width)};
     auto const height{static_cast<float>(extent.height)};
@@ -126,7 +126,7 @@ auto szg_image::aspectRatio(VkExtent2D const extent) -> std::optional<double>
     return aspectRatio(glm::vec2{width, height});
 }
 
-auto szg_image::aspectRatio(glm::vec2 extent) -> std::optional<double>
+auto szg_renderer::aspectRatio(glm::vec2 extent) -> std::optional<double>
 {
     double const rawAspectRatio = extent.x / extent.y;
 
@@ -138,7 +138,7 @@ auto szg_image::aspectRatio(glm::vec2 extent) -> std::optional<double>
     return rawAspectRatio;
 }
 
-void szg_image::recordCopyImageToImage(
+void szg_renderer::recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const src,
     VkImage const dst,
@@ -176,7 +176,7 @@ void szg_image::recordCopyImageToImage(
     vkCmdBlitImage2(cmd, &blitInfo);
 }
 
-void szg_image::recordCopyImageToImage(
+void szg_renderer::recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const src,
     VkImage const dst,
@@ -185,7 +185,7 @@ void szg_image::recordCopyImageToImage(
     VkExtent3D const dstExtent
 )
 {
-    szg_image::recordCopyImageToImage(
+    szg_renderer::recordCopyImageToImage(
         cmd,
         src,
         dst,

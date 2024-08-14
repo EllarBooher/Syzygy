@@ -4,10 +4,10 @@
 #include "syzygy/core/scene.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/vec2.hpp>
@@ -466,8 +466,8 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const lineWidth,
     VkRect2D const drawRect,
-    szg_image::ImageView& color,
-    szg_image::ImageView& depth,
+    szg_renderer::ImageView& color,
+    szg_renderer::ImageView& depth,
     uint32_t const cameraIndex,
     TStagedBuffer<gputypes::Camera> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
@@ -679,7 +679,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const depthBias,
     float const depthBiasSlope,
-    szg_image::ImageView& depth,
+    szg_renderer::ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
     std::span<scene::MeshInstanced const> const geometry,

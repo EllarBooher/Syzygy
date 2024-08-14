@@ -7,8 +7,8 @@
 #include "syzygy/editor/window.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/image.hpp"
 #include "syzygy/utils/platformutils.hpp"
 #include <algorithm>
 #include <cassert>
@@ -187,15 +187,15 @@ auto uploadImageToGPU(
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
     szg_assets::ImageRGBA const& image
-) -> std::optional<std::unique_ptr<szg_image::Image>>
+) -> std::optional<std::unique_ptr<szg_renderer::Image>>
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
 
-    std::optional<std::unique_ptr<szg_image::Image>> stagingImageResult{
-        szg_image::Image::allocate(
+    std::optional<std::unique_ptr<szg_renderer::Image>> stagingImageResult{
+        szg_renderer::Image::allocate(
             device,
             allocator,
-            szg_image::ImageAllocationParameters{
+            szg_renderer::ImageAllocationParameters{
                 .extent = imageExtent,
                 .format = VK_FORMAT_R8G8B8A8_UNORM,
                 .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -212,7 +212,7 @@ auto uploadImageToGPU(
         SZG_ERROR("Failed to allocate staging image.");
         return std::nullopt;
     }
-    szg_image::Image& stagingImage{*stagingImageResult.value()};
+    szg_renderer::Image& stagingImage{*stagingImageResult.value()};
 
     std::optional<VmaAllocationInfo> const allocationInfo{
         stagingImage.fetchAllocationInfo()
@@ -233,11 +233,11 @@ auto uploadImageToGPU(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_image::Image>> finalImageResult{
-        szg_image::Image::allocate(
+    std::optional<std::unique_ptr<szg_renderer::Image>> finalImageResult{
+        szg_renderer::Image::allocate(
             device,
             allocator,
-            szg_image::ImageAllocationParameters{
+            szg_renderer::ImageAllocationParameters{
                 .extent = imageExtent,
                 .format = format,
                 .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
@@ -252,7 +252,7 @@ auto uploadImageToGPU(
         SZG_ERROR("Failed to allocate final image.");
         return std::nullopt;
     }
-    szg_image::Image& finalImage{*finalImageResult.value()};
+    szg_renderer::Image& finalImage{*finalImageResult.value()};
 
     if (auto const submissionResult{submissionQueue.immediateSubmit(
             transferQueue,
@@ -266,7 +266,7 @@ auto uploadImageToGPU(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
         );
 
-        szg_image::Image::recordCopyEntire(
+        szg_renderer::Image::recordCopyEntire(
             cmd, stagingImage, finalImage, VK_IMAGE_ASPECT_COLOR_BIT
         );
     }
@@ -558,7 +558,7 @@ auto szg_assets::loadTextureFromFile(
     ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<szg_image::Image>>
+) -> std::optional<Asset<szg_renderer::Image>>
 {
     SZG_INFO("Loading Texture from '{}'", path.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
@@ -586,7 +586,7 @@ auto szg_assets::loadTextureFromFile(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_image::Image>> uploadResult{
+    std::optional<std::unique_ptr<szg_renderer::Image>> uploadResult{
         uploadImageToGPU(
             device,
             allocator,
@@ -603,7 +603,7 @@ auto szg_assets::loadTextureFromFile(
         return std::nullopt;
     }
 
-    return std::optional<Asset<szg_image::Image>>{Asset<szg_image::Image>{
+    return std::optional<Asset<szg_renderer::Image>>{Asset<szg_renderer::Image>{
         .metadata =
             AssetMetadata{
                 .displayName = file.path.filename().string(),
@@ -614,15 +614,15 @@ auto szg_assets::loadTextureFromFile(
     }};
 }
 
-void szg_assets::AssetLibrary::registerAsset(Asset<szg_image::Image>&& asset)
+void szg_assets::AssetLibrary::registerAsset(Asset<szg_renderer::Image>&& asset)
 {
     m_textures.push_back(std::move(asset));
 }
 
 auto szg_assets::AssetLibrary::fetchAssets()
-    -> std::vector<AssetRef<szg_image::Image>>
+    -> std::vector<AssetRef<szg_renderer::Image>>
 {
-    std::vector<AssetRef<szg_image::Image>> assets{};
+    std::vector<AssetRef<szg_renderer::Image>> assets{};
 
     assets.reserve(m_textures.size());
     for (auto& texture : m_textures)

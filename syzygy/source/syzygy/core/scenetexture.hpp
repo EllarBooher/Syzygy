@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/images/imageview.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
@@ -35,8 +35,8 @@ struct SceneTexture
     ) -> std::optional<SceneTexture>;
 
     auto sampler() const -> VkSampler;
-    auto texture() -> szg_image::ImageView&;
-    auto texture() const -> szg_image::ImageView const&;
+    auto texture() -> szg_renderer::ImageView&;
+    auto texture() const -> szg_renderer::ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
@@ -50,7 +50,7 @@ private:
     SceneTexture(
         VkDevice device,
         VkSampler sampler,
-        std::unique_ptr<szg_image::ImageView> texture,
+        std::unique_ptr<szg_renderer::ImageView> texture,
         VkDescriptorSetLayout singletonLayout,
         VkDescriptorSet singletonSet,
         VkDescriptorSet imguiDescriptor
@@ -70,7 +70,7 @@ private:
     VkDevice m_device{VK_NULL_HANDLE};
 
     VkSampler m_sampler{VK_NULL_HANDLE};
-    std::unique_ptr<szg_image::ImageView> m_texture{};
+    std::unique_ptr<szg_renderer::ImageView> m_texture{};
 
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};

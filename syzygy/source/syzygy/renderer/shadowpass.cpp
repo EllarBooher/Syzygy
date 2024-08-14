@@ -3,10 +3,10 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/gputypes.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/image.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
@@ -80,11 +80,11 @@ auto ShadowPassArray::create(
     { // shadow map textures
         for (size_t i{0}; i < capacity; i++)
         {
-            std::optional<std::unique_ptr<szg_image::ImageView>> imageResult{
-                szg_image::ImageView::allocate(
+            std::optional<std::unique_ptr<szg_renderer::ImageView>> imageResult{
+                szg_renderer::ImageView::allocate(
                     device,
                     allocator,
-                    szg_image::ImageAllocationParameters{
+                    szg_renderer::ImageAllocationParameters{
                         .extent = shadowmapExtent,
                         .format = VK_FORMAT_D32_SFLOAT,
                         .usageFlags =
@@ -92,7 +92,7 @@ auto ShadowPassArray::create(
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                             | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                     },
-                    szg_image::ImageViewAllocationParameters{
+                    szg_renderer::ImageViewAllocationParameters{
                         .subresourceRange = szg_renderer::imageSubresourceRange(
                             VK_IMAGE_ASPECT_DEPTH_BIT
                         ),
@@ -141,7 +141,7 @@ auto ShadowPassArray::create(
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
         mapInfos.reserve(shadowPass.m_shadowmaps.size());
-        for (std::unique_ptr<szg_image::ImageView> const& texture :
+        for (std::unique_ptr<szg_renderer::ImageView> const& texture :
              shadowPass.m_shadowmaps)
         {
             mapInfos.push_back(VkDescriptorImageInfo{

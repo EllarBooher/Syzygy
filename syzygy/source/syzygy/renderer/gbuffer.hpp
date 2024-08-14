@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/images/imageview.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
@@ -10,10 +10,10 @@ struct DescriptorAllocator;
 
 struct GBuffer
 {
-    std::unique_ptr<szg_image::ImageView> diffuseColor{};
-    std::unique_ptr<szg_image::ImageView> specularColor{};
-    std::unique_ptr<szg_image::ImageView> normal{};
-    std::unique_ptr<szg_image::ImageView> worldPosition{};
+    std::unique_ptr<szg_renderer::ImageView> diffuseColor{};
+    std::unique_ptr<szg_renderer::ImageView> specularColor{};
+    std::unique_ptr<szg_renderer::ImageView> normal{};
+    std::unique_ptr<szg_renderer::ImageView> worldPosition{};
 
     VkDescriptorSetLayout descriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet descriptors{VK_NULL_HANDLE};

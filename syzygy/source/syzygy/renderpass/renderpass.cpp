@@ -1,10 +1,10 @@
 #include "renderpass.hpp"
-#include "syzygy/images/image.hpp"
+#include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 
 void renderpass::recordClearDepthImage(
     VkCommandBuffer const cmd,
-    szg_image::Image& depth,
+    szg_renderer::Image& depth,
     VkClearDepthStencilValue const value
 )
 {
@@ -22,7 +22,7 @@ void renderpass::recordClearDepthImage(
 
 void renderpass::recordClearColorImage(
     VkCommandBuffer const cmd,
-    szg_image::Image& color,
+    szg_renderer::Image& color,
     VkClearColorValue const value
 )
 {

@@ -3,9 +3,9 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scenetexture.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/images/imageview.hpp"
 #include "syzygy/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/vulkanusage.hpp"
@@ -95,7 +95,7 @@ private:
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{4096, 4096};
 
     // Depth image used for graphics passes
-    std::unique_ptr<szg_image::ImageView> m_sceneDepthTexture{};
+    std::unique_ptr<szg_renderer::ImageView> m_sceneDepthTexture{};
 
     // Pipelines
 

@@ -2,17 +2,17 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/images/imageoperations.hpp"
+#include "syzygy/renderer/imageoperations.hpp"
 #include <utility>
 
-szg_image::Image::Image(Image&& other) noexcept
+szg_renderer::Image::Image(Image&& other) noexcept
 {
     m_memory = std::exchange(other.m_memory, ImageMemory{});
 }
 
-szg_image::Image::~Image() { destroy(); }
+szg_renderer::Image::~Image() { destroy(); }
 
-void szg_image::Image::destroy()
+void szg_renderer::Image::destroy()
 {
     bool leaked{false};
     if (m_memory.allocation != VK_NULL_HANDLE)
@@ -56,7 +56,7 @@ void szg_image::Image::destroy()
     m_recordedLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-auto szg_image::Image::allocate(
+auto szg_renderer::Image::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
     ImageAllocationParameters const& parameters
@@ -134,31 +134,32 @@ auto szg_image::Image::allocate(
     return imageResult;
 }
 
-auto szg_image::Image::extent3D() const -> VkExtent3D
+auto szg_renderer::Image::extent3D() const -> VkExtent3D
 {
     return m_memory.imageCreateInfo.extent;
 }
 
-auto szg_image::Image::extent2D() const -> VkExtent2D
+auto szg_renderer::Image::extent2D() const -> VkExtent2D
 {
     return VkExtent2D{.width = extent3D().width, .height = extent3D().height};
 }
 
-auto szg_image::Image::aspectRatio() const -> std::optional<double>
+auto szg_renderer::Image::aspectRatio() const -> std::optional<double>
 {
-    return szg_image::aspectRatio(extent2D());
+    return szg_renderer::aspectRatio(extent2D());
 }
 
-auto szg_image::Image::format() const -> VkFormat
+auto szg_renderer::Image::format() const -> VkFormat
 {
     return m_memory.imageCreateInfo.format;
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto szg_image::Image::image() -> VkImage { return m_memory.image; }
+auto szg_renderer::Image::image() -> VkImage { return m_memory.image; }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto szg_image::Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
+auto szg_renderer::Image::fetchAllocationInfo()
+    -> std::optional<VmaAllocationInfo>
 {
     if (m_memory.allocator == VK_NULL_HANDLE)
     {
@@ -171,32 +172,32 @@ auto szg_image::Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
     return allocationInfo;
 }
 
-auto szg_image::Image::expectedLayout() const -> VkImageLayout
+auto szg_renderer::Image::expectedLayout() const -> VkImageLayout
 {
     return m_recordedLayout;
 }
 
-void szg_image::Image::recordTransitionBarriered(
+void szg_renderer::Image::recordTransitionBarriered(
     VkCommandBuffer const cmd,
     VkImageLayout const dst,
     VkImageAspectFlags const aspectMask
 )
 {
-    szg_image::transitionImage(
+    szg_renderer::transitionImage(
         cmd, m_memory.image, m_recordedLayout, dst, aspectMask
     );
 
     m_recordedLayout = dst;
 }
 
-void szg_image::Image::recordCopyEntire(
+void szg_renderer::Image::recordCopyEntire(
     VkCommandBuffer const cmd,
     Image& src,
     Image& dst,
     VkImageAspectFlags const aspectMask
 )
 {
-    szg_image::recordCopyImageToImage(
+    szg_renderer::recordCopyImageToImage(
         cmd,
         src.image(),
         dst.image(),
@@ -206,7 +207,7 @@ void szg_image::Image::recordCopyEntire(
     );
 }
 
-void szg_image::Image::recordCopyRect(
+void szg_renderer::Image::recordCopyRect(
     VkCommandBuffer const cmd,
     Image& src,
     Image& dst,
@@ -217,7 +218,7 @@ void szg_image::Image::recordCopyRect(
     VkOffset3D const dstMax
 )
 {
-    szg_image::recordCopyImageToImage(
+    szg_renderer::recordCopyImageToImage(
         cmd,
         src.image(),
         dst.image(),
