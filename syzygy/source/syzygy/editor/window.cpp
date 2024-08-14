@@ -31,6 +31,7 @@ auto PlatformWindow::create(glm::u16vec2 const extent)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
     char const* const WINDOW_TITLE = "Syzygy";
 

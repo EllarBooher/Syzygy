@@ -64,12 +64,6 @@ auto initialize() -> std::optional<EditorResources>
 {
     SZG_LOG("Initializing Editor resources.");
 
-    if (glfwInit() == GLFW_FALSE)
-    {
-        SZG_ERROR("Failed to initialize GLFW.");
-        return std::nullopt;
-    }
-
     SZG_LOG("Creating window...");
 
     glm::u16vec2 constexpr DEFAULT_WINDOW_EXTENT{1920, 1080};
@@ -753,6 +747,8 @@ auto szg_editor::run() -> EditorResult
     double timeSecondsPrevious{0.0};
     RingBuffer fpsHistory{};
     float fpsTarget{defaultRefreshRate()};
+
+    glfwShowWindow(mainWindow.handle());
 
     while (glfwWindowShouldClose(mainWindow.handle()) == GLFW_FALSE)
     {
