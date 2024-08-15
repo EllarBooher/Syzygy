@@ -41,7 +41,7 @@ scene::SceneTexture::~SceneTexture() { destroy(); }
 auto scene::SceneTexture::create(
     VkDevice const device,
     VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
+    szg_renderer::DescriptorAllocator& descriptorAllocator,
     VkExtent2D const textureMax,
     VkFormat const format
 ) -> std::optional<SceneTexture>
@@ -105,9 +105,9 @@ auto scene::SceneTexture::create(
 
     VkDescriptorSetLayout singletonLayout;
     if (auto const layoutResult{
-            DescriptorLayoutBuilder{}
+            szg_renderer::DescriptorLayoutBuilder{}
                 .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
+                    szg_renderer::DescriptorLayoutBuilder::AddBindingParameters{
                         .binding = 0,
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,

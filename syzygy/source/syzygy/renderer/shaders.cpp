@@ -11,9 +11,10 @@
 #include <spirv_reflect.h>
 #include <utility>
 
-auto vkutil::generateReflectionData(
-    std::span<uint8_t const> const spirv_bytecode
-) -> ShaderReflectionData
+namespace szg_renderer
+{
+auto generateReflectionData(std::span<uint8_t const> const spirv_bytecode)
+    -> ShaderReflectionData
 {
     SpvReflectShaderModule module;
     {
@@ -367,11 +368,11 @@ auto ShaderObjectReflected::fromBytecode(
 ) -> std::optional<ShaderObjectReflected>
 {
     ShaderReflectionData const reflectionData{
-        vkutil::generateReflectionData(spirvBytecode)
+        generateReflectionData(spirvBytecode)
     };
 
-    vkutil::ShaderResult<VkShaderEXT> const compilationResult{
-        vkutil::compileShaderObject(
+    szg_renderer::ShaderResult<VkShaderEXT> const compilationResult{
+        szg_renderer::compileShaderObject(
             device,
             spirvBytecode,
             stage,
@@ -407,7 +408,7 @@ auto ShaderObjectReflected::fromBytecodeReflected(
 ) -> std::optional<ShaderObjectReflected>
 {
     ShaderReflectionData const reflectionData{
-        vkutil::generateReflectionData(spirvBytecode)
+        generateReflectionData(spirvBytecode)
     };
 
     std::vector<VkPushConstantRange> pushConstantRanges{};
@@ -420,8 +421,8 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         pushConstantRanges.push_back(pushConstant.totalRange(stage));
     }
 
-    vkutil::ShaderResult<VkShaderEXT> const compilationResult{
-        vkutil::compileShaderObject(
+    szg_renderer::ShaderResult<VkShaderEXT> const compilationResult{
+        szg_renderer::compileShaderObject(
             device,
             spirvBytecode,
             stage,
@@ -452,8 +453,8 @@ auto ShaderModuleReflected::FromBytecode(
     std::span<uint8_t const> const spirvBytecode
 ) -> std::optional<ShaderModuleReflected>
 {
-    vkutil::ShaderResult<VkShaderModule> const compilationResult{
-        vkutil::compileShaderModule(device, spirvBytecode)
+    szg_renderer::ShaderResult<VkShaderModule> const compilationResult{
+        szg_renderer::compileShaderModule(device, spirvBytecode)
     };
 
     if (compilationResult.result != VK_SUCCESS)
@@ -465,7 +466,7 @@ auto ShaderModuleReflected::FromBytecode(
     }
 
     ShaderReflectionData const reflectionData{
-        vkutil::generateReflectionData(spirvBytecode)
+        generateReflectionData(spirvBytecode)
     };
 
     SZG_INFO("Successfully compiled ShaderModuleReflected: {}", name);
@@ -491,7 +492,7 @@ void ShaderReflectedBase::cleanup(VkDevice const device)
     );
 }
 
-auto vkutil::compileShaderObject(
+auto compileShaderObject(
     VkDevice const device,
     std::span<uint8_t const> const spirvBytecode,
     VkShaderStageFlagBits const stage,
@@ -499,7 +500,7 @@ auto vkutil::compileShaderObject(
     std::span<VkDescriptorSetLayout const> const layouts,
     std::span<VkPushConstantRange const> const pushConstantRanges,
     VkSpecializationInfo const specializationInfo
-) -> vkutil::ShaderResult<VkShaderEXT>
+) -> ShaderResult<VkShaderEXT>
 {
     VkShaderCreateInfoEXT const createInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
@@ -537,7 +538,7 @@ auto vkutil::compileShaderObject(
     };
 }
 
-auto vkutil::loadShaderObject(
+auto loadShaderObject(
     VkDevice const device,
     std::filesystem::path const& path,
     VkShaderStageFlagBits const stage,
@@ -576,7 +577,7 @@ auto vkutil::loadShaderObject(
     );
 }
 
-auto vkutil::loadShaderObject(
+auto loadShaderObject(
     VkDevice const device,
     std::filesystem::path const& path,
     VkShaderStageFlagBits const stage,
@@ -618,9 +619,9 @@ auto vkutil::loadShaderObject(
     );
 }
 
-auto vkutil::compileShaderModule(
+auto compileShaderModule(
     VkDevice const device, std::span<uint8_t const> const spirvBytecode
-) -> vkutil::ShaderResult<VkShaderModule>
+) -> ShaderResult<VkShaderModule>
 {
     VkShaderModuleCreateInfo const createInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -643,7 +644,7 @@ auto vkutil::compileShaderModule(
     };
 }
 
-auto vkutil::loadShaderModule(VkDevice const device, std::string const& path)
+auto loadShaderModule(VkDevice const device, std::string const& path)
     -> std::optional<ShaderModuleReflected>
 {
     AssetLoadingResult const fileLoadingResult{loadAssetFile(path)};
@@ -669,3 +670,4 @@ auto vkutil::loadShaderModule(VkDevice const device, std::string const& path)
         fileLoadingResult
     );
 }
+} // namespace szg_renderer

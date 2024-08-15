@@ -207,26 +207,27 @@ auto GraphicsContext::create(PlatformWindow const& window)
         return std::nullopt;
     }
 
-    std::vector<DescriptorAllocator::PoolSizeRatio> const poolSizes{
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
-    };
+    std::vector<szg_renderer::DescriptorAllocator::PoolSizeRatio> const
+        poolSizes{
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
+        };
 
     uint32_t constexpr MAX_SETS{10U};
 
-    if (std::optional<DescriptorAllocator> descriptorAllocatorResult{
-            DescriptorAllocator::create(
+    if (std::optional<szg_renderer::DescriptorAllocator>
+            descriptorAllocatorResult{szg_renderer::DescriptorAllocator::create(
                 graphics.m_device,
                 MAX_SETS,
                 poolSizes,
                 (VkDescriptorPoolCreateFlags)0
-            )
-        };
+            )};
         descriptorAllocatorResult.has_value())
     {
-        graphics.m_descriptorAllocator = std::make_unique<DescriptorAllocator>(
-            std::move(descriptorAllocatorResult).value()
-        );
+        graphics.m_descriptorAllocator =
+            std::make_unique<szg_renderer::DescriptorAllocator>(
+                std::move(descriptorAllocatorResult).value()
+            );
     }
     else
     {
@@ -263,7 +264,8 @@ auto GraphicsContext::universalQueueFamily() const -> uint32_t
 // NOLINTNEXTLINE(readability-make-member-function-const)
 auto GraphicsContext::allocator() -> VmaAllocator { return m_allocator; }
 
-auto GraphicsContext::descriptorAllocator() -> DescriptorAllocator&
+auto GraphicsContext::descriptorAllocator()
+    -> szg_renderer::DescriptorAllocator&
 {
     return *m_descriptorAllocator;
 }

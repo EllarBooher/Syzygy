@@ -8,6 +8,8 @@
 #include <span>
 #include <utility>
 
+namespace szg_renderer
+{
 // A single VkBuffer alongside all of its allocation information.
 // TODO: split this into two types: a host-side, mapped buffer, and a
 // device-side buffer that has its address mapped.
@@ -329,3 +331,4 @@ private:
     AllocatedBuffer m_indexBuffer;
     AllocatedBuffer m_vertexBuffer;
 };
+} // namespace szg_renderer

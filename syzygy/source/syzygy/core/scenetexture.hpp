@@ -6,7 +6,10 @@
 #include <optional>
 #include <utility>
 
+namespace szg_renderer
+{
 class DescriptorAllocator;
+}
 
 namespace scene
 {
@@ -29,7 +32,7 @@ struct SceneTexture
     static auto create(
         VkDevice,
         VmaAllocator,
-        DescriptorAllocator&,
+        szg_renderer::DescriptorAllocator&,
         VkExtent2D textureMax,
         VkFormat format
     ) -> std::optional<SceneTexture>;

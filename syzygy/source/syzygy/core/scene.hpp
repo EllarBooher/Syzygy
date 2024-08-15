@@ -92,8 +92,9 @@ struct MeshInstanced
 
     std::vector<glm::mat4x4> originals{};
 
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>>
+        modelInverseTransposes{};
 };
 
 struct SunAnimation

@@ -140,17 +140,18 @@ auto scene::Scene::defaultScene(
                 static_cast<VkDeviceSize>(floorGeometry.originals.size())
             };
 
-            floorGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                TStagedBuffer<glm::mat4x4>::allocate(
-                    device,
-                    allocator,
-                    bufferSize,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                )
-            );
+            floorGeometry.models =
+                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
+                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                        device,
+                        allocator,
+                        bufferSize,
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                    )
+                );
             floorGeometry.modelInverseTransposes =
-                std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                    TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
+                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -198,17 +199,18 @@ auto scene::Scene::defaultScene(
                 static_cast<VkDeviceSize>(cubeGeometry.originals.size())
             };
 
-            cubeGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                TStagedBuffer<glm::mat4x4>::allocate(
-                    device,
-                    allocator,
-                    bufferSize,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                )
-            );
+            cubeGeometry.models =
+                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
+                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                        device,
+                        allocator,
+                        bufferSize,
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                    )
+                );
             cubeGeometry.modelInverseTransposes =
-                std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                    TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
+                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,

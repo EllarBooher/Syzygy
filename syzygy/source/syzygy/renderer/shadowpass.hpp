@@ -11,9 +11,9 @@
 #include <span>
 #include <vector>
 
-class DescriptorAllocator;
 namespace szg_renderer
 {
+class DescriptorAllocator;
 struct LightDirectional;
 struct LightSpot;
 } // namespace szg_renderer
@@ -22,6 +22,8 @@ namespace scene
 struct MeshInstanced;
 }
 
+namespace szg_renderer
+{
 struct ShadowPassParameters
 {
     float depthBiasConstant{2.00f};
@@ -90,3 +92,4 @@ private:
 
     std::unique_ptr<OffscreenPassGraphicsPipeline> m_pipeline{};
 };
+} // namespace szg_renderer

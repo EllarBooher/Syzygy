@@ -6,14 +6,16 @@
 #include <optional>
 #include <vector>
 
+namespace szg_renderer
+{
 struct DescriptorAllocator;
 
 struct GBuffer
 {
-    std::unique_ptr<szg_renderer::ImageView> diffuseColor{};
-    std::unique_ptr<szg_renderer::ImageView> specularColor{};
-    std::unique_ptr<szg_renderer::ImageView> normal{};
-    std::unique_ptr<szg_renderer::ImageView> worldPosition{};
+    std::unique_ptr<ImageView> diffuseColor{};
+    std::unique_ptr<ImageView> specularColor{};
+    std::unique_ptr<ImageView> normal{};
+    std::unique_ptr<ImageView> worldPosition{};
 
     VkDescriptorSetLayout descriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet descriptors{VK_NULL_HANDLE};
@@ -35,3 +37,4 @@ struct GBuffer
 
     void cleanup(VkDevice device);
 };
+} // namespace szg_renderer

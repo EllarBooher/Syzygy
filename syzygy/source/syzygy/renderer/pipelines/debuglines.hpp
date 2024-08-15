@@ -1,8 +1,8 @@
 #pragma once
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/vulkanusage.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec2.hpp>
@@ -11,6 +11,8 @@
 
 struct Vertex;
 
+namespace szg_renderer
+{
 struct DebugLines
 {
     // TODO: Split this up into 3 segments: the pipeline, the line segment
@@ -53,3 +55,4 @@ public:
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 };
+} // namespace szg_renderer

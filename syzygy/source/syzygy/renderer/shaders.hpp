@@ -10,6 +10,8 @@
 #include <variant>
 #include <vector>
 
+namespace szg_renderer
+{
 // Contains reflected data from a ShaderModule, to aid with UI
 // and proper piping of data.
 // Work in progress, for now supports a very limited amount of reflection.
@@ -144,6 +146,9 @@ struct ShaderReflectionData
     }
 };
 
+ShaderReflectionData
+generateReflectionData(std::span<uint8_t const> spirv_bytecode);
+
 class ShaderReflectedBase
 {
 public:
@@ -264,8 +269,6 @@ public:
     }
 };
 
-namespace vkutil
-{
 template <typename T> struct ShaderResult
 {
     T shader;
@@ -305,7 +308,6 @@ std::optional<ShaderObjectReflected> loadShaderObject(
 
 std::optional<ShaderModuleReflected>
 loadShaderModule(VkDevice device, std::string const& path);
-} // namespace vkutil
 
 struct ComputeShaderWrapper
 {
@@ -320,9 +322,4 @@ struct ComputeShaderWrapper
         vkDestroyPipeline(device, pipeline, nullptr);
     }
 };
-
-namespace vkutil
-{
-ShaderReflectionData
-generateReflectionData(std::span<uint8_t const> spirv_bytecode);
-}
+} // namespace szg_renderer

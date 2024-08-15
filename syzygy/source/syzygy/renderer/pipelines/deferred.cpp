@@ -4,11 +4,11 @@
 #include "syzygy/core/integer.hpp"
 #include "syzygy/core/scene.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <array>
@@ -23,12 +23,13 @@
 namespace
 {
 void validatePushConstant(
-    ShaderObjectReflected const& shaderObject, size_t const expectedSize
+    szg_renderer::ShaderObjectReflected const& shaderObject,
+    size_t const expectedSize
 )
 {
     if (shaderObject.reflectionData().defaultEntryPointHasPushConstant())
     {
-        ShaderReflectionData::PushConstant const& pushConstant{
+        szg_renderer::ShaderReflectionData::PushConstant const& pushConstant{
             shaderObject.reflectionData().defaultPushConstant()
         };
 
@@ -63,10 +64,10 @@ auto loadShader(
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
     size_t const expectedPushConstantSize
-) -> ShaderObjectReflected
+) -> szg_renderer::ShaderObjectReflected
 {
-    std::optional<ShaderObjectReflected> const loadResult{
-        vkutil::loadShaderObject(
+    std::optional<szg_renderer::ShaderObjectReflected> const loadResult{
+        szg_renderer::loadShaderObject(
             device, path, stage, nextStage, descriptorSets, {}
         )
     };
@@ -77,7 +78,7 @@ auto loadShader(
         return loadResult.value();
     }
 
-    return ShaderObjectReflected::makeInvalid();
+    return szg_renderer::ShaderObjectReflected::makeInvalid();
 }
 
 auto loadShader(
@@ -87,18 +88,20 @@ auto loadShader(
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
     VkPushConstantRange const rangeOverride
-) -> ShaderObjectReflected
+) -> szg_renderer::ShaderObjectReflected
 {
-    std::optional<ShaderObjectReflected> loadResult{vkutil::loadShaderObject(
-        device, path, stage, nextStage, descriptorSets, rangeOverride, {}
-    )};
+    std::optional<szg_renderer::ShaderObjectReflected> loadResult{
+        szg_renderer::loadShaderObject(
+            device, path, stage, nextStage, descriptorSets, rangeOverride, {}
+        )
+    };
     if (loadResult.has_value())
     {
         validatePushConstant(loadResult.value(), rangeOverride.size);
         return loadResult.value();
     }
 
-    return ShaderObjectReflected::makeInvalid();
+    return szg_renderer::ShaderObjectReflected::makeInvalid();
 }
 
 auto createLayout(
@@ -133,6 +136,8 @@ auto createLayout(
 }
 } // namespace
 
+namespace szg_renderer
+{
 DeferredShadingPipeline::DeferredShadingPipeline(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -155,14 +160,14 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     { // Lights used during the pass
         VkDeviceSize constexpr LIGHT_CAPACITY{16};
 
-        m_directionalLights =
-            std::make_unique<TStagedBuffer<szg_renderer::LightDirectional>>(
-                TStagedBuffer<szg_renderer::LightDirectional>::allocate(
-                    device, allocator, LIGHT_CAPACITY, 0
-                )
-            );
-        m_spotLights = std::make_unique<TStagedBuffer<szg_renderer::LightSpot>>(
-            TStagedBuffer<szg_renderer::LightSpot>::allocate(
+        m_directionalLights = std::make_unique<
+            szg_renderer::TStagedBuffer<szg_renderer::LightDirectional>>(
+            szg_renderer::TStagedBuffer<szg_renderer::LightDirectional>::
+                allocate(device, allocator, LIGHT_CAPACITY, 0)
+        );
+        m_spotLights = std::make_unique<
+            szg_renderer::TStagedBuffer<szg_renderer::LightSpot>>(
+            szg_renderer::TStagedBuffer<szg_renderer::LightSpot>::allocate(
                 device, allocator, LIGHT_CAPACITY, 0
             )
         );
@@ -981,3 +986,4 @@ void DeferredShadingPipeline::cleanup(
     m_lightingPassComputeShader.cleanup(device);
     m_skyPassComputeShader.cleanup(device);
 }
+} // namespace szg_renderer

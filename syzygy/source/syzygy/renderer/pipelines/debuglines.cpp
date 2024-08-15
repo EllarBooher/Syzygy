@@ -6,6 +6,9 @@
 #include <initializer_list>
 #include <span>
 
+namespace szg_renderer
+{
+
 // NOLINTBEGIN(readability-make-member-function-const)
 
 void DebugLines::clear()
@@ -106,3 +109,4 @@ void DebugLines::cleanup(
     vertices.reset();
     indices.reset();
 }
+} // namespace szg_renderer

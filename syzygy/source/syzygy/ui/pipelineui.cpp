@@ -1,8 +1,8 @@
 #include "pipelineui.hpp"
 
 #include "syzygy/core/integer.hpp"
-#include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/pipelines.hpp"
+#include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/engineui.hpp"
@@ -39,7 +39,7 @@ template <class... Ts> struct overloaded : Ts...
 // TODO: refactor this awul, no good, function.
 template <typename T>
 static void imguiPushStructureControl(
-    ShaderReflectionData::PushConstant const& pushConstant,
+    szg_renderer::ShaderReflectionData::PushConstant const& pushConstant,
     bool const readOnly,
     std::span<T> const backingData
 )
@@ -57,7 +57,9 @@ static void imguiPushStructureControl(
         std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value
     );
 
-    ShaderReflectionData::Structure const& structure{pushConstant.type};
+    szg_renderer::ShaderReflectionData::Structure const& structure{
+        pushConstant.type
+    };
 
     ImGui::Text("%s (%s)", "Push Constant", readOnly ? "Read Only" : "Mutable");
     {
@@ -125,7 +127,8 @@ static void imguiPushStructureControl(
         // Members can be sparse, with implied padding between them.
         // We track those bytes so we can print to the UI that there is padding.
         uint32_t lastByte{0};
-        for (ShaderReflectionData::Member const& member : structure.members)
+        for (szg_renderer::ShaderReflectionData::Member const& member :
+             structure.members)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(offsetIndex);
@@ -144,8 +147,8 @@ static void imguiPushStructureControl(
 
             std::visit(
                 overloaded{
-                    [&](ShaderReflectionData::UnsupportedType const&
-                            unsupportedType)
+                    [&](szg_renderer::ShaderReflectionData::
+                            UnsupportedType const& unsupportedType)
             {
                 ImGui::Text(
                     "%s",
@@ -153,7 +156,8 @@ static void imguiPushStructureControl(
                         .c_str()
                 );
             },
-                    [&](ShaderReflectionData::Pointer const& pointerType)
+                    [&](szg_renderer::ShaderReflectionData::Pointer const&
+                            pointerType)
             {
                 // Pointers should be 8 bytes,
                 // I am not sure when this would fail
@@ -193,24 +197,28 @@ static void imguiPushStructureControl(
                 ImGui::TableSetColumnIndex(typeIndex);
                 ImGui::Text("Pointer");
             },
-                    [&](ShaderReflectionData::NumericType const& numericType)
+                    [&](szg_renderer::ShaderReflectionData::NumericType const&
+                            numericType)
             {
                 // Gather format data
                 uint32_t columns{0};
                 uint32_t rows{0};
                 std::visit(
                     overloaded{
-                        [&](ShaderReflectionData::Scalar const& scalar)
+                        [&](szg_renderer::ShaderReflectionData::Scalar const&
+                                scalar)
                 {
                     columns = 1;
                     rows = 1;
                 },
-                        [&](ShaderReflectionData::Vector const& vector)
+                        [&](szg_renderer::ShaderReflectionData::Vector const&
+                                vector)
                 {
                     columns = 1;
                     rows = vector.componentCount;
                 },
-                        [&](ShaderReflectionData::Matrix const& matrix)
+                        [&](szg_renderer::ShaderReflectionData::Matrix const&
+                                matrix)
                 {
                     columns = matrix.columnCount;
                     rows = matrix.rowCount;
@@ -223,7 +231,7 @@ static void imguiPushStructureControl(
                 ImGuiDataType imguiDataType{ImGuiDataType_Float};
                 std::visit(
                     overloaded{
-                        [&](ShaderReflectionData::Integer const&
+                        [&](szg_renderer::ShaderReflectionData::Integer const&
                                 integerComponent)
                 {
                     assert(
@@ -274,7 +282,8 @@ static void imguiPushStructureControl(
                         }
                     }
                 },
-                        [&](ShaderReflectionData::Float const& floatComponent)
+                        [&](szg_renderer::ShaderReflectionData::Float const&
+                                floatComponent)
                 {
                     ImGuiDataType imguiDataType{ImGuiDataType_Float};
                     switch (numericType.componentBitWidth)
@@ -377,7 +386,8 @@ static void imguiPushStructureControl(
 }
 // NOLINTEND
 
-template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
+template <>
+void imguiPipelineControls(szg_renderer::ComputeCollectionPipeline& pipeline)
 {
     if (!ImGui::CollapsingHeader(
             "Compute Collection Pipeline", ImGuiTreeNodeFlags_DefaultOpen
@@ -387,7 +397,7 @@ template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
     }
 
     std::vector<std::string> shaderNames{};
-    for (ShaderObjectReflected const& shader : pipeline.shaders())
+    for (szg_renderer::ShaderObjectReflected const& shader : pipeline.shaders())
     {
         shaderNames.push_back(shader.name());
     }
@@ -400,8 +410,12 @@ template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
 
     pipeline.selectShader(currentShaderIndex);
 
-    ShaderObjectReflected const& currentShader{pipeline.currentShader()};
-    ShaderReflectionData const& reflectionData{currentShader.reflectionData()};
+    szg_renderer::ShaderObjectReflected const& currentShader{
+        pipeline.currentShader()
+    };
+    szg_renderer::ShaderReflectionData const& reflectionData{
+        currentShader.reflectionData()
+    };
 
     if (reflectionData.defaultEntryPointHasPushConstant())
     {
@@ -419,9 +433,11 @@ template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
     }
 }
 
-template <> void imguiPipelineControls(DeferredShadingPipeline& pipeline)
+template <>
+void imguiPipelineControls(szg_renderer::DeferredShadingPipeline& pipeline)
 {
     imguiStructureControls(
-        pipeline.m_parameters.shadowPassParameters, ShadowPassParameters{}
+        pipeline.m_parameters.shadowPassParameters,
+        szg_renderer::ShadowPassParameters{}
     );
 }

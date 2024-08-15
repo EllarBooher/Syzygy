@@ -23,12 +23,16 @@ enum class RenderingPipelines
     COMPUTE_COLLECTION = 1
 };
 
+namespace szg_renderer
+{
 template <typename T> struct TStagedBuffer;
+}
 
 struct MeshInstances
 {
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>>
+        modelInverseTransposes{};
 
     std::vector<glm::mat4x4> originals{};
 

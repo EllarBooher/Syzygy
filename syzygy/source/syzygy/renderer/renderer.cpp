@@ -27,9 +27,8 @@
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
-class DescriptorAllocator;
-struct PlatformWindow;
-
+namespace szg_renderer
+{
 Renderer::Renderer(Renderer&& other) noexcept
 {
     destroy();
@@ -443,3 +442,4 @@ void Renderer::recordDrawDebugLines(
         m_debugLines.lastFrameDrawResults = drawResults;
     }
 }
+} // namespace szg_renderer

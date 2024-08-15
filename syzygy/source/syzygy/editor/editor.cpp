@@ -739,18 +739,20 @@ auto szg_editor::run() -> EditorResult
     scene::SceneTexture& sceneTexture = sceneTextureResult.value();
     szg_renderer::ImageView& windowTexture = *windowTextureResult.value();
 
-    std::optional<Renderer> rendererResult{Renderer::create(
-        graphicsContext.device(),
-        graphicsContext.allocator(),
-        graphicsContext.descriptorAllocator(),
-        sceneTexture
-    )};
+    std::optional<szg_renderer::Renderer> rendererResult{
+        szg_renderer::Renderer::create(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.descriptorAllocator(),
+            sceneTexture
+        )
+    };
     if (!rendererResult.has_value())
     {
         SZG_ERROR("Unable to create Renderer.");
         return EditorResult::ERROR;
     }
-    Renderer& renderer{rendererResult.value()};
+    szg_renderer::Renderer& renderer{rendererResult.value()};
 
     ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};

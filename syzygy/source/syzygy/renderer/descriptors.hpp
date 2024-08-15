@@ -6,6 +6,8 @@
 #include <span>
 #include <vector>
 
+namespace szg_renderer
+{
 struct DescriptorLayoutBuilder
 {
     struct AddBindingParameters
@@ -84,3 +86,4 @@ private:
     VkDevice m_device{VK_NULL_HANDLE};
     VkDescriptorPool m_pool{VK_NULL_HANDLE};
 };
+} // namespace szg_renderer

@@ -14,13 +14,10 @@
 namespace szg_renderer
 {
 struct Camera;
-}
-namespace szg_renderer
-{
 struct ImageView;
+template <typename T> struct TStagedBuffer;
 } // namespace szg_renderer
 struct Vertex;
-template <typename T> struct TStagedBuffer;
 namespace scene
 {
 struct MeshInstanced;
@@ -51,6 +48,8 @@ auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
 }
 } // namespace
 
+namespace szg_renderer
+{
 struct DrawResultsGraphics
 {
     size_t drawCalls{0};
@@ -304,3 +303,4 @@ public:
         return m_fragmentShader;
     };
 };
+} // namespace szg_renderer

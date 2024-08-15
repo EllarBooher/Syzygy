@@ -23,6 +23,8 @@ namespace scene
 struct MeshInstanced;
 } // namespace scene
 
+namespace szg_renderer
+{
 class DeferredShadingPipeline
 {
 public:
@@ -148,3 +150,4 @@ public:
     };
     Parameters m_parameters;
 };
+} // namespace szg_renderer

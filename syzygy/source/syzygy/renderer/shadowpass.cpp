@@ -2,11 +2,11 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/helpers.hpp"
-#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
@@ -16,6 +16,8 @@ namespace scene
 struct MeshInstanced;
 } // namespace scene
 
+namespace szg_renderer
+{
 auto ShadowPassArray::create(
     VkDevice const device,
     DescriptorAllocator& descriptorAllocator,
@@ -328,3 +330,4 @@ void ShadowPassArray::cleanup(
     m_shadowmapSetLayout = VK_NULL_HANDLE;
     m_shadowmapSet = VK_NULL_HANDLE;
 }
+} // namespace szg_renderer

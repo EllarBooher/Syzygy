@@ -28,7 +28,7 @@ struct MeshAsset
 {
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
-    std::unique_ptr<GPUMeshBuffers> meshBuffers{};
+    std::unique_ptr<szg_renderer::GPUMeshBuffers> meshBuffers{};
 };
 
 struct MeshAssetLibrary

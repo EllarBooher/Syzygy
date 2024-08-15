@@ -2,8 +2,8 @@
 
 #include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
@@ -53,7 +53,10 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     }
 }
 
-template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
+template <>
+void imguiStructureControls<szg_renderer::DebugLines>(
+    szg_renderer::DebugLines& structure
+)
 {
     bool const headerOpen{
         ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen)
@@ -107,7 +110,9 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
     );
 
     {
-        DrawResultsGraphics const drawResults{structure.lastFrameDrawResults};
+        szg_renderer::DrawResultsGraphics const drawResults{
+            structure.lastFrameDrawResults
+        };
 
         table.rowChildPropertyBegin("Draw Results")
             .rowReadOnlyInteger(
@@ -128,8 +133,8 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
 
 template <>
 void imguiStructureControls(
-    ShadowPassParameters& structure,
-    ShadowPassParameters const& defaultStructure
+    szg_renderer::ShadowPassParameters& structure,
+    szg_renderer::ShadowPassParameters const& defaultStructure
 )
 {
     bool const headerOpen{ImGui::CollapsingHeader(

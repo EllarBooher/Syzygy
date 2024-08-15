@@ -12,6 +12,8 @@
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
+namespace szg_renderer
+{
 auto GBuffer::create(
     VkDevice const device,
     VkExtent2D const drawExtent,
@@ -259,3 +261,4 @@ void GBuffer::cleanup(VkDevice const device)
 
     vkDestroyDescriptorSetLayout(device, descriptorLayout, nullptr);
 }
+} // namespace szg_renderer

@@ -17,7 +17,6 @@
 namespace szg_renderer
 {
 struct Camera;
-} // namespace szg_renderer
 
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout
@@ -231,7 +230,7 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
     for (std::string const& shaderPath : shaderPaths)
     {
         std::optional<ShaderObjectReflected> loadResult{
-            vkutil::loadShaderObject(
+            szg_renderer::loadShaderObject(
                 device, shaderPath, VK_SHADER_STAGE_COMPUTE_BIT, 0, layouts, {}
             )
         };
@@ -385,11 +384,15 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        vkutil::loadShaderModule(device, "shaders/debug/debugline.vert.spv")
+        szg_renderer::loadShaderModule(
+            device, "shaders/debug/debugline.vert.spv"
+        )
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
     ShaderModuleReflected const fragmentShader{
-        vkutil::loadShaderModule(device, "shaders/debug/debugline.frag.spv")
+        szg_renderer::loadShaderModule(
+            device, "shaders/debug/debugline.frag.spv"
+        )
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
 
@@ -596,7 +599,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        vkutil::loadShaderModule(
+        szg_renderer::loadShaderModule(
             device, "shaders/offscreenpass/depthpass.vert.spv"
         )
             .value_or(ShaderModuleReflected::MakeInvalid())
@@ -805,3 +808,4 @@ void OffscreenPassGraphicsPipeline::cleanup(VkDevice const device)
     vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }
+} // namespace szg_renderer

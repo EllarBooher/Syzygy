@@ -12,9 +12,9 @@
 #include <memory>
 #include <optional>
 
-class DescriptorAllocator;
 namespace szg_renderer
 {
+class DescriptorAllocator;
 struct Atmosphere;
 struct Camera;
 } // namespace szg_renderer
@@ -28,6 +28,8 @@ struct DockingLayout;
 }
 struct PlatformWindow;
 
+namespace szg_renderer
+{
 class Renderer
 {
 public:
@@ -116,3 +118,4 @@ private:
 
     // End Vulkan
 };
+} // namespace szg_renderer

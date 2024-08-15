@@ -39,42 +39,49 @@ auto uploadMeshToGPU(
     ImmediateSubmissionQueue const& submissionQueue,
     std::span<uint32_t const> const indices,
     std::span<Vertex const> const vertices
-) -> std::unique_ptr<GPUMeshBuffers>
+) -> std::unique_ptr<szg_renderer::GPUMeshBuffers>
 {
     // Allocate buffer
 
     size_t const indexBufferSize{indices.size_bytes()};
     size_t const vertexBufferSize{vertices.size_bytes()};
 
-    AllocatedBuffer indexBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        indexBufferSize,
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        0
-    )};
+    szg_renderer::AllocatedBuffer indexBuffer{
+        szg_renderer::AllocatedBuffer::allocate(
+            device,
+            allocator,
+            indexBufferSize,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VMA_MEMORY_USAGE_GPU_ONLY,
+            0
+        )
+    };
 
-    AllocatedBuffer vertexBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        vertexBufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        0
-    )};
+    szg_renderer::AllocatedBuffer vertexBuffer{
+        szg_renderer::AllocatedBuffer::allocate(
+            device,
+            allocator,
+            vertexBufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VMA_MEMORY_USAGE_GPU_ONLY,
+            0
+        )
+    };
 
     // Copy data into buffer
 
-    AllocatedBuffer stagingBuffer{AllocatedBuffer::allocate(
-        device,
-        allocator,
-        vertexBufferSize + indexBufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VMA_ALLOCATION_CREATE_MAPPED_BIT
-    )};
+    szg_renderer::AllocatedBuffer stagingBuffer{
+        szg_renderer::AllocatedBuffer::allocate(
+            device,
+            allocator,
+            vertexBufferSize + indexBufferSize,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VMA_MEMORY_USAGE_CPU_ONLY,
+            VMA_ALLOCATION_CREATE_MAPPED_BIT
+        )
+    };
 
     assert(
         stagingBuffer.isMapped()
@@ -123,7 +130,7 @@ auto uploadMeshToGPU(
                     "likely contain junk or no data.");
     }
 
-    return std::make_unique<GPUMeshBuffers>(
+    return std::make_unique<szg_renderer::GPUMeshBuffers>(
         std::move(indexBuffer), std::move(vertexBuffer)
     );
 }
