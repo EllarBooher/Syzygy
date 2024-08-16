@@ -4,7 +4,6 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/platformutils.hpp"

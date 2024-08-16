@@ -1,6 +1,5 @@
 #include "debuglines.hpp"
 
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
 #include <glm/vec4.hpp>
 #include <initializer_list>

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"

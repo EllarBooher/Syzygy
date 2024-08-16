@@ -1,7 +1,6 @@
 #include "pipelines.hpp"
 
 #include "syzygy/assets/assets.hpp"
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"

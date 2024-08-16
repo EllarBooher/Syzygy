@@ -1,7 +1,7 @@
 #include "widgets.hpp"
 
 #include "syzygy/assets/assets.hpp"
-#include "syzygy/enginetypes.hpp"
+#include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/image.hpp"

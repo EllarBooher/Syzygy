@@ -1,46 +1,11 @@
 #pragma once
 
-#include <array>
-#include <memory>
 #include <numeric>
-#include <optional>
 #include <span>
-#include <string>
 #include <vector>
 
-#include "syzygy/platform/vulkanusage.hpp"
-#include <vulkan/vk_enum_string_helper.h>
-
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtx/string_cast.hpp>
-#include <glm/gtx/transform.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec4.hpp>
-
 namespace syzygy
 {
-template <typename T> struct TStagedBuffer;
-}
-
-namespace syzygy
-{
-enum class RenderingPipelines
-{
-    DEFERRED = 0,
-    COMPUTE_COLLECTION = 1
-};
-
-struct MeshInstances
-{
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
-
-    std::vector<glm::mat4x4> originals{};
-
-    // An index to where the first dynamic object begins
-    size_t dynamicIndex{};
-};
-
 struct RingBuffer
 {
     RingBuffer() { m_values.resize(500, 0.0); }

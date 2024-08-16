@@ -1,6 +1,5 @@
 #include "renderer.hpp"
 
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"

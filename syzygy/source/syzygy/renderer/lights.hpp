@@ -1,6 +1,5 @@
 #pragma once
 
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 

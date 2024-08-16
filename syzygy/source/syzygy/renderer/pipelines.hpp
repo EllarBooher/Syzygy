@@ -22,6 +22,12 @@ struct VertexPacked;
 
 namespace syzygy
 {
+enum class RenderingPipelines
+{
+    DEFERRED = 0,
+    COMPUTE_COLLECTION = 1
+};
+
 auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
     -> uint32_t;
 

@@ -1,6 +1,5 @@
 #include "engineui.hpp"
 
-#include "syzygy/enginetypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/pipelines.hpp"
