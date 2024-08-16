@@ -29,9 +29,9 @@ struct SceneBounds
 
 struct AtmosphereBaked
 {
-    szg_renderer::Atmosphere atmosphere{};
-    std::optional<szg_renderer::LightDirectional> sunlight{};
-    std::optional<szg_renderer::LightDirectional> moonlight{};
+    szg_renderer::AtmospherePacked atmosphere{};
+    std::optional<szg_renderer::DirectionalLightPacked> sunlight{};
+    std::optional<szg_renderer::DirectionalLightPacked> moonlight{};
 };
 
 struct Atmosphere
@@ -52,7 +52,7 @@ struct Atmosphere
 
     auto directionToSun() const -> glm::vec3;
 
-    auto toDeviceEquivalent() const -> szg_renderer::Atmosphere;
+    auto toDeviceEquivalent() const -> szg_renderer::AtmospherePacked;
     auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
@@ -81,7 +81,8 @@ struct Camera
     // clip space.
     auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
-    auto toDeviceEquivalent(float aspectRatio) const -> szg_renderer::Camera;
+    auto toDeviceEquivalent(float aspectRatio) const
+        -> szg_renderer::CameraPacked;
 };
 
 struct MeshInstanced
@@ -122,7 +123,7 @@ struct Scene
     float cameraControlledSpeed{DEFAULT_CAMERA_CONTROLLED_SPEED};
 
     bool spotlightsRender{false};
-    std::vector<szg_renderer::LightSpot> spotlights{};
+    std::vector<szg_renderer::SpotLightPacked> spotlights{};
 
     std::optional<size_t> cubesIndex{};
     std::vector<MeshInstanced> geometry;

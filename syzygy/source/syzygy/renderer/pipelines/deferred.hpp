@@ -40,12 +40,12 @@ public:
         VkRect2D drawRect,
         szg_renderer::Image& color,
         szg_renderer::ImageView& depth,
-        std::span<szg_renderer::LightDirectional const> directionalLights,
-        std::span<szg_renderer::LightSpot const> spotLights,
+        std::span<szg_renderer::DirectionalLightPacked const> directionalLights,
+        std::span<szg_renderer::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
-        TStagedBuffer<szg_renderer::Camera> const& cameras,
+        TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
         uint32_t atmosphereIndex,
-        TStagedBuffer<szg_renderer::Atmosphere> const& atmospheres,
+        TStagedBuffer<szg_renderer::AtmospherePacked> const& atmospheres,
         std::span<szg_scene::MeshInstanced const> sceneGeometry
     );
 
@@ -60,11 +60,11 @@ private:
 
     std::unique_ptr<szg_renderer::ImageView> m_drawImage{};
 
-    typedef TStagedBuffer<szg_renderer::LightDirectional>
+    typedef TStagedBuffer<szg_renderer::DirectionalLightPacked>
         LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
-    typedef TStagedBuffer<szg_renderer::LightSpot> LightSpotBuffer;
+    typedef TStagedBuffer<szg_renderer::SpotLightPacked> LightSpotBuffer;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};

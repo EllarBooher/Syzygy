@@ -6,7 +6,7 @@
 
 namespace szg_renderer
 {
-static LightDirectional makeDirectional(
+static DirectionalLightPacked makeDirectional(
     glm::vec4 const color,
     float const strength,
     glm::vec3 const eulerAngles,
@@ -20,7 +20,7 @@ static LightDirectional makeDirectional(
         view, geometryCenter, geometryExtent
     )};
 
-    return LightDirectional{
+    return DirectionalLightPacked{
         .color = color,
         .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
         .projection = projection,
@@ -30,7 +30,7 @@ static LightDirectional makeDirectional(
 }
 
 // TODO: less parameters constructor
-static LightSpot makeSpot(
+static SpotLightPacked makeSpot(
     glm::vec4 const color,
     float const strength,
     float const falloffFactor,
@@ -43,7 +43,7 @@ static LightSpot makeSpot(
     float const far
 )
 {
-    return LightSpot{
+    return SpotLightPacked{
         .color = color,
         .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
         .projection = szg_geometry::projectionVk(

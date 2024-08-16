@@ -16,7 +16,7 @@
 
 namespace szg_renderer
 {
-struct Camera;
+struct CameraPacked;
 
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout
@@ -472,7 +472,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     szg_renderer::ImageView& color,
     szg_renderer::ImageView& depth,
     uint32_t const cameraIndex,
-    TStagedBuffer<szg_renderer::Camera> const& cameras,
+    TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
     TStagedBuffer<uint32_t> const& indices
 ) const -> DrawResultsGraphics

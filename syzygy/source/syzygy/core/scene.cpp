@@ -77,7 +77,7 @@ auto szg_scene::Scene::defaultScene(
     MeshAssetLibrary const& meshes
 ) -> Scene
 {
-    std::vector<szg_renderer::LightSpot> const spotlights{
+    std::vector<szg_renderer::SpotLightPacked> const spotlights{
         szg_renderer::makeSpot(
             glm::vec4(0.0, 1.0, 0.0, 1.0),
             30.0,
@@ -406,7 +406,7 @@ auto createSunlight(
     szg_scene::SceneBounds const sceneBounds,
     glm::vec3 const sunEulerAngles,
     glm::vec3 const sunlightRGB
-) -> szg_renderer::LightDirectional
+) -> szg_renderer::DirectionalLightPacked
 {
     float constexpr SUNLIGHT_STRENGTH{0.5F};
 
@@ -422,7 +422,7 @@ auto createMoonlight(
     szg_scene::SceneBounds const sceneBounds,
     float const sunCosine,
     float const sunsetCosine
-) -> szg_renderer::LightDirectional
+) -> szg_renderer::DirectionalLightPacked
 {
     float constexpr MOONRISE_LENGTH{0.08};
 
@@ -504,14 +504,14 @@ auto szg_scene::Atmosphere::directionToSun() const -> glm::vec3
 }
 
 auto szg_scene::Atmosphere::toDeviceEquivalent() const
-    -> szg_renderer::Atmosphere
+    -> szg_renderer::AtmospherePacked
 {
     // TODO: move these computations out to somewhere more sensible
 
     glm::vec4 const sunlight{computeSunlightColor(*this)};
     glm::vec3 const sunDirection{glm::normalize(directionToSun())};
 
-    return szg_renderer::Atmosphere{
+    return szg_renderer::AtmospherePacked{
         .directionToSun = sunDirection,
         .earthRadiusMeters = earthRadiusMeters,
         .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
@@ -529,15 +529,15 @@ auto szg_scene::Atmosphere::toDeviceEquivalent() const
 auto szg_scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     -> AtmosphereBaked
 {
-    szg_renderer::Atmosphere const atmosphere{toDeviceEquivalent()};
+    szg_renderer::AtmospherePacked const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
     float const sunCosine{glm::dot(szg_geometry::up, atmosphere.directionToSun)
     };
     float constexpr SUNSET_COSINE{0.06};
 
-    std::optional<szg_renderer::LightDirectional> sunlight{};
-    std::optional<szg_renderer::LightDirectional> moonlight{};
+    std::optional<szg_renderer::DirectionalLightPacked> sunlight{};
+    std::optional<szg_renderer::DirectionalLightPacked> moonlight{};
 
     if (sunCosine > 0.0F)
     {
@@ -558,12 +558,12 @@ auto szg_scene::Atmosphere::baked(SceneBounds const sceneBounds) const
 }
 
 auto szg_scene::Camera::toDeviceEquivalent(float const aspectRatio) const
-    -> szg_renderer::Camera
+    -> szg_renderer::CameraPacked
 {
     glm::mat4x4 const proj{projection(aspectRatio)};
     glm::mat4x4 const projViewInverse{glm::inverse(toProjView(aspectRatio))};
 
-    return szg_renderer::Camera{
+    return szg_renderer::CameraPacked{
         .projection = proj,
         .inverseProjection = glm::inverse(proj),
         .view = view(),

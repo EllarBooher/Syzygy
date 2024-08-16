@@ -149,17 +149,18 @@ void Renderer::initDrawTargets(
 
 void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
-    m_camerasBuffer = std::make_unique<TStagedBuffer<szg_renderer::Camera>>(
-        TStagedBuffer<szg_renderer::Camera>::allocate(
-            device,
-            allocator,
-            CAMERA_CAPACITY,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        )
-    );
+    m_camerasBuffer =
+        std::make_unique<TStagedBuffer<szg_renderer::CameraPacked>>(
+            TStagedBuffer<szg_renderer::CameraPacked>::allocate(
+                device,
+                allocator,
+                CAMERA_CAPACITY,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            )
+        );
     m_atmospheresBuffer =
-        std::make_unique<TStagedBuffer<szg_renderer::Atmosphere>>(
-            TStagedBuffer<szg_renderer::Atmosphere>::allocate(
+        std::make_unique<TStagedBuffer<szg_renderer::AtmospherePacked>>(
+            TStagedBuffer<szg_renderer::AtmospherePacked>::allocate(
                 device,
                 allocator,
                 ATMOSPHERE_CAPACITY,
@@ -305,7 +306,7 @@ void Renderer::recordDraw(
     double const aspectRatio{viewportAspectRatioResult.value()};
 
     { // Copy cameras to gpu
-        szg_renderer::Camera const mainCamera{
+        szg_renderer::CameraPacked const mainCamera{
             szg_scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
@@ -314,7 +315,7 @@ void Renderer::recordDraw(
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
-    std::vector<szg_renderer::LightDirectional> directionalLights{};
+    std::vector<szg_renderer::DirectionalLightPacked> directionalLights{};
     { // Copy atmospheres to gpu
         szg_scene::AtmosphereBaked const bakedAtmosphere{
             szg_scene.atmosphere.baked(szg_scene.bounds)
@@ -367,7 +368,7 @@ void Renderer::recordDraw(
                 directionalLights,
                 szg_scene.spotlightsRender
                     ? szg_scene.spotlights
-                    : std::vector<szg_renderer::LightSpot>{},
+                    : std::vector<szg_renderer::SpotLightPacked>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
@@ -416,7 +417,7 @@ void Renderer::recordDrawDebugLines(
     uint32_t const cameraIndex,
     szg_scene::SceneTexture& sceneTexture,
     szg_scene::SceneViewport const& sceneViewport,
-    TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
+    TStagedBuffer<szg_renderer::CameraPacked> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};

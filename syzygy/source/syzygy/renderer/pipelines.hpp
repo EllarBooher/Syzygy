@@ -13,7 +13,7 @@
 
 namespace szg_renderer
 {
-struct Camera;
+struct CameraPacked;
 struct ImageView;
 template <typename T> struct TStagedBuffer;
 } // namespace szg_renderer
@@ -262,7 +262,7 @@ public:
         szg_renderer::ImageView& color,
         szg_renderer::ImageView& depth,
         uint32_t cameraIndex,
-        TStagedBuffer<szg_renderer::Camera> const& cameras,
+        TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
         TStagedBuffer<Vertex> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
     ) const;

@@ -14,8 +14,8 @@
 namespace szg_renderer
 {
 class DescriptorAllocator;
-struct LightDirectional;
-struct LightSpot;
+struct DirectionalLightPacked;
+struct SpotLightPacked;
 } // namespace szg_renderer
 namespace szg_scene
 {
@@ -51,8 +51,8 @@ public:
     void recordInitialize(
         VkCommandBuffer cmd,
         ShadowPassParameters parameters,
-        std::span<szg_renderer::LightDirectional const> directionalLights,
-        std::span<szg_renderer::LightSpot const> spotLights
+        std::span<szg_renderer::DirectionalLightPacked const> directionalLights,
+        std::span<szg_renderer::SpotLightPacked const> spotLights
     );
 
     void recordDrawCommands(

@@ -188,8 +188,9 @@ auto ShadowPassArray::create(
 void ShadowPassArray::recordInitialize(
     VkCommandBuffer const cmd,
     ShadowPassParameters parameters,
-    std::span<szg_renderer::LightDirectional const> const directionalLights,
-    std::span<szg_renderer::LightSpot const> const spotLights
+    std::span<szg_renderer::DirectionalLightPacked const> const
+        directionalLights,
+    std::span<szg_renderer::SpotLightPacked const> const spotLights
 )
 {
     m_depthBias = parameters.depthBiasConstant;
@@ -203,13 +204,14 @@ void ShadowPassArray::recordInitialize(
         projViewMatrices.clearStaged();
 
         size_t shadowMapCount{0};
-        for (szg_renderer::LightDirectional const& light : directionalLights)
+        for (szg_renderer::DirectionalLightPacked const& light :
+             directionalLights)
         {
             projViewMatrices.push(light.projection * light.view);
 
             shadowMapCount += 1;
         }
-        for (szg_renderer::LightSpot const& light : spotLights)
+        for (szg_renderer::SpotLightPacked const& light : spotLights)
         {
             projViewMatrices.push(light.projection * light.view);
 

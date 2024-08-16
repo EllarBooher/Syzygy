@@ -14,7 +14,7 @@ namespace szg_renderer
 // a single-precision vec4.
 // The gpu equivalents will likely use std430 packing.
 
-struct Camera
+struct CameraPacked
 {
     glm::mat4x4 projection;
 
@@ -33,7 +33,7 @@ struct Camera
     glm::vec4 position;
 };
 
-struct Atmosphere
+struct AtmospherePacked
 {
     glm::vec3 directionToSun;
     float earthRadiusMeters;
@@ -56,7 +56,7 @@ struct Atmosphere
     uint8_t padding1[4]{};
 };
 
-struct LightDirectional
+struct DirectionalLightPacked
 {
     glm::vec4 color;
 
@@ -70,7 +70,7 @@ struct LightDirectional
     uint8_t padding0[12]{};
 };
 
-struct LightSpot
+struct SpotLightPacked
 {
     glm::vec4 color;
 

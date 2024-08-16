@@ -15,8 +15,8 @@
 namespace szg_renderer
 {
 class DescriptorAllocator;
-struct Atmosphere;
-struct Camera;
+struct AtmospherePacked;
+struct CameraPacked;
 } // namespace szg_renderer
 namespace szg_scene
 {
@@ -68,7 +68,7 @@ private:
         uint32_t cameraIndex,
         szg_scene::SceneTexture& sceneTexture,
         szg_scene::SceneViewport const& sceneViewport,
-        TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
+        TStagedBuffer<szg_renderer::CameraPacked> const& camerasBuffer
     );
 
     // Begin Vulkan
@@ -110,10 +110,11 @@ private:
     // Scene
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
-    std::unique_ptr<TStagedBuffer<szg_renderer::Camera>> m_camerasBuffer{};
+    std::unique_ptr<TStagedBuffer<szg_renderer::CameraPacked>> m_camerasBuffer{
+    };
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
-    std::unique_ptr<TStagedBuffer<szg_renderer::Atmosphere>>
+    std::unique_ptr<TStagedBuffer<szg_renderer::AtmospherePacked>>
         m_atmospheresBuffer{};
 
     // End Vulkan
