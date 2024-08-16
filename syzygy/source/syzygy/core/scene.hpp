@@ -14,10 +14,10 @@
 namespace syzygy
 {
 struct InputSnapshot;
-}
+struct TickTiming;
 struct MeshAsset;
 struct MeshAssetLibrary;
-struct TickTiming;
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -29,9 +29,9 @@ struct SceneBounds
 
 struct AtmosphereBaked
 {
-    syzygy::AtmospherePacked atmosphere{};
-    std::optional<syzygy::DirectionalLightPacked> sunlight{};
-    std::optional<syzygy::DirectionalLightPacked> moonlight{};
+    AtmospherePacked atmosphere{};
+    std::optional<DirectionalLightPacked> sunlight{};
+    std::optional<DirectionalLightPacked> moonlight{};
 };
 
 struct Atmosphere
@@ -52,7 +52,7 @@ struct Atmosphere
 
     auto directionToSun() const -> glm::vec3;
 
-    auto toDeviceEquivalent() const -> syzygy::AtmospherePacked;
+    auto toDeviceEquivalent() const -> AtmospherePacked;
     auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
@@ -81,7 +81,7 @@ struct Camera
     // clip space.
     auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
-    auto toDeviceEquivalent(float aspectRatio) const -> syzygy::CameraPacked;
+    auto toDeviceEquivalent(float aspectRatio) const -> CameraPacked;
 };
 
 struct MeshInstanced
@@ -92,9 +92,8 @@ struct MeshInstanced
 
     std::vector<glm::mat4x4> originals{};
 
-    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> modelInverseTransposes{
-    };
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 };
 
 struct SunAnimation
@@ -122,7 +121,7 @@ struct Scene
     float cameraControlledSpeed{DEFAULT_CAMERA_CONTROLLED_SPEED};
 
     bool spotlightsRender{false};
-    std::vector<syzygy::SpotLightPacked> spotlights{};
+    std::vector<SpotLightPacked> spotlights{};
 
     std::optional<size_t> cubesIndex{};
     std::vector<MeshInstanced> geometry;
@@ -135,7 +134,7 @@ struct Scene
     static auto
     defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
         -> Scene;
-    void handleInput(TickTiming, syzygy::InputSnapshot const&);
+    void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);
 };
 } // namespace syzygy

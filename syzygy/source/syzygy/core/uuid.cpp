@@ -2,7 +2,7 @@
 
 #include <random>
 
-auto szg::UUID::createNew() -> UUID
+auto syzygy::UUID::createNew() -> UUID
 {
     static std::random_device randomDevice;
     static std::mt19937_64 rngEngine{randomDevice()};
@@ -19,6 +19,6 @@ auto szg::UUID::createNew() -> UUID
     return uuid;
 }
 
-auto szg::UUID::valid() const -> bool { return m_uuid == 0; }
+auto syzygy::UUID::valid() const -> bool { return m_uuid == 0; }
 
-szg::UUID::operator uint64_t() const { return m_uuid; }
+syzygy::UUID::operator uint64_t() const { return m_uuid; }

@@ -5,6 +5,8 @@
 
 struct GLFWwindow;
 
+namespace syzygy
+{
 struct PlatformWindow
 {
 public:
@@ -28,3 +30,4 @@ public:
 private:
     GLFWwindow* m_handle{nullptr};
 };
+} // namespace syzygy

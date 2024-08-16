@@ -6,6 +6,8 @@
 #include <span>
 #include <vector>
 
+namespace syzygy
+{
 struct Swapchain
 {
 public:
@@ -43,3 +45,4 @@ private:
     std::vector<VkImage> m_images{};
     std::vector<VkImageView> m_imageViews{};
 };
+} // namespace syzygy

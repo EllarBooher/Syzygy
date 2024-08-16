@@ -17,16 +17,9 @@ namespace syzygy
 class DescriptorAllocator;
 struct AtmospherePacked;
 struct CameraPacked;
-} // namespace syzygy
-namespace syzygy
-{
 struct Scene;
-}
-namespace syzygy
-{
 struct DockingLayout;
-}
-struct PlatformWindow;
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -52,7 +45,7 @@ public:
         syzygy::SceneTexture const& sceneTexture
     ) -> std::optional<Renderer>;
 
-    // TODO: Remove this, but right now relies on internal state.
+    // TODO: Remove this, but WORLD_RIGHT now relies on internal state.
     void uiEngineControls(syzygy::DockingLayout const&);
 
     void recordDraw(

@@ -16,40 +16,20 @@ namespace syzygy
 struct CameraPacked;
 struct ImageView;
 template <typename T> struct TStagedBuffer;
-} // namespace syzygy
+struct MeshInstanced;
 struct Vertex;
+} // namespace syzygy
+
 namespace syzygy
 {
-struct MeshInstanced;
-}
+auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
+    -> uint32_t;
 
 struct RenderOverride
 {
     bool render{false};
 };
 
-namespace
-{
-auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
-    -> uint32_t
-{
-    // When workgroups are larger than 1, but this value does not evenly divide
-    // the amount of work needed, we need to dispatch extra to cover this. It is
-    // up to the shader to discard these extra invocations.
-
-    uint32_t const count{invocations / workgroupSize};
-
-    if (invocations % workgroupSize == 0)
-    {
-        return count;
-    }
-
-    return count + 1;
-}
-} // namespace
-
-namespace syzygy
-{
 struct DrawResultsGraphics
 {
     size_t drawCalls{0};
@@ -263,7 +243,7 @@ public:
         syzygy::ImageView& depth,
         uint32_t cameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
-        TStagedBuffer<Vertex> const& endpoints,
+        TStagedBuffer<syzygy::Vertex> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
     ) const;
 

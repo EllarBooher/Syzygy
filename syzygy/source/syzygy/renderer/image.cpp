@@ -5,14 +5,16 @@
 #include "syzygy/renderer/imageoperations.hpp"
 #include <utility>
 
-syzygy::Image::Image(Image&& other) noexcept
+namespace syzygy
+{
+Image::Image(Image&& other) noexcept
 {
     m_memory = std::exchange(other.m_memory, ImageMemory{});
 }
 
-syzygy::Image::~Image() { destroy(); }
+Image::~Image() { destroy(); }
 
-void syzygy::Image::destroy()
+void Image::destroy()
 {
     bool leaked{false};
     if (m_memory.allocation != VK_NULL_HANDLE)
@@ -56,7 +58,7 @@ void syzygy::Image::destroy()
     m_recordedLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-auto syzygy::Image::allocate(
+auto Image::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
     ImageAllocationParameters const& parameters
@@ -134,31 +136,31 @@ auto syzygy::Image::allocate(
     return imageResult;
 }
 
-auto syzygy::Image::extent3D() const -> VkExtent3D
+auto Image::extent3D() const -> VkExtent3D
 {
     return m_memory.imageCreateInfo.extent;
 }
 
-auto syzygy::Image::extent2D() const -> VkExtent2D
+auto Image::extent2D() const -> VkExtent2D
 {
     return VkExtent2D{.width = extent3D().width, .height = extent3D().height};
 }
 
-auto syzygy::Image::aspectRatio() const -> std::optional<double>
+auto Image::aspectRatio() const -> std::optional<double>
 {
-    return syzygy::aspectRatio(extent2D());
+    return ::syzygy::aspectRatio(extent2D());
 }
 
-auto syzygy::Image::format() const -> VkFormat
+auto Image::format() const -> VkFormat
 {
     return m_memory.imageCreateInfo.format;
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto syzygy::Image::image() -> VkImage { return m_memory.image; }
+auto Image::image() -> VkImage { return m_memory.image; }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto syzygy::Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
+auto Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
 {
     if (m_memory.allocator == VK_NULL_HANDLE)
     {
@@ -171,32 +173,27 @@ auto syzygy::Image::fetchAllocationInfo() -> std::optional<VmaAllocationInfo>
     return allocationInfo;
 }
 
-auto syzygy::Image::expectedLayout() const -> VkImageLayout
-{
-    return m_recordedLayout;
-}
+auto Image::expectedLayout() const -> VkImageLayout { return m_recordedLayout; }
 
-void syzygy::Image::recordTransitionBarriered(
+void Image::recordTransitionBarriered(
     VkCommandBuffer const cmd,
     VkImageLayout const dst,
     VkImageAspectFlags const aspectMask
 )
 {
-    syzygy::transitionImage(
-        cmd, m_memory.image, m_recordedLayout, dst, aspectMask
-    );
+    transitionImage(cmd, m_memory.image, m_recordedLayout, dst, aspectMask);
 
     m_recordedLayout = dst;
 }
 
-void syzygy::Image::recordCopyEntire(
+void Image::recordCopyEntire(
     VkCommandBuffer const cmd,
     Image& src,
     Image& dst,
     VkImageAspectFlags const aspectMask
 )
 {
-    syzygy::recordCopyImageToImage(
+    recordCopyImageToImage(
         cmd,
         src.image(),
         dst.image(),
@@ -206,7 +203,7 @@ void syzygy::Image::recordCopyEntire(
     );
 }
 
-void syzygy::Image::recordCopyRect(
+void Image::recordCopyRect(
     VkCommandBuffer const cmd,
     Image& src,
     Image& dst,
@@ -217,7 +214,7 @@ void syzygy::Image::recordCopyRect(
     VkOffset3D const dstMax
 )
 {
-    syzygy::recordCopyImageToImage(
+    recordCopyImageToImage(
         cmd,
         src.image(),
         dst.image(),
@@ -228,3 +225,4 @@ void syzygy::Image::recordCopyRect(
         dstMax
     );
 }
+} // namespace syzygy

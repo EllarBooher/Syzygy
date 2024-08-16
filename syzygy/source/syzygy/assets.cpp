@@ -36,9 +36,9 @@ auto uploadMeshToGPU(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    ImmediateSubmissionQueue const& submissionQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
     std::span<uint32_t const> const indices,
-    std::span<Vertex const> const vertices
+    std::span<syzygy::Vertex const> const vertices
 ) -> std::unique_ptr<syzygy::GPUMeshBuffers>
 {
     // Allocate buffer
@@ -117,7 +117,7 @@ auto uploadMeshToGPU(
         );
     }
         )};
-        result != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
+        result != syzygy::ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
     {
         SZG_WARNING("Command submission for mesh upload failed, buffers will "
                     "likely contain junk or no data.");
@@ -183,7 +183,7 @@ auto uploadImageToGPU(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    ImmediateSubmissionQueue const& submissionQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
     syzygy::ImageRGBA const& image
@@ -271,7 +271,8 @@ auto uploadImageToGPU(
         );
     }
         )};
-        submissionResult != ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
+        submissionResult
+        != syzygy::ImmediateSubmissionQueue::SubmissionResult::SUCCESS)
     {
         SZG_ERROR("Failed to copy images.");
         return std::nullopt;
@@ -281,6 +282,8 @@ auto uploadImageToGPU(
 }
 } // namespace
 
+namespace syzygy
+{
 auto loadGltfMeshes(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -289,7 +292,7 @@ auto loadGltfMeshes(
     std::filesystem::path const& path
 ) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
-    std::filesystem::path const assetPath{syzygy::ensureAbsolutePath(path)};
+    std::filesystem::path const assetPath{ensureAbsolutePath(path)};
 
     SZG_INFO("Loading glTF: {}", assetPath.string());
 
@@ -452,6 +455,12 @@ auto loadGltfMeshes(
 
     return newMeshes;
 }
+} // namespace syzygy
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
 
 namespace
 {
@@ -468,7 +477,9 @@ auto ensureAbsolute(
 }
 } // namespace
 
-auto syzygy::loadAssetFile(std::filesystem::path const& path)
+namespace syzygy
+{
+auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
     auto const workingDir{std::filesystem::current_path()};
@@ -504,19 +515,14 @@ auto syzygy::loadAssetFile(std::filesystem::path const& path)
     };
 }
 
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-
-auto syzygy::loadTextureFromFile(
+auto loadTextureFromFile(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<syzygy::Image>>
+) -> std::optional<Asset<Image>>
 {
     SZG_INFO("Loading Texture from '{}'", path.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
@@ -535,16 +541,14 @@ auto syzygy::loadTextureFromFile(
         return std::nullopt;
     }
 
-    std::optional<syzygy::ImageRGBA> imageResult{
-        RGBAfromJPEG_stbi(file.fileBytes)
-    };
+    std::optional<ImageRGBA> imageResult{RGBAfromJPEG_stbi(file.fileBytes)};
     if (!imageResult.has_value())
     {
         SZG_ERROR("Failed to convert file from JPEG.");
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
+    std::optional<std::unique_ptr<Image>> uploadResult{uploadImageToGPU(
         device,
         allocator,
         transferQueue,
@@ -559,25 +563,25 @@ auto syzygy::loadTextureFromFile(
         return std::nullopt;
     }
 
-    return std::optional<Asset<syzygy::Image>>{Asset<syzygy::Image>{
+    return std::optional<Asset<Image>>{Asset<Image>{
         .metadata =
             AssetMetadata{
                 .displayName = file.path.filename().string(),
                 .fileLocalPath = file.path.string(),
-                .id = szg::UUID::createNew(),
+                .id = syzygy::UUID::createNew(),
             },
         .data = std::move(uploadResult).value(),
     }};
 }
 
-void syzygy::AssetLibrary::registerAsset(Asset<syzygy::Image>&& asset)
+void AssetLibrary::registerAsset(Asset<Image>&& asset)
 {
     m_textures.push_back(std::move(asset));
 }
 
-auto syzygy::AssetLibrary::fetchAssets() -> std::vector<AssetRef<syzygy::Image>>
+auto AssetLibrary::fetchAssets() -> std::vector<AssetRef<Image>>
 {
-    std::vector<AssetRef<syzygy::Image>> assets{};
+    std::vector<AssetRef<Image>> assets{};
 
     assets.reserve(m_textures.size());
     for (auto& texture : m_textures)
@@ -588,17 +592,17 @@ auto syzygy::AssetLibrary::fetchAssets() -> std::vector<AssetRef<syzygy::Image>>
     return assets;
 }
 
-void syzygy::AssetLibrary::loadTexturesDialog(
+void AssetLibrary::loadTexturesDialog(
     PlatformWindow const& window,
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue& submissionQueue
 )
 {
-    if (auto const paths{syzygy::openFiles(window)}; !paths.empty())
+    if (auto const paths{openFiles(window)}; !paths.empty())
     {
         for (auto const& path : paths)
         {
-            auto textureLoadResult{syzygy::loadTextureFromFile(
+            auto textureLoadResult{loadTextureFromFile(
                 graphicsContext.device(),
                 graphicsContext.allocator(),
                 graphicsContext.universalQueue(),
@@ -615,3 +619,4 @@ void syzygy::AssetLibrary::loadTexturesDialog(
         }
     }
 }
+} // namespace syzygy

@@ -7,7 +7,7 @@ struct Image;
 }
 
 // All of these methods transition inputs, but not outputs
-namespace renderpass
+namespace syzygy
 {
 float constexpr DEPTH_FAR{0};
 VkClearDepthStencilValue constexpr DEPTH_FAR_STENCIL_NONE{
@@ -15,8 +15,6 @@ VkClearDepthStencilValue constexpr DEPTH_FAR_STENCIL_NONE{
 };
 VkClearColorValue constexpr COLOR_BLACK_OPAQUE{0.0, 0.0, 0.0, 1.0};
 
-void recordClearDepthImage(
-    VkCommandBuffer, syzygy::Image&, VkClearDepthStencilValue
-);
-void recordClearColorImage(VkCommandBuffer, syzygy::Image&, VkClearColorValue);
-} // namespace renderpass
+void recordClearDepthImage(VkCommandBuffer, Image&, VkClearDepthStencilValue);
+void recordClearColorImage(VkCommandBuffer, Image&, VkClearColorValue);
+} // namespace syzygy

@@ -77,7 +77,10 @@ auto toString(syzygy::KeyCode const key) -> std::string
 }
 } // namespace
 
-void syzygy::InputHandler::callbackKey_glfw(
+namespace syzygy
+{
+
+void InputHandler::callbackKey_glfw(
     GLFWwindow* window, int key, int scancode, int action, int mods
 )
 {
@@ -93,7 +96,7 @@ void syzygy::InputHandler::callbackKey_glfw(
     activeHandler->handleKey_glfw(key, scancode, action, mods);
 }
 
-void syzygy::InputHandler::callbackMouse_glfw(
+void InputHandler::callbackMouse_glfw(
     GLFWwindow* window, double xpos, double ypos
 )
 {
@@ -109,22 +112,22 @@ void syzygy::InputHandler::callbackMouse_glfw(
     activeHandler->handleMouse_glfw(xpos, ypos);
 }
 
-void syzygy::InputHandler::handleKey_glfw(
+void InputHandler::handleKey_glfw(
     int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/
 )
 {
-    std::optional<syzygy::KeyCode> const keyResult{toKeyCode_glfw(key)};
+    std::optional<KeyCode> const keyResult{toKeyCode_glfw(key)};
     if (!keyResult.has_value())
     {
         return;
     }
-    syzygy::KeyCode const keyCode{keyResult.value()};
+    KeyCode const keyCode{keyResult.value()};
 
     bool& isDown{m_keysNew.keysDown[static_cast<size_t>(keyCode)]};
     isDown = isDown_glfw(isDown, action);
 }
 
-void syzygy::InputHandler::handleMouse_glfw(double xpos, double ypos)
+void InputHandler::handleMouse_glfw(double xpos, double ypos)
 {
     m_cursorNew.position =
         glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
@@ -136,7 +139,7 @@ void syzygy::InputHandler::handleMouse_glfw(double xpos, double ypos)
     }
 }
 
-auto syzygy::InputHandler::collect() -> InputSnapshot
+auto InputHandler::collect() -> InputSnapshot
 {
     KeySnapshot keys{};
     for (size_t index{0}; index < m_keysNew.keysDown.size(); index++)
@@ -163,17 +166,17 @@ auto syzygy::InputHandler::collect() -> InputSnapshot
     };
 }
 
-void syzygy::InputHandler::setSkipNextCursorDelta(bool const skip)
+void InputHandler::setSkipNextCursorDelta(bool const skip)
 {
     m_skipNextCursorDelta = skip;
 }
 
-auto syzygy::KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
+auto KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
 {
     return keys[static_cast<size_t>(key)];
 }
 
-void syzygy::KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
+void KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
 {
     if (getStatus(key) == status)
     {
@@ -183,25 +186,25 @@ void syzygy::KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
     keys[static_cast<size_t>(key)] = status;
 }
 
-auto syzygy::KeyStatus::pressed() const -> bool { return down && edge; }
+auto KeyStatus::pressed() const -> bool { return down && edge; }
 
-auto syzygy::KeyStatus::operator==(KeyStatus const& other) const -> bool
+auto KeyStatus::operator==(KeyStatus const& other) const -> bool
 {
     return other.down == down && other.edge == edge;
 }
 
-auto syzygy::CursorSnapshot::delta() const -> glm::i32vec2
+auto CursorSnapshot::delta() const -> glm::i32vec2
 {
     return glm::i32vec2{currentPosition} - glm::i32vec2{lastPosition};
 }
 
-auto syzygy::InputSnapshot::format() const -> std::string
+auto InputSnapshot::format() const -> std::string
 {
     std::string output;
 
     for (size_t index{0}; index < keys.keys.size(); index++)
     {
-        syzygy::KeyCode const keyCode{static_cast<syzygy::KeyCode>(index)};
+        KeyCode const keyCode{static_cast<KeyCode>(index)};
 
         output += fmt::format(
             "{}: {:9}", toString(keyCode), toString(keys.getStatus(keyCode))
@@ -216,3 +219,4 @@ auto syzygy::InputSnapshot::format() const -> std::string
 
     return output;
 }
+} // namespace syzygy

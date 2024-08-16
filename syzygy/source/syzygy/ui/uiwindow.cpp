@@ -13,8 +13,10 @@ auto getWindowContent_imgui() -> syzygy::UIRectangle
 };
 } // namespace
 
-auto syzygy::UIWindow::beginMaximized(
-    std::string const& name, syzygy::UIRectangle const workArea
+namespace syzygy
+{
+auto UIWindow::beginMaximized(
+    std::string const& name, UIRectangle const workArea
 ) -> UIWindow
 {
     ImGui::SetNextWindowPos(workArea.pos());
@@ -34,7 +36,7 @@ auto syzygy::UIWindow::beginMaximized(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-auto syzygy::UIWindow::beginDockable(
+auto UIWindow::beginDockable(
     std::string const& name, std::optional<ImGuiID> const dockspace
 ) -> UIWindow
 {
@@ -53,19 +55,18 @@ auto syzygy::UIWindow::beginDockable(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-syzygy::UIWindow::UIWindow(UIWindow&& other) noexcept
+UIWindow::UIWindow(UIWindow&& other) noexcept
 {
-    screenRectangle =
-        std::exchange(other.screenRectangle, syzygy::UIRectangle{});
+    screenRectangle = std::exchange(other.screenRectangle, UIRectangle{});
     open = std::exchange(other.open, false);
 
     m_styleVariables = std::exchange(other.m_styleVariables, 0);
     m_initialized = std::exchange(other.m_initialized, false);
 }
 
-syzygy::UIWindow::~UIWindow() { end(); }
+UIWindow::~UIWindow() { end(); }
 
-void syzygy::UIWindow::end()
+void UIWindow::end()
 {
     if (!m_initialized)
     {
@@ -76,3 +77,4 @@ void syzygy::UIWindow::end()
     m_initialized = false;
     m_styleVariables = 0;
 }
+} // namespace syzygy

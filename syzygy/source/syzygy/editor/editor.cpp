@@ -51,10 +51,10 @@ struct UIResults
 
 struct EditorResources
 {
-    PlatformWindow window;
-    GraphicsContext graphics;
-    Swapchain swapchain;
-    FrameBuffer frameBuffer;
+    syzygy::PlatformWindow window;
+    syzygy::GraphicsContext graphics;
+    syzygy::Swapchain swapchain;
+    syzygy::FrameBuffer frameBuffer;
 };
 
 namespace
@@ -67,8 +67,8 @@ auto initialize() -> std::optional<EditorResources>
 
     glm::u16vec2 constexpr DEFAULT_WINDOW_EXTENT{1920, 1080};
 
-    std::optional<PlatformWindow> windowResult{
-        PlatformWindow::create(DEFAULT_WINDOW_EXTENT)
+    std::optional<syzygy::PlatformWindow> windowResult{
+        syzygy::PlatformWindow::create(DEFAULT_WINDOW_EXTENT)
     };
     if (!windowResult.has_value())
     {
@@ -80,21 +80,21 @@ auto initialize() -> std::optional<EditorResources>
 
     SZG_INFO("Creating Graphics Context...");
 
-    std::optional<GraphicsContext> graphicsResult{
-        GraphicsContext::create(windowResult.value())
+    std::optional<syzygy::GraphicsContext> graphicsResult{
+        syzygy::GraphicsContext::create(windowResult.value())
     };
     if (!graphicsResult.has_value())
     {
         SZG_ERROR("Failed to create graphics context.");
         return std::nullopt;
     }
-    GraphicsContext& graphicsContext{graphicsResult.value()};
+    syzygy::GraphicsContext& graphicsContext{graphicsResult.value()};
 
     SZG_INFO("Created Graphics Context.");
 
     SZG_INFO("Creating Swapchain...");
 
-    std::optional<Swapchain> swapchainResult{Swapchain::create(
+    std::optional<syzygy::Swapchain> swapchainResult{syzygy::Swapchain::create(
         graphicsContext.physicalDevice(),
         graphicsContext.device(),
         graphicsContext.surface(),
@@ -111,9 +111,11 @@ auto initialize() -> std::optional<EditorResources>
 
     SZG_INFO("Creating Frame Buffer...");
 
-    std::optional<FrameBuffer> frameBufferResult{FrameBuffer::create(
-        graphicsContext.device(), graphicsContext.universalQueueFamily()
-    )};
+    std::optional<syzygy::FrameBuffer> frameBufferResult{
+        syzygy::FrameBuffer::create(
+            graphicsContext.device(), graphicsContext.universalQueueFamily()
+        )
+    };
     if (!frameBufferResult.has_value())
     {
         SZG_ERROR("Failed to create FrameBuffer.");
@@ -141,11 +143,11 @@ auto defaultRefreshRate() -> float
     return static_cast<float>(videoModePrimary->refreshRate);
 }
 auto rebuildSwapchain(
-    Swapchain& old,
+    syzygy::Swapchain& old,
     VkPhysicalDevice const physicalDevice,
     VkDevice const device,
     VkSurfaceKHR const surface
-) -> std::optional<Swapchain>
+) -> std::optional<syzygy::Swapchain>
 {
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -170,13 +172,14 @@ auto rebuildSwapchain(
         newExtent.y
     );
 
-    std::optional<Swapchain> newSwapchain{Swapchain::create(
+    std::optional<syzygy::Swapchain> newSwapchain{syzygy::Swapchain::create(
         physicalDevice, device, surface, newExtent, old.swapchain()
     )};
 
     return newSwapchain;
 }
-auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
+auto beginFrame(syzygy::Frame const& currentFrame, VkDevice const device)
+    -> VkResult
 {
     uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
     if (VkResult const waitResult{vkWaitForFences(
@@ -224,8 +227,8 @@ auto beginFrame(Frame const& currentFrame, VkDevice const device) -> VkResult
 }
 
 auto endFrame(
-    Frame const& currentFrame,
-    Swapchain& swapchain,
+    syzygy::Frame const& currentFrame,
+    syzygy::Swapchain& swapchain,
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
@@ -591,8 +594,10 @@ void uiReload(VkDevice const device, syzygy::UIPreferences const preferences)
 }
 } // namespace
 
+namespace syzygy
+{
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto syzygy::run() -> EditorResult
+auto run() -> EditorResult
 {
     using namespace std::chrono_literals;
 
@@ -608,15 +613,13 @@ auto syzygy::run() -> EditorResult
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
 
     // Init input before imgui so it properly chains our callbacks
-    syzygy::InputHandler inputHandler{};
+    InputHandler inputHandler{};
     glfwSetWindowUserPointer(
         mainWindow.handle(), reinterpret_cast<void*>(&inputHandler)
     );
-    glfwSetKeyCallback(
-        mainWindow.handle(), syzygy::InputHandler::callbackKey_glfw
-    );
+    glfwSetKeyCallback(mainWindow.handle(), InputHandler::callbackKey_glfw);
     glfwSetCursorPosCallback(
-        mainWindow.handle(), syzygy::InputHandler::callbackMouse_glfw
+        mainWindow.handle(), InputHandler::callbackMouse_glfw
     );
     VkDescriptorPool const imguiPool{uiInit(
         graphicsContext.instance(),
@@ -629,25 +632,23 @@ auto syzygy::run() -> EditorResult
 
     // We oversize textures and use resizable subregion
     VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
-    std::optional<syzygy::SceneTexture> sceneTextureResult{
-        syzygy::SceneTexture::create(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.descriptorAllocator(),
-            TEXTURE_MAX,
-            VK_FORMAT_R16G16B16A16_SFLOAT
-        )
-    };
+    std::optional<SceneTexture> sceneTextureResult{SceneTexture::create(
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        graphicsContext.descriptorAllocator(),
+        TEXTURE_MAX,
+        VK_FORMAT_R16G16B16A16_SFLOAT
+    )};
     if (!sceneTextureResult.has_value())
     {
         SZG_ERROR("Failed to allocate scene texture");
         return EditorResult::ERROR;
     }
-    std::optional<std::unique_ptr<syzygy::ImageView>> windowTextureResult{
-        syzygy::ImageView::allocate(
+    std::optional<std::unique_ptr<ImageView>> windowTextureResult{
+        ImageView::allocate(
             graphicsContext.device(),
             graphicsContext.allocator(),
-            syzygy::ImageAllocationParameters{
+            ImageAllocationParameters{
                 .extent = TEXTURE_MAX,
                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usageFlags =
@@ -656,9 +657,9 @@ auto syzygy::run() -> EditorResult
                     | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
 
             },
-            syzygy::ImageViewAllocationParameters{
+            ImageViewAllocationParameters{
                 .subresourceRange =
-                    syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+                    imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
             }
         )
     };
@@ -704,12 +705,12 @@ auto syzygy::run() -> EditorResult
         return EditorResult::ERROR;
     }
 
-    syzygy::AssetLibrary assetLibrary{};
+    AssetLibrary assetLibrary{};
 
     // A test widget that can display a texture in a UI window
-    std::unique_ptr<syzygy::TextureDisplay> testImageWidget{};
-    if (std::optional<syzygy::TextureDisplay> textureDisplayResult{
-            syzygy::TextureDisplay::create(
+    std::unique_ptr<TextureDisplay> testImageWidget{};
+    if (std::optional<TextureDisplay> textureDisplayResult{
+            TextureDisplay::create(
                 graphicsContext.device(),
                 graphicsContext.allocator(),
                 graphicsContext.universalQueue(),
@@ -720,7 +721,7 @@ auto syzygy::run() -> EditorResult
         };
         textureDisplayResult.has_value())
     {
-        testImageWidget = std::make_unique<syzygy::TextureDisplay>(
+        testImageWidget = std::make_unique<TextureDisplay>(
             std::move(textureDisplayResult).value()
         );
     }
@@ -730,14 +731,14 @@ auto syzygy::run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    syzygy::Scene scene{syzygy::Scene::defaultScene(
+    Scene scene{Scene::defaultScene(
         graphicsContext.device(), graphicsContext.allocator(), meshAssets
     )};
 
-    syzygy::SceneTexture& sceneTexture = sceneTextureResult.value();
-    syzygy::ImageView& windowTexture = *windowTextureResult.value();
+    SceneTexture& sceneTexture = sceneTextureResult.value();
+    ImageView& windowTexture = *windowTextureResult.value();
 
-    std::optional<syzygy::Renderer> rendererResult{syzygy::Renderer::create(
+    std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
         graphicsContext.descriptorAllocator(),
@@ -748,9 +749,9 @@ auto syzygy::run() -> EditorResult
         SZG_ERROR("Unable to create Renderer.");
         return EditorResult::ERROR;
     }
-    syzygy::Renderer& renderer{rendererResult.value()};
+    Renderer& renderer{rendererResult.value()};
 
-    syzygy::UIPreferences uiPreferences{};
+    UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
     uiReload(graphicsContext.device(), uiPreferences);
 
@@ -780,7 +781,7 @@ auto syzygy::run() -> EditorResult
             continue;
         }
 
-        syzygy::InputSnapshot const inputSnapshot{inputHandler.collect()};
+        InputSnapshot const inputSnapshot{inputHandler.collect()};
 
         TickTiming const lastFrameTiming{
             .timeElapsedSeconds = timeSecondsCurrent,
@@ -814,27 +815,26 @@ auto syzygy::run() -> EditorResult
             uiReload(graphicsContext.device(), uiPreferences);
         }
 
-        UIResults const uiResults{
-            uiBegin(uiPreferences, syzygy::UIPreferences{})
-        };
+        UIResults const uiResults{uiBegin(uiPreferences, UIPreferences{})};
         uiReloadNecessary = uiResults.reloadRequested;
         renderer.uiEngineControls(uiResults.dockingLayout);
-        syzygy::performanceWindow(
+        performanceWindow(
             "Engine Performance",
             uiResults.dockingLayout.centerBottom,
             fpsHistory,
             fpsTarget
         );
-        syzygy::WindowResult<std::optional<syzygy::SceneViewport>> const
-            sceneViewport{syzygy::sceneViewportWindow(
+        WindowResult<std::optional<SceneViewport>> const sceneViewport{
+            sceneViewportWindow(
                 "Scene Viewport",
                 uiResults.dockingLayout.centerTop,
                 uiResults.hud.maximizeSceneViewport
                     ? uiResults.hud.workArea
-                    : std::optional<syzygy::UIRectangle>{},
+                    : std::optional<UIRectangle>{},
                 sceneTexture,
                 inputCapturedByScene
-            )};
+            )
+        };
         if (!inputCapturedByScene)
         {
             if (sceneViewport.focused)
@@ -850,7 +850,7 @@ auto syzygy::run() -> EditorResult
         }
         else
         {
-            if (inputSnapshot.keys.getStatus(syzygy::KeyCode::TAB).pressed())
+            if (inputSnapshot.keys.getStatus(KeyCode::TAB).pressed())
             {
                 ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
                 glfwSetInputMode(
@@ -877,7 +877,7 @@ auto syzygy::run() -> EditorResult
             }
         }
 
-        syzygy::sceneControlsWindow(
+        sceneControlsWindow(
             "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
         );
         uiEnd();
@@ -935,3 +935,4 @@ auto syzygy::run() -> EditorResult
 
     return EditorResult::SUCCESS;
 }
+} // namespace syzygy

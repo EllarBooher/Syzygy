@@ -15,6 +15,8 @@
 #include <spdlog/fmt/bundled/core.h>
 #include <string>
 
+namespace syzygy
+{
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 {
     auto const pipelineOrdering{std::to_array<RenderingPipelines>(
@@ -53,8 +55,7 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     }
 }
 
-template <>
-void imguiStructureControls<syzygy::DebugLines>(syzygy::DebugLines& structure)
+template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
 {
     bool const headerOpen{
         ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen)
@@ -108,9 +109,7 @@ void imguiStructureControls<syzygy::DebugLines>(syzygy::DebugLines& structure)
     );
 
     {
-        syzygy::DrawResultsGraphics const drawResults{
-            structure.lastFrameDrawResults
-        };
+        DrawResultsGraphics const drawResults{structure.lastFrameDrawResults};
 
         table.rowChildPropertyBegin("Draw Results")
             .rowReadOnlyInteger(
@@ -131,8 +130,8 @@ void imguiStructureControls<syzygy::DebugLines>(syzygy::DebugLines& structure)
 
 template <>
 void imguiStructureControls(
-    syzygy::ShadowPassParameters& structure,
-    syzygy::ShadowPassParameters const& defaultStructure
+    ShadowPassParameters& structure,
+    ShadowPassParameters const& defaultStructure
 )
 {
     bool const headerOpen{ImGui::CollapsingHeader(
@@ -166,3 +165,4 @@ void imguiStructureControls(
         )
         .end();
 }
+} // namespace syzygy

@@ -23,27 +23,24 @@ auto GBuffer::create(
 {
     DeletionQueue cleanupCallbacks{};
 
-    syzygy::ImageAllocationParameters const imageParameters{
+    ImageAllocationParameters const imageParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    syzygy::ImageAllocationParameters const worldPositionParameters{
+    ImageAllocationParameters const worldPositionParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    syzygy::ImageViewAllocationParameters const viewParameters{
-        .subresourceRange =
-            syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+    ImageViewAllocationParameters const viewParameters{
+        .subresourceRange = imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
 
-    std::optional<std::unique_ptr<syzygy::ImageView>> diffuseResult{
-        syzygy::ImageView::allocate(
-            device, allocator, imageParameters, viewParameters
-        )
+    std::optional<std::unique_ptr<ImageView>> diffuseResult{
+        ImageView::allocate(device, allocator, imageParameters, viewParameters)
     };
     if (!diffuseResult.has_value() || diffuseResult.value() == nullptr)
     {
@@ -51,10 +48,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<syzygy::ImageView>> specularResult{
-        syzygy::ImageView::allocate(
-            device, allocator, imageParameters, viewParameters
-        )
+    std::optional<std::unique_ptr<ImageView>> specularResult{
+        ImageView::allocate(device, allocator, imageParameters, viewParameters)
     };
     if (!specularResult.has_value() || specularResult.value() == nullptr)
     {
@@ -62,10 +57,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<syzygy::ImageView>> normalResult{
-        syzygy::ImageView::allocate(
-            device, allocator, imageParameters, viewParameters
-        )
+    std::optional<std::unique_ptr<ImageView>> normalResult{
+        ImageView::allocate(device, allocator, imageParameters, viewParameters)
     };
     if (!normalResult.has_value() || normalResult.value() == nullptr)
     {
@@ -73,8 +66,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<syzygy::ImageView>> positionResult{
-        syzygy::ImageView::allocate(
+    std::optional<std::unique_ptr<ImageView>> positionResult{
+        ImageView::allocate(
             device, allocator, worldPositionParameters, viewParameters
         )
     };
@@ -96,7 +89,7 @@ auto GBuffer::create(
     );
 
     {
-        VkSamplerCreateInfo const samplerInfo{syzygy::samplerCreateInfo(
+        VkSamplerCreateInfo const samplerInfo{samplerCreateInfo(
             0,
             VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
             VK_FILTER_NEAREST,

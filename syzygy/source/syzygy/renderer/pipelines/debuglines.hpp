@@ -9,13 +9,16 @@
 #include <glm/vec3.hpp>
 #include <memory>
 
+namespace syzygy
+{
 struct Vertex;
+}
 
 namespace syzygy
 {
 struct DebugLines
 {
-    // TODO: Split this up into 3 segments: the pipeline, the line segment
+    // TODO: Split this WORLD_UP into 3 segments: the pipeline, the line segment
     // buffers, and the configuration.
 public:
     std::unique_ptr<TStagedBuffer<Vertex>> vertices{};

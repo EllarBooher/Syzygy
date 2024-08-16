@@ -17,22 +17,23 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
+namespace syzygy
+{
+template <typename T> struct TStagedBuffer;
+}
+
+namespace syzygy
+{
 enum class RenderingPipelines
 {
     DEFERRED = 0,
     COMPUTE_COLLECTION = 1
 };
 
-namespace syzygy
-{
-template <typename T> struct TStagedBuffer;
-}
-
 struct MeshInstances
 {
-    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> modelInverseTransposes{
-    };
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 
     std::vector<glm::mat4x4> originals{};
 
@@ -84,3 +85,4 @@ private:
     size_t m_index{0};
     bool m_saturated{false};
 };
+} // namespace syzygy

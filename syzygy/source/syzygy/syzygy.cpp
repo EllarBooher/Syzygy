@@ -4,7 +4,9 @@
 #include "syzygy/editor/editor.hpp"
 #include <GLFW/glfw3.h>
 
-auto syzygy::runApplication() -> syzygy::RunResult
+namespace syzygy
+{
+auto runApplication() -> RunResult
 {
     if (glfwInit() != GLFW_TRUE)
     {
@@ -12,9 +14,9 @@ auto syzygy::runApplication() -> syzygy::RunResult
         return RunResult::FAILURE;
     }
 
-    syzygy::Logger::initLogging();
+    Logger::initLogging();
 
-    EditorResult const runResult{syzygy::run()};
+    EditorResult const runResult{run()};
 
     glfwTerminate();
 
@@ -25,3 +27,4 @@ auto syzygy::runApplication() -> syzygy::RunResult
 
     return RunResult::SUCCESS;
 }
+} // namespace syzygy

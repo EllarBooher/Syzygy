@@ -6,6 +6,8 @@
 #include <optional>
 #include <utility>
 
+namespace syzygy
+{
 struct ImmediateSubmissionQueue
 {
 public:
@@ -59,3 +61,4 @@ private:
     VkCommandPool m_commandPool{VK_NULL_HANDLE};
     VkCommandBuffer m_commandBuffer{VK_NULL_HANDLE};
 };
+} // namespace syzygy

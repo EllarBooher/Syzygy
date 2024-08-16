@@ -9,7 +9,10 @@
 namespace syzygy
 {
 struct DescriptorAllocator;
+}
 
+namespace syzygy
+{
 struct GBuffer
 {
     std::unique_ptr<ImageView> diffuseColor{};

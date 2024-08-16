@@ -5,6 +5,8 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <utility>
 
+namespace syzygy
+{
 auto Swapchain::operator=(Swapchain&& other) noexcept -> Swapchain&
 {
     destroy();
@@ -164,3 +166,4 @@ auto Swapchain::imageViews() const -> std::span<VkImageView const>
 }
 
 auto Swapchain::extent() const -> VkExtent2D { return m_extent; }
+} // namespace syzygy

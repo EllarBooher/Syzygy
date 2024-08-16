@@ -4,6 +4,8 @@
 #include <deque>
 #include <functional>
 
+namespace syzygy
+{
 class DeletionQueue
 {
 public:
@@ -35,3 +37,4 @@ public:
 private:
     std::deque<std::function<void()>> cleanupCallbacks{};
 };
+} // namespace syzygy

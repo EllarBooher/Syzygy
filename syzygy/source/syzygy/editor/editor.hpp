@@ -1,12 +1,11 @@
 #pragma once
 
+namespace syzygy
+{
 enum class EditorResult
 {
     SUCCESS,
     ERROR,
 };
-
-namespace syzygy
-{
 auto run() -> EditorResult;
-}
+} // namespace syzygy

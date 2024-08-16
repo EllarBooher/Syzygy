@@ -13,10 +13,15 @@
 #include <variant>
 #include <vector>
 
-struct GraphicsContext;
+namespace syzygy
+{
 struct PlatformWindow;
+struct GraphicsContext;
 struct ImmediateSubmissionQueue;
+} // namespace syzygy
 
+namespace syzygy
+{
 // An interval of indices from an index buffer.
 struct GeometrySurface
 {
@@ -40,12 +45,10 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     VkDevice,
     VmaAllocator,
     VkQueue transferQueue,
-    ImmediateSubmissionQueue const& submissionQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path
 );
 
-namespace syzygy
-{
 struct AssetFile
 {
     std::filesystem::path path{};
@@ -58,7 +61,7 @@ struct AssetMetadata
 {
     std::string displayName{};
     std::string fileLocalPath{};
-    szg::UUID id{};
+    syzygy::UUID id{};
 };
 
 template <typename T> struct Asset

@@ -9,9 +9,9 @@
 namespace syzygy
 {
 struct Scene;
-}
 struct MeshAssetLibrary;
 struct RingBuffer;
+} // namespace syzygy
 
 // A collection of syzygy widgets that are free standing functions.
 

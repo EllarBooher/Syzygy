@@ -34,7 +34,9 @@ void renderPreferences(
 }
 } // namespace
 
-auto syzygy::renderHUD(UIPreferences& preferences) -> syzygy::HUDState
+namespace syzygy
+{
+auto renderHUD(UIPreferences& preferences) -> HUDState
 {
     HUDState hud{};
 
@@ -130,3 +132,4 @@ auto syzygy::renderHUD(UIPreferences& preferences) -> syzygy::HUDState
 
     return hud;
 }
+} // namespace syzygy

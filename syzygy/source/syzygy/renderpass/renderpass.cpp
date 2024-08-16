@@ -2,9 +2,11 @@
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 
-void renderpass::recordClearDepthImage(
+namespace syzygy
+{
+void recordClearDepthImage(
     VkCommandBuffer const cmd,
-    syzygy::Image& depth,
+    Image& depth,
     VkClearDepthStencilValue const value
 )
 {
@@ -13,17 +15,15 @@ void renderpass::recordClearDepthImage(
     );
 
     VkImageSubresourceRange const range{
-        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+        imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
     };
     vkCmdClearDepthStencilImage(
         cmd, depth.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range
     );
 }
 
-void renderpass::recordClearColorImage(
-    VkCommandBuffer const cmd,
-    syzygy::Image& color,
-    VkClearColorValue const value
+void recordClearColorImage(
+    VkCommandBuffer const cmd, Image& color, VkClearColorValue const value
 )
 {
     color.recordTransitionBarriered(
@@ -31,9 +31,10 @@ void renderpass::recordClearColorImage(
     );
 
     VkImageSubresourceRange const range{
-        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+        imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
     vkCmdClearColorImage(
         cmd, color.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range
     );
 }
+} // namespace syzygy

@@ -3,9 +3,10 @@
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui_internal.h>
 
-auto syzygy::buildDefaultMultiWindowLayout(
-    syzygy::UIRectangle workArea, ImGuiID parentNode
-) -> syzygy::DockingLayout
+namespace syzygy
+{
+auto buildDefaultMultiWindowLayout(UIRectangle workArea, ImGuiID parentNode)
+    -> DockingLayout
 {
     ImGui::DockBuilderAddNode(parentNode);
 
@@ -38,3 +39,4 @@ auto syzygy::buildDefaultMultiWindowLayout(
         .centerTop = centerTopID,
     };
 }
+} // namespace syzygy

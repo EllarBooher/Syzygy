@@ -14,8 +14,8 @@
 namespace syzygy
 {
 struct Image;
-} // namespace syzygy
 struct ImmediateSubmissionQueue;
+} // namespace syzygy
 
 namespace syzygy
 {

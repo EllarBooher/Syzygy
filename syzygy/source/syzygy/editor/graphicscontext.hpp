@@ -6,8 +6,13 @@
 #include <memory>
 #include <optional>
 
+namespace syzygy
+{
 struct PlatformWindow;
+}
 
+namespace syzygy
+{
 // Holds the fundamental Vulkan resources.
 struct GraphicsContext
 {
@@ -47,3 +52,4 @@ private:
     VmaAllocator m_allocator{VK_NULL_HANDLE};
     std::unique_ptr<syzygy::DescriptorAllocator> m_descriptorAllocator{};
 };
+} // namespace syzygy

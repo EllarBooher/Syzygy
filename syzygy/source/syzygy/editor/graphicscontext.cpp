@@ -79,6 +79,8 @@ auto createAllocator(
 }
 } // namespace
 
+namespace syzygy
+{
 GraphicsContext::GraphicsContext(GraphicsContext&& other) noexcept
 {
     m_instance = std::exchange(other.m_instance, VK_NULL_HANDLE);
@@ -304,3 +306,4 @@ void GraphicsContext::destroy()
     m_debugMessenger = VK_NULL_HANDLE;
     m_surface = VK_NULL_HANDLE;
 }
+} // namespace syzygy

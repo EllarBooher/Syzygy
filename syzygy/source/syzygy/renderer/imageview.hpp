@@ -33,6 +33,7 @@ struct ImageViewMemory
     VkImageViewCreateInfo viewCreateInfo{};
     VkImageView view{VK_NULL_HANDLE};
 };
+
 struct ImageView
 {
 public:

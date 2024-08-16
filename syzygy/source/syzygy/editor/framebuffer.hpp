@@ -5,6 +5,8 @@
 #include <optional>
 #include <vector>
 
+namespace syzygy
+{
 struct Frame
 {
     VkCommandPool commandPool{VK_NULL_HANDLE};
@@ -52,3 +54,4 @@ private:
     std::vector<Frame> m_frames{};
     size_t m_frameNumber{0};
 };
+} // namespace syzygy

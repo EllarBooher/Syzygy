@@ -2,7 +2,7 @@
 
 #include "syzygy/core/integer.hpp"
 
-namespace szg
+namespace syzygy
 {
 struct UUID
 {
@@ -15,15 +15,15 @@ public:
 private:
     uint64_t m_uuid{0};
 };
-} // namespace szg
+} // namespace syzygy
 
 namespace std
 {
 template <typename T> struct hash;
 
-template <> struct hash<szg::UUID>
+template <> struct hash<syzygy::UUID>
 {
-    auto operator()(szg::UUID const& uuid) const -> std::size_t
+    auto operator()(syzygy::UUID const& uuid) const -> std::size_t
     {
         return static_cast<uint64_t>(uuid);
     }

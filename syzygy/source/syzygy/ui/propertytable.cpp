@@ -8,6 +8,8 @@
 #include <spdlog/fmt/bundled/core.h>
 #include <unordered_map>
 
+namespace syzygy
+{
 void PropertyTable::nameColumn(std::string const& name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
@@ -304,7 +306,8 @@ auto PropertyTable::rowTextInput(
 }
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
-// up the parameters, since name is first across all Property table row methods.
+// WORLD_UP the parameters, since name is first across all Property table row
+// methods.
 
 auto PropertyTable::rowReadOnlyTextInput(
     std::string const& name, std::string const& value, bool const multiline
@@ -760,3 +763,4 @@ void PropertyTable::demoWindow(bool& open)
 
     ImGui::End(); // End window
 }
+} // namespace syzygy

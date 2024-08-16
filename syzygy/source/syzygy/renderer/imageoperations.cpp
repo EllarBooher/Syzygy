@@ -5,7 +5,9 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/gtx/compatibility.hpp>
 
-void syzygy::transitionImage(
+namespace syzygy
+{
+void transitionImage(
     VkCommandBuffer const cmd,
     VkImage const image,
     VkImageLayout const oldLayout,
@@ -27,7 +29,7 @@ void syzygy::transitionImage(
         .newLayout = newLayout,
 
         .image = image,
-        .subresourceRange = syzygy::imageSubresourceRange(aspects),
+        .subresourceRange = imageSubresourceRange(aspects),
     };
 
     VkDependencyInfo const depInfo{
@@ -40,7 +42,7 @@ void syzygy::transitionImage(
     vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-void syzygy::recordCopyImageToImage(
+void recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const source,
     VkImage const destination,
@@ -53,15 +55,13 @@ void syzygy::recordCopyImageToImage(
     VkImageBlit2 const blitRegion{
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
-        .srcSubresource =
-            syzygy::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .srcSubresource = imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .srcOffsets =
             {
                 srcMin,
                 srcMax,
             },
-        .dstSubresource =
-            syzygy::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .dstSubresource = imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .dstOffsets =
             {
                 dstMin,
@@ -84,7 +84,7 @@ void syzygy::recordCopyImageToImage(
     vkCmdBlitImage2(cmd, &blitInfo);
 }
 
-void syzygy::recordCopyImageToImage(
+void recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const source,
     VkImage const destination,
@@ -113,12 +113,12 @@ void syzygy::recordCopyImageToImage(
         .z = 1,
     };
 
-    syzygy::recordCopyImageToImage(
+    recordCopyImageToImage(
         cmd, source, destination, srcMin, srcMax, dstMin, dstMax
     );
 }
 
-auto syzygy::aspectRatio(VkExtent2D const extent) -> std::optional<double>
+auto aspectRatio(VkExtent2D const extent) -> std::optional<double>
 {
     auto const width{static_cast<float>(extent.width)};
     auto const height{static_cast<float>(extent.height)};
@@ -126,7 +126,7 @@ auto syzygy::aspectRatio(VkExtent2D const extent) -> std::optional<double>
     return aspectRatio(glm::vec2{width, height});
 }
 
-auto syzygy::aspectRatio(glm::vec2 extent) -> std::optional<double>
+auto aspectRatio(glm::vec2 extent) -> std::optional<double>
 {
     double const rawAspectRatio = extent.x / extent.y;
 
@@ -138,7 +138,7 @@ auto syzygy::aspectRatio(glm::vec2 extent) -> std::optional<double>
     return rawAspectRatio;
 }
 
-void syzygy::recordCopyImageToImage(
+void recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const src,
     VkImage const dst,
@@ -152,10 +152,9 @@ void syzygy::recordCopyImageToImage(
     VkImageBlit2 const blitRegion{
         .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
         .pNext = nullptr,
-        .srcSubresource = syzygy::imageSubresourceLayers(aspectMask),
+        .srcSubresource = imageSubresourceLayers(aspectMask),
         .srcOffsets = {srcMin, srcMax},
-        .dstSubresource =
-            syzygy::imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
+        .dstSubresource = imageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0),
         .dstOffsets = {dstMin, dstMax},
     };
 
@@ -176,7 +175,7 @@ void syzygy::recordCopyImageToImage(
     vkCmdBlitImage2(cmd, &blitInfo);
 }
 
-void syzygy::recordCopyImageToImage(
+void recordCopyImageToImage(
     VkCommandBuffer const cmd,
     VkImage const src,
     VkImage const dst,
@@ -185,7 +184,7 @@ void syzygy::recordCopyImageToImage(
     VkExtent3D const dstExtent
 )
 {
-    syzygy::recordCopyImageToImage(
+    recordCopyImageToImage(
         cmd,
         src,
         dst,
@@ -204,3 +203,4 @@ void syzygy::recordCopyImageToImage(
         }
     );
 }
+} // namespace syzygy

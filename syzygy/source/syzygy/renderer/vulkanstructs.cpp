@@ -1,7 +1,8 @@
 #include "vulkanstructs.hpp"
 
-auto syzygy::fenceCreateInfo(VkFenceCreateFlags const flags)
-    -> VkFenceCreateInfo
+namespace syzygy
+{
+auto fenceCreateInfo(VkFenceCreateFlags const flags) -> VkFenceCreateInfo
 {
     return {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -10,7 +11,7 @@ auto syzygy::fenceCreateInfo(VkFenceCreateFlags const flags)
     };
 }
 
-auto syzygy::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
+auto semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     -> VkSemaphoreCreateInfo
 {
     return {
@@ -20,7 +21,7 @@ auto syzygy::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     };
 }
 
-auto syzygy::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
+auto commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     -> VkCommandBufferBeginInfo
 {
     return {
@@ -31,7 +32,7 @@ auto syzygy::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     };
 }
 
-auto syzygy::imageSubresourceRange(VkImageAspectFlags const aspectMask)
+auto imageSubresourceRange(VkImageAspectFlags const aspectMask)
     -> VkImageSubresourceRange
 {
     return {
@@ -43,7 +44,7 @@ auto syzygy::imageSubresourceRange(VkImageAspectFlags const aspectMask)
     };
 }
 
-auto syzygy::imageSubresourceLayers(
+auto imageSubresourceLayers(
     VkImageAspectFlags const aspectMask,
     uint32_t const mipLevel,
     uint32_t const baseArrayLayer,
@@ -58,7 +59,7 @@ auto syzygy::imageSubresourceLayers(
     };
 }
 
-auto syzygy::semaphoreSubmitInfo(
+auto semaphoreSubmitInfo(
     VkPipelineStageFlags2 const stageMask, VkSemaphore const semaphore
 ) -> VkSemaphoreSubmitInfo
 {
@@ -72,7 +73,7 @@ auto syzygy::semaphoreSubmitInfo(
     };
 }
 
-auto syzygy::commandBufferSubmitInfo(VkCommandBuffer const cmd)
+auto commandBufferSubmitInfo(VkCommandBuffer const cmd)
     -> VkCommandBufferSubmitInfo
 {
     return {
@@ -83,7 +84,7 @@ auto syzygy::commandBufferSubmitInfo(VkCommandBuffer const cmd)
     };
 }
 
-auto syzygy::submitInfo(
+auto submitInfo(
     std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
     std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
     std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
@@ -108,7 +109,7 @@ auto syzygy::submitInfo(
     };
 }
 
-auto syzygy::imageCreateInfo(
+auto imageCreateInfo(
     VkFormat const format,
     VkImageLayout const initialLayout,
     VkImageUsageFlags const usageMask,
@@ -143,7 +144,7 @@ auto syzygy::imageCreateInfo(
     };
 }
 
-auto syzygy::samplerCreateInfo(
+auto samplerCreateInfo(
     VkSamplerCreateFlags const flags,
     VkBorderColor const borderColor,
     VkFilter const filter,
@@ -182,7 +183,7 @@ auto syzygy::samplerCreateInfo(
     };
 }
 
-auto syzygy::imageViewCreateInfo(
+auto imageViewCreateInfo(
     VkFormat const format,
     VkImage const image,
     VkImageAspectFlags const aspectFlags
@@ -197,11 +198,11 @@ auto syzygy::imageViewCreateInfo(
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
-        .subresourceRange = syzygy::imageSubresourceRange(aspectFlags),
+        .subresourceRange = imageSubresourceRange(aspectFlags),
     };
 }
 
-auto syzygy::renderingAttachmentInfo(
+auto renderingAttachmentInfo(
     VkImageView const view,
     VkImageLayout const layout,
     std::optional<VkClearValue> const clearValue
@@ -220,7 +221,7 @@ auto syzygy::renderingAttachmentInfo(
     };
 }
 
-auto syzygy::renderingInfo(
+auto renderingInfo(
     VkRect2D const drawRect,
     std::span<VkRenderingAttachmentInfo const> const colorAttachments,
     VkRenderingAttachmentInfo const* const pDepthAttachment
@@ -243,7 +244,7 @@ auto syzygy::renderingInfo(
     };
 }
 
-auto syzygy::pipelineShaderStageCreateInfo(
+auto pipelineShaderStageCreateInfo(
     VkShaderStageFlagBits const stage,
     VkShaderModule const module,
     std::string const& entryPoint
@@ -261,7 +262,7 @@ auto syzygy::pipelineShaderStageCreateInfo(
     };
 }
 
-auto syzygy::pipelineLayoutCreateInfo(
+auto pipelineLayoutCreateInfo(
     VkPipelineLayoutCreateFlags const flags,
     std::span<VkDescriptorSetLayout const> const layouts,
     std::span<VkPushConstantRange const> const ranges
@@ -280,3 +281,4 @@ auto syzygy::pipelineLayoutCreateInfo(
         .pPushConstantRanges = ranges.data(),
     };
 }
+} // namespace syzygy

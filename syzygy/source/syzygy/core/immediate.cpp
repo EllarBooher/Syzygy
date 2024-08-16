@@ -4,6 +4,8 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <vector>
 
+namespace syzygy
+{
 auto ImmediateSubmissionQueue::operator=(ImmediateSubmissionQueue&& other
 ) noexcept -> ImmediateSubmissionQueue&
 {
@@ -95,9 +97,9 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         SubmissionResult::FAILED
     );
 
-    VkCommandBufferBeginInfo const cmdBeginInfo{syzygy::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
+    VkCommandBufferBeginInfo const cmdBeginInfo{
+        commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
+    };
 
     SZG_TRY_VK(
         vkBeginCommandBuffer(m_commandBuffer, &cmdBeginInfo),
@@ -114,7 +116,7 @@ auto ImmediateSubmissionQueue::immediateSubmit(
     );
 
     VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        syzygy::commandBufferSubmitInfo(m_commandBuffer)
+        commandBufferSubmitInfo(m_commandBuffer)
     };
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
     VkSubmitInfo2 const submitInfo{syzygy::submitInfo(cmdSubmitInfos, {}, {})};
@@ -164,3 +166,4 @@ void ImmediateSubmissionQueue::destroy()
     m_commandPool = VK_NULL_HANDLE;
     m_commandBuffer = VK_NULL_HANDLE;
 }
+} // namespace syzygy

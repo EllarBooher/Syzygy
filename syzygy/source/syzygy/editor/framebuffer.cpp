@@ -9,12 +9,12 @@
 namespace
 {
 auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
-    -> std::optional<Frame>
+    -> std::optional<syzygy::Frame>
 {
-    std::optional<Frame> frameResult{std::in_place};
-    Frame& frame{frameResult.value()};
+    std::optional<syzygy::Frame> frameResult{std::in_place};
+    syzygy::Frame& frame{frameResult.value()};
 
-    DeletionQueue cleanupCallbacks{};
+    syzygy::DeletionQueue cleanupCallbacks{};
     cleanupCallbacks.pushFunction([&]() { frame.destroy(device); });
 
     VkCommandPoolCreateInfo const commandPoolInfo{
@@ -95,6 +95,8 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
 }
 } // namespace
 
+namespace syzygy
+{
 void Frame::destroy(VkDevice const device)
 {
     vkDestroyCommandPool(device, commandPool, nullptr);
@@ -177,3 +179,4 @@ void FrameBuffer::destroy()
     m_frames.clear();
     m_frameNumber = 0;
 }
+} // namespace syzygy

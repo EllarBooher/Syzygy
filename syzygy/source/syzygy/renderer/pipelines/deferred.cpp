@@ -398,6 +398,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         );
     }
 }
+} // namespace syzygy
 
 namespace
 {
@@ -457,14 +458,14 @@ auto collectGeometryCullFlags(
     VkCommandBuffer const cmd,
     VkPipelineStageFlags2 const bufferAccessStages,
     std::span<syzygy::MeshInstanced const> meshes
-) -> std::vector<RenderOverride>
+) -> std::vector<syzygy::RenderOverride>
 {
-    std::vector<RenderOverride> renderOverrides{};
+    std::vector<syzygy::RenderOverride> renderOverrides{};
     renderOverrides.reserve(meshes.size());
 
     for (syzygy::MeshInstanced const& instance : meshes)
     {
-        RenderOverride const override{
+        syzygy::RenderOverride const override{
             .render = instance.render && instance.mesh != nullptr
                    && instance.mesh->meshBuffers != nullptr
                    && instance.models != nullptr
@@ -490,18 +491,20 @@ auto collectGeometryCullFlags(
 }
 } // namespace
 
+namespace syzygy
+{
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    syzygy::Image& color,
-    syzygy::ImageView& depth,
-    std::span<syzygy::DirectionalLightPacked const> const directionalLights,
-    std::span<syzygy::SpotLightPacked const> const spotLights,
+    Image& color,
+    ImageView& depth,
+    std::span<DirectionalLightPacked const> const directionalLights,
+    std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
-    TStagedBuffer<syzygy::CameraPacked> const& cameras,
+    TStagedBuffer<CameraPacked> const& cameras,
     uint32_t const atmosphereIndex,
-    TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
-    std::span<syzygy::MeshInstanced const> sceneGeometry
+    TStagedBuffer<AtmospherePacked> const& atmospheres,
+    std::span<MeshInstanced const> sceneGeometry
 )
 {
     VkPipelineStageFlags2 constexpr GBUFFER_ACCESS_STAGES{
@@ -584,19 +587,19 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
 
         std::array<VkRenderingAttachmentInfo, 4> const gBufferAttachments{
-            syzygy::renderingAttachmentInfo(
+            renderingAttachmentInfo(
                 m_gBuffer.diffuseColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            syzygy::renderingAttachmentInfo(
+            renderingAttachmentInfo(
                 m_gBuffer.specularColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            syzygy::renderingAttachmentInfo(
+            renderingAttachmentInfo(
                 m_gBuffer.normal->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            syzygy::renderingAttachmentInfo(
+            renderingAttachmentInfo(
                 m_gBuffer.worldPosition->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             )
@@ -636,7 +639,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
-        VkRenderingInfo const renderInfo{syzygy::renderingInfo(
+        VkRenderingInfo const renderInfo{renderingInfo(
             VkRect2D{.extent{drawRect.extent}},
             gBufferAttachments,
             &depthAttachment
@@ -686,7 +689,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         for (size_t index{0}; index < sceneGeometry.size(); index++)
         {
-            syzygy::MeshInstanced const& instance{sceneGeometry[index]};
+            MeshInstanced const& instance{sceneGeometry[index]};
 
             bool render{instance.render};
             if (index < renderOverrides.size())
@@ -758,9 +761,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdEndRendering(cmd);
     }
 
-    renderpass::recordClearColorImage(
-        cmd, color, renderpass::COLOR_BLACK_OPAQUE
-    );
+    recordClearColorImage(cmd, color, COLOR_BLACK_OPAQUE);
 
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
@@ -916,7 +917,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .z = 1
         };
 
-        syzygy::Image::recordCopyRect(
+        Image::recordCopyRect(
             cmd,
             m_drawImage->image(),
             color,
@@ -930,7 +931,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, syzygy::ImageView& depthImage
+    VkDevice const device, ImageView& depthImage
 )
 {
     VkDescriptorImageInfo const depthImageInfo{

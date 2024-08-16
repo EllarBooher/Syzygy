@@ -28,6 +28,8 @@
 #include <span>
 #include <utility>
 
+namespace syzygy
+{
 /*
  * Values derived from:
  * https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
@@ -35,25 +37,22 @@
  * Account Atmospheric Scattering" by Tomoyuki Nishita, Takao Sirai, Katsumi
  * Tadamura, Eihachiro Nakamae
  */
-syzygy::Atmosphere const syzygy::Scene::DEFAULT_ATMOSPHERE_EARTH{
-    syzygy::Atmosphere{
-        .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
+Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
+    .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
-        .earthRadiusMeters = 6378000,
-        .atmosphereRadiusMeters = 6420000,
+    .earthRadiusMeters = 6378000,
+    .atmosphereRadiusMeters = 6420000,
 
-        .groundColor = glm::vec3{0.9, 0.8, 0.6},
+    .groundColor = glm::vec3{0.9, 0.8, 0.6},
 
-        .scatteringCoefficientRayleigh =
-            glm::vec3(0.0000038, 0.0000135, 0.0000331),
-        .altitudeDecayRayleigh = 7994.0,
+    .scatteringCoefficientRayleigh = glm::vec3(0.0000038, 0.0000135, 0.0000331),
+    .altitudeDecayRayleigh = 7994.0,
 
-        .scatteringCoefficientMie = glm::vec3(0.000021),
-        .altitudeDecayMie = 1200.0,
-    }
-};
+    .scatteringCoefficientMie = glm::vec3(0.000021),
+    .altitudeDecayMie = 1200.0,
+}};
 
-syzygy::Camera const syzygy::Scene::DEFAULT_CAMERA{syzygy::Camera{
+Camera const Scene::DEFAULT_CAMERA{Camera{
     .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
     .eulerAngles = glm::vec3(0.0F, 0.0F, 0.0F),
     .fovDegrees = 70.0F,
@@ -61,24 +60,22 @@ syzygy::Camera const syzygy::Scene::DEFAULT_CAMERA{syzygy::Camera{
     .far = 10000.0F,
 }};
 
-float const syzygy::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
+float const Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
-syzygy::SunAnimation const syzygy::Scene::DEFAULT_SUN_ANIMATION{
-    syzygy::SunAnimation{
-        .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
-    }
-};
+SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
+    .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
+}};
 
-float const syzygy::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
+float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
-auto syzygy::Scene::defaultScene(
+auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     MeshAssetLibrary const& meshes
 ) -> Scene
 {
-    std::vector<syzygy::SpotLightPacked> const spotlights{
-        syzygy::makeSpot(
+    std::vector<SpotLightPacked> const spotlights{
+        makeSpot(
             glm::vec4(0.0, 1.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -90,7 +87,7 @@ auto syzygy::Scene::defaultScene(
             0.1,
             1000.0
         ),
-        syzygy::makeSpot(
+        makeSpot(
             glm::vec4(1.0, 0.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -140,18 +137,17 @@ auto syzygy::Scene::defaultScene(
                 static_cast<VkDeviceSize>(floorGeometry.originals.size())
             };
 
-            floorGeometry.models =
-                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
-                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
-                        device,
-                        allocator,
-                        bufferSize,
-                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                    )
-                );
+            floorGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    allocator,
+                    bufferSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                )
+            );
             floorGeometry.modelInverseTransposes =
-                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
-                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                    TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -185,7 +181,7 @@ auto syzygy::Scene::defaultScene(
                     glm::vec3 const position{
                         static_cast<float>(x), -4.0, static_cast<float>(z)
                     };
-                    glm::quat const orientation{syzygy::randomQuat()};
+                    glm::quat const orientation{randomQuat()};
                     glm::vec3 const scale{0.2F};
 
                     cubeGeometry.originals.push_back(
@@ -199,18 +195,17 @@ auto syzygy::Scene::defaultScene(
                 static_cast<VkDeviceSize>(cubeGeometry.originals.size())
             };
 
-            cubeGeometry.models =
-                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
-                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
-                        device,
-                        allocator,
-                        bufferSize,
-                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                    )
-                );
+            cubeGeometry.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    allocator,
+                    bufferSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                )
+            );
             cubeGeometry.modelInverseTransposes =
-                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
-                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                    TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -248,9 +243,7 @@ auto syzygy::Scene::defaultScene(
     };
 }
 
-void syzygy::Scene::handleInput(
-    TickTiming const lastFrame, syzygy::InputSnapshot const& input
-)
+void Scene::handleInput(TickTiming const lastFrame, InputSnapshot const& input)
 {
     glm::vec2 const cursorDelta{input.cursor.delta()};
 
@@ -258,10 +251,10 @@ void syzygy::Scene::handleInput(
         cursorDelta.x / 100.0F, cursorDelta.y / 200.0F
     };
 
-    // left to right
+    // left to WORLD_RIGHT
     camera.eulerAngles.z += adjustedCursorDelta.x;
 
-    // up and down, avoid flipping camera
+    // WORLD_UP and down, avoid flipping camera
     camera.eulerAngles.x = glm::clamp(
         camera.eulerAngles.x - adjustedCursorDelta.y,
         -glm::half_pi<float>(),
@@ -270,36 +263,36 @@ void syzygy::Scene::handleInput(
 
     glm::mat3x3 const transform{camera.transform()};
 
-    glm::vec3 const forward{transform * syzygy::forward};
-    glm::vec3 const right{transform * syzygy::right};
-    // We do not rotate up, since the controls would be disorienting
-    glm::vec3 const up{syzygy::up};
+    glm::vec3 const forward{transform * WORLD_FORWARD};
+    glm::vec3 const right{transform * WORLD_RIGHT};
+    // We do not rotate WORLD_UP, since the controls would be disorienting
+    glm::vec3 const up{WORLD_UP};
 
     glm::vec3 accumulatedMovement{};
 
-    syzygy::KeySnapshot const& keys{input.keys};
+    KeySnapshot const& keys{input.keys};
 
-    if (keys.getStatus(syzygy::KeyCode::W).down)
+    if (keys.getStatus(KeyCode::W).down)
     {
         accumulatedMovement += forward;
     }
-    if (keys.getStatus(syzygy::KeyCode::S).down)
+    if (keys.getStatus(KeyCode::S).down)
     {
         accumulatedMovement -= forward;
     }
-    if (keys.getStatus(syzygy::KeyCode::D).down)
+    if (keys.getStatus(KeyCode::D).down)
     {
         accumulatedMovement += right;
     }
-    if (keys.getStatus(syzygy::KeyCode::A).down)
+    if (keys.getStatus(KeyCode::A).down)
     {
         accumulatedMovement -= right;
     }
-    if (keys.getStatus(syzygy::KeyCode::E).down)
+    if (keys.getStatus(KeyCode::E).down)
     {
         accumulatedMovement += up;
     }
-    if (keys.getStatus(syzygy::KeyCode::Q).down)
+    if (keys.getStatus(KeyCode::Q).down)
     {
         accumulatedMovement -= up;
     }
@@ -309,7 +302,7 @@ void syzygy::Scene::handleInput(
                            * accumulatedMovement;
 }
 
-void syzygy::Scene::tick(TickTiming const lastFrame)
+void Scene::tick(TickTiming const lastFrame)
 {
     if (!sunAnimation.frozen)
     {
@@ -317,7 +310,7 @@ void syzygy::Scene::tick(TickTiming const lastFrame)
             sunAnimation.time
             + sunAnimation.speed
                   * static_cast<float>(lastFrame.deltaTimeSeconds)
-                  / syzygy::SunAnimation::DAY_LENGTH_SECONDS
+                  / SunAnimation::DAY_LENGTH_SECONDS
         );
     }
 
@@ -403,14 +396,14 @@ void syzygy::Scene::tick(TickTiming const lastFrame)
 namespace
 {
 auto createSunlight(
-    syzygy::SceneBounds const sceneBounds,
+    SceneBounds const sceneBounds,
     glm::vec3 const sunEulerAngles,
     glm::vec3 const sunlightRGB
-) -> syzygy::DirectionalLightPacked
+) -> DirectionalLightPacked
 {
     float constexpr SUNLIGHT_STRENGTH{0.5F};
 
-    return syzygy::makeDirectional(
+    return makeDirectional(
         glm::vec4(sunlightRGB, 1.0),
         SUNLIGHT_STRENGTH,
         sunEulerAngles,
@@ -419,10 +412,10 @@ auto createSunlight(
     );
 }
 auto createMoonlight(
-    syzygy::SceneBounds const sceneBounds,
+    SceneBounds const sceneBounds,
     float const sunCosine,
     float const sunsetCosine
-) -> syzygy::DirectionalLightPacked
+) -> DirectionalLightPacked
 {
     float constexpr MOONRISE_LENGTH{0.08};
 
@@ -438,7 +431,7 @@ auto createMoonlight(
         -glm::half_pi<float>(), 0.0F, 0.0F
     };
 
-    return syzygy::makeDirectional(
+    return makeDirectional(
         MOONLIGHT_COLOR_RGBA,
         moonlightStrength,
         STRAIGHT_DOWN_EULER_ANGLES,
@@ -449,7 +442,7 @@ auto createMoonlight(
 
 // Returns an estimate of the color of sunlight that has reached the
 // origin, attenuated due to scattering.
-auto computeSunlightColor(syzygy::Atmosphere const& atmosphere) -> glm::vec4
+auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
 {
     float const surfaceCosine{
         glm::dot(atmosphere.directionToSun(), glm::vec3{0.0, -1.0, 0.0})
@@ -476,7 +469,7 @@ auto computeSunlightColor(syzygy::Atmosphere const& atmosphere) -> glm::vec4
 
     float const atmosphereThickness{outDistance};
 
-    // Calculations derived from sky.comp, we do a single ray straight up
+    // Calculations derived from sky.comp, we do a single ray straight WORLD_UP
     // to get an idea of the ambient color
     float const opticalDepthRayleigh{
         atmosphere.altitudeDecayRayleigh / surfaceCosine
@@ -498,19 +491,19 @@ auto computeSunlightColor(syzygy::Atmosphere const& atmosphere) -> glm::vec4
 }
 } // namespace
 
-auto syzygy::Atmosphere::directionToSun() const -> glm::vec3
+auto Atmosphere::directionToSun() const -> glm::vec3
 {
-    return -syzygy::forwardFromEulers(sunEulerAngles);
+    return -forwardFromEulers(sunEulerAngles);
 }
 
-auto syzygy::Atmosphere::toDeviceEquivalent() const -> syzygy::AtmospherePacked
+auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
 {
     // TODO: move these computations out to somewhere more sensible
 
     glm::vec4 const sunlight{computeSunlightColor(*this)};
     glm::vec3 const sunDirection{glm::normalize(directionToSun())};
 
-    return syzygy::AtmospherePacked{
+    return AtmospherePacked{
         .directionToSun = sunDirection,
         .earthRadiusMeters = earthRadiusMeters,
         .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
@@ -525,17 +518,16 @@ auto syzygy::Atmosphere::toDeviceEquivalent() const -> syzygy::AtmospherePacked
     };
 }
 
-auto syzygy::Atmosphere::baked(SceneBounds const sceneBounds) const
-    -> AtmosphereBaked
+auto Atmosphere::baked(SceneBounds const sceneBounds) const -> AtmosphereBaked
 {
-    syzygy::AtmospherePacked const atmosphere{toDeviceEquivalent()};
+    AtmospherePacked const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
-    float const sunCosine{glm::dot(syzygy::up, atmosphere.directionToSun)};
+    float const sunCosine{glm::dot(WORLD_UP, atmosphere.directionToSun)};
     float constexpr SUNSET_COSINE{0.06};
 
-    std::optional<syzygy::DirectionalLightPacked> sunlight{};
-    std::optional<syzygy::DirectionalLightPacked> moonlight{};
+    std::optional<DirectionalLightPacked> sunlight{};
+    std::optional<DirectionalLightPacked> moonlight{};
 
     if (sunCosine > 0.0F)
     {
@@ -555,45 +547,44 @@ auto syzygy::Atmosphere::baked(SceneBounds const sceneBounds) const
     };
 }
 
-auto syzygy::Camera::toDeviceEquivalent(float const aspectRatio) const
-    -> syzygy::CameraPacked
+auto Camera::toDeviceEquivalent(float const aspectRatio) const -> CameraPacked
 {
     glm::mat4x4 const proj{projection(aspectRatio)};
     glm::mat4x4 const projViewInverse{glm::inverse(toProjView(aspectRatio))};
 
-    return syzygy::CameraPacked{
+    return CameraPacked{
         .projection = proj,
         .inverseProjection = glm::inverse(proj),
         .view = view(),
         .viewInverseTranspose = glm::inverseTranspose(view()),
         .rotation = rotation(),
         .projViewInverse = projViewInverse,
-        .forwardWorld = rotation() * glm::vec4(syzygy::forward, 0.0),
+        .forwardWorld = rotation() * glm::vec4(WORLD_FORWARD, 0.0),
         .position = glm::vec4(cameraPosition, 1.0),
     };
 }
 
-auto syzygy::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
+auto Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
 {
     return projection(aspectRatio) * view();
 }
 
-auto syzygy::Camera::rotation() const -> glm::mat4x4
+auto Camera::rotation() const -> glm::mat4x4
 {
     return glm::orientate4(eulerAngles);
 }
 
-auto syzygy::Camera::transform() const -> glm::mat4x4
+auto Camera::transform() const -> glm::mat4x4
 {
-    return syzygy::transformVk(cameraPosition, eulerAngles);
+    return transformVk(cameraPosition, eulerAngles);
 }
 
-auto syzygy::Camera::view() const -> glm::mat4x4
+auto Camera::view() const -> glm::mat4x4
 {
-    return syzygy::viewVk(cameraPosition, eulerAngles);
+    return viewVk(cameraPosition, eulerAngles);
 }
 
-auto syzygy::Camera::projection(float const aspectRatio) const -> glm::mat4x4
+auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
 {
     if (orthographic)
     {
@@ -602,13 +593,14 @@ auto syzygy::Camera::projection(float const aspectRatio) const -> glm::mat4x4
         glm::vec3 const min{-aspectRatio * height, -height, near};
         glm::vec3 const max{aspectRatio * height, height, far};
 
-        return syzygy::projectionOrthoVk(min, max);
+        return projectionOrthoVk(min, max);
     }
 
-    return syzygy::projectionVk(syzygy::PerspectiveProjectionParameters{
+    return projectionVk(PerspectiveProjectionParameters{
         .fov_y = fovDegrees,
         .aspectRatio = aspectRatio,
         .near = near,
         .far = far,
     });
 }
+} // namespace syzygy

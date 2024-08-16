@@ -126,7 +126,7 @@ void PipelineBuilder::pushShader(
     ShaderModuleReflected const& shader, VkShaderStageFlagBits const stage
 )
 {
-    m_shaderStages.push_back(syzygy::pipelineShaderStageCreateInfo(
+    m_shaderStages.push_back(pipelineShaderStageCreateInfo(
         stage, shader.shaderModule(), shader.reflectionData().defaultEntryPoint
     ));
 }
@@ -229,11 +229,9 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
     m_shaders.clear();
     for (std::string const& shaderPath : shaderPaths)
     {
-        std::optional<ShaderObjectReflected> loadResult{
-            syzygy::loadShaderObject(
-                device, shaderPath, VK_SHADER_STAGE_COMPUTE_BIT, 0, layouts, {}
-            )
-        };
+        std::optional<ShaderObjectReflected> loadResult{loadShaderObject(
+            device, shaderPath, VK_SHADER_STAGE_COMPUTE_BIT, 0, layouts, {}
+        )};
 
         if (!loadResult.has_value())
         {
@@ -384,11 +382,11 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        syzygy::loadShaderModule(device, "shaders/debug/debugline.vert.spv")
+        loadShaderModule(device, "shaders/debug/debugline.vert.spv")
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
     ShaderModuleReflected const fragmentShader{
-        syzygy::loadShaderModule(device, "shaders/debug/debugline.frag.spv")
+        loadShaderModule(device, "shaders/debug/debugline.frag.spv")
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
 
@@ -465,10 +463,10 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const lineWidth,
     VkRect2D const drawRect,
-    syzygy::ImageView& color,
-    syzygy::ImageView& depth,
+    ImageView& color,
+    ImageView& depth,
     uint32_t const cameraIndex,
-    TStagedBuffer<syzygy::CameraPacked> const& cameras,
+    TStagedBuffer<CameraPacked> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
     TStagedBuffer<uint32_t> const& indices
 ) const -> DrawResultsGraphics
@@ -512,7 +510,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
         colorAttachment
     };
     VkRenderingInfo const renderInfo{
-        syzygy::renderingInfo(drawRect, colorAttachments, &depthAttachment)
+        renderingInfo(drawRect, colorAttachments, &depthAttachment)
     };
 
     cameras.recordTotalCopyBarrier(
@@ -595,9 +593,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        syzygy::loadShaderModule(
-            device, "shaders/offscreenpass/depthpass.vert.spv"
-        )
+        loadShaderModule(device, "shaders/offscreenpass/depthpass.vert.spv")
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
 
@@ -678,10 +674,10 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const depthBias,
     float const depthBiasSlope,
-    syzygy::ImageView& depth,
+    ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-    std::span<syzygy::MeshInstanced const> const geometry,
+    std::span<MeshInstanced const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 ) const
 {
@@ -708,9 +704,9 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     VkExtent2D const depthExtent{depth.image().extent2D()};
 
-    VkRenderingInfo const renderInfo{syzygy::renderingInfo(
-        VkRect2D{.extent = depthExtent}, {}, &depthAttachment
-    )};
+    VkRenderingInfo const renderInfo{
+        renderingInfo(VkRect2D{.extent = depthExtent}, {}, &depthAttachment)
+    };
 
     vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -740,7 +736,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     for (size_t index{0}; index < geometry.size(); index++)
     {
-        syzygy::MeshInstanced const& instance{geometry[index]};
+        MeshInstanced const& instance{geometry[index]};
 
         bool render{instance.render};
         if (index < renderOverrides.size())
@@ -803,5 +799,21 @@ void OffscreenPassGraphicsPipeline::cleanup(VkDevice const device)
 
     vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
+}
+auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
+    -> uint32_t
+{
+    // When workgroups are larger than 1, but this value does not evenly divide
+    // the amount of work needed, we need to dispatch extra to cover this. It is
+    // WORLD_UP to the shader to discard these extra invocations.
+
+    uint32_t const count{invocations / workgroupSize};
+
+    if (invocations % workgroupSize == 0)
+    {
+        return count;
+    }
+
+    return count + 1;
 }
 } // namespace syzygy

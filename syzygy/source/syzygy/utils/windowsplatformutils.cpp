@@ -63,7 +63,9 @@ auto getPathsFromDialog(HWND const parent, DWORD const additionalOptions)
     return paths;
 }
 auto openDialog(
-    PlatformWindow const& parent, bool const pickFolders, bool const multiselect
+    syzygy::PlatformWindow const& parent,
+    bool const pickFolders,
+    bool const multiselect
 ) -> std::vector<std::filesystem::path>
 {
     HRESULT const initResult{CoInitializeEx(
@@ -93,7 +95,9 @@ auto openDialog(
 }
 } // namespace
 
-auto syzygy::openFile(PlatformWindow const& parent)
+namespace syzygy
+{
+auto openFile(PlatformWindow const& parent)
     -> std::optional<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, false, false)};
@@ -111,7 +115,7 @@ auto syzygy::openFile(PlatformWindow const& parent)
     return paths[0];
 }
 
-auto syzygy::openFiles(PlatformWindow const& parent)
+auto openFiles(PlatformWindow const& parent)
     -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, false, true)};
@@ -119,7 +123,7 @@ auto syzygy::openFiles(PlatformWindow const& parent)
     return paths;
 }
 
-auto syzygy::openDirectory(PlatformWindow const& parent)
+auto openDirectory(PlatformWindow const& parent)
     -> std::optional<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, true, false)};
@@ -137,10 +141,11 @@ auto syzygy::openDirectory(PlatformWindow const& parent)
     return paths[0];
 }
 
-auto syzygy::openDirectories(PlatformWindow const& parent)
+auto openDirectories(PlatformWindow const& parent)
     -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, true, true)};
 
     return paths;
 }
+} // namespace syzygy

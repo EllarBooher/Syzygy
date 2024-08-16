@@ -16,11 +16,8 @@ namespace syzygy
 class DescriptorAllocator;
 struct DirectionalLightPacked;
 struct SpotLightPacked;
-} // namespace syzygy
-namespace syzygy
-{
 struct MeshInstanced;
-}
+} // namespace syzygy
 
 namespace syzygy
 {

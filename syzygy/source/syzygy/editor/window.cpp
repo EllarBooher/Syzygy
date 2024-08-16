@@ -3,6 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <utility>
 
+namespace syzygy
+{
 auto PlatformWindow::extent() const -> glm::u16vec2
 {
     int32_t width{0};
@@ -61,3 +63,4 @@ void PlatformWindow::destroy()
 }
 
 auto PlatformWindow::handle() const -> GLFWwindow* { return m_handle; }
+} // namespace syzygy

@@ -101,7 +101,7 @@ auto generateReflectionData(std::span<uint8_t const> const spirv_bytecode)
                                                      : typeDescription.type_name
             };
 
-            // For early exit, if the type ends up being unsupported
+            // For early exit, if the type ends WORLD_UP being unsupported
 
             ShaderReflectionData::Member const unsupportedMember{
                 .offsetBytes = offsetBytes,
@@ -371,17 +371,15 @@ auto ShaderObjectReflected::fromBytecode(
         generateReflectionData(spirvBytecode)
     };
 
-    syzygy::ShaderResult<VkShaderEXT> const compilationResult{
-        syzygy::compileShaderObject(
-            device,
-            spirvBytecode,
-            stage,
-            nextStage,
-            layouts,
-            pushConstantRanges,
-            specializationInfo
-        )
-    };
+    ShaderResult<VkShaderEXT> const compilationResult{compileShaderObject(
+        device,
+        spirvBytecode,
+        stage,
+        nextStage,
+        layouts,
+        pushConstantRanges,
+        specializationInfo
+    )};
 
     SZG_LOG_VK(compilationResult.result, "Created Shader Object {}", name);
     if (compilationResult.result != VK_SUCCESS)
@@ -421,17 +419,15 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         pushConstantRanges.push_back(pushConstant.totalRange(stage));
     }
 
-    syzygy::ShaderResult<VkShaderEXT> const compilationResult{
-        syzygy::compileShaderObject(
-            device,
-            spirvBytecode,
-            stage,
-            nextStage,
-            layouts,
-            pushConstantRanges,
-            specializationInfo
-        )
-    };
+    ShaderResult<VkShaderEXT> const compilationResult{compileShaderObject(
+        device,
+        spirvBytecode,
+        stage,
+        nextStage,
+        layouts,
+        pushConstantRanges,
+        specializationInfo
+    )};
 
     SZG_LOG_VK(compilationResult.result, "Created Shader Object {}", name);
     if (compilationResult.result != VK_SUCCESS)
@@ -453,8 +449,8 @@ auto ShaderModuleReflected::FromBytecode(
     std::span<uint8_t const> const spirvBytecode
 ) -> std::optional<ShaderModuleReflected>
 {
-    syzygy::ShaderResult<VkShaderModule> const compilationResult{
-        syzygy::compileShaderModule(device, spirvBytecode)
+    ShaderResult<VkShaderModule> const compilationResult{
+        compileShaderModule(device, spirvBytecode)
     };
 
     if (compilationResult.result != VK_SUCCESS)
@@ -547,8 +543,7 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
-    )};
+    std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path.string());
@@ -579,8 +574,7 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
-    )};
+    std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path.string());
@@ -631,8 +625,7 @@ auto compileShaderModule(
 auto loadShaderModule(VkDevice const device, std::string const& path)
     -> std::optional<ShaderModuleReflected>
 {
-    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
-    )};
+    std::optional<AssetFile> const fileResult{loadAssetFile(path)};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path);

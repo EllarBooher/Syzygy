@@ -88,7 +88,7 @@ auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    syzygy::SceneTexture const& sceneTexture
+    SceneTexture const& sceneTexture
 ) -> std::optional<Renderer>
 {
     std::optional<Renderer> rendererResult{Renderer{}};
@@ -120,20 +120,20 @@ void Renderer::initDrawTargets(
         MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
 
-    if (std::optional<std::unique_ptr<syzygy::ImageView>> sceneDepthResult{
-            syzygy::ImageView::allocate(
+    if (std::optional<std::unique_ptr<ImageView>> sceneDepthResult{
+            ImageView::allocate(
                 device,
                 allocator,
-                syzygy::ImageAllocationParameters{
+                ImageAllocationParameters{
                     .extent = RESERVED_IMAGE_EXTENT,
                     .format = VK_FORMAT_D32_SFLOAT,
                     .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
                                 | VK_IMAGE_USAGE_SAMPLED_BIT
                                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 },
-                syzygy::ImageViewAllocationParameters{
+                ImageViewAllocationParameters{
                     .subresourceRange =
-                        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+                        imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
                 }
             )
         };
@@ -149,23 +149,22 @@ void Renderer::initDrawTargets(
 
 void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
-    m_camerasBuffer = std::make_unique<TStagedBuffer<syzygy::CameraPacked>>(
-        TStagedBuffer<syzygy::CameraPacked>::allocate(
+    m_camerasBuffer = std::make_unique<TStagedBuffer<CameraPacked>>(
+        TStagedBuffer<CameraPacked>::allocate(
             device,
             allocator,
             CAMERA_CAPACITY,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         )
     );
-    m_atmospheresBuffer =
-        std::make_unique<TStagedBuffer<syzygy::AtmospherePacked>>(
-            TStagedBuffer<syzygy::AtmospherePacked>::allocate(
-                device,
-                allocator,
-                ATMOSPHERE_CAPACITY,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            )
-        );
+    m_atmospheresBuffer = std::make_unique<TStagedBuffer<AtmospherePacked>>(
+        TStagedBuffer<AtmospherePacked>::allocate(
+            device,
+            allocator,
+            ATMOSPHERE_CAPACITY,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
 }
 
 void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
@@ -210,7 +209,7 @@ void Renderer::initDeferredShadingPipeline(
 }
 
 void Renderer::initGenericComputePipelines(
-    VkDevice const device, syzygy::SceneTexture const& sceneTexture
+    VkDevice const device, SceneTexture const& sceneTexture
 )
 {
     std::vector<std::string> const shaderPaths{
@@ -252,11 +251,11 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Renderer::uiEngineControls(syzygy::DockingLayout const& dockingLayout)
+void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
 {
-    if (syzygy::UIWindow const engineControls{syzygy::UIWindow::beginDockable(
-            "Engine Controls", dockingLayout.right
-        )};
+    if (UIWindow const engineControls{
+            UIWindow::beginDockable("Engine Controls", dockingLayout.right)
+        };
         engineControls.open)
     {
         imguiRenderingSelection(m_activeRenderingPipeline);
@@ -282,9 +281,9 @@ void Renderer::uiEngineControls(syzygy::DockingLayout const& dockingLayout)
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
-    syzygy::Scene const& scene,
-    syzygy::SceneTexture& sceneTexture,
-    std::optional<syzygy::SceneViewport> const& sceneViewport
+    Scene const& scene,
+    SceneTexture& sceneTexture,
+    std::optional<SceneViewport> const& sceneViewport
 )
 {
     // Begin syzygy drawing
@@ -296,7 +295,7 @@ void Renderer::recordDraw(
     }
 
     std::optional<double> const viewportAspectRatioResult{
-        syzygy::aspectRatio(sceneViewport.value().rect.extent)
+        aspectRatio(sceneViewport.value().rect.extent)
     };
     if (!viewportAspectRatioResult.has_value())
     {
@@ -305,7 +304,7 @@ void Renderer::recordDraw(
     double const aspectRatio{viewportAspectRatioResult.value()};
 
     { // Copy cameras to gpu
-        syzygy::CameraPacked const mainCamera{
+        CameraPacked const mainCamera{
             scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
@@ -314,9 +313,9 @@ void Renderer::recordDraw(
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
-    std::vector<syzygy::DirectionalLightPacked> directionalLights{};
+    std::vector<DirectionalLightPacked> directionalLights{};
     { // Copy atmospheres to gpu
-        syzygy::AtmosphereBaked const bakedAtmosphere{
+        AtmosphereBaked const bakedAtmosphere{
             scene.atmosphere.baked(scene.bounds)
         };
         if (bakedAtmosphere.moonlight.has_value())
@@ -333,7 +332,7 @@ void Renderer::recordDraw(
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
-    for (syzygy::MeshInstanced const& instance : scene.geometry)
+    for (MeshInstanced const& instance : scene.geometry)
     {
         if (instance.models != nullptr)
         {
@@ -366,7 +365,7 @@ void Renderer::recordDraw(
                 *m_sceneDepthTexture,
                 directionalLights,
                 scene.spotlightsRender ? scene.spotlights
-                                       : std::vector<syzygy::SpotLightPacked>{},
+                                       : std::vector<SpotLightPacked>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
@@ -413,9 +412,9 @@ void Renderer::recordDraw(
 void Renderer::recordDrawDebugLines(
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
-    syzygy::SceneTexture& sceneTexture,
-    syzygy::SceneViewport const& sceneViewport,
-    TStagedBuffer<syzygy::CameraPacked> const& camerasBuffer
+    SceneTexture& sceneTexture,
+    SceneViewport const& sceneViewport,
+    TStagedBuffer<CameraPacked> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};

@@ -94,7 +94,7 @@ void uiAtmosphere(
 {
     float constexpr EULER_ANGLES_SPEED{0.1F};
 
-    FloatBounds constexpr RGBA_BOUNDS{0.0F, 1.0F};
+    syzygy::FloatBounds constexpr RGBA_BOUNDS{0.0F, 1.0F};
 
     float constexpr PLANETARY_RADIUS_MIN{1.0F};
     float constexpr PLANETARY_RADIUS_MAX{1'000'000'000.0F};
@@ -103,16 +103,16 @@ void uiAtmosphere(
     // unpredictable range. Thus finer controls are needed, and a speed of 0.1
     // or default 0.0 is too high.
     float constexpr SCATTERING_COEFFICIENT_SPEED{0.01F};
-    FloatBounds constexpr SCATTERING_COEFFICIENT_BOUNDS{0.0F, 1.0F};
+    syzygy::FloatBounds constexpr SCATTERING_COEFFICIENT_BOUNDS{0.0F, 1.0F};
 
-    FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
+    syzygy::FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
 
-    PropertyTable::begin()
+    syzygy::PropertyTable::begin()
         .rowVec3(
             "Sun Euler Angles",
             atmosphere.sunEulerAngles,
             defaultValues.sunEulerAngles,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = EULER_ANGLES_SPEED,
             }
         )
@@ -121,7 +121,7 @@ void uiAtmosphere(
             "Ground Diffuse Color",
             atmosphere.groundColor,
             defaultValues.groundColor,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds = RGBA_BOUNDS,
             }
         )
@@ -129,9 +129,9 @@ void uiAtmosphere(
             "Earth Radius",
             atmosphere.earthRadiusMeters,
             defaultValues.earthRadiusMeters,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds =
-                    FloatBounds{
+                    syzygy::FloatBounds{
                         PLANETARY_RADIUS_MIN, atmosphere.atmosphereRadiusMeters
                     },
             }
@@ -140,9 +140,9 @@ void uiAtmosphere(
             "Atmosphere Radius",
             atmosphere.atmosphereRadiusMeters,
             defaultValues.atmosphereRadiusMeters,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds =
-                    FloatBounds{
+                    syzygy::FloatBounds{
                         atmosphere.earthRadiusMeters, PLANETARY_RADIUS_MAX
                     },
             }
@@ -151,7 +151,7 @@ void uiAtmosphere(
             "Rayleigh Scattering Coefficient",
             atmosphere.scatteringCoefficientRayleigh,
             defaultValues.scatteringCoefficientRayleigh,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = SCATTERING_COEFFICIENT_SPEED,
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
@@ -160,7 +160,7 @@ void uiAtmosphere(
             "Rayleigh Altitude Decay",
             atmosphere.altitudeDecayRayleigh,
             defaultValues.altitudeDecayRayleigh,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds = ALTITUDE_DECAY_BOUNDS,
             }
         )
@@ -168,7 +168,7 @@ void uiAtmosphere(
             "Mie Scattering Coefficient",
             atmosphere.scatteringCoefficientMie,
             defaultValues.scatteringCoefficientMie,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = SCATTERING_COEFFICIENT_SPEED,
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
@@ -177,7 +177,7 @@ void uiAtmosphere(
             "Mie Altitude Decay",
             atmosphere.altitudeDecayMie,
             defaultValues.altitudeDecayMie,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds = ALTITUDE_DECAY_BOUNDS,
             }
         )
@@ -191,19 +191,19 @@ void uiCamera(
 )
 {
     // Stay an arbitrary distance away 0 and 180 degrees to avoid singularities
-    FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
+    syzygy::FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
 
     float constexpr CLIPPING_PLANE_MIN{0.01F};
     float constexpr CLIPPING_PlANE_MAX{1'000'000.0F};
 
     float constexpr CLIPPING_PLANE_MARGIN{0.01F};
 
-    PropertyTable::begin()
+    syzygy::PropertyTable::begin()
         .rowFloat(
             "Editor Movement Speed",
             cameraSpeed,
             defaultCameraSpeed,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds = {0.0F, 100.0F},
             }
         )
@@ -214,7 +214,7 @@ void uiCamera(
             "Camera Position",
             camera.cameraPosition,
             defaultValues.cameraPosition,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = 1.0F,
             }
         )
@@ -222,15 +222,16 @@ void uiCamera(
             "Euler Angles",
             camera.eulerAngles,
             defaultValues.eulerAngles,
-            PropertySliderBehavior{
-                .bounds = FloatBounds{-glm::pi<float>(), glm::pi<float>()},
+            syzygy::PropertySliderBehavior{
+                .bounds =
+                    syzygy::FloatBounds{-glm::pi<float>(), glm::pi<float>()},
             }
         )
         .rowFloat(
             "Field of View",
             camera.fovDegrees,
             defaultValues.fovDegrees,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds = FOV_BOUNDS,
             }
         )
@@ -238,17 +239,17 @@ void uiCamera(
             "Near Plane",
             camera.near,
             std::min(camera.far, defaultValues.near),
-            PropertySliderBehavior{
-                .bounds = FloatBounds{CLIPPING_PLANE_MIN, camera.far},
+            syzygy::PropertySliderBehavior{
+                .bounds = syzygy::FloatBounds{CLIPPING_PLANE_MIN, camera.far},
             }
         )
         .rowFloat(
             "Far Plane",
             camera.far,
             std::max(camera.near, defaultValues.far),
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .bounds =
-                    FloatBounds{
+                    syzygy::FloatBounds{
                         camera.near + CLIPPING_PLANE_MARGIN, CLIPPING_PlANE_MAX
                     },
             }
@@ -258,17 +259,17 @@ void uiCamera(
 void uiSceneGeometry(
     syzygy::SceneBounds& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
-    MeshAssetLibrary const& meshes
+    syzygy::MeshAssetLibrary const& meshes
 )
 {
-    PropertyTable table{PropertyTable::begin()};
+    syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
 
     table.rowChildPropertyBegin("Scene Bounds")
         .rowVec3(
             "Scene Center",
             bounds.center,
             bounds.center,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = 1.0F,
             }
         )
@@ -276,7 +277,7 @@ void uiSceneGeometry(
             "Scene Extent",
             bounds.extent,
             bounds.extent,
-            PropertySliderBehavior{
+            syzygy::PropertySliderBehavior{
                 .speed = 1.0F,
             }
         )
@@ -298,7 +299,7 @@ void uiSceneGeometry(
             if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
             {
                 size_t const index{0};
-                for (std::shared_ptr<MeshAsset> const& pMesh :
+                for (std::shared_ptr<syzygy::MeshAsset> const& pMesh :
                      meshes.loadedMeshes)
                 {
                     if (pMesh == nullptr)
@@ -306,7 +307,7 @@ void uiSceneGeometry(
                         continue;
                     }
 
-                    MeshAsset const& mesh{*pMesh};
+                    syzygy::MeshAsset const& mesh{*pMesh};
                     bool const selected{pMesh == instance.mesh};
 
                     if (ImGui::Selectable(mesh.name.c_str(), selected))
@@ -328,16 +329,18 @@ void uiSceneGeometry(
 }
 } // namespace
 
-void syzygy::sceneControlsWindow(
+namespace syzygy
+{
+void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
-    syzygy::Scene& scene,
+    Scene& scene,
     MeshAssetLibrary const& meshes
 )
 {
-    syzygy::UIWindow const window{syzygy::UIWindow::beginDockable(
-        std::format("{}##scene", title), dockNode
-    )};
+    UIWindow const window{
+        UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
+    };
     if (!window.open)
     {
         return;
@@ -347,9 +350,7 @@ void syzygy::sceneControlsWindow(
             "Sun Animation", ImGuiTreeNodeFlags_DefaultOpen
         ))
     {
-        syzygy::SunAnimation const& defaultAnimation{
-            syzygy::Scene::DEFAULT_SUN_ANIMATION
-        };
+        SunAnimation const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
 
         FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
             -100'000.0F, 100'000.0F
@@ -385,16 +386,16 @@ void syzygy::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiAtmosphere(scene.atmosphere, syzygy::Scene::DEFAULT_ATMOSPHERE_EARTH);
+        uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         uiCamera(
             scene.camera,
-            syzygy::Scene::DEFAULT_CAMERA,
+            Scene::DEFAULT_CAMERA,
             scene.cameraControlledSpeed,
-            syzygy::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
+            Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
         );
     }
 
@@ -411,13 +412,13 @@ void syzygy::sceneControlsWindow(
     }
 }
 
-auto syzygy::sceneViewportWindow(
+auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    syzygy::SceneTexture const& texture,
+    SceneTexture const& texture,
     bool const focused
-) -> WindowResult<std::optional<syzygy::SceneViewport>>
+) -> WindowResult<std::optional<SceneViewport>>
 {
     size_t pushedStyleColors{0};
     if (focused)
@@ -429,10 +430,10 @@ auto syzygy::sceneViewportWindow(
         pushedStyleColors += 1;
     }
 
-    syzygy::UIWindow sceneViewport{
+    UIWindow sceneViewport{
         maximizeArea.has_value()
-            ? syzygy::UIWindow::beginMaximized(title, maximizeArea.value())
-            : syzygy::UIWindow::beginDockable(title, dockNode)
+            ? UIWindow::beginMaximized(title, maximizeArea.value())
+            : UIWindow::beginDockable(title, dockNode)
     };
 
     if (!sceneViewport.open)
@@ -477,7 +478,7 @@ auto syzygy::sceneViewportWindow(
     return {
         .focused = clicked,
         .payload =
-            syzygy::SceneViewport{
+            SceneViewport{
                 .rect =
                     VkRect2D{
                         .offset = {0, 0},
@@ -491,3 +492,4 @@ auto syzygy::sceneViewportWindow(
             }
     };
 }
+} // namespace syzygy

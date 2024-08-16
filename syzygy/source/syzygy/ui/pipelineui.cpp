@@ -35,11 +35,13 @@ template <class... Ts> struct overloaded : Ts...
     using Ts::operator()...;
 };
 
+namespace syzygy
+{
 // NOLINTBEGIN
 // TODO: refactor this awul, no good, function.
 template <typename T>
 static void imguiPushStructureControl(
-    syzygy::ShaderReflectionData::PushConstant const& pushConstant,
+    ShaderReflectionData::PushConstant const& pushConstant,
     bool const readOnly,
     std::span<T> const backingData
 )
@@ -57,7 +59,7 @@ static void imguiPushStructureControl(
         std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value
     );
 
-    syzygy::ShaderReflectionData::Structure const& structure{pushConstant.type};
+    ShaderReflectionData::Structure const& structure{pushConstant.type};
 
     ImGui::Text("%s (%s)", "Push Constant", readOnly ? "Read Only" : "Mutable");
     {
@@ -125,8 +127,7 @@ static void imguiPushStructureControl(
         // Members can be sparse, with implied padding between them.
         // We track those bytes so we can print to the UI that there is padding.
         uint32_t lastByte{0};
-        for (syzygy::ShaderReflectionData::Member const& member :
-             structure.members)
+        for (ShaderReflectionData::Member const& member : structure.members)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(offsetIndex);
@@ -145,7 +146,7 @@ static void imguiPushStructureControl(
 
             std::visit(
                 overloaded{
-                    [&](syzygy::ShaderReflectionData::UnsupportedType const&
+                    [&](ShaderReflectionData::UnsupportedType const&
                             unsupportedType)
             {
                 ImGui::Text(
@@ -154,8 +155,7 @@ static void imguiPushStructureControl(
                         .c_str()
                 );
             },
-                    [&](syzygy::ShaderReflectionData::Pointer const& pointerType
-                    )
+                    [&](ShaderReflectionData::Pointer const& pointerType)
             {
                 // Pointers should be 8 bytes,
                 // I am not sure when this would fail
@@ -195,25 +195,24 @@ static void imguiPushStructureControl(
                 ImGui::TableSetColumnIndex(typeIndex);
                 ImGui::Text("Pointer");
             },
-                    [&](syzygy::ShaderReflectionData::NumericType const&
-                            numericType)
+                    [&](ShaderReflectionData::NumericType const& numericType)
             {
                 // Gather format data
                 uint32_t columns{0};
                 uint32_t rows{0};
                 std::visit(
                     overloaded{
-                        [&](syzygy::ShaderReflectionData::Scalar const& scalar)
+                        [&](ShaderReflectionData::Scalar const& scalar)
                 {
                     columns = 1;
                     rows = 1;
                 },
-                        [&](syzygy::ShaderReflectionData::Vector const& vector)
+                        [&](ShaderReflectionData::Vector const& vector)
                 {
                     columns = 1;
                     rows = vector.componentCount;
                 },
-                        [&](syzygy::ShaderReflectionData::Matrix const& matrix)
+                        [&](ShaderReflectionData::Matrix const& matrix)
                 {
                     columns = matrix.columnCount;
                     rows = matrix.rowCount;
@@ -226,7 +225,7 @@ static void imguiPushStructureControl(
                 ImGuiDataType imguiDataType{ImGuiDataType_Float};
                 std::visit(
                     overloaded{
-                        [&](syzygy::ShaderReflectionData::Integer const&
+                        [&](ShaderReflectionData::Integer const&
                                 integerComponent)
                 {
                     assert(
@@ -277,8 +276,7 @@ static void imguiPushStructureControl(
                         }
                     }
                 },
-                        [&](syzygy::ShaderReflectionData::Float const&
-                                floatComponent)
+                        [&](ShaderReflectionData::Float const& floatComponent)
                 {
                     ImGuiDataType imguiDataType{ImGuiDataType_Float};
                     switch (numericType.componentBitWidth)
@@ -381,8 +379,7 @@ static void imguiPushStructureControl(
 }
 // NOLINTEND
 
-template <>
-void imguiPipelineControls(syzygy::ComputeCollectionPipeline& pipeline)
+template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
 {
     if (!ImGui::CollapsingHeader(
             "Compute Collection Pipeline", ImGuiTreeNodeFlags_DefaultOpen
@@ -392,7 +389,7 @@ void imguiPipelineControls(syzygy::ComputeCollectionPipeline& pipeline)
     }
 
     std::vector<std::string> shaderNames{};
-    for (syzygy::ShaderObjectReflected const& shader : pipeline.shaders())
+    for (ShaderObjectReflected const& shader : pipeline.shaders())
     {
         shaderNames.push_back(shader.name());
     }
@@ -405,11 +402,8 @@ void imguiPipelineControls(syzygy::ComputeCollectionPipeline& pipeline)
 
     pipeline.selectShader(currentShaderIndex);
 
-    syzygy::ShaderObjectReflected const& currentShader{pipeline.currentShader()
-    };
-    syzygy::ShaderReflectionData const& reflectionData{
-        currentShader.reflectionData()
-    };
+    ShaderObjectReflected const& currentShader{pipeline.currentShader()};
+    ShaderReflectionData const& reflectionData{currentShader.reflectionData()};
 
     if (reflectionData.defaultEntryPointHasPushConstant())
     {
@@ -427,11 +421,10 @@ void imguiPipelineControls(syzygy::ComputeCollectionPipeline& pipeline)
     }
 }
 
-template <>
-void imguiPipelineControls(syzygy::DeferredShadingPipeline& pipeline)
+template <> void imguiPipelineControls(DeferredShadingPipeline& pipeline)
 {
     imguiStructureControls(
-        pipeline.m_parameters.shadowPassParameters,
-        syzygy::ShadowPassParameters{}
+        pipeline.m_parameters.shadowPassParameters, ShadowPassParameters{}
     );
 }
+} // namespace syzygy

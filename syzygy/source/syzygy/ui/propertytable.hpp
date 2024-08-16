@@ -10,6 +10,8 @@
 #include <span>
 #include <string>
 
+namespace syzygy
+{
 struct FloatBounds
 {
     float min = std::numeric_limits<float>::lowest();
@@ -199,3 +201,4 @@ public:
     PropertyTable&
     rowReadOnlyBoolean(std::string const& name, bool const& value);
 };
+} // namespace syzygy
