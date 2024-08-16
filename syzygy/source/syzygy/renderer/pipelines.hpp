@@ -17,7 +17,7 @@ struct CameraPacked;
 struct ImageView;
 template <typename T> struct TStagedBuffer;
 struct MeshInstanced;
-struct Vertex;
+struct VertexPacked;
 } // namespace syzygy
 
 namespace syzygy
@@ -243,7 +243,7 @@ public:
         syzygy::ImageView& depth,
         uint32_t cameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
-        TStagedBuffer<syzygy::Vertex> const& endpoints,
+        TStagedBuffer<syzygy::VertexPacked> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
     ) const;
 

@@ -19,14 +19,14 @@ void DebugLines::clear()
 
 void DebugLines::push(glm::vec3 const start, glm::vec3 const end)
 {
-    Vertex const startVertex{
+    VertexPacked const startVertex{
         .position = start,
         .uv_x = 0.0,
         .normal = glm::vec3(0.0),
         .uv_y = 0.0,
         .color = glm::vec4(1.0, 0.0, 0.0, 1.0),
     };
-    Vertex const endVertex{
+    VertexPacked const endVertex{
         .position = end,
         .uv_x = 1.0,
         .normal = glm::vec3(0.0),
@@ -36,7 +36,7 @@ void DebugLines::push(glm::vec3 const start, glm::vec3 const end)
 
     uint32_t const index{static_cast<uint32_t>(indices->stagedSize())};
 
-    vertices->push(std::initializer_list<Vertex>{startVertex, endVertex});
+    vertices->push(std::initializer_list<VertexPacked>{startVertex, endVertex});
     indices->push(std::initializer_list<uint32_t>{index, index + 1});
 }
 

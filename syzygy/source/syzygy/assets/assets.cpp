@@ -10,6 +10,7 @@
 #include "syzygy/platform/platformutils.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include <algorithm>
 #include <cassert>
@@ -39,7 +40,7 @@ auto uploadMeshToGPU(
     VkQueue const transferQueue,
     syzygy::ImmediateSubmissionQueue const& submissionQueue,
     std::span<uint32_t const> const indices,
-    std::span<syzygy::Vertex const> const vertices
+    std::span<syzygy::VertexPacked const> const vertices
 ) -> std::unique_ptr<syzygy::GPUMeshBuffers>
 {
     // Allocate buffer
@@ -323,7 +324,7 @@ auto loadGltfMeshes(
     for (fastgltf::Mesh const& mesh : gltf.meshes)
     {
         std::vector<uint32_t> indices{};
-        std::vector<Vertex> vertices{};
+        std::vector<VertexPacked> vertices{};
 
         std::vector<GeometrySurface> surfaces{};
 
@@ -365,7 +366,7 @@ auto loadGltfMeshes(
                     positionAccessor,
                     [&](glm::vec3 position, size_t /*index*/)
                 {
-                    vertices.push_back(Vertex{
+                    vertices.push_back(VertexPacked{
                         .position = position,
                         .uv_x = 0.0F,
                         .normal = glm::vec3{1, 0, 0},
@@ -424,7 +425,7 @@ auto loadGltfMeshes(
         bool constexpr DEBUG_OVERRIDE_COLORS{false};
         if (DEBUG_OVERRIDE_COLORS)
         {
-            for (Vertex& vertex : vertices)
+            for (VertexPacked& vertex : vertices)
             {
                 vertex.color = glm::vec4(vertex.normal, 1.0F);
             }
@@ -433,7 +434,7 @@ auto loadGltfMeshes(
         bool constexpr FLIP_Y{true};
         if (FLIP_Y)
         {
-            for (Vertex& vertex : vertices)
+            for (VertexPacked& vertex : vertices)
             {
                 vertex.normal.y *= -1;
                 vertex.position.y *= -1;

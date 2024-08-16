@@ -41,15 +41,6 @@ struct MeshInstances
     size_t dynamicIndex{};
 };
 
-struct Vertex
-{
-    glm::vec3 position;
-    float uv_x;
-    glm::vec3 normal;
-    float uv_y;
-    glm::vec4 color;
-};
-
 struct RingBuffer
 {
     RingBuffer() { m_values.resize(500, 0.0); }

@@ -184,13 +184,14 @@ void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
             VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         )
     );
-    m_debugLines.vertices =
-        std::make_unique<TStagedBuffer<Vertex>>(TStagedBuffer<Vertex>::allocate(
+    m_debugLines.vertices = std::make_unique<TStagedBuffer<VertexPacked>>(
+        TStagedBuffer<VertexPacked>::allocate(
             device,
             allocator,
             DEBUGLINES_CAPACITY,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-        ));
+        )
+    );
 }
 
 void Renderer::initDeferredShadingPipeline(

@@ -11,7 +11,7 @@
 
 namespace syzygy
 {
-struct Vertex;
+struct VertexPacked;
 }
 
 namespace syzygy
@@ -21,7 +21,7 @@ struct DebugLines
     // TODO: Split this WORLD_UP into 3 segments: the pipeline, the line segment
     // buffers, and the configuration.
 public:
-    std::unique_ptr<TStagedBuffer<Vertex>> vertices{};
+    std::unique_ptr<TStagedBuffer<VertexPacked>> vertices{};
     std::unique_ptr<TStagedBuffer<uint32_t>> indices{};
 
     std::unique_ptr<DebugLineGraphicsPipeline> pipeline{};

@@ -467,7 +467,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     ImageView& depth,
     uint32_t const cameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
-    TStagedBuffer<Vertex> const& endpoints,
+    TStagedBuffer<VertexPacked> const& endpoints,
     TStagedBuffer<uint32_t> const& indices
 ) const -> DrawResultsGraphics
 {

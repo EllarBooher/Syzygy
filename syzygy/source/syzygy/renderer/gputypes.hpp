@@ -90,4 +90,13 @@ struct SpotLightPacked
     float falloffDistance;
     uint8_t padding0[4]{};
 };
+
+struct VertexPacked
+{
+    glm::vec3 position;
+    float uv_x;
+    glm::vec3 normal;
+    float uv_y;
+    glm::vec4 color;
+};
 } // namespace syzygy
