@@ -1,18 +1,17 @@
 # Syzygy
 
-The purpose of this renderer is to study concepts in rendering, engine architecture, and modern Vulkan.
-
-## Requirements
+Syzygy is an engine and renderer I started to study concepts in rendering, engine architecture, and modern Vulkan.
 
 This project was developed in Visual Studio Community 2022 on Windows 11. It has been compiled with both MSVC (`cl.exe`) and Clang (`clang-cl.exe`) via VS integration.
 
-For now, only Windows is known to be supported.
+## Requirements
 
-Requires CMake 3.28 or higher.
+For now, only Windows is supported, and compilation requires CMake version 3.28 or higher.
 
-Running the engine currently requires a GPU with drivers that support Vulkan 1.3 and the device extensions such as `VK_EXT_shader_object` and others. Note, this fact seems to stop RenderDoc from working (as of early 2024, the latest version might work). NSight complains about the newer extensions, but seems to still mostly work.
+Running the engine currently requires a GPU with drivers that supports at least version `1.3.280` of the Vulkan API. The engine relies on the device extension `VK_EXT_shader_object`, and likely a few others. `VK_EXT_shader_object` does not have wide adoption (as of 2024). The engine is currently not compatible with the emulation layer `VK_LAYER_KHRONOS_shader_object`, but this will likely be remedied later on.
 
 ## Dependencies
+
 You must download the following, or figure out a way to provide the required files yourself:
 
 - [Vulkan SDK](https://vulkan.lunarg.com/), at least 1.3.280, for `vulkan.h`, `glslangValidator.exe`, and a few debug utilities
@@ -20,7 +19,8 @@ You must download the following, or figure out a way to provide the required fil
 CMake is configured to use FetchContent to pull all of the following dependencies from Github. See [`cmake/dependencies.cmake`](cmake/dependencies.cmake) for the versions in use.
 
 - [fastgltf](https://github.com/spnda/fastgltf.git), for loading 3D models and scenes
-- [fmt](https://github.com/fmtlib/fmt.git), for formatting strings
+- [spdlog](https://github.com/gabime/spdlog.git), for logging
+- [fmt](https://github.com/fmtlib/fmt.git), for formatting strings. This project uses the version bundled with spdlog.
 - [glfw](https://github.com/glfw/glfw.git), for the windowing backend
 - [glm](https://github.com/g-truc/glm.git), for linear algebra
 - [Dear ImGui](https://github.com/ocornut/imgui), for the user interface
@@ -78,7 +78,6 @@ Some notes on building:
 
 - Serialization for UI and saving
 - Dynamic scenes with controllable transformations
-- Logging with categories, saving to file, and quality of life features such as deduplication
 - Portability of the engine, both for source compilation and required GPU features
 - Runtime metrics and benchmarking
 - Physically based rendering
@@ -87,6 +86,7 @@ Some notes on building:
 - Rigidbody physics engine
 - Runtime compilation and modification of shader code
 - Multithreading
+- Release builds
 
 ## Resources
 
