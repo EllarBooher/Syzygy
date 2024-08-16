@@ -1,6 +1,6 @@
 #include "shaders.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/helpers.hpp"
 #include <array>

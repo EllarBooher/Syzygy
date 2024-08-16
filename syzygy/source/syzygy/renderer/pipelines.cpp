@@ -1,6 +1,6 @@
 #include "pipelines.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/buffers.hpp"

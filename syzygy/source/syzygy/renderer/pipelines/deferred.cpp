@@ -1,6 +1,6 @@
 #include "deferred.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/descriptors.hpp"

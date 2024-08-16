@@ -1,6 +1,6 @@
 #include "widgets.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/renderer/image.hpp"

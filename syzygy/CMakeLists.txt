@@ -6,7 +6,7 @@ add_library(
 	"source/syzygy/syzygy.cpp"
 	"source/syzygy/vulkanusage.cpp"
 	"source/syzygy/helpers.cpp"
-	"source/syzygy/assets.cpp"
+	"source/syzygy/assets/assets.cpp"
 
 	"source/syzygy/geometry/geometryhelpers.cpp"
 

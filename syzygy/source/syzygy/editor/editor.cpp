@@ -1,6 +1,6 @@
 #include "editor.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/input.hpp"
 #include "syzygy/core/integer.hpp"

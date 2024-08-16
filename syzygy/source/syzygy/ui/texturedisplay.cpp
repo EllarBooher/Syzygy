@@ -1,6 +1,6 @@
 #include "texturedisplay.hpp"
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/image.hpp"

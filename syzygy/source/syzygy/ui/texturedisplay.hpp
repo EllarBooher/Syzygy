@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/assets.hpp"
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/vulkanusage.hpp"
