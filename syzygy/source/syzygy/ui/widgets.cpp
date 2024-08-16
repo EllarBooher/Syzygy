@@ -2,10 +2,10 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/core/scene.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/scene.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"

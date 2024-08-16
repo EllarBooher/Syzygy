@@ -1,6 +1,6 @@
 #include "scenetexture.hpp"
 
-#include "deletionqueue.hpp"
+#include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/image.hpp"

@@ -8,7 +8,7 @@
 
 namespace syzygy
 {
-struct DescriptorAllocator;
+class DescriptorAllocator;
 }
 
 namespace syzygy

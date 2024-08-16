@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/core/scenetexture.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
 #include <optional>

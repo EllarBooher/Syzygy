@@ -1,13 +1,13 @@
 #include "pipelines.hpp"
 
 #include "syzygy/assets.hpp"
-#include "syzygy/core/scene.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
+#include "syzygy/renderer/scene.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/vec2.hpp>

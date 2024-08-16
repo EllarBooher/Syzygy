@@ -1,7 +1,5 @@
 #include "renderer.hpp"
 
-#include "syzygy/core/scene.hpp"
-#include "syzygy/core/scenetexture.hpp"
 #include "syzygy/enginetypes.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/buffers.hpp"
@@ -11,6 +9,8 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
+#include "syzygy/renderer/scene.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"

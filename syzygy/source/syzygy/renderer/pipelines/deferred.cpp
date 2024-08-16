@@ -2,7 +2,6 @@
 
 #include "syzygy/assets.hpp"
 #include "syzygy/core/integer.hpp"
-#include "syzygy/core/scene.hpp"
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
@@ -10,6 +9,7 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/rendercommands.hpp"
+#include "syzygy/renderer/scene.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
 #include <glm/mat4x4.hpp>

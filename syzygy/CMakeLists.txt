@@ -25,6 +25,8 @@ add_library(
 	"source/syzygy/renderer/imageview.cpp"
 	"source/syzygy/renderer/imageoperations.cpp"
     "source/syzygy/renderer/rendercommands.cpp"
+	"source/syzygy/renderer/scenetexture.cpp" 	
+	"source/syzygy/renderer/scene.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"
@@ -41,10 +43,9 @@ add_library(
 	"source/syzygy/editor/swapchain.cpp"
 	"source/syzygy/editor/framebuffer.cpp"
 
-	"source/syzygy/core/scene.cpp"
 	"source/syzygy/core/log.cpp"
     "source/syzygy/core/immediate.cpp"
-    "source/syzygy/core/scenetexture.cpp" 
+
 	"source/syzygy/core/input.cpp"
 	"source/syzygy/core/uuid.cpp"
 	"source/syzygy/utils/windowsplatformutils.cpp"
