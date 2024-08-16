@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/vulkanusage.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include <memory>
 #include <optional>
 

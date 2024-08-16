@@ -1,7 +1,7 @@
 #include "imageview.hpp"
 
 #include "syzygy/core/log.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/image.hpp"
 #include <spdlog/fmt/bundled/core.h>
 #include <spdlog/fmt/bundled/format.h>

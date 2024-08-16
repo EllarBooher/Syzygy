@@ -1,6 +1,6 @@
 #include "pipelineui.hpp"
 
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/shaders.hpp"

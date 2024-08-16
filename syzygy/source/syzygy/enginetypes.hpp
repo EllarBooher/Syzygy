@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "syzygy/vulkanusage.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include <vulkan/vk_enum_string_helper.h>
 
 #include <glm/gtx/euler_angles.hpp>

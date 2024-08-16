@@ -1,7 +1,8 @@
 #include "renderer.hpp"
 
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
@@ -16,7 +17,6 @@
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/pipelineui.hpp"
 #include "syzygy/ui/uiwindow.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>

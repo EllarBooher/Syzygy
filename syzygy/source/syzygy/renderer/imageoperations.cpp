@@ -1,6 +1,6 @@
 #include "imageoperations.hpp"
 
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <glm/gtx/compatibility.hpp>

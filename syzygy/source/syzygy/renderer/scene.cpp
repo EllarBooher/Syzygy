@@ -2,11 +2,11 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/input.hpp"
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/lights.hpp"
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>

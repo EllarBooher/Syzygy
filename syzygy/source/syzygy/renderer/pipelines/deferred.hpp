@@ -1,13 +1,13 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <glm/vec2.hpp>
 #include <memory>
 #include <span>

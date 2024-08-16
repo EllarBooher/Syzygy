@@ -1,15 +1,15 @@
 #include "widgets.hpp"
 
 #include "syzygy/assets/assets.hpp"
-#include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <format>
 #include <functional>
 #include <glm/gtc/constants.hpp>

@@ -1,7 +1,7 @@
 #include "image.hpp"
 
 #include "syzygy/core/log.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include <utility>
 

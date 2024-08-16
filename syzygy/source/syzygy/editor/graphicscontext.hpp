@@ -1,8 +1,8 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/descriptors.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
 

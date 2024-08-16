@@ -4,8 +4,6 @@ add_library(
 	syzygy
 	STATIC 
 	"source/syzygy/syzygy.cpp"
-	"source/syzygy/vulkanusage.cpp"
-	"source/syzygy/helpers.cpp"
 	"source/syzygy/assets/assets.cpp"
 
 	"source/syzygy/geometry/geometryhelpers.cpp"
@@ -45,10 +43,12 @@ add_library(
 
 	"source/syzygy/core/log.cpp"
     "source/syzygy/core/immediate.cpp"
-
 	"source/syzygy/core/input.cpp"
 	"source/syzygy/core/uuid.cpp"
-	"source/syzygy/utils/windowsplatformutils.cpp"
+
+	"source/syzygy/platform/vulkanusage.cpp"
+	"source/syzygy/platform/windowsplatformutils.cpp"
+	"source/syzygy/platform/filesystemutils.cpp"
 )
 
 add_dependencies(syzygy syzygy-shaders)

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/log.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/shaders.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <glm/mat4x4.hpp>
 #include <optional>
 #include <set>

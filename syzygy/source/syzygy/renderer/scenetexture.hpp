@@ -1,7 +1,7 @@
 #pragma once
 
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/imageview.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
 #include <utility>

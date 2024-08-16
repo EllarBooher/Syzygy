@@ -3,14 +3,16 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/input.hpp"
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/editor/framebuffer.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/swapchain.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/filesystemutils.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/imageview.hpp"
@@ -23,7 +25,6 @@
 #include "syzygy/ui/texturedisplay.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <chrono>

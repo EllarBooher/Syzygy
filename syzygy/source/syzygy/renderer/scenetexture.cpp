@@ -1,7 +1,7 @@
 #include "scenetexture.hpp"
 
 #include "syzygy/core/deletionqueue.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"

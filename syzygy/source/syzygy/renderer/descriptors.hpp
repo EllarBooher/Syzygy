@@ -1,7 +1,7 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
-#include "syzygy/vulkanusage.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include <optional>
 #include <span>
 #include <vector>

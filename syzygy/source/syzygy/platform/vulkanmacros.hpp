@@ -1,22 +1,10 @@
 #pragma once
 
-#include "syzygy/vulkanusage.hpp"
-#include <cassert>
-#include <filesystem>
-#include <memory>
-#include <spdlog/fmt/bundled/core.h>
+#include "syzygy/platform/vulkanusage.hpp"
 #include <vulkan/vk_enum_string_helper.h>
 
 #define VKR_ARRAY(x) static_cast<uint32_t>(x.size()), x.data()
 #define VKR_ARRAY_NONE 0, nullptr
-
-namespace syzygy
-{
-auto ensureAbsolutePath(
-    std::filesystem::path const& path,
-    std::filesystem::path const& root = std::filesystem::current_path()
-) -> std::filesystem::path;
-}
 
 // TODO: Support zero variadic arguments
 #define SZG_LOG_VK(result_expr, ...)                                           \

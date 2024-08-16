@@ -2,7 +2,7 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/log.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include <array>
 #include <cassert>
 #include <format>

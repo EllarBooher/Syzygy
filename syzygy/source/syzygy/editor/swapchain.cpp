@@ -1,7 +1,7 @@
 #include "swapchain.hpp"
 
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/log.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <utility>
 

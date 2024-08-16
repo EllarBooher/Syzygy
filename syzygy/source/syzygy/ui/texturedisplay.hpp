@@ -2,8 +2,8 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/uuid.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/imageview.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <imgui.h>
 #include <memory>
 #include <optional>

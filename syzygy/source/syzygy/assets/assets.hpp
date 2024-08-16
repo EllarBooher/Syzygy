@@ -1,10 +1,10 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/uuid.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <filesystem>
 #include <functional>
 #include <memory>

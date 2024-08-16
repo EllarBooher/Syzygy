@@ -1,8 +1,8 @@
 #include "gbuffer.hpp"
 
 #include "syzygy/core/deletionqueue.hpp"
-#include "syzygy/core/integer.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"

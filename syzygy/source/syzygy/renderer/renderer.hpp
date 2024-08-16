@@ -1,14 +1,14 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
 #include "syzygy/enginetypes.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/scenetexture.hpp"
-#include "syzygy/vulkanusage.hpp"
 #include <memory>
 #include <optional>
 

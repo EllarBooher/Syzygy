@@ -1,5 +1,5 @@
 #include "window.hpp"
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
 #include <GLFW/glfw3.h>
 #include <utility>
 

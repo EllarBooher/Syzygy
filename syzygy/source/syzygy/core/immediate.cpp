@@ -1,6 +1,6 @@
 #include "immediate.hpp"
 #include "deletionqueue.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <vector>
 

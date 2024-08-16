@@ -1,7 +1,7 @@
 #include "buffers.hpp"
 
 #include "syzygy/core/log.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include <algorithm>
 
 namespace syzygy

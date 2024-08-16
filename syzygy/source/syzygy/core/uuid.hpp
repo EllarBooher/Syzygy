@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/core/integer.hpp"
+#include "syzygy/platform/integer.hpp"
 
 namespace syzygy
 {

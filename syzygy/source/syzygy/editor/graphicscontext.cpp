@@ -2,7 +2,7 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 #include <optional>

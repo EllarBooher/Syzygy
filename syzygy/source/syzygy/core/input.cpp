@@ -1,6 +1,6 @@
 #include "input.hpp"
 
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <optional>

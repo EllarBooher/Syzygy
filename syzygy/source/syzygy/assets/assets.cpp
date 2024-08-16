@@ -1,15 +1,16 @@
 #include "assets.hpp"
 
 #include "syzygy/core/immediate.hpp"
-#include "syzygy/core/integer.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/enginetypes.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/filesystemutils.hpp"
+#include "syzygy/platform/integer.hpp"
+#include "syzygy/platform/platformutils.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
-#include "syzygy/utils/platformutils.hpp"
 #include <algorithm>
 #include <cassert>
 #include <fastgltf/core.hpp>

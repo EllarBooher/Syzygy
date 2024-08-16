@@ -1,7 +1,7 @@
 #include "framebuffer.hpp"
 
 #include "syzygy/core/deletionqueue.hpp"
-#include "syzygy/helpers.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <functional>
 #include <utility>
