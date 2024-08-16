@@ -7,8 +7,8 @@
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
+#include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
-#include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
 
 namespace syzygy

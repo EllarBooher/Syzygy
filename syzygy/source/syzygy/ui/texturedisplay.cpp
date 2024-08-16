@@ -5,8 +5,8 @@
 #include "syzygy/helpers.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
-#include "syzygy/renderpass/renderpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uiwindow.hpp"
 #include <imgui.h>

@@ -24,6 +24,7 @@ add_library(
 	"source/syzygy/renderer/image.cpp"
 	"source/syzygy/renderer/imageview.cpp"
 	"source/syzygy/renderer/imageoperations.cpp"
+    "source/syzygy/renderer/rendercommands.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"
@@ -39,8 +40,6 @@ add_library(
 	"source/syzygy/editor/graphicscontext.cpp"
 	"source/syzygy/editor/swapchain.cpp"
 	"source/syzygy/editor/framebuffer.cpp"
-
-    "source/syzygy/renderpass/renderpass.cpp"
 
 	"source/syzygy/core/scene.cpp"
 	"source/syzygy/core/log.cpp"

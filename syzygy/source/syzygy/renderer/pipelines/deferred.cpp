@@ -9,8 +9,8 @@
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
+#include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
-#include "syzygy/renderpass/renderpass.hpp"
 #include <array>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
