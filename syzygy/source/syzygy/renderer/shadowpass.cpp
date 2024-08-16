@@ -11,12 +11,12 @@
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
 
-namespace szg_scene
+namespace syzygy
 {
 struct MeshInstanced;
-} // namespace szg_scene
+} // namespace syzygy
 
-namespace szg_renderer
+namespace syzygy
 {
 auto ShadowPassArray::create(
     VkDevice const device,
@@ -26,7 +26,7 @@ auto ShadowPassArray::create(
     size_t const capacity
 ) -> std::optional<ShadowPassArray>
 {
-    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{syzygy::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
         VK_FILTER_NEAREST,
@@ -82,11 +82,11 @@ auto ShadowPassArray::create(
     { // shadow map textures
         for (size_t i{0}; i < capacity; i++)
         {
-            std::optional<std::unique_ptr<szg_renderer::ImageView>> imageResult{
-                szg_renderer::ImageView::allocate(
+            std::optional<std::unique_ptr<syzygy::ImageView>> imageResult{
+                syzygy::ImageView::allocate(
                     device,
                     allocator,
-                    szg_renderer::ImageAllocationParameters{
+                    syzygy::ImageAllocationParameters{
                         .extent = shadowmapExtent,
                         .format = VK_FORMAT_D32_SFLOAT,
                         .usageFlags =
@@ -94,8 +94,8 @@ auto ShadowPassArray::create(
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                             | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                     },
-                    szg_renderer::ImageViewAllocationParameters{
-                        .subresourceRange = szg_renderer::imageSubresourceRange(
+                    syzygy::ImageViewAllocationParameters{
+                        .subresourceRange = syzygy::imageSubresourceRange(
                             VK_IMAGE_ASPECT_DEPTH_BIT
                         ),
                     }
@@ -143,7 +143,7 @@ auto ShadowPassArray::create(
 
         std::vector<VkDescriptorImageInfo> mapInfos{};
         mapInfos.reserve(shadowPass.m_shadowmaps.size());
-        for (std::unique_ptr<szg_renderer::ImageView> const& texture :
+        for (std::unique_ptr<syzygy::ImageView> const& texture :
              shadowPass.m_shadowmaps)
         {
             mapInfos.push_back(VkDescriptorImageInfo{
@@ -188,9 +188,8 @@ auto ShadowPassArray::create(
 void ShadowPassArray::recordInitialize(
     VkCommandBuffer const cmd,
     ShadowPassParameters parameters,
-    std::span<szg_renderer::DirectionalLightPacked const> const
-        directionalLights,
-    std::span<szg_renderer::SpotLightPacked const> const spotLights
+    std::span<syzygy::DirectionalLightPacked const> const directionalLights,
+    std::span<syzygy::SpotLightPacked const> const spotLights
 )
 {
     m_depthBias = parameters.depthBiasConstant;
@@ -204,14 +203,13 @@ void ShadowPassArray::recordInitialize(
         projViewMatrices.clearStaged();
 
         size_t shadowMapCount{0};
-        for (szg_renderer::DirectionalLightPacked const& light :
-             directionalLights)
+        for (syzygy::DirectionalLightPacked const& light : directionalLights)
         {
             projViewMatrices.push(light.projection * light.view);
 
             shadowMapCount += 1;
         }
-        for (szg_renderer::SpotLightPacked const& light : spotLights)
+        for (syzygy::SpotLightPacked const& light : spotLights)
         {
             projViewMatrices.push(light.projection * light.view);
 
@@ -253,7 +251,7 @@ void ShadowPassArray::recordInitialize(
 
 void ShadowPassArray::recordDrawCommands(
     VkCommandBuffer const cmd,
-    std::span<szg_scene::MeshInstanced const> const geometry,
+    std::span<syzygy::MeshInstanced const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 )
 {
@@ -332,4 +330,4 @@ void ShadowPassArray::cleanup(
     m_shadowmapSetLayout = VK_NULL_HANDLE;
     m_shadowmapSet = VK_NULL_HANDLE;
 }
-} // namespace szg_renderer
+} // namespace syzygy

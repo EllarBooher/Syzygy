@@ -207,25 +207,25 @@ auto GraphicsContext::create(PlatformWindow const& window)
         return std::nullopt;
     }
 
-    std::vector<szg_renderer::DescriptorAllocator::PoolSizeRatio> const
-        poolSizes{
-            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
-        };
+    std::vector<syzygy::DescriptorAllocator::PoolSizeRatio> const poolSizes{
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
+    };
 
     uint32_t constexpr MAX_SETS{10U};
 
-    if (std::optional<szg_renderer::DescriptorAllocator>
-            descriptorAllocatorResult{szg_renderer::DescriptorAllocator::create(
+    if (std::optional<syzygy::DescriptorAllocator> descriptorAllocatorResult{
+            syzygy::DescriptorAllocator::create(
                 graphics.m_device,
                 MAX_SETS,
                 poolSizes,
                 (VkDescriptorPoolCreateFlags)0
-            )};
+            )
+        };
         descriptorAllocatorResult.has_value())
     {
         graphics.m_descriptorAllocator =
-            std::make_unique<szg_renderer::DescriptorAllocator>(
+            std::make_unique<syzygy::DescriptorAllocator>(
                 std::move(descriptorAllocatorResult).value()
             );
     }
@@ -264,8 +264,7 @@ auto GraphicsContext::universalQueueFamily() const -> uint32_t
 // NOLINTNEXTLINE(readability-make-member-function-const)
 auto GraphicsContext::allocator() -> VmaAllocator { return m_allocator; }
 
-auto GraphicsContext::descriptorAllocator()
-    -> szg_renderer::DescriptorAllocator&
+auto GraphicsContext::descriptorAllocator() -> syzygy::DescriptorAllocator&
 {
     return *m_descriptorAllocator;
 }

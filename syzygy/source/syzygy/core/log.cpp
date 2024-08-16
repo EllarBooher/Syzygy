@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
-namespace szg_log
+namespace syzygy
 {
 std::shared_ptr<spdlog::logger> Logger::m_logger{};
 
@@ -32,4 +32,4 @@ void Logger::initLogging()
     m_logger->set_level(spdlog::level::trace);
     m_logger->flush_on(spdlog::level::trace);
 }
-} // namespace szg_log
+} // namespace syzygy

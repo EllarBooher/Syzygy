@@ -12,18 +12,14 @@
 #include <memory>
 #include <span>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct Image;
-} // namespace szg_renderer
-
-class DescriptorAllocator;
-namespace szg_scene
-{
 struct MeshInstanced;
-} // namespace szg_scene
+class DescriptorAllocator;
+} // namespace syzygy
 
-namespace szg_renderer
+namespace syzygy
 {
 class DeferredShadingPipeline
 {
@@ -38,33 +34,31 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd,
         VkRect2D drawRect,
-        szg_renderer::Image& color,
-        szg_renderer::ImageView& depth,
-        std::span<szg_renderer::DirectionalLightPacked const> directionalLights,
-        std::span<szg_renderer::SpotLightPacked const> spotLights,
+        syzygy::Image& color,
+        syzygy::ImageView& depth,
+        std::span<syzygy::DirectionalLightPacked const> directionalLights,
+        std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
-        TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
+        TStagedBuffer<syzygy::CameraPacked> const& cameras,
         uint32_t atmosphereIndex,
-        TStagedBuffer<szg_renderer::AtmospherePacked> const& atmospheres,
-        std::span<szg_scene::MeshInstanced const> sceneGeometry
+        TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
+        std::span<syzygy::MeshInstanced const> sceneGeometry
     );
 
-    void updateRenderTargetDescriptors(
-        VkDevice, szg_renderer::ImageView& depthImage
-    );
+    void updateRenderTargetDescriptors(VkDevice, syzygy::ImageView& depthImage);
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:
     ShadowPassArray m_shadowPassArray{};
 
-    std::unique_ptr<szg_renderer::ImageView> m_drawImage{};
+    std::unique_ptr<syzygy::ImageView> m_drawImage{};
 
-    typedef TStagedBuffer<szg_renderer::DirectionalLightPacked>
+    typedef TStagedBuffer<syzygy::DirectionalLightPacked>
         LightDirectionalBuffer;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
-    typedef TStagedBuffer<szg_renderer::SpotLightPacked> LightSpotBuffer;
+    typedef TStagedBuffer<syzygy::SpotLightPacked> LightSpotBuffer;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};
@@ -72,7 +66,7 @@ private:
     VkDescriptorSetLayout m_drawImageLayout{VK_NULL_HANDLE};
 
     VkDescriptorSet m_depthImageSet{VK_NULL_HANDLE};
-    // Used by compute shaders to read szg_scene depth
+    // Used by compute shaders to read syzygy depth
     VkDescriptorSetLayout m_depthImageLayout{VK_NULL_HANDLE};
 
     VkSampler m_depthImageImmutableSampler{VK_NULL_HANDLE};
@@ -150,4 +144,4 @@ public:
     };
     Parameters m_parameters;
 };
-} // namespace szg_renderer
+} // namespace syzygy

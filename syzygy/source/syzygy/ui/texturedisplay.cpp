@@ -15,7 +15,7 @@
 #include <regex>
 #include <utility>
 
-szg_ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
+syzygy::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
 {
     destroy();
 
@@ -25,9 +25,9 @@ szg_ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
     m_imguiDescriptor = std::exchange(other.m_imguiDescriptor, VK_NULL_HANDLE);
 }
 
-szg_ui::TextureDisplay::~TextureDisplay() { destroy(); }
+syzygy::TextureDisplay::~TextureDisplay() { destroy(); }
 
-auto szg_ui::TextureDisplay::create(
+auto syzygy::TextureDisplay::create(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
@@ -49,19 +49,18 @@ auto szg_ui::TextureDisplay::create(
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
     };
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> textureResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> textureResult{
+        syzygy::ImageView::allocate(
             device,
             allocator,
-            szg_renderer::ImageAllocationParameters{
+            syzygy::ImageAllocationParameters{
                 .extent = displaySize,
                 .format = format,
                 .usageFlags = colorUsage,
             },
-            szg_renderer::ImageViewAllocationParameters{
-                .subresourceRange = szg_renderer::imageSubresourceRange(
-                    VK_IMAGE_ASPECT_COLOR_BIT
-                )
+            syzygy::ImageViewAllocationParameters{
+                .subresourceRange =
+                    syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
             }
         )
     };
@@ -71,7 +70,7 @@ auto szg_ui::TextureDisplay::create(
         SZG_ERROR("Failed to allocate image.");
         return std::nullopt;
     }
-    szg_renderer::ImageView& texture{*textureResult.value()};
+    syzygy::ImageView& texture{*textureResult.value()};
 
     submissionQueue.immediateSubmit(
         transferQueue,
@@ -87,7 +86,7 @@ auto szg_ui::TextureDisplay::create(
     }
     );
 
-    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{syzygy::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
         VK_FILTER_NEAREST,
@@ -110,15 +109,15 @@ auto szg_ui::TextureDisplay::create(
     };
 }
 
-auto szg_ui::TextureDisplay::uiRender(
+auto syzygy::TextureDisplay::uiRender(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     VkCommandBuffer const cmd,
-    std::span<szg_assets::AssetRef<szg_renderer::Image> const> const textures
+    std::span<syzygy::AssetRef<syzygy::Image> const> const textures
 ) -> TextureDisplay::UIResult
 {
-    szg_ui::UIWindow const sceneViewport{
-        szg_ui::UIWindow::beginDockable(title, dockNode)
+    syzygy::UIWindow const sceneViewport{
+        syzygy::UIWindow::beginDockable(title, dockNode)
     };
 
     TextureDisplay::UIResult result{};
@@ -136,7 +135,7 @@ auto szg_ui::TextureDisplay::uiRender(
         {
             return;
         }
-        szg_renderer::ImageView& displayImage{*m_displayImage};
+        syzygy::ImageView& displayImage{*m_displayImage};
 
         renderpass::recordClearColorImage(
             cmd, displayImage.image(), renderpass::COLOR_BLACK_OPAQUE
@@ -147,13 +146,13 @@ auto szg_ui::TextureDisplay::uiRender(
         );
     };
 
-    auto copyIntoImageCallback = [&](szg_renderer::Image& other)
+    auto copyIntoImageCallback = [&](syzygy::Image& other)
     {
         if (m_displayImage == nullptr)
         {
             return;
         }
-        szg_renderer::ImageView& displayImage{*m_displayImage};
+        syzygy::ImageView& displayImage{*m_displayImage};
 
         displayImage.recordTransitionBarriered(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
@@ -163,7 +162,7 @@ auto szg_ui::TextureDisplay::uiRender(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
         );
 
-        szg_renderer::Image::recordCopyEntire(
+        syzygy::Image::recordCopyEntire(
             cmd, other, displayImage.image(), VK_IMAGE_ASPECT_COLOR_BIT
         );
 
@@ -204,10 +203,9 @@ auto szg_ui::TextureDisplay::uiRender(
                     m_cachedMetadata = std::nullopt;
                 }
 
-                for (szg_assets::Asset<szg_renderer::Image> const& texture :
-                     textures)
+                for (syzygy::Asset<syzygy::Image> const& texture : textures)
                 {
-                    szg_assets::AssetMetadata const& metaData{texture.metadata};
+                    syzygy::AssetMetadata const& metaData{texture.metadata};
 
                     if (!std::regex_search(metaData.displayName, searchPattern))
                     {
@@ -247,7 +245,7 @@ auto szg_ui::TextureDisplay::uiRender(
         if (m_cachedMetadata.has_value())
         {
             PropertyTable table{PropertyTable::begin()};
-            szg_assets::AssetMetadata const& metadata{m_cachedMetadata.value()};
+            syzygy::AssetMetadata const& metadata{m_cachedMetadata.value()};
 
             table.rowReadOnlyTextInput(
                 "Display Name", metadata.displayName, false
@@ -285,7 +283,7 @@ auto szg_ui::TextureDisplay::uiRender(
     return result;
 }
 
-void szg_ui::TextureDisplay::destroy()
+void syzygy::TextureDisplay::destroy()
 {
     if (m_device != VK_NULL_HANDLE)
     {

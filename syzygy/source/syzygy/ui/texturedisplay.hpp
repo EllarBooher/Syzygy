@@ -11,13 +11,13 @@
 #include <string>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct Image;
-} // namespace szg_renderer
+} // namespace syzygy
 struct ImmediateSubmissionQueue;
 
-namespace szg_ui
+namespace syzygy
 {
 // A UI widget that displays the color aspect of an image
 struct TextureDisplay
@@ -52,7 +52,7 @@ public:
         std::string const& title,
         std::optional<ImGuiID> dockNode,
         VkCommandBuffer,
-        std::span<szg_assets::AssetRef<szg_renderer::Image> const> textures
+        std::span<syzygy::AssetRef<syzygy::Image> const> textures
     ) -> UIResult;
 
 private:
@@ -60,7 +60,7 @@ private:
 
     TextureDisplay(
         VkDevice device,
-        std::unique_ptr<szg_renderer::ImageView> imageView,
+        std::unique_ptr<syzygy::ImageView> imageView,
         VkSampler sampler,
         VkDescriptorSet imguiDescriptor
     )
@@ -73,11 +73,11 @@ private:
 
     VkDevice m_device{VK_NULL_HANDLE};
 
-    std::unique_ptr<szg_renderer::ImageView> m_displayImage{};
+    std::unique_ptr<syzygy::ImageView> m_displayImage{};
     VkSampler m_sampler{VK_NULL_HANDLE};
     VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 
     std::string m_nameFilter{};
-    std::optional<szg_assets::AssetMetadata> m_cachedMetadata{};
+    std::optional<syzygy::AssetMetadata> m_cachedMetadata{};
 };
-} // namespace szg_ui
+} // namespace syzygy

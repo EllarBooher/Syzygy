@@ -11,14 +11,14 @@
 #include <string>
 #include <vector>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct CameraPacked;
 struct ImageView;
 template <typename T> struct TStagedBuffer;
-} // namespace szg_renderer
+} // namespace syzygy
 struct Vertex;
-namespace szg_scene
+namespace syzygy
 {
 struct MeshInstanced;
 }
@@ -48,7 +48,7 @@ auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
 }
 } // namespace
 
-namespace szg_renderer
+namespace syzygy
 {
 struct DrawResultsGraphics
 {
@@ -138,10 +138,10 @@ public:
         bool reuseDepthAttachment,
         float depthBias,
         float depthBiasSlope,
-        szg_renderer::ImageView& depth,
+        syzygy::ImageView& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-        std::span<szg_scene::MeshInstanced const> geometry,
+        std::span<syzygy::MeshInstanced const> geometry,
         std::span<RenderOverride const> const renderOverrides
     ) const;
 
@@ -259,10 +259,10 @@ public:
         bool reuseDepthAttachment,
         float lineWidth,
         VkRect2D drawRect,
-        szg_renderer::ImageView& color,
-        szg_renderer::ImageView& depth,
+        syzygy::ImageView& color,
+        syzygy::ImageView& depth,
         uint32_t cameraIndex,
-        TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
+        TStagedBuffer<syzygy::CameraPacked> const& cameras,
         TStagedBuffer<Vertex> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
     ) const;
@@ -303,4 +303,4 @@ public:
         return m_fragmentShader;
     };
 };
-} // namespace szg_renderer
+} // namespace syzygy

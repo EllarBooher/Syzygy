@@ -6,7 +6,7 @@
 #include <initializer_list>
 #include <span>
 
-namespace szg_renderer
+namespace syzygy
 {
 
 // NOLINTBEGIN(readability-make-member-function-const)
@@ -70,8 +70,8 @@ void DebugLines::pushRectangleOriented(
 {
     glm::vec3 const scale{extents.x, 1.0F, extents.y};
 
-    glm::vec3 const right{orientation * (scale * szg_geometry::right)};
-    glm::vec3 const forward{orientation * (scale * szg_geometry::forward)};
+    glm::vec3 const right{orientation * (scale * syzygy::right)};
+    glm::vec3 const forward{orientation * (scale * syzygy::forward)};
 
     pushRectangleAxes(center, right, forward);
 }
@@ -80,9 +80,9 @@ void DebugLines::pushBox(
     glm::vec3 const center, glm::quat const orientation, glm::vec3 const extents
 )
 {
-    glm::vec3 const right{orientation * (extents * szg_geometry::right)};
-    glm::vec3 const forward{orientation * (extents * szg_geometry::forward)};
-    glm::vec3 const up{orientation * (extents * szg_geometry::up)};
+    glm::vec3 const right{orientation * (extents * syzygy::right)};
+    glm::vec3 const forward{orientation * (extents * syzygy::forward)};
+    glm::vec3 const up{orientation * (extents * syzygy::up)};
 
     pushRectangleAxes(center - up, right, forward);
     pushRectangleAxes(center + up, right, forward);
@@ -109,4 +109,4 @@ void DebugLines::cleanup(
     vertices.reset();
     indices.reset();
 }
-} // namespace szg_renderer
+} // namespace syzygy

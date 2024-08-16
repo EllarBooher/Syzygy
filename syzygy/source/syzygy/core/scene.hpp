@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace szg_input
+namespace syzygy
 {
 struct InputSnapshot;
 }
@@ -19,7 +19,7 @@ struct MeshAsset;
 struct MeshAssetLibrary;
 struct TickTiming;
 
-namespace szg_scene
+namespace syzygy
 {
 struct SceneBounds
 {
@@ -29,9 +29,9 @@ struct SceneBounds
 
 struct AtmosphereBaked
 {
-    szg_renderer::AtmospherePacked atmosphere{};
-    std::optional<szg_renderer::DirectionalLightPacked> sunlight{};
-    std::optional<szg_renderer::DirectionalLightPacked> moonlight{};
+    syzygy::AtmospherePacked atmosphere{};
+    std::optional<syzygy::DirectionalLightPacked> sunlight{};
+    std::optional<syzygy::DirectionalLightPacked> moonlight{};
 };
 
 struct Atmosphere
@@ -52,7 +52,7 @@ struct Atmosphere
 
     auto directionToSun() const -> glm::vec3;
 
-    auto toDeviceEquivalent() const -> szg_renderer::AtmospherePacked;
+    auto toDeviceEquivalent() const -> syzygy::AtmospherePacked;
     auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
@@ -81,8 +81,7 @@ struct Camera
     // clip space.
     auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
-    auto toDeviceEquivalent(float aspectRatio) const
-        -> szg_renderer::CameraPacked;
+    auto toDeviceEquivalent(float aspectRatio) const -> syzygy::CameraPacked;
 };
 
 struct MeshInstanced
@@ -93,9 +92,9 @@ struct MeshInstanced
 
     std::vector<glm::mat4x4> originals{};
 
-    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<szg_renderer::TStagedBuffer<glm::mat4x4>>
-        modelInverseTransposes{};
+    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<syzygy::TStagedBuffer<glm::mat4x4>> modelInverseTransposes{
+    };
 };
 
 struct SunAnimation
@@ -123,7 +122,7 @@ struct Scene
     float cameraControlledSpeed{DEFAULT_CAMERA_CONTROLLED_SPEED};
 
     bool spotlightsRender{false};
-    std::vector<szg_renderer::SpotLightPacked> spotlights{};
+    std::vector<syzygy::SpotLightPacked> spotlights{};
 
     std::optional<size_t> cubesIndex{};
     std::vector<MeshInstanced> geometry;
@@ -136,7 +135,7 @@ struct Scene
     static auto
     defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
         -> Scene;
-    void handleInput(TickTiming, szg_input::InputSnapshot const&);
+    void handleInput(TickTiming, syzygy::InputSnapshot const&);
     void tick(TickTiming);
 };
-} // namespace szg_scene
+} // namespace syzygy

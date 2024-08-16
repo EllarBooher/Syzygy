@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <string>
 
-namespace szg_utils
+namespace syzygy
 {
 // Format the filter like ".TXT;.DOC;.BAK" to filter out files that can be
 // selected
@@ -16,4 +16,4 @@ auto openDirectory(PlatformWindow const& parent)
     -> std::optional<std::filesystem::path>;
 auto openDirectories(PlatformWindow const& parent)
     -> std::vector<std::filesystem::path>;
-} // namespace szg_utils
+} // namespace syzygy

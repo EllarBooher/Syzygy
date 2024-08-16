@@ -12,23 +12,23 @@
 #include <memory>
 #include <optional>
 
-namespace szg_renderer
+namespace syzygy
 {
 class DescriptorAllocator;
 struct AtmospherePacked;
 struct CameraPacked;
-} // namespace szg_renderer
-namespace szg_scene
+} // namespace syzygy
+namespace syzygy
 {
 struct Scene;
 }
-namespace szg_ui
+namespace syzygy
 {
 struct DockingLayout;
 }
 struct PlatformWindow;
 
-namespace szg_renderer
+namespace syzygy
 {
 class Renderer
 {
@@ -49,26 +49,26 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        szg_scene::SceneTexture const& sceneTexture
+        syzygy::SceneTexture const& sceneTexture
     ) -> std::optional<Renderer>;
 
     // TODO: Remove this, but right now relies on internal state.
-    void uiEngineControls(szg_ui::DockingLayout const&);
+    void uiEngineControls(syzygy::DockingLayout const&);
 
     void recordDraw(
         VkCommandBuffer,
-        szg_scene::Scene const& szg_scene,
-        szg_scene::SceneTexture& sceneTexture,
-        std::optional<szg_scene::SceneViewport> const& sceneViewport
+        syzygy::Scene const& scene,
+        syzygy::SceneTexture& sceneTexture,
+        std::optional<syzygy::SceneViewport> const& sceneViewport
     );
 
 private:
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
-        szg_scene::SceneTexture& sceneTexture,
-        szg_scene::SceneViewport const& sceneViewport,
-        TStagedBuffer<szg_renderer::CameraPacked> const& camerasBuffer
+        syzygy::SceneTexture& sceneTexture,
+        syzygy::SceneViewport const& sceneViewport,
+        TStagedBuffer<syzygy::CameraPacked> const& camerasBuffer
     );
 
     // Begin Vulkan
@@ -81,7 +81,7 @@ private:
     void
     initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
 
-    void initGenericComputePipelines(VkDevice, szg_scene::SceneTexture const&);
+    void initGenericComputePipelines(VkDevice, syzygy::SceneTexture const&);
 
     VkDevice m_device{VK_NULL_HANDLE};
     VmaAllocator m_allocator{VK_NULL_HANDLE};
@@ -95,7 +95,7 @@ private:
     static VkExtent2D constexpr MAX_DRAW_EXTENTS{4096, 4096};
 
     // Depth image used for graphics passes
-    std::unique_ptr<szg_renderer::ImageView> m_sceneDepthTexture{};
+    std::unique_ptr<syzygy::ImageView> m_sceneDepthTexture{};
 
     // Pipelines
 
@@ -110,13 +110,12 @@ private:
     // Scene
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
-    std::unique_ptr<TStagedBuffer<szg_renderer::CameraPacked>> m_camerasBuffer{
-    };
+    std::unique_ptr<TStagedBuffer<syzygy::CameraPacked>> m_camerasBuffer{};
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
-    std::unique_ptr<TStagedBuffer<szg_renderer::AtmospherePacked>>
+    std::unique_ptr<TStagedBuffer<syzygy::AtmospherePacked>>
         m_atmospheresBuffer{};
 
     // End Vulkan
 };
-} // namespace szg_renderer
+} // namespace syzygy

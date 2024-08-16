@@ -93,7 +93,7 @@ auto openDialog(
 }
 } // namespace
 
-auto szg_utils::openFile(PlatformWindow const& parent)
+auto syzygy::openFile(PlatformWindow const& parent)
     -> std::optional<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, false, false)};
@@ -111,7 +111,7 @@ auto szg_utils::openFile(PlatformWindow const& parent)
     return paths[0];
 }
 
-auto szg_utils::openFiles(PlatformWindow const& parent)
+auto syzygy::openFiles(PlatformWindow const& parent)
     -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, false, true)};
@@ -119,7 +119,7 @@ auto szg_utils::openFiles(PlatformWindow const& parent)
     return paths;
 }
 
-auto szg_utils::openDirectory(PlatformWindow const& parent)
+auto syzygy::openDirectory(PlatformWindow const& parent)
     -> std::optional<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, true, false)};
@@ -137,7 +137,7 @@ auto szg_utils::openDirectory(PlatformWindow const& parent)
     return paths[0];
 }
 
-auto szg_utils::openDirectories(PlatformWindow const& parent)
+auto syzygy::openDirectories(PlatformWindow const& parent)
     -> std::vector<std::filesystem::path>
 {
     std::vector<std::filesystem::path> paths{openDialog(parent, true, true)};

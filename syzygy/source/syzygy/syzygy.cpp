@@ -12,9 +12,9 @@ auto syzygy::runApplication() -> syzygy::RunResult
         return RunResult::FAILURE;
     }
 
-    szg_log::Logger::initLogging();
+    syzygy::Logger::initLogging();
 
-    EditorResult const runResult{szg_editor::run()};
+    EditorResult const runResult{syzygy::run()};
 
     glfwTerminate();
 

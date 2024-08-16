@@ -54,9 +54,7 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 }
 
 template <>
-void imguiStructureControls<szg_renderer::DebugLines>(
-    szg_renderer::DebugLines& structure
-)
+void imguiStructureControls<syzygy::DebugLines>(syzygy::DebugLines& structure)
 {
     bool const headerOpen{
         ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen)
@@ -110,7 +108,7 @@ void imguiStructureControls<szg_renderer::DebugLines>(
     );
 
     {
-        szg_renderer::DrawResultsGraphics const drawResults{
+        syzygy::DrawResultsGraphics const drawResults{
             structure.lastFrameDrawResults
         };
 
@@ -133,8 +131,8 @@ void imguiStructureControls<szg_renderer::DebugLines>(
 
 template <>
 void imguiStructureControls(
-    szg_renderer::ShadowPassParameters& structure,
-    szg_renderer::ShadowPassParameters const& defaultStructure
+    syzygy::ShadowPassParameters& structure,
+    syzygy::ShadowPassParameters const& defaultStructure
 )
 {
     bool const headerOpen{ImGui::CollapsingHeader(

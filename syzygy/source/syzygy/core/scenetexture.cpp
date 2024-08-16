@@ -11,13 +11,13 @@
 #include <imgui_impl_vulkan.h>
 #include <vector>
 
-szg_scene::SceneTexture::SceneTexture(SceneTexture&& other) noexcept
+syzygy::SceneTexture::SceneTexture(SceneTexture&& other) noexcept
 {
     *this = std::move(other);
 }
 
-auto szg_scene::SceneTexture::operator=(SceneTexture&& other) noexcept
-    -> szg_scene::SceneTexture&
+auto syzygy::SceneTexture::operator=(SceneTexture&& other) noexcept
+    -> syzygy::SceneTexture&
 {
     destroy();
 
@@ -36,12 +36,12 @@ auto szg_scene::SceneTexture::operator=(SceneTexture&& other) noexcept
     return *this;
 }
 
-szg_scene::SceneTexture::~SceneTexture() { destroy(); }
+syzygy::SceneTexture::~SceneTexture() { destroy(); }
 
-auto szg_scene::SceneTexture::create(
+auto syzygy::SceneTexture::create(
     VkDevice const device,
     VmaAllocator const allocator,
-    szg_renderer::DescriptorAllocator& descriptorAllocator,
+    syzygy::DescriptorAllocator& descriptorAllocator,
     VkExtent2D const textureMax,
     VkFormat const format
 ) -> std::optional<SceneTexture>
@@ -62,16 +62,16 @@ auto szg_scene::SceneTexture::create(
         | VK_IMAGE_USAGE_TRANSFER_DST_BIT     // copy into
     };
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> textureResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> textureResult{
+        syzygy::ImageView::allocate(
             device,
             allocator,
-            szg_renderer::ImageAllocationParameters{
+            syzygy::ImageAllocationParameters{
                 .extent = textureMax,
                 .format = format,
                 .usageFlags = colorUsage,
             },
-            szg_renderer::ImageViewAllocationParameters{}
+            syzygy::ImageViewAllocationParameters{}
         )
     };
 
@@ -81,9 +81,9 @@ auto szg_scene::SceneTexture::create(
         return std::nullopt;
     }
     cleanupCallbacks.pushFunction([&]() { textureResult.reset(); });
-    szg_renderer::ImageView& texture{*textureResult.value()};
+    syzygy::ImageView& texture{*textureResult.value()};
 
-    VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
+    VkSamplerCreateInfo const samplerInfo{syzygy::samplerCreateInfo(
         0,
         VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
         VK_FILTER_NEAREST,
@@ -105,9 +105,9 @@ auto szg_scene::SceneTexture::create(
 
     VkDescriptorSetLayout singletonLayout;
     if (auto const layoutResult{
-            szg_renderer::DescriptorLayoutBuilder{}
+            syzygy::DescriptorLayoutBuilder{}
                 .addBinding(
-                    szg_renderer::DescriptorLayoutBuilder::AddBindingParameters{
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
                         .binding = 0,
                         .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                         .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -171,34 +171,34 @@ auto szg_scene::SceneTexture::create(
     };
 }
 
-auto szg_scene::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
+auto syzygy::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
 
-auto szg_scene::SceneTexture::texture() -> szg_renderer::ImageView&
+auto syzygy::SceneTexture::texture() -> syzygy::ImageView&
 {
     return *m_texture;
 }
 
-auto szg_scene::SceneTexture::texture() const -> szg_renderer::ImageView const&
+auto syzygy::SceneTexture::texture() const -> syzygy::ImageView const&
 {
     return *m_texture;
 }
 
-auto szg_scene::SceneTexture::singletonDescriptor() const -> VkDescriptorSet
+auto syzygy::SceneTexture::singletonDescriptor() const -> VkDescriptorSet
 {
     return m_singletonDescriptor;
 }
 
-auto szg_scene::SceneTexture::singletonLayout() const -> VkDescriptorSetLayout
+auto syzygy::SceneTexture::singletonLayout() const -> VkDescriptorSetLayout
 {
     return m_singletonDescriptorLayout;
 }
 
-auto szg_scene::SceneTexture::imguiDescriptor() const -> VkDescriptorSet
+auto syzygy::SceneTexture::imguiDescriptor() const -> VkDescriptorSet
 {
     return m_imguiDescriptor;
 }
 
-void szg_scene::SceneTexture::destroy() noexcept
+void syzygy::SceneTexture::destroy() noexcept
 {
     if (m_device != VK_NULL_HANDLE)
     {

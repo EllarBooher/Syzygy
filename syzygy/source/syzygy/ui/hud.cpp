@@ -5,7 +5,7 @@
 namespace
 {
 void renderPreferences(
-    bool& open, szg_ui::UIPreferences& preferences, szg_ui::HUDState& hud
+    bool& open, syzygy::UIPreferences& preferences, syzygy::HUDState& hud
 )
 {
     if (ImGui::Begin("Preferences", &open))
@@ -34,7 +34,7 @@ void renderPreferences(
 }
 } // namespace
 
-auto szg_ui::renderHUD(UIPreferences& preferences) -> szg_ui::HUDState
+auto syzygy::renderHUD(UIPreferences& preferences) -> syzygy::HUDState
 {
     HUDState hud{};
 

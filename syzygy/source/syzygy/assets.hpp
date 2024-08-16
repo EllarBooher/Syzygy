@@ -28,7 +28,7 @@ struct MeshAsset
 {
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
-    std::unique_ptr<szg_renderer::GPUMeshBuffers> meshBuffers{};
+    std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
 };
 
 struct MeshAssetLibrary
@@ -44,7 +44,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     std::filesystem::path const& path
 );
 
-namespace szg_assets
+namespace syzygy
 {
 struct AssetFile
 {
@@ -72,8 +72,8 @@ template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
 class AssetLibrary
 {
 public:
-    void registerAsset(Asset<szg_renderer::Image>&& asset);
-    auto fetchAssets() -> std::vector<AssetRef<szg_renderer::Image>>;
+    void registerAsset(Asset<syzygy::Image>&& asset);
+    auto fetchAssets() -> std::vector<AssetRef<syzygy::Image>>;
     void loadTexturesDialog(
         PlatformWindow const&,
         GraphicsContext&,
@@ -81,7 +81,7 @@ public:
     );
 
 private:
-    std::vector<Asset<szg_renderer::Image>> m_textures{};
+    std::vector<Asset<syzygy::Image>> m_textures{};
 };
 
 struct ImageRGBA
@@ -97,5 +97,5 @@ auto loadTextureFromFile(
     ImmediateSubmissionQueue const&,
     std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<szg_renderer::Image>>;
-} // namespace szg_assets
+) -> std::optional<Asset<syzygy::Image>>;
+} // namespace syzygy

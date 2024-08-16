@@ -54,7 +54,7 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
 
     // Frames start signaled so they can be initially used
     VkFenceCreateInfo const fenceCreateInfo{
-        szg_renderer::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
+        syzygy::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
     };
 
     if (VkResult const result{
@@ -67,9 +67,8 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         return std::nullopt;
     }
 
-    VkSemaphoreCreateInfo const semaphoreCreateInfo{
-        szg_renderer::semaphoreCreateInfo()
-    };
+    VkSemaphoreCreateInfo const semaphoreCreateInfo{syzygy::semaphoreCreateInfo(
+    )};
 
     if (VkResult const result{vkCreateSemaphore(
             device, &semaphoreCreateInfo, nullptr, &frame.swapchainSemaphore

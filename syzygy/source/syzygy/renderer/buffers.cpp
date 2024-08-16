@@ -4,7 +4,7 @@
 #include "syzygy/helpers.hpp"
 #include <algorithm>
 
-namespace szg_renderer
+namespace syzygy
 {
 auto AllocatedBuffer::allocate(
     VkDevice const device,
@@ -364,4 +364,4 @@ void StagedBuffer::recordTotalCopyBarrier(
 }
 
 auto StagedBuffer::isDirty() const -> bool { return m_dirty; }
-} // namespace szg_renderer
+} // namespace syzygy

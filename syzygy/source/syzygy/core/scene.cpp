@@ -35,8 +35,8 @@
  * Account Atmospheric Scattering" by Tomoyuki Nishita, Takao Sirai, Katsumi
  * Tadamura, Eihachiro Nakamae
  */
-szg_scene::Atmosphere const szg_scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
-    szg_scene::Atmosphere{
+syzygy::Atmosphere const syzygy::Scene::DEFAULT_ATMOSPHERE_EARTH{
+    syzygy::Atmosphere{
         .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
         .earthRadiusMeters = 6378000,
@@ -53,7 +53,7 @@ szg_scene::Atmosphere const szg_scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
     }
 };
 
-szg_scene::Camera const szg_scene::Scene::DEFAULT_CAMERA{szg_scene::Camera{
+syzygy::Camera const syzygy::Scene::DEFAULT_CAMERA{syzygy::Camera{
     .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
     .eulerAngles = glm::vec3(0.0F, 0.0F, 0.0F),
     .fovDegrees = 70.0F,
@@ -61,24 +61,24 @@ szg_scene::Camera const szg_scene::Scene::DEFAULT_CAMERA{szg_scene::Camera{
     .far = 10000.0F,
 }};
 
-float const szg_scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
+float const syzygy::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
-szg_scene::SunAnimation const szg_scene::Scene::DEFAULT_SUN_ANIMATION{
-    szg_scene::SunAnimation{
+syzygy::SunAnimation const syzygy::Scene::DEFAULT_SUN_ANIMATION{
+    syzygy::SunAnimation{
         .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
     }
 };
 
-float const szg_scene::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
+float const syzygy::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
-auto szg_scene::Scene::defaultScene(
+auto syzygy::Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     MeshAssetLibrary const& meshes
 ) -> Scene
 {
-    std::vector<szg_renderer::SpotLightPacked> const spotlights{
-        szg_renderer::makeSpot(
+    std::vector<syzygy::SpotLightPacked> const spotlights{
+        syzygy::makeSpot(
             glm::vec4(0.0, 1.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -90,7 +90,7 @@ auto szg_scene::Scene::defaultScene(
             0.1,
             1000.0
         ),
-        szg_renderer::makeSpot(
+        syzygy::makeSpot(
             glm::vec4(1.0, 0.0, 0.0, 1.0),
             30.0,
             1.0,
@@ -141,8 +141,8 @@ auto szg_scene::Scene::defaultScene(
             };
 
             floorGeometry.models =
-                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
-                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
+                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -150,8 +150,8 @@ auto szg_scene::Scene::defaultScene(
                     )
                 );
             floorGeometry.modelInverseTransposes =
-                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
-                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
+                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -185,7 +185,7 @@ auto szg_scene::Scene::defaultScene(
                     glm::vec3 const position{
                         static_cast<float>(x), -4.0, static_cast<float>(z)
                     };
-                    glm::quat const orientation{szg_geometry::randomQuat()};
+                    glm::quat const orientation{syzygy::randomQuat()};
                     glm::vec3 const scale{0.2F};
 
                     cubeGeometry.originals.push_back(
@@ -200,8 +200,8 @@ auto szg_scene::Scene::defaultScene(
             };
 
             cubeGeometry.models =
-                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
-                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
+                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -209,8 +209,8 @@ auto szg_scene::Scene::defaultScene(
                     )
                 );
             cubeGeometry.modelInverseTransposes =
-                std::make_unique<szg_renderer::TStagedBuffer<glm::mat4x4>>(
-                    szg_renderer::TStagedBuffer<glm::mat4x4>::allocate(
+                std::make_unique<syzygy::TStagedBuffer<glm::mat4x4>>(
+                    syzygy::TStagedBuffer<glm::mat4x4>::allocate(
                         device,
                         allocator,
                         bufferSize,
@@ -248,8 +248,8 @@ auto szg_scene::Scene::defaultScene(
     };
 }
 
-void szg_scene::Scene::handleInput(
-    TickTiming const lastFrame, szg_input::InputSnapshot const& input
+void syzygy::Scene::handleInput(
+    TickTiming const lastFrame, syzygy::InputSnapshot const& input
 )
 {
     glm::vec2 const cursorDelta{input.cursor.delta()};
@@ -270,36 +270,36 @@ void szg_scene::Scene::handleInput(
 
     glm::mat3x3 const transform{camera.transform()};
 
-    glm::vec3 const forward{transform * szg_geometry::forward};
-    glm::vec3 const right{transform * szg_geometry::right};
+    glm::vec3 const forward{transform * syzygy::forward};
+    glm::vec3 const right{transform * syzygy::right};
     // We do not rotate up, since the controls would be disorienting
-    glm::vec3 const up{szg_geometry::up};
+    glm::vec3 const up{syzygy::up};
 
     glm::vec3 accumulatedMovement{};
 
-    szg_input::KeySnapshot const& keys{input.keys};
+    syzygy::KeySnapshot const& keys{input.keys};
 
-    if (keys.getStatus(szg_input::KeyCode::W).down)
+    if (keys.getStatus(syzygy::KeyCode::W).down)
     {
         accumulatedMovement += forward;
     }
-    if (keys.getStatus(szg_input::KeyCode::S).down)
+    if (keys.getStatus(syzygy::KeyCode::S).down)
     {
         accumulatedMovement -= forward;
     }
-    if (keys.getStatus(szg_input::KeyCode::D).down)
+    if (keys.getStatus(syzygy::KeyCode::D).down)
     {
         accumulatedMovement += right;
     }
-    if (keys.getStatus(szg_input::KeyCode::A).down)
+    if (keys.getStatus(syzygy::KeyCode::A).down)
     {
         accumulatedMovement -= right;
     }
-    if (keys.getStatus(szg_input::KeyCode::E).down)
+    if (keys.getStatus(syzygy::KeyCode::E).down)
     {
         accumulatedMovement += up;
     }
-    if (keys.getStatus(szg_input::KeyCode::Q).down)
+    if (keys.getStatus(syzygy::KeyCode::Q).down)
     {
         accumulatedMovement -= up;
     }
@@ -309,7 +309,7 @@ void szg_scene::Scene::handleInput(
                            * accumulatedMovement;
 }
 
-void szg_scene::Scene::tick(TickTiming const lastFrame)
+void syzygy::Scene::tick(TickTiming const lastFrame)
 {
     if (!sunAnimation.frozen)
     {
@@ -317,7 +317,7 @@ void szg_scene::Scene::tick(TickTiming const lastFrame)
             sunAnimation.time
             + sunAnimation.speed
                   * static_cast<float>(lastFrame.deltaTimeSeconds)
-                  / szg_scene::SunAnimation::DAY_LENGTH_SECONDS
+                  / syzygy::SunAnimation::DAY_LENGTH_SECONDS
         );
     }
 
@@ -403,14 +403,14 @@ void szg_scene::Scene::tick(TickTiming const lastFrame)
 namespace
 {
 auto createSunlight(
-    szg_scene::SceneBounds const sceneBounds,
+    syzygy::SceneBounds const sceneBounds,
     glm::vec3 const sunEulerAngles,
     glm::vec3 const sunlightRGB
-) -> szg_renderer::DirectionalLightPacked
+) -> syzygy::DirectionalLightPacked
 {
     float constexpr SUNLIGHT_STRENGTH{0.5F};
 
-    return szg_renderer::makeDirectional(
+    return syzygy::makeDirectional(
         glm::vec4(sunlightRGB, 1.0),
         SUNLIGHT_STRENGTH,
         sunEulerAngles,
@@ -419,10 +419,10 @@ auto createSunlight(
     );
 }
 auto createMoonlight(
-    szg_scene::SceneBounds const sceneBounds,
+    syzygy::SceneBounds const sceneBounds,
     float const sunCosine,
     float const sunsetCosine
-) -> szg_renderer::DirectionalLightPacked
+) -> syzygy::DirectionalLightPacked
 {
     float constexpr MOONRISE_LENGTH{0.08};
 
@@ -438,7 +438,7 @@ auto createMoonlight(
         -glm::half_pi<float>(), 0.0F, 0.0F
     };
 
-    return szg_renderer::makeDirectional(
+    return syzygy::makeDirectional(
         MOONLIGHT_COLOR_RGBA,
         moonlightStrength,
         STRAIGHT_DOWN_EULER_ANGLES,
@@ -449,7 +449,7 @@ auto createMoonlight(
 
 // Returns an estimate of the color of sunlight that has reached the
 // origin, attenuated due to scattering.
-auto computeSunlightColor(szg_scene::Atmosphere const& atmosphere) -> glm::vec4
+auto computeSunlightColor(syzygy::Atmosphere const& atmosphere) -> glm::vec4
 {
     float const surfaceCosine{
         glm::dot(atmosphere.directionToSun(), glm::vec3{0.0, -1.0, 0.0})
@@ -498,20 +498,19 @@ auto computeSunlightColor(szg_scene::Atmosphere const& atmosphere) -> glm::vec4
 }
 } // namespace
 
-auto szg_scene::Atmosphere::directionToSun() const -> glm::vec3
+auto syzygy::Atmosphere::directionToSun() const -> glm::vec3
 {
-    return -szg_geometry::forwardFromEulers(sunEulerAngles);
+    return -syzygy::forwardFromEulers(sunEulerAngles);
 }
 
-auto szg_scene::Atmosphere::toDeviceEquivalent() const
-    -> szg_renderer::AtmospherePacked
+auto syzygy::Atmosphere::toDeviceEquivalent() const -> syzygy::AtmospherePacked
 {
     // TODO: move these computations out to somewhere more sensible
 
     glm::vec4 const sunlight{computeSunlightColor(*this)};
     glm::vec3 const sunDirection{glm::normalize(directionToSun())};
 
-    return szg_renderer::AtmospherePacked{
+    return syzygy::AtmospherePacked{
         .directionToSun = sunDirection,
         .earthRadiusMeters = earthRadiusMeters,
         .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
@@ -526,18 +525,17 @@ auto szg_scene::Atmosphere::toDeviceEquivalent() const
     };
 }
 
-auto szg_scene::Atmosphere::baked(SceneBounds const sceneBounds) const
+auto syzygy::Atmosphere::baked(SceneBounds const sceneBounds) const
     -> AtmosphereBaked
 {
-    szg_renderer::AtmospherePacked const atmosphere{toDeviceEquivalent()};
+    syzygy::AtmospherePacked const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
-    float const sunCosine{glm::dot(szg_geometry::up, atmosphere.directionToSun)
-    };
+    float const sunCosine{glm::dot(syzygy::up, atmosphere.directionToSun)};
     float constexpr SUNSET_COSINE{0.06};
 
-    std::optional<szg_renderer::DirectionalLightPacked> sunlight{};
-    std::optional<szg_renderer::DirectionalLightPacked> moonlight{};
+    std::optional<syzygy::DirectionalLightPacked> sunlight{};
+    std::optional<syzygy::DirectionalLightPacked> moonlight{};
 
     if (sunCosine > 0.0F)
     {
@@ -557,45 +555,45 @@ auto szg_scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     };
 }
 
-auto szg_scene::Camera::toDeviceEquivalent(float const aspectRatio) const
-    -> szg_renderer::CameraPacked
+auto syzygy::Camera::toDeviceEquivalent(float const aspectRatio) const
+    -> syzygy::CameraPacked
 {
     glm::mat4x4 const proj{projection(aspectRatio)};
     glm::mat4x4 const projViewInverse{glm::inverse(toProjView(aspectRatio))};
 
-    return szg_renderer::CameraPacked{
+    return syzygy::CameraPacked{
         .projection = proj,
         .inverseProjection = glm::inverse(proj),
         .view = view(),
         .viewInverseTranspose = glm::inverseTranspose(view()),
         .rotation = rotation(),
         .projViewInverse = projViewInverse,
-        .forwardWorld = rotation() * glm::vec4(szg_geometry::forward, 0.0),
+        .forwardWorld = rotation() * glm::vec4(syzygy::forward, 0.0),
         .position = glm::vec4(cameraPosition, 1.0),
     };
 }
 
-auto szg_scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
+auto syzygy::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
 {
     return projection(aspectRatio) * view();
 }
 
-auto szg_scene::Camera::rotation() const -> glm::mat4x4
+auto syzygy::Camera::rotation() const -> glm::mat4x4
 {
     return glm::orientate4(eulerAngles);
 }
 
-auto szg_scene::Camera::transform() const -> glm::mat4x4
+auto syzygy::Camera::transform() const -> glm::mat4x4
 {
-    return szg_geometry::transformVk(cameraPosition, eulerAngles);
+    return syzygy::transformVk(cameraPosition, eulerAngles);
 }
 
-auto szg_scene::Camera::view() const -> glm::mat4x4
+auto syzygy::Camera::view() const -> glm::mat4x4
 {
-    return szg_geometry::viewVk(cameraPosition, eulerAngles);
+    return syzygy::viewVk(cameraPosition, eulerAngles);
 }
 
-auto szg_scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
+auto syzygy::Camera::projection(float const aspectRatio) const -> glm::mat4x4
 {
     if (orthographic)
     {
@@ -604,15 +602,13 @@ auto szg_scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
         glm::vec3 const min{-aspectRatio * height, -height, near};
         glm::vec3 const max{aspectRatio * height, height, far};
 
-        return szg_geometry::projectionOrthoVk(min, max);
+        return syzygy::projectionOrthoVk(min, max);
     }
 
-    return szg_geometry::projectionVk(
-        szg_geometry::PerspectiveProjectionParameters{
-            .fov_y = fovDegrees,
-            .aspectRatio = aspectRatio,
-            .near = near,
-            .far = far,
-        }
-    );
+    return syzygy::projectionVk(syzygy::PerspectiveProjectionParameters{
+        .fov_y = fovDegrees,
+        .aspectRatio = aspectRatio,
+        .near = near,
+        .far = far,
+    });
 }

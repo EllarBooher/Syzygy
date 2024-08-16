@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct ImageMemory
 {
@@ -87,4 +87,4 @@ private:
     ImageMemory m_memory{};
     VkImageLayout m_recordedLayout{};
 };
-} // namespace szg_renderer
+} // namespace syzygy

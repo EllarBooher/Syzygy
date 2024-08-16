@@ -4,7 +4,7 @@
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 
-namespace szg_renderer
+namespace syzygy
 {
 static DirectionalLightPacked makeDirectional(
     glm::vec4 const color,
@@ -14,15 +14,15 @@ static DirectionalLightPacked makeDirectional(
     glm::vec3 const geometryExtent
 )
 {
-    glm::mat4x4 const view{szg_geometry::viewVk(glm::vec3{0.0}, eulerAngles)};
+    glm::mat4x4 const view{syzygy::viewVk(glm::vec3{0.0}, eulerAngles)};
 
-    glm::mat4x4 const projection{szg_geometry::projectionOrthoAABBVk(
-        view, geometryCenter, geometryExtent
-    )};
+    glm::mat4x4 const projection{
+        syzygy::projectionOrthoAABBVk(view, geometryCenter, geometryExtent)
+    };
 
     return DirectionalLightPacked{
         .color = color,
-        .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
+        .forward = glm::vec4{syzygy::forwardFromEulers(eulerAngles), 0.0},
         .projection = projection,
         .view = view,
         .strength = strength,
@@ -45,20 +45,19 @@ static SpotLightPacked makeSpot(
 {
     return SpotLightPacked{
         .color = color,
-        .forward = glm::vec4{szg_geometry::forwardFromEulers(eulerAngles), 0.0},
-        .projection = szg_geometry::projectionVk(
-            szg_geometry::PerspectiveProjectionParameters{
+        .forward = glm::vec4{syzygy::forwardFromEulers(eulerAngles), 0.0},
+        .projection =
+            syzygy::projectionVk(syzygy::PerspectiveProjectionParameters{
                 .fov_y = verticalFOV,
                 .aspectRatio = horizontalScale,
                 .near = near,
                 .far = far,
-            }
-        ),
-        .view = szg_geometry::viewVk(position, eulerAngles),
+            }),
+        .view = syzygy::viewVk(position, eulerAngles),
         .position = glm::vec4(position, 1.0),
         .strength = strength,
         .falloffFactor = falloffFactor,
         .falloffDistance = falloffDistance,
     };
 }
-} // namespace szg_renderer
+} // namespace syzygy

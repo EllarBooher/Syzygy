@@ -6,7 +6,7 @@
 #include <glm/common.hpp>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 auto DescriptorLayoutBuilder::addBinding(
     AddBindingParameters const parameters, uint32_t const count
@@ -198,4 +198,4 @@ void DescriptorAllocator::destroy() noexcept
     m_device = VK_NULL_HANDLE;
     m_pool = VK_NULL_HANDLE;
 }
-} // namespace szg_renderer
+} // namespace syzygy

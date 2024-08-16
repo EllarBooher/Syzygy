@@ -14,7 +14,7 @@
 #include <memory>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct CameraPacked;
 
@@ -126,7 +126,7 @@ void PipelineBuilder::pushShader(
     ShaderModuleReflected const& shader, VkShaderStageFlagBits const stage
 )
 {
-    m_shaderStages.push_back(szg_renderer::pipelineShaderStageCreateInfo(
+    m_shaderStages.push_back(syzygy::pipelineShaderStageCreateInfo(
         stage, shader.shaderModule(), shader.reflectionData().defaultEntryPoint
     ));
 }
@@ -230,7 +230,7 @@ ComputeCollectionPipeline::ComputeCollectionPipeline(
     for (std::string const& shaderPath : shaderPaths)
     {
         std::optional<ShaderObjectReflected> loadResult{
-            szg_renderer::loadShaderObject(
+            syzygy::loadShaderObject(
                 device, shaderPath, VK_SHADER_STAGE_COMPUTE_BIT, 0, layouts, {}
             )
         };
@@ -384,15 +384,11 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        szg_renderer::loadShaderModule(
-            device, "shaders/debug/debugline.vert.spv"
-        )
+        syzygy::loadShaderModule(device, "shaders/debug/debugline.vert.spv")
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
     ShaderModuleReflected const fragmentShader{
-        szg_renderer::loadShaderModule(
-            device, "shaders/debug/debugline.frag.spv"
-        )
+        syzygy::loadShaderModule(device, "shaders/debug/debugline.frag.spv")
             .value_or(ShaderModuleReflected::MakeInvalid())
     };
 
@@ -469,10 +465,10 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const lineWidth,
     VkRect2D const drawRect,
-    szg_renderer::ImageView& color,
-    szg_renderer::ImageView& depth,
+    syzygy::ImageView& color,
+    syzygy::ImageView& depth,
     uint32_t const cameraIndex,
-    TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
+    TStagedBuffer<syzygy::CameraPacked> const& cameras,
     TStagedBuffer<Vertex> const& endpoints,
     TStagedBuffer<uint32_t> const& indices
 ) const -> DrawResultsGraphics
@@ -515,9 +511,9 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
     std::vector<VkRenderingAttachmentInfo> const colorAttachments{
         colorAttachment
     };
-    VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
-        drawRect, colorAttachments, &depthAttachment
-    )};
+    VkRenderingInfo const renderInfo{
+        syzygy::renderingInfo(drawRect, colorAttachments, &depthAttachment)
+    };
 
     cameras.recordTotalCopyBarrier(
         cmd,
@@ -599,7 +595,7 @@ OffscreenPassGraphicsPipeline::OffscreenPassGraphicsPipeline(
 )
 {
     ShaderModuleReflected const vertexShader{
-        szg_renderer::loadShaderModule(
+        syzygy::loadShaderModule(
             device, "shaders/offscreenpass/depthpass.vert.spv"
         )
             .value_or(ShaderModuleReflected::MakeInvalid())
@@ -682,10 +678,10 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     bool const reuseDepthAttachment,
     float const depthBias,
     float const depthBiasSlope,
-    szg_renderer::ImageView& depth,
+    syzygy::ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-    std::span<szg_scene::MeshInstanced const> const geometry,
+    std::span<syzygy::MeshInstanced const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 ) const
 {
@@ -712,7 +708,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     VkExtent2D const depthExtent{depth.image().extent2D()};
 
-    VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
+    VkRenderingInfo const renderInfo{syzygy::renderingInfo(
         VkRect2D{.extent = depthExtent}, {}, &depthAttachment
     )};
 
@@ -744,7 +740,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     for (size_t index{0}; index < geometry.size(); index++)
     {
-        szg_scene::MeshInstanced const& instance{geometry[index]};
+        syzygy::MeshInstanced const& instance{geometry[index]};
 
         bool render{instance.render};
         if (index < renderOverrides.size())
@@ -808,4 +804,4 @@ void OffscreenPassGraphicsPipeline::cleanup(VkDevice const device)
     vkDestroyPipeline(device, m_graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, m_graphicsPipelineLayout, nullptr);
 }
-} // namespace szg_renderer
+} // namespace syzygy

@@ -6,7 +6,7 @@
 #include <optional>
 #include <vector>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct DescriptorAllocator;
 
@@ -37,4 +37,4 @@ struct GBuffer
 
     void cleanup(VkDevice device);
 };
-} // namespace szg_renderer
+} // namespace syzygy

@@ -1,6 +1,6 @@
 #include "vulkanstructs.hpp"
 
-auto szg_renderer::fenceCreateInfo(VkFenceCreateFlags const flags)
+auto syzygy::fenceCreateInfo(VkFenceCreateFlags const flags)
     -> VkFenceCreateInfo
 {
     return {
@@ -10,7 +10,7 @@ auto szg_renderer::fenceCreateInfo(VkFenceCreateFlags const flags)
     };
 }
 
-auto szg_renderer::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
+auto syzygy::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     -> VkSemaphoreCreateInfo
 {
     return {
@@ -20,7 +20,7 @@ auto szg_renderer::semaphoreCreateInfo(VkSemaphoreCreateFlags const flags)
     };
 }
 
-auto szg_renderer::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
+auto syzygy::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     -> VkCommandBufferBeginInfo
 {
     return {
@@ -31,7 +31,7 @@ auto szg_renderer::commandBufferBeginInfo(VkCommandBufferUsageFlags const flags)
     };
 }
 
-auto szg_renderer::imageSubresourceRange(VkImageAspectFlags const aspectMask)
+auto syzygy::imageSubresourceRange(VkImageAspectFlags const aspectMask)
     -> VkImageSubresourceRange
 {
     return {
@@ -43,7 +43,7 @@ auto szg_renderer::imageSubresourceRange(VkImageAspectFlags const aspectMask)
     };
 }
 
-auto szg_renderer::imageSubresourceLayers(
+auto syzygy::imageSubresourceLayers(
     VkImageAspectFlags const aspectMask,
     uint32_t const mipLevel,
     uint32_t const baseArrayLayer,
@@ -58,7 +58,7 @@ auto szg_renderer::imageSubresourceLayers(
     };
 }
 
-auto szg_renderer::semaphoreSubmitInfo(
+auto syzygy::semaphoreSubmitInfo(
     VkPipelineStageFlags2 const stageMask, VkSemaphore const semaphore
 ) -> VkSemaphoreSubmitInfo
 {
@@ -72,7 +72,7 @@ auto szg_renderer::semaphoreSubmitInfo(
     };
 }
 
-auto szg_renderer::commandBufferSubmitInfo(VkCommandBuffer const cmd)
+auto syzygy::commandBufferSubmitInfo(VkCommandBuffer const cmd)
     -> VkCommandBufferSubmitInfo
 {
     return {
@@ -83,7 +83,7 @@ auto szg_renderer::commandBufferSubmitInfo(VkCommandBuffer const cmd)
     };
 }
 
-auto szg_renderer::submitInfo(
+auto syzygy::submitInfo(
     std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
     std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
     std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
@@ -108,7 +108,7 @@ auto szg_renderer::submitInfo(
     };
 }
 
-auto szg_renderer::imageCreateInfo(
+auto syzygy::imageCreateInfo(
     VkFormat const format,
     VkImageLayout const initialLayout,
     VkImageUsageFlags const usageMask,
@@ -143,7 +143,7 @@ auto szg_renderer::imageCreateInfo(
     };
 }
 
-auto szg_renderer::samplerCreateInfo(
+auto syzygy::samplerCreateInfo(
     VkSamplerCreateFlags const flags,
     VkBorderColor const borderColor,
     VkFilter const filter,
@@ -182,7 +182,7 @@ auto szg_renderer::samplerCreateInfo(
     };
 }
 
-auto szg_renderer::imageViewCreateInfo(
+auto syzygy::imageViewCreateInfo(
     VkFormat const format,
     VkImage const image,
     VkImageAspectFlags const aspectFlags
@@ -197,11 +197,11 @@ auto szg_renderer::imageViewCreateInfo(
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
-        .subresourceRange = szg_renderer::imageSubresourceRange(aspectFlags),
+        .subresourceRange = syzygy::imageSubresourceRange(aspectFlags),
     };
 }
 
-auto szg_renderer::renderingAttachmentInfo(
+auto syzygy::renderingAttachmentInfo(
     VkImageView const view,
     VkImageLayout const layout,
     std::optional<VkClearValue> const clearValue
@@ -220,7 +220,7 @@ auto szg_renderer::renderingAttachmentInfo(
     };
 }
 
-auto szg_renderer::renderingInfo(
+auto syzygy::renderingInfo(
     VkRect2D const drawRect,
     std::span<VkRenderingAttachmentInfo const> const colorAttachments,
     VkRenderingAttachmentInfo const* const pDepthAttachment
@@ -243,7 +243,7 @@ auto szg_renderer::renderingInfo(
     };
 }
 
-auto szg_renderer::pipelineShaderStageCreateInfo(
+auto syzygy::pipelineShaderStageCreateInfo(
     VkShaderStageFlagBits const stage,
     VkShaderModule const module,
     std::string const& entryPoint
@@ -261,7 +261,7 @@ auto szg_renderer::pipelineShaderStageCreateInfo(
     };
 }
 
-auto szg_renderer::pipelineLayoutCreateInfo(
+auto syzygy::pipelineLayoutCreateInfo(
     VkPipelineLayoutCreateFlags const flags,
     std::span<VkDescriptorSetLayout const> const layouts,
     std::span<VkPushConstantRange const> const ranges

@@ -11,18 +11,18 @@
 #include <span>
 #include <vector>
 
-namespace szg_renderer
+namespace syzygy
 {
 class DescriptorAllocator;
 struct DirectionalLightPacked;
 struct SpotLightPacked;
-} // namespace szg_renderer
-namespace szg_scene
+} // namespace syzygy
+namespace syzygy
 {
 struct MeshInstanced;
 }
 
-namespace szg_renderer
+namespace syzygy
 {
 struct ShadowPassParameters
 {
@@ -46,18 +46,18 @@ public:
         size_t capacity
     ) -> std::optional<ShadowPassArray>;
 
-    // Prepares shadow maps for a specified number of szg_renderer.
+    // Prepares shadow maps for a specified number of syzygy.
     // Calling this twice overwrites the previous results.
     void recordInitialize(
         VkCommandBuffer cmd,
         ShadowPassParameters parameters,
-        std::span<szg_renderer::DirectionalLightPacked const> directionalLights,
-        std::span<szg_renderer::SpotLightPacked const> spotLights
+        std::span<syzygy::DirectionalLightPacked const> directionalLights,
+        std::span<syzygy::SpotLightPacked const> spotLights
     );
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
-        std::span<szg_scene::MeshInstanced const> geometry,
+        std::span<syzygy::MeshInstanced const> geometry,
         std::span<RenderOverride const> renderOverrides
     );
 
@@ -85,11 +85,11 @@ private:
     VkDescriptorSetLayout m_samplerSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_samplerSet{VK_NULL_HANDLE};
 
-    std::vector<std::unique_ptr<szg_renderer::ImageView>> m_shadowmaps{};
+    std::vector<std::unique_ptr<syzygy::ImageView>> m_shadowmaps{};
 
     VkDescriptorSetLayout m_shadowmapSetLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_shadowmapSet{VK_NULL_HANDLE};
 
     std::unique_ptr<OffscreenPassGraphicsPipeline> m_pipeline{};
 };
-} // namespace szg_renderer
+} // namespace syzygy

@@ -39,7 +39,7 @@ template <class... Ts> struct overloaded : Ts...
 // TODO: refactor this awul, no good, function.
 template <typename T>
 static void imguiPushStructureControl(
-    szg_renderer::ShaderReflectionData::PushConstant const& pushConstant,
+    syzygy::ShaderReflectionData::PushConstant const& pushConstant,
     bool const readOnly,
     std::span<T> const backingData
 )
@@ -57,9 +57,7 @@ static void imguiPushStructureControl(
         std::is_same<T, uint8_t>::value || std::is_same<T, uint8_t const>::value
     );
 
-    szg_renderer::ShaderReflectionData::Structure const& structure{
-        pushConstant.type
-    };
+    syzygy::ShaderReflectionData::Structure const& structure{pushConstant.type};
 
     ImGui::Text("%s (%s)", "Push Constant", readOnly ? "Read Only" : "Mutable");
     {
@@ -127,7 +125,7 @@ static void imguiPushStructureControl(
         // Members can be sparse, with implied padding between them.
         // We track those bytes so we can print to the UI that there is padding.
         uint32_t lastByte{0};
-        for (szg_renderer::ShaderReflectionData::Member const& member :
+        for (syzygy::ShaderReflectionData::Member const& member :
              structure.members)
         {
             ImGui::TableNextRow();
@@ -147,8 +145,8 @@ static void imguiPushStructureControl(
 
             std::visit(
                 overloaded{
-                    [&](szg_renderer::ShaderReflectionData::
-                            UnsupportedType const& unsupportedType)
+                    [&](syzygy::ShaderReflectionData::UnsupportedType const&
+                            unsupportedType)
             {
                 ImGui::Text(
                     "%s",
@@ -156,8 +154,8 @@ static void imguiPushStructureControl(
                         .c_str()
                 );
             },
-                    [&](szg_renderer::ShaderReflectionData::Pointer const&
-                            pointerType)
+                    [&](syzygy::ShaderReflectionData::Pointer const& pointerType
+                    )
             {
                 // Pointers should be 8 bytes,
                 // I am not sure when this would fail
@@ -197,7 +195,7 @@ static void imguiPushStructureControl(
                 ImGui::TableSetColumnIndex(typeIndex);
                 ImGui::Text("Pointer");
             },
-                    [&](szg_renderer::ShaderReflectionData::NumericType const&
+                    [&](syzygy::ShaderReflectionData::NumericType const&
                             numericType)
             {
                 // Gather format data
@@ -205,20 +203,17 @@ static void imguiPushStructureControl(
                 uint32_t rows{0};
                 std::visit(
                     overloaded{
-                        [&](szg_renderer::ShaderReflectionData::Scalar const&
-                                scalar)
+                        [&](syzygy::ShaderReflectionData::Scalar const& scalar)
                 {
                     columns = 1;
                     rows = 1;
                 },
-                        [&](szg_renderer::ShaderReflectionData::Vector const&
-                                vector)
+                        [&](syzygy::ShaderReflectionData::Vector const& vector)
                 {
                     columns = 1;
                     rows = vector.componentCount;
                 },
-                        [&](szg_renderer::ShaderReflectionData::Matrix const&
-                                matrix)
+                        [&](syzygy::ShaderReflectionData::Matrix const& matrix)
                 {
                     columns = matrix.columnCount;
                     rows = matrix.rowCount;
@@ -231,7 +226,7 @@ static void imguiPushStructureControl(
                 ImGuiDataType imguiDataType{ImGuiDataType_Float};
                 std::visit(
                     overloaded{
-                        [&](szg_renderer::ShaderReflectionData::Integer const&
+                        [&](syzygy::ShaderReflectionData::Integer const&
                                 integerComponent)
                 {
                     assert(
@@ -282,7 +277,7 @@ static void imguiPushStructureControl(
                         }
                     }
                 },
-                        [&](szg_renderer::ShaderReflectionData::Float const&
+                        [&](syzygy::ShaderReflectionData::Float const&
                                 floatComponent)
                 {
                     ImGuiDataType imguiDataType{ImGuiDataType_Float};
@@ -387,7 +382,7 @@ static void imguiPushStructureControl(
 // NOLINTEND
 
 template <>
-void imguiPipelineControls(szg_renderer::ComputeCollectionPipeline& pipeline)
+void imguiPipelineControls(syzygy::ComputeCollectionPipeline& pipeline)
 {
     if (!ImGui::CollapsingHeader(
             "Compute Collection Pipeline", ImGuiTreeNodeFlags_DefaultOpen
@@ -397,7 +392,7 @@ void imguiPipelineControls(szg_renderer::ComputeCollectionPipeline& pipeline)
     }
 
     std::vector<std::string> shaderNames{};
-    for (szg_renderer::ShaderObjectReflected const& shader : pipeline.shaders())
+    for (syzygy::ShaderObjectReflected const& shader : pipeline.shaders())
     {
         shaderNames.push_back(shader.name());
     }
@@ -410,10 +405,9 @@ void imguiPipelineControls(szg_renderer::ComputeCollectionPipeline& pipeline)
 
     pipeline.selectShader(currentShaderIndex);
 
-    szg_renderer::ShaderObjectReflected const& currentShader{
-        pipeline.currentShader()
+    syzygy::ShaderObjectReflected const& currentShader{pipeline.currentShader()
     };
-    szg_renderer::ShaderReflectionData const& reflectionData{
+    syzygy::ShaderReflectionData const& reflectionData{
         currentShader.reflectionData()
     };
 
@@ -434,10 +428,10 @@ void imguiPipelineControls(szg_renderer::ComputeCollectionPipeline& pipeline)
 }
 
 template <>
-void imguiPipelineControls(szg_renderer::DeferredShadingPipeline& pipeline)
+void imguiPipelineControls(syzygy::DeferredShadingPipeline& pipeline)
 {
     imguiStructureControls(
         pipeline.m_parameters.shadowPassParameters,
-        szg_renderer::ShadowPassParameters{}
+        syzygy::ShadowPassParameters{}
     );
 }

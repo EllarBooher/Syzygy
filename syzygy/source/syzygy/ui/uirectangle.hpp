@@ -3,7 +3,7 @@
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
 
-namespace szg_ui
+namespace syzygy
 {
 struct UIRectangle
 {
@@ -51,4 +51,4 @@ struct UIRectangle
         };
     }
 };
-} // namespace szg_ui
+} // namespace syzygy

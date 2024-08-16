@@ -138,7 +138,7 @@ auto Swapchain::create(
     {
         VkImage const image{swapchain.m_images[index]};
 
-        VkImageViewCreateInfo const viewInfo{szg_renderer::imageViewCreateInfo(
+        VkImageViewCreateInfo const viewInfo{syzygy::imageViewCreateInfo(
             swapchain.m_imageFormat, image, VK_IMAGE_ASPECT_COLOR_BIT
         )};
 

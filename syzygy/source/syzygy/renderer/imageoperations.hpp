@@ -4,7 +4,7 @@
 #include <glm/vec2.hpp>
 #include <optional>
 
-namespace szg_renderer
+namespace syzygy
 {
 // Assumes images are in TRANSFER_[DST/SRC]_OPTIMAL
 void recordCopyImageToImage(
@@ -59,4 +59,4 @@ void recordCopyImageToImage(
 
 auto aspectRatio(VkExtent2D) -> std::optional<double>;
 auto aspectRatio(glm::vec2) -> std::optional<double>;
-} // namespace szg_renderer
+} // namespace syzygy

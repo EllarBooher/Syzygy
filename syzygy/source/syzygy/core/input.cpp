@@ -8,24 +8,24 @@
 
 namespace
 {
-auto toKeyCode_glfw(int32_t key) -> std::optional<szg_input::KeyCode>
+auto toKeyCode_glfw(int32_t key) -> std::optional<syzygy::KeyCode>
 {
     switch (key)
     {
     case GLFW_KEY_W:
-        return szg_input::KeyCode::W;
+        return syzygy::KeyCode::W;
     case GLFW_KEY_A:
-        return szg_input::KeyCode::A;
+        return syzygy::KeyCode::A;
     case GLFW_KEY_S:
-        return szg_input::KeyCode::S;
+        return syzygy::KeyCode::S;
     case GLFW_KEY_D:
-        return szg_input::KeyCode::D;
+        return syzygy::KeyCode::D;
     case GLFW_KEY_Q:
-        return szg_input::KeyCode::Q;
+        return syzygy::KeyCode::Q;
     case GLFW_KEY_E:
-        return szg_input::KeyCode::E;
+        return syzygy::KeyCode::E;
     case GLFW_KEY_TAB:
-        return szg_input::KeyCode::TAB;
+        return syzygy::KeyCode::TAB;
     default:
         return std::nullopt;
     }
@@ -43,7 +43,7 @@ auto isDown_glfw(bool const currentDown, int32_t const action) -> bool
         return currentDown;
     }
 }
-auto toString(szg_input::KeyStatus const status) -> std::string
+auto toString(syzygy::KeyStatus const status) -> std::string
 {
     if (status.down)
     {
@@ -52,32 +52,32 @@ auto toString(szg_input::KeyStatus const status) -> std::string
 
     return status.edge ? "RELEASED" : "NONE";
 }
-auto toString(szg_input::KeyCode const key) -> std::string
+auto toString(syzygy::KeyCode const key) -> std::string
 {
     switch (key)
     {
-    case (szg_input::KeyCode::W):
+    case (syzygy::KeyCode::W):
         return "W";
-    case (szg_input::KeyCode::A):
+    case (syzygy::KeyCode::A):
         return "A";
-    case (szg_input::KeyCode::S):
+    case (syzygy::KeyCode::S):
         return "S";
-    case (szg_input::KeyCode::D):
+    case (syzygy::KeyCode::D):
         return "D";
-    case (szg_input::KeyCode::Q):
+    case (syzygy::KeyCode::Q):
         return "Q";
-    case (szg_input::KeyCode::E):
+    case (syzygy::KeyCode::E):
         return "E";
-    case (szg_input::KeyCode::TAB):
+    case (syzygy::KeyCode::TAB):
         return "TAB";
-    case (szg_input::KeyCode::MAX):
+    case (syzygy::KeyCode::MAX):
     default:
         return "UNKOWN_KEY";
     }
 }
 } // namespace
 
-void szg_input::InputHandler::callbackKey_glfw(
+void syzygy::InputHandler::callbackKey_glfw(
     GLFWwindow* window, int key, int scancode, int action, int mods
 )
 {
@@ -93,7 +93,7 @@ void szg_input::InputHandler::callbackKey_glfw(
     activeHandler->handleKey_glfw(key, scancode, action, mods);
 }
 
-void szg_input::InputHandler::callbackMouse_glfw(
+void syzygy::InputHandler::callbackMouse_glfw(
     GLFWwindow* window, double xpos, double ypos
 )
 {
@@ -109,22 +109,22 @@ void szg_input::InputHandler::callbackMouse_glfw(
     activeHandler->handleMouse_glfw(xpos, ypos);
 }
 
-void szg_input::InputHandler::handleKey_glfw(
+void syzygy::InputHandler::handleKey_glfw(
     int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/
 )
 {
-    std::optional<szg_input::KeyCode> const keyResult{toKeyCode_glfw(key)};
+    std::optional<syzygy::KeyCode> const keyResult{toKeyCode_glfw(key)};
     if (!keyResult.has_value())
     {
         return;
     }
-    szg_input::KeyCode const keyCode{keyResult.value()};
+    syzygy::KeyCode const keyCode{keyResult.value()};
 
     bool& isDown{m_keysNew.keysDown[static_cast<size_t>(keyCode)]};
     isDown = isDown_glfw(isDown, action);
 }
 
-void szg_input::InputHandler::handleMouse_glfw(double xpos, double ypos)
+void syzygy::InputHandler::handleMouse_glfw(double xpos, double ypos)
 {
     m_cursorNew.position =
         glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
@@ -136,7 +136,7 @@ void szg_input::InputHandler::handleMouse_glfw(double xpos, double ypos)
     }
 }
 
-auto szg_input::InputHandler::collect() -> InputSnapshot
+auto syzygy::InputHandler::collect() -> InputSnapshot
 {
     KeySnapshot keys{};
     for (size_t index{0}; index < m_keysNew.keysDown.size(); index++)
@@ -163,19 +163,17 @@ auto szg_input::InputHandler::collect() -> InputSnapshot
     };
 }
 
-void szg_input::InputHandler::setSkipNextCursorDelta(bool const skip)
+void syzygy::InputHandler::setSkipNextCursorDelta(bool const skip)
 {
     m_skipNextCursorDelta = skip;
 }
 
-auto szg_input::KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
+auto syzygy::KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
 {
     return keys[static_cast<size_t>(key)];
 }
 
-void szg_input::KeySnapshot::setStatus(
-    KeyCode const key, KeyStatus const status
-)
+void syzygy::KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
 {
     if (getStatus(key) == status)
     {
@@ -185,26 +183,25 @@ void szg_input::KeySnapshot::setStatus(
     keys[static_cast<size_t>(key)] = status;
 }
 
-auto szg_input::KeyStatus::pressed() const -> bool { return down && edge; }
+auto syzygy::KeyStatus::pressed() const -> bool { return down && edge; }
 
-auto szg_input::KeyStatus::operator==(KeyStatus const& other) const -> bool
+auto syzygy::KeyStatus::operator==(KeyStatus const& other) const -> bool
 {
     return other.down == down && other.edge == edge;
 }
 
-auto szg_input::CursorSnapshot::delta() const -> glm::i32vec2
+auto syzygy::CursorSnapshot::delta() const -> glm::i32vec2
 {
     return glm::i32vec2{currentPosition} - glm::i32vec2{lastPosition};
 }
 
-auto szg_input::InputSnapshot::format() const -> std::string
+auto syzygy::InputSnapshot::format() const -> std::string
 {
     std::string output;
 
     for (size_t index{0}; index < keys.keys.size(); index++)
     {
-        szg_input::KeyCode const keyCode{static_cast<szg_input::KeyCode>(index)
-        };
+        syzygy::KeyCode const keyCode{static_cast<syzygy::KeyCode>(index)};
 
         output += fmt::format(
             "{}: {:9}", toString(keyCode), toString(keys.getStatus(keyCode))

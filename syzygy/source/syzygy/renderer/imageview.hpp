@@ -5,7 +5,7 @@
 #include <memory>
 #include <optional>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct ImageViewAllocationParameters
 {
@@ -73,4 +73,4 @@ private:
     std::unique_ptr<Image> m_image{};
     ImageViewMemory m_memory{};
 };
-} // namespace szg_renderer
+} // namespace syzygy

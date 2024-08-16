@@ -3,7 +3,7 @@
 #include <imgui.h>
 #include <optional>
 
-namespace szg_ui
+namespace syzygy
 {
 struct UIRectangle;
 struct DockingLayout
@@ -18,5 +18,5 @@ struct DockingLayout
 // This also may break layouts, if windows have been moved or docked,
 // since all new IDs are generated.
 DockingLayout
-buildDefaultMultiWindowLayout(szg_ui::UIRectangle workArea, ImGuiID parentNode);
-} // namespace szg_ui
+buildDefaultMultiWindowLayout(syzygy::UIRectangle workArea, ImGuiID parentNode);
+} // namespace syzygy

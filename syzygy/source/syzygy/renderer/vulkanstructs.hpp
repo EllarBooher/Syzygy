@@ -10,7 +10,7 @@
 // Shorthand factory methods for data-holding Vulkan structs, with reasonable
 // defaults.
 
-namespace szg_renderer
+namespace syzygy
 {
 VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
 VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
@@ -77,4 +77,4 @@ VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
     std::span<VkPushConstantRange const> ranges
 );
 
-} // namespace szg_renderer
+} // namespace syzygy

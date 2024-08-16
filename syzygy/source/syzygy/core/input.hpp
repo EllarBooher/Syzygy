@@ -6,7 +6,7 @@
 #include <glm/vec2.hpp>
 #include <string>
 
-namespace szg_input
+namespace syzygy
 {
 struct KeyStatus
 {
@@ -93,4 +93,4 @@ private:
     KeysState m_keysNew;
     CursorState m_cursorNew;
 };
-} // namespace szg_input
+} // namespace syzygy

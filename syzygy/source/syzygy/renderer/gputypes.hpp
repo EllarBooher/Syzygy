@@ -8,7 +8,7 @@
 // These are intended to be trivially copyable to GPU memory, not for
 // manipulation by UI or the engine.
 
-namespace szg_renderer
+namespace syzygy
 {
 // For ease of reading, group members by 16 bytes, which is a size of
 // a single-precision vec4.
@@ -90,4 +90,4 @@ struct SpotLightPacked
     float falloffDistance;
     uint8_t padding0[4]{};
 };
-} // namespace szg_renderer
+} // namespace syzygy

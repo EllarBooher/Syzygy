@@ -19,7 +19,7 @@
 #include <glm/vec4.hpp>
 #include <limits>
 
-auto szg_geometry::projectPointOnPlane(Plane const plane, glm::vec3 const point)
+auto syzygy::projectPointOnPlane(Plane const plane, glm::vec3 const point)
     -> glm::vec3
 {
     glm::vec3 const toPoint{point - plane.point};
@@ -28,9 +28,8 @@ auto szg_geometry::projectPointOnPlane(Plane const plane, glm::vec3 const point)
     return projection + point;
 }
 
-auto szg_geometry::collectAABBVertices(
-    glm::vec3 const center, glm::vec3 const extent
-) -> AABBVertices
+auto syzygy::collectAABBVertices(glm::vec3 const center, glm::vec3 const extent)
+    -> AABBVertices
 {
     return AABBVertices{
         center + glm::vec3(extent.x, extent.y, extent.z),
@@ -44,7 +43,7 @@ auto szg_geometry::collectAABBVertices(
     };
 }
 
-auto szg_geometry::lookAtVk(
+auto syzygy::lookAtVk(
     glm::vec3 const eye, glm::vec3 const center, glm::vec3 const up
 ) -> glm::mat4x4
 {
@@ -52,25 +51,24 @@ auto szg_geometry::lookAtVk(
          * glm::lookAtRH(eye, center, up);
 }
 
-auto szg_geometry::lookAtVkSafe(glm::vec3 const eye, glm::vec3 const center)
+auto syzygy::lookAtVkSafe(glm::vec3 const eye, glm::vec3 const center)
     -> glm::mat4x4
 {
     float constexpr tolerance{0.99};
 
-    float const cosine{glm::dot(forward, szg_geometry::up)};
+    float const cosine{glm::dot(forward, syzygy::up)};
 
     bool const forwardIsUp{glm::abs(cosine) > tolerance};
 
-    return szg_geometry::lookAtVk(
+    return syzygy::lookAtVk(
         eye,
         center,
-        forwardIsUp ? szg_geometry::forward * glm::sign(cosine)
-                    : szg_geometry::up
+        forwardIsUp ? syzygy::forward * glm::sign(cosine) : syzygy::up
     );
 }
 
-auto szg_geometry::projectionVk(PerspectiveProjectionParameters const parameters
-) -> glm::mat4x4
+auto syzygy::projectionVk(PerspectiveProjectionParameters const parameters)
+    -> glm::mat4x4
 {
     float const swappedNear{parameters.far};
     float const swappedFar{parameters.near};
@@ -83,31 +81,30 @@ auto szg_geometry::projectionVk(PerspectiveProjectionParameters const parameters
     );
 }
 
-auto szg_geometry::projectionOrthoVk(glm::vec3 const min, glm::vec3 const max)
+auto syzygy::projectionOrthoVk(glm::vec3 const min, glm::vec3 const max)
     -> glm::mat4x4
 {
     return glm::orthoLH_ZO(min.x, max.x, min.y, max.y, max.z, min.z);
 }
 
-auto szg_geometry::forwardFromEulers(glm::vec3 const eulerAngles) -> glm::vec3
+auto syzygy::forwardFromEulers(glm::vec3 const eulerAngles) -> glm::vec3
 {
-    return glm::orientate3(eulerAngles) * szg_geometry::forward;
+    return glm::orientate3(eulerAngles) * syzygy::forward;
 }
 
-auto szg_geometry::transformVk(
-    glm::vec3 const position, glm::vec3 const eulerAngles
-) -> glm::mat4x4
+auto syzygy::transformVk(glm::vec3 const position, glm::vec3 const eulerAngles)
+    -> glm::mat4x4
 {
     return glm::translate(position) * glm::orientate4(eulerAngles);
 }
 
-auto szg_geometry::viewVk(glm::vec3 const position, glm::vec3 const eulerAngles)
+auto syzygy::viewVk(glm::vec3 const position, glm::vec3 const eulerAngles)
     -> glm::mat4x4
 {
     return glm::inverse(transformVk(position, eulerAngles));
 }
 
-auto szg_geometry::randomQuat() -> glm::quat
+auto syzygy::randomQuat() -> glm::quat
 {
     // https://stackoverflow.com/a/56794499
 
@@ -119,7 +116,7 @@ auto szg_geometry::randomQuat() -> glm::quat
     return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
-auto szg_geometry::projectionOrthoAABBVk(
+auto syzygy::projectionOrthoAABBVk(
     glm::mat4x4 const view,
     glm::vec3 const geometryCenter,
     glm::vec3 const geometryExtent
@@ -129,18 +126,18 @@ auto szg_geometry::projectionOrthoAABBVk(
     // the projection matrix needs to be
 
     std::array<glm::vec3, 8> const aabbVertices{
-        szg_geometry::collectAABBVertices(geometryCenter, geometryExtent)
+        syzygy::collectAABBVertices(geometryCenter, geometryExtent)
     };
 
     glm::vec3 const centerViewSpace{view * glm::vec4(geometryCenter, 1.0)};
-    glm::vec3 const forwardViewSpace{szg_geometry::forward};
+    glm::vec3 const forwardViewSpace{syzygy::forward};
 
     glm::vec3 viewMax{std::numeric_limits<float>::lowest()};
     glm::vec3 viewMin{std::numeric_limits<float>::max()};
     for (glm::vec3 const vertex : aabbVertices)
     {
         glm::vec3 const vertexViewSpace{view * glm::vec4(vertex, 1.0)};
-        glm::vec3 const projected{szg_geometry::projectPointOnPlane(
+        glm::vec3 const projected{syzygy::projectPointOnPlane(
             Plane{
                 .point = centerViewSpace,
                 .normal = forwardViewSpace,
@@ -152,9 +149,7 @@ auto szg_geometry::projectionOrthoAABBVk(
         viewMin = glm::min(projected, viewMin);
     }
 
-    glm::mat4x4 const projection{
-        szg_geometry::projectionOrthoVk(viewMin, viewMax)
-    };
+    glm::mat4x4 const projection{syzygy::projectionOrthoVk(viewMin, viewMax)};
 
     return projection;
 }

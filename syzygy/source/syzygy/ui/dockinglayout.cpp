@@ -3,9 +3,9 @@
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui_internal.h>
 
-auto szg_ui::buildDefaultMultiWindowLayout(
-    szg_ui::UIRectangle workArea, ImGuiID parentNode
-) -> szg_ui::DockingLayout
+auto syzygy::buildDefaultMultiWindowLayout(
+    syzygy::UIRectangle workArea, ImGuiID parentNode
+) -> syzygy::DockingLayout
 {
     ImGui::DockBuilderAddNode(parentNode);
 

@@ -11,7 +11,7 @@
 #include <spirv_reflect.h>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 auto generateReflectionData(std::span<uint8_t const> const spirv_bytecode)
     -> ShaderReflectionData
@@ -371,8 +371,8 @@ auto ShaderObjectReflected::fromBytecode(
         generateReflectionData(spirvBytecode)
     };
 
-    szg_renderer::ShaderResult<VkShaderEXT> const compilationResult{
-        szg_renderer::compileShaderObject(
+    syzygy::ShaderResult<VkShaderEXT> const compilationResult{
+        syzygy::compileShaderObject(
             device,
             spirvBytecode,
             stage,
@@ -421,8 +421,8 @@ auto ShaderObjectReflected::fromBytecodeReflected(
         pushConstantRanges.push_back(pushConstant.totalRange(stage));
     }
 
-    szg_renderer::ShaderResult<VkShaderEXT> const compilationResult{
-        szg_renderer::compileShaderObject(
+    syzygy::ShaderResult<VkShaderEXT> const compilationResult{
+        syzygy::compileShaderObject(
             device,
             spirvBytecode,
             stage,
@@ -453,8 +453,8 @@ auto ShaderModuleReflected::FromBytecode(
     std::span<uint8_t const> const spirvBytecode
 ) -> std::optional<ShaderModuleReflected>
 {
-    szg_renderer::ShaderResult<VkShaderModule> const compilationResult{
-        szg_renderer::compileShaderModule(device, spirvBytecode)
+    syzygy::ShaderResult<VkShaderModule> const compilationResult{
+        syzygy::compileShaderModule(device, spirvBytecode)
     };
 
     if (compilationResult.result != VK_SUCCESS)
@@ -547,9 +547,8 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    std::optional<szg_assets::AssetFile> const fileResult{
-        szg_assets::loadAssetFile(path)
-    };
+    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
+    )};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path.string());
@@ -580,9 +579,8 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    std::optional<szg_assets::AssetFile> const fileResult{
-        szg_assets::loadAssetFile(path)
-    };
+    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
+    )};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path.string());
@@ -633,9 +631,8 @@ auto compileShaderModule(
 auto loadShaderModule(VkDevice const device, std::string const& path)
     -> std::optional<ShaderModuleReflected>
 {
-    std::optional<szg_assets::AssetFile> const fileResult{
-        szg_assets::loadAssetFile(path)
-    };
+    std::optional<syzygy::AssetFile> const fileResult{syzygy::loadAssetFile(path
+    )};
     if (!fileResult.has_value())
     {
         SZG_ERROR("Failed to load file for texture at '{}'", path);
@@ -649,4 +646,4 @@ auto loadShaderModule(VkDevice const device, std::string const& path)
         )
     };
 }
-} // namespace szg_renderer
+} // namespace syzygy

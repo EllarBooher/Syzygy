@@ -10,7 +10,7 @@
 #define VKR_ARRAY(x) static_cast<uint32_t>(x.size()), x.data()
 #define VKR_ARRAY_NONE 0, nullptr
 
-namespace szg_utils
+namespace syzygy
 {
 auto ensureAbsolutePath(
     std::filesystem::path const& path,

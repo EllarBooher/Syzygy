@@ -23,13 +23,12 @@
 namespace
 {
 void validatePushConstant(
-    szg_renderer::ShaderObjectReflected const& shaderObject,
-    size_t const expectedSize
+    syzygy::ShaderObjectReflected const& shaderObject, size_t const expectedSize
 )
 {
     if (shaderObject.reflectionData().defaultEntryPointHasPushConstant())
     {
-        szg_renderer::ShaderReflectionData::PushConstant const& pushConstant{
+        syzygy::ShaderReflectionData::PushConstant const& pushConstant{
             shaderObject.reflectionData().defaultPushConstant()
         };
 
@@ -64,10 +63,10 @@ auto loadShader(
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
     size_t const expectedPushConstantSize
-) -> szg_renderer::ShaderObjectReflected
+) -> syzygy::ShaderObjectReflected
 {
-    std::optional<szg_renderer::ShaderObjectReflected> const loadResult{
-        szg_renderer::loadShaderObject(
+    std::optional<syzygy::ShaderObjectReflected> const loadResult{
+        syzygy::loadShaderObject(
             device, path, stage, nextStage, descriptorSets, {}
         )
     };
@@ -78,7 +77,7 @@ auto loadShader(
         return loadResult.value();
     }
 
-    return szg_renderer::ShaderObjectReflected::makeInvalid();
+    return syzygy::ShaderObjectReflected::makeInvalid();
 }
 
 auto loadShader(
@@ -88,10 +87,10 @@ auto loadShader(
     VkShaderStageFlags const nextStage,
     std::span<VkDescriptorSetLayout const> const descriptorSets,
     VkPushConstantRange const rangeOverride
-) -> szg_renderer::ShaderObjectReflected
+) -> syzygy::ShaderObjectReflected
 {
-    std::optional<szg_renderer::ShaderObjectReflected> loadResult{
-        szg_renderer::loadShaderObject(
+    std::optional<syzygy::ShaderObjectReflected> loadResult{
+        syzygy::loadShaderObject(
             device, path, stage, nextStage, descriptorSets, rangeOverride, {}
         )
     };
@@ -101,7 +100,7 @@ auto loadShader(
         return loadResult.value();
     }
 
-    return szg_renderer::ShaderObjectReflected::makeInvalid();
+    return syzygy::ShaderObjectReflected::makeInvalid();
 }
 
 auto createLayout(
@@ -136,7 +135,7 @@ auto createLayout(
 }
 } // namespace
 
-namespace szg_renderer
+namespace syzygy
 {
 DeferredShadingPipeline::DeferredShadingPipeline(
     VkDevice const device,
@@ -161,15 +160,17 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         VkDeviceSize constexpr LIGHT_CAPACITY{16};
 
         m_directionalLights = std::make_unique<
-            szg_renderer::TStagedBuffer<szg_renderer::DirectionalLightPacked>>(
-            szg_renderer::TStagedBuffer<szg_renderer::DirectionalLightPacked>::
-                allocate(device, allocator, LIGHT_CAPACITY, 0)
+            syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>>(
+            syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>::allocate(
+                device, allocator, LIGHT_CAPACITY, 0
+            )
         );
-        m_spotLights = std::make_unique<
-            szg_renderer::TStagedBuffer<szg_renderer::SpotLightPacked>>(
-            szg_renderer::TStagedBuffer<szg_renderer::SpotLightPacked>::
-                allocate(device, allocator, LIGHT_CAPACITY, 0)
-        );
+        m_spotLights =
+            std::make_unique<syzygy::TStagedBuffer<syzygy::SpotLightPacked>>(
+                syzygy::TStagedBuffer<syzygy::SpotLightPacked>::allocate(
+                    device, allocator, LIGHT_CAPACITY, 0
+                )
+            );
     }
 
     { // Descriptor Sets
@@ -196,11 +197,11 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                 .height = dimensionCapacity.height,
             };
 
-            if (std::optional<std::unique_ptr<szg_renderer::ImageView>>
-                    drawImageResult{szg_renderer::ImageView::allocate(
+            if (std::optional<std::unique_ptr<syzygy::ImageView>>
+                    drawImageResult{syzygy::ImageView::allocate(
                         device,
                         allocator,
-                        szg_renderer::ImageAllocationParameters{
+                        syzygy::ImageAllocationParameters{
                             .extent = drawImageExtent,
                             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                             .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -208,11 +209,10 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                                         | VK_IMAGE_USAGE_STORAGE_BIT
                                         | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                         },
-                        szg_renderer::ImageViewAllocationParameters{
-                            .subresourceRange =
-                                szg_renderer::imageSubresourceRange(
-                                    VK_IMAGE_ASPECT_COLOR_BIT
-                                )
+                        syzygy::ImageViewAllocationParameters{
+                            .subresourceRange = syzygy::imageSubresourceRange(
+                                VK_IMAGE_ASPECT_COLOR_BIT
+                            )
                         }
                     )};
                 drawImageResult.has_value())
@@ -254,7 +254,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         }
 
         VkSamplerCreateInfo const depthImageImmutableSamplerInfo{
-            szg_renderer::samplerCreateInfo(
+            syzygy::samplerCreateInfo(
                 0,
                 VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
                 VK_FILTER_NEAREST,
@@ -456,13 +456,13 @@ void setRasterizationShaderObjectState(
 auto collectGeometryCullFlags(
     VkCommandBuffer const cmd,
     VkPipelineStageFlags2 const bufferAccessStages,
-    std::span<szg_scene::MeshInstanced const> meshes
+    std::span<syzygy::MeshInstanced const> meshes
 ) -> std::vector<RenderOverride>
 {
     std::vector<RenderOverride> renderOverrides{};
     renderOverrides.reserve(meshes.size());
 
-    for (szg_scene::MeshInstanced const& instance : meshes)
+    for (syzygy::MeshInstanced const& instance : meshes)
     {
         RenderOverride const override{
             .render = instance.render && instance.mesh != nullptr
@@ -493,16 +493,15 @@ auto collectGeometryCullFlags(
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    szg_renderer::Image& color,
-    szg_renderer::ImageView& depth,
-    std::span<szg_renderer::DirectionalLightPacked const> const
-        directionalLights,
-    std::span<szg_renderer::SpotLightPacked const> const spotLights,
+    syzygy::Image& color,
+    syzygy::ImageView& depth,
+    std::span<syzygy::DirectionalLightPacked const> const directionalLights,
+    std::span<syzygy::SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
-    TStagedBuffer<szg_renderer::CameraPacked> const& cameras,
+    TStagedBuffer<syzygy::CameraPacked> const& cameras,
     uint32_t const atmosphereIndex,
-    TStagedBuffer<szg_renderer::AtmospherePacked> const& atmospheres,
-    std::span<szg_scene::MeshInstanced const> sceneGeometry
+    TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
+    std::span<syzygy::MeshInstanced const> sceneGeometry
 )
 {
     VkPipelineStageFlags2 constexpr GBUFFER_ACCESS_STAGES{
@@ -585,19 +584,19 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
 
         std::array<VkRenderingAttachmentInfo, 4> const gBufferAttachments{
-            szg_renderer::renderingAttachmentInfo(
+            syzygy::renderingAttachmentInfo(
                 m_gBuffer.diffuseColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            szg_renderer::renderingAttachmentInfo(
+            syzygy::renderingAttachmentInfo(
                 m_gBuffer.specularColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            szg_renderer::renderingAttachmentInfo(
+            syzygy::renderingAttachmentInfo(
                 m_gBuffer.normal->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             ),
-            szg_renderer::renderingAttachmentInfo(
+            syzygy::renderingAttachmentInfo(
                 m_gBuffer.worldPosition->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             )
@@ -637,7 +636,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
-        VkRenderingInfo const renderInfo{szg_renderer::renderingInfo(
+        VkRenderingInfo const renderInfo{syzygy::renderingInfo(
             VkRect2D{.extent{drawRect.extent}},
             gBufferAttachments,
             &depthAttachment
@@ -687,7 +686,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         for (size_t index{0}; index < sceneGeometry.size(); index++)
         {
-            szg_scene::MeshInstanced const& instance{sceneGeometry[index]};
+            syzygy::MeshInstanced const& instance{sceneGeometry[index]};
 
             bool render{instance.render};
             if (index < renderOverrides.size())
@@ -917,7 +916,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .z = 1
         };
 
-        szg_renderer::Image::recordCopyRect(
+        syzygy::Image::recordCopyRect(
             cmd,
             m_drawImage->image(),
             color,
@@ -931,7 +930,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 }
 
 void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, szg_renderer::ImageView& depthImage
+    VkDevice const device, syzygy::ImageView& depthImage
 )
 {
     VkDescriptorImageInfo const depthImageInfo{
@@ -986,4 +985,4 @@ void DeferredShadingPipeline::cleanup(
     m_lightingPassComputeShader.cleanup(device);
     m_skyPassComputeShader.cleanup(device);
 }
-} // namespace szg_renderer
+} // namespace syzygy

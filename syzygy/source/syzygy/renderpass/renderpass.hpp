@@ -1,7 +1,7 @@
 #pragma once
 
 #include "syzygy/vulkanusage.hpp"
-namespace szg_renderer
+namespace syzygy
 {
 struct Image;
 }
@@ -16,9 +16,7 @@ VkClearDepthStencilValue constexpr DEPTH_FAR_STENCIL_NONE{
 VkClearColorValue constexpr COLOR_BLACK_OPAQUE{0.0, 0.0, 0.0, 1.0};
 
 void recordClearDepthImage(
-    VkCommandBuffer, szg_renderer::Image&, VkClearDepthStencilValue
+    VkCommandBuffer, syzygy::Image&, VkClearDepthStencilValue
 );
-void recordClearColorImage(
-    VkCommandBuffer, szg_renderer::Image&, VkClearColorValue
-);
+void recordClearColorImage(VkCommandBuffer, syzygy::Image&, VkClearColorValue);
 } // namespace renderpass

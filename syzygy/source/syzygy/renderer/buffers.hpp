@@ -8,7 +8,7 @@
 #include <span>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 // A single VkBuffer alongside all of its allocation information.
 // TODO: split this into two types: a host-side, mapped buffer, and a
@@ -331,4 +331,4 @@ private:
     AllocatedBuffer m_indexBuffer;
     AllocatedBuffer m_vertexBuffer;
 };
-} // namespace szg_renderer
+} // namespace syzygy

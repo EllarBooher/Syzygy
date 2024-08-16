@@ -6,12 +6,12 @@
 #include <optional>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 class DescriptorAllocator;
 }
 
-namespace szg_scene
+namespace syzygy
 {
 struct SceneTexture
 {
@@ -32,14 +32,14 @@ struct SceneTexture
     static auto create(
         VkDevice,
         VmaAllocator,
-        szg_renderer::DescriptorAllocator&,
+        syzygy::DescriptorAllocator&,
         VkExtent2D textureMax,
         VkFormat format
     ) -> std::optional<SceneTexture>;
 
     auto sampler() const -> VkSampler;
-    auto texture() -> szg_renderer::ImageView&;
-    auto texture() const -> szg_renderer::ImageView const&;
+    auto texture() -> syzygy::ImageView&;
+    auto texture() const -> syzygy::ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
@@ -53,7 +53,7 @@ private:
     SceneTexture(
         VkDevice device,
         VkSampler sampler,
-        std::unique_ptr<szg_renderer::ImageView> texture,
+        std::unique_ptr<syzygy::ImageView> texture,
         VkDescriptorSetLayout singletonLayout,
         VkDescriptorSet singletonSet,
         VkDescriptorSet imguiDescriptor
@@ -73,7 +73,7 @@ private:
     VkDevice m_device{VK_NULL_HANDLE};
 
     VkSampler m_sampler{VK_NULL_HANDLE};
-    std::unique_ptr<szg_renderer::ImageView> m_texture{};
+    std::unique_ptr<syzygy::ImageView> m_texture{};
 
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};
@@ -85,4 +85,4 @@ struct SceneViewport
 {
     VkRect2D rect;
 };
-} // namespace szg_scene
+} // namespace syzygy

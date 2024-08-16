@@ -27,7 +27,7 @@
 
 #define VKRENDERER_COMPILE_WITH_TESTING 0
 
-namespace szg_renderer
+namespace syzygy
 {
 Renderer::Renderer(Renderer&& other) noexcept
 {
@@ -88,7 +88,7 @@ auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    szg_scene::SceneTexture const& sceneTexture
+    syzygy::SceneTexture const& sceneTexture
 ) -> std::optional<Renderer>
 {
     std::optional<Renderer> rendererResult{Renderer{}};
@@ -120,23 +120,23 @@ void Renderer::initDrawTargets(
         MAX_DRAW_EXTENTS.width, MAX_DRAW_EXTENTS.height
     };
 
-    if (std::optional<std::unique_ptr<szg_renderer::ImageView>>
-            sceneDepthResult{szg_renderer::ImageView::allocate(
+    if (std::optional<std::unique_ptr<syzygy::ImageView>> sceneDepthResult{
+            syzygy::ImageView::allocate(
                 device,
                 allocator,
-                szg_renderer::ImageAllocationParameters{
+                syzygy::ImageAllocationParameters{
                     .extent = RESERVED_IMAGE_EXTENT,
                     .format = VK_FORMAT_D32_SFLOAT,
                     .usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
                                 | VK_IMAGE_USAGE_SAMPLED_BIT
                                 | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                 },
-                szg_renderer::ImageViewAllocationParameters{
-                    .subresourceRange = szg_renderer::imageSubresourceRange(
-                        VK_IMAGE_ASPECT_DEPTH_BIT
-                    )
+                syzygy::ImageViewAllocationParameters{
+                    .subresourceRange =
+                        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
                 }
-            )};
+            )
+        };
         sceneDepthResult.has_value())
     {
         m_sceneDepthTexture = std::move(sceneDepthResult).value();
@@ -149,18 +149,17 @@ void Renderer::initDrawTargets(
 
 void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 {
-    m_camerasBuffer =
-        std::make_unique<TStagedBuffer<szg_renderer::CameraPacked>>(
-            TStagedBuffer<szg_renderer::CameraPacked>::allocate(
-                device,
-                allocator,
-                CAMERA_CAPACITY,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            )
-        );
+    m_camerasBuffer = std::make_unique<TStagedBuffer<syzygy::CameraPacked>>(
+        TStagedBuffer<syzygy::CameraPacked>::allocate(
+            device,
+            allocator,
+            CAMERA_CAPACITY,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        )
+    );
     m_atmospheresBuffer =
-        std::make_unique<TStagedBuffer<szg_renderer::AtmospherePacked>>(
-            TStagedBuffer<szg_renderer::AtmospherePacked>::allocate(
+        std::make_unique<TStagedBuffer<syzygy::AtmospherePacked>>(
+            TStagedBuffer<syzygy::AtmospherePacked>::allocate(
                 device,
                 allocator,
                 ATMOSPHERE_CAPACITY,
@@ -211,7 +210,7 @@ void Renderer::initDeferredShadingPipeline(
 }
 
 void Renderer::initGenericComputePipelines(
-    VkDevice const device, szg_scene::SceneTexture const& sceneTexture
+    VkDevice const device, syzygy::SceneTexture const& sceneTexture
 )
 {
     std::vector<std::string> const shaderPaths{
@@ -225,7 +224,7 @@ void Renderer::initGenericComputePipelines(
     );
 }
 
-// TODO: Once scenes are made, extract this to a testing szg_scene
+// TODO: Once scenes are made, extract this to a testing syzygy
 #if VKRENDERER_COMPILE_WITH_TESTING
 void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 {
@@ -253,9 +252,9 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Renderer::uiEngineControls(szg_ui::DockingLayout const& dockingLayout)
+void Renderer::uiEngineControls(syzygy::DockingLayout const& dockingLayout)
 {
-    if (szg_ui::UIWindow const engineControls{szg_ui::UIWindow::beginDockable(
+    if (syzygy::UIWindow const engineControls{syzygy::UIWindow::beginDockable(
             "Engine Controls", dockingLayout.right
         )};
         engineControls.open)
@@ -283,12 +282,12 @@ void Renderer::uiEngineControls(szg_ui::DockingLayout const& dockingLayout)
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
-    szg_scene::Scene const& szg_scene,
-    szg_scene::SceneTexture& sceneTexture,
-    std::optional<szg_scene::SceneViewport> const& sceneViewport
+    syzygy::Scene const& scene,
+    syzygy::SceneTexture& sceneTexture,
+    std::optional<syzygy::SceneViewport> const& sceneViewport
 )
 {
-    // Begin szg_scene drawing
+    // Begin syzygy drawing
 
     m_debugLines.clear();
     if (!sceneViewport.has_value())
@@ -297,7 +296,7 @@ void Renderer::recordDraw(
     }
 
     std::optional<double> const viewportAspectRatioResult{
-        szg_renderer::aspectRatio(sceneViewport.value().rect.extent)
+        syzygy::aspectRatio(sceneViewport.value().rect.extent)
     };
     if (!viewportAspectRatioResult.has_value())
     {
@@ -306,8 +305,8 @@ void Renderer::recordDraw(
     double const aspectRatio{viewportAspectRatioResult.value()};
 
     { // Copy cameras to gpu
-        szg_renderer::CameraPacked const mainCamera{
-            szg_scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
+        syzygy::CameraPacked const mainCamera{
+            scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
         m_camerasBuffer->clearStaged();
@@ -315,10 +314,10 @@ void Renderer::recordDraw(
         m_camerasBuffer->recordCopyToDevice(cmd);
     }
 
-    std::vector<szg_renderer::DirectionalLightPacked> directionalLights{};
+    std::vector<syzygy::DirectionalLightPacked> directionalLights{};
     { // Copy atmospheres to gpu
-        szg_scene::AtmosphereBaked const bakedAtmosphere{
-            szg_scene.atmosphere.baked(szg_scene.bounds)
+        syzygy::AtmosphereBaked const bakedAtmosphere{
+            scene.atmosphere.baked(scene.bounds)
         };
         if (bakedAtmosphere.moonlight.has_value())
         {
@@ -334,7 +333,7 @@ void Renderer::recordDraw(
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
-    for (szg_scene::MeshInstanced const& instance : szg_scene.geometry)
+    for (syzygy::MeshInstanced const& instance : scene.geometry)
     {
         if (instance.models != nullptr)
         {
@@ -366,14 +365,13 @@ void Renderer::recordDraw(
                 sceneTexture.texture().image(),
                 *m_sceneDepthTexture,
                 directionalLights,
-                szg_scene.spotlightsRender
-                    ? szg_scene.spotlights
-                    : std::vector<szg_renderer::SpotLightPacked>{},
+                scene.spotlightsRender ? scene.spotlights
+                                       : std::vector<syzygy::SpotLightPacked>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
                 *m_atmospheresBuffer,
-                szg_scene.geometry
+                scene.geometry
             );
 
             sceneTexture.texture().recordTransitionBarriered(
@@ -381,9 +379,9 @@ void Renderer::recordDraw(
             );
 
             m_debugLines.pushBox(
-                szg_scene.bounds.center,
+                scene.bounds.center,
                 glm::identity<glm::quat>(),
-                szg_scene.bounds.extent
+                scene.bounds.extent
             );
 
             recordDrawDebugLines(
@@ -409,15 +407,15 @@ void Renderer::recordDraw(
         }
     }
 
-    // End szg_scene drawing
+    // End syzygy drawing
 }
 
 void Renderer::recordDrawDebugLines(
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
-    szg_scene::SceneTexture& sceneTexture,
-    szg_scene::SceneViewport const& sceneViewport,
-    TStagedBuffer<szg_renderer::CameraPacked> const& camerasBuffer
+    syzygy::SceneTexture& sceneTexture,
+    syzygy::SceneViewport const& sceneViewport,
+    TStagedBuffer<syzygy::CameraPacked> const& camerasBuffer
 )
 {
     m_debugLines.lastFrameDrawResults = {};
@@ -444,4 +442,4 @@ void Renderer::recordDrawDebugLines(
         m_debugLines.lastFrameDrawResults = drawResults;
     }
 }
-} // namespace szg_renderer
+} // namespace syzygy

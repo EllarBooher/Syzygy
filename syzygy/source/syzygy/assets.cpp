@@ -39,49 +39,42 @@ auto uploadMeshToGPU(
     ImmediateSubmissionQueue const& submissionQueue,
     std::span<uint32_t const> const indices,
     std::span<Vertex const> const vertices
-) -> std::unique_ptr<szg_renderer::GPUMeshBuffers>
+) -> std::unique_ptr<syzygy::GPUMeshBuffers>
 {
     // Allocate buffer
 
     size_t const indexBufferSize{indices.size_bytes()};
     size_t const vertexBufferSize{vertices.size_bytes()};
 
-    szg_renderer::AllocatedBuffer indexBuffer{
-        szg_renderer::AllocatedBuffer::allocate(
-            device,
-            allocator,
-            indexBufferSize,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VMA_MEMORY_USAGE_GPU_ONLY,
-            0
-        )
-    };
+    syzygy::AllocatedBuffer indexBuffer{syzygy::AllocatedBuffer::allocate(
+        device,
+        allocator,
+        indexBufferSize,
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        0
+    )};
 
-    szg_renderer::AllocatedBuffer vertexBuffer{
-        szg_renderer::AllocatedBuffer::allocate(
-            device,
-            allocator,
-            vertexBufferSize,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-                | VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-            VMA_MEMORY_USAGE_GPU_ONLY,
-            0
-        )
-    };
+    syzygy::AllocatedBuffer vertexBuffer{syzygy::AllocatedBuffer::allocate(
+        device,
+        allocator,
+        vertexBufferSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        0
+    )};
 
     // Copy data into buffer
 
-    szg_renderer::AllocatedBuffer stagingBuffer{
-        szg_renderer::AllocatedBuffer::allocate(
-            device,
-            allocator,
-            vertexBufferSize + indexBufferSize,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_MEMORY_USAGE_CPU_ONLY,
-            VMA_ALLOCATION_CREATE_MAPPED_BIT
-        )
-    };
+    syzygy::AllocatedBuffer stagingBuffer{syzygy::AllocatedBuffer::allocate(
+        device,
+        allocator,
+        vertexBufferSize + indexBufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_CPU_ONLY,
+        VMA_ALLOCATION_CREATE_MAPPED_BIT
+    )};
 
     assert(
         stagingBuffer.isMapped()
@@ -130,13 +123,13 @@ auto uploadMeshToGPU(
                     "likely contain junk or no data.");
     }
 
-    return std::make_unique<szg_renderer::GPUMeshBuffers>(
+    return std::make_unique<syzygy::GPUMeshBuffers>(
         std::move(indexBuffer), std::move(vertexBuffer)
     );
 }
 
 auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
-    -> std::optional<szg_assets::ImageRGBA>
+    -> std::optional<syzygy::ImageRGBA>
 {
     int32_t x{0};
     int32_t y{0};
@@ -181,7 +174,7 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
 
     delete parsedImage;
 
-    return szg_assets::ImageRGBA{
+    return syzygy::ImageRGBA{
         .x = widthPixels, .y = heightPixels, .bytes = rgba
     };
 }
@@ -193,16 +186,16 @@ auto uploadImageToGPU(
     ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
-    szg_assets::ImageRGBA const& image
-) -> std::optional<std::unique_ptr<szg_renderer::Image>>
+    syzygy::ImageRGBA const& image
+) -> std::optional<std::unique_ptr<syzygy::Image>>
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
 
-    std::optional<std::unique_ptr<szg_renderer::Image>> stagingImageResult{
-        szg_renderer::Image::allocate(
+    std::optional<std::unique_ptr<syzygy::Image>> stagingImageResult{
+        syzygy::Image::allocate(
             device,
             allocator,
-            szg_renderer::ImageAllocationParameters{
+            syzygy::ImageAllocationParameters{
                 .extent = imageExtent,
                 .format = VK_FORMAT_R8G8B8A8_UNORM,
                 .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
@@ -219,7 +212,7 @@ auto uploadImageToGPU(
         SZG_ERROR("Failed to allocate staging image.");
         return std::nullopt;
     }
-    szg_renderer::Image& stagingImage{*stagingImageResult.value()};
+    syzygy::Image& stagingImage{*stagingImageResult.value()};
 
     std::optional<VmaAllocationInfo> const allocationInfo{
         stagingImage.fetchAllocationInfo()
@@ -240,11 +233,11 @@ auto uploadImageToGPU(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_renderer::Image>> finalImageResult{
-        szg_renderer::Image::allocate(
+    std::optional<std::unique_ptr<syzygy::Image>> finalImageResult{
+        syzygy::Image::allocate(
             device,
             allocator,
-            szg_renderer::ImageAllocationParameters{
+            syzygy::ImageAllocationParameters{
                 .extent = imageExtent,
                 .format = format,
                 .usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT
@@ -259,7 +252,7 @@ auto uploadImageToGPU(
         SZG_ERROR("Failed to allocate final image.");
         return std::nullopt;
     }
-    szg_renderer::Image& finalImage{*finalImageResult.value()};
+    syzygy::Image& finalImage{*finalImageResult.value()};
 
     if (auto const submissionResult{submissionQueue.immediateSubmit(
             transferQueue,
@@ -273,7 +266,7 @@ auto uploadImageToGPU(
             cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
         );
 
-        szg_renderer::Image::recordCopyEntire(
+        syzygy::Image::recordCopyEntire(
             cmd, stagingImage, finalImage, VK_IMAGE_ASPECT_COLOR_BIT
         );
     }
@@ -296,7 +289,7 @@ auto loadGltfMeshes(
     std::filesystem::path const& path
 ) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
 {
-    std::filesystem::path const assetPath{szg_utils::ensureAbsolutePath(path)};
+    std::filesystem::path const assetPath{syzygy::ensureAbsolutePath(path)};
 
     SZG_INFO("Loading glTF: {}", assetPath.string());
 
@@ -475,7 +468,7 @@ auto ensureAbsolute(
 }
 } // namespace
 
-auto szg_assets::loadAssetFile(std::filesystem::path const& path)
+auto syzygy::loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
     auto const workingDir{std::filesystem::current_path()};
@@ -516,14 +509,14 @@ template <class... Ts> struct overloaded : Ts...
     using Ts::operator()...;
 };
 
-auto szg_assets::loadTextureFromFile(
+auto syzygy::loadTextureFromFile(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<szg_renderer::Image>>
+) -> std::optional<Asset<syzygy::Image>>
 {
     SZG_INFO("Loading Texture from '{}'", path.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(path)};
@@ -542,7 +535,7 @@ auto szg_assets::loadTextureFromFile(
         return std::nullopt;
     }
 
-    std::optional<szg_assets::ImageRGBA> imageResult{
+    std::optional<syzygy::ImageRGBA> imageResult{
         RGBAfromJPEG_stbi(file.fileBytes)
     };
     if (!imageResult.has_value())
@@ -551,24 +544,22 @@ auto szg_assets::loadTextureFromFile(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_renderer::Image>> uploadResult{
-        uploadImageToGPU(
-            device,
-            allocator,
-            transferQueue,
-            submissionQueue,
-            VK_FORMAT_R8G8B8A8_UNORM,
-            additionalFlags,
-            imageResult.value()
-        )
-    };
+    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
+        device,
+        allocator,
+        transferQueue,
+        submissionQueue,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        additionalFlags,
+        imageResult.value()
+    )};
     if (!uploadResult.has_value())
     {
         SZG_ERROR("Failed to upload image to GPU.");
         return std::nullopt;
     }
 
-    return std::optional<Asset<szg_renderer::Image>>{Asset<szg_renderer::Image>{
+    return std::optional<Asset<syzygy::Image>>{Asset<syzygy::Image>{
         .metadata =
             AssetMetadata{
                 .displayName = file.path.filename().string(),
@@ -579,15 +570,14 @@ auto szg_assets::loadTextureFromFile(
     }};
 }
 
-void szg_assets::AssetLibrary::registerAsset(Asset<szg_renderer::Image>&& asset)
+void syzygy::AssetLibrary::registerAsset(Asset<syzygy::Image>&& asset)
 {
     m_textures.push_back(std::move(asset));
 }
 
-auto szg_assets::AssetLibrary::fetchAssets()
-    -> std::vector<AssetRef<szg_renderer::Image>>
+auto syzygy::AssetLibrary::fetchAssets() -> std::vector<AssetRef<syzygy::Image>>
 {
-    std::vector<AssetRef<szg_renderer::Image>> assets{};
+    std::vector<AssetRef<syzygy::Image>> assets{};
 
     assets.reserve(m_textures.size());
     for (auto& texture : m_textures)
@@ -598,17 +588,17 @@ auto szg_assets::AssetLibrary::fetchAssets()
     return assets;
 }
 
-void szg_assets::AssetLibrary::loadTexturesDialog(
+void syzygy::AssetLibrary::loadTexturesDialog(
     PlatformWindow const& window,
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue& submissionQueue
 )
 {
-    if (auto const paths{szg_utils::openFiles(window)}; !paths.empty())
+    if (auto const paths{syzygy::openFiles(window)}; !paths.empty())
     {
         for (auto const& path : paths)
         {
-            auto textureLoadResult{szg_assets::loadTextureFromFile(
+            auto textureLoadResult{syzygy::loadTextureFromFile(
                 graphicsContext.device(),
                 graphicsContext.allocator(),
                 graphicsContext.universalQueue(),

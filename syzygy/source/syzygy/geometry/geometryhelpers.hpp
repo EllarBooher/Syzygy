@@ -22,7 +22,7 @@
 // However, this results in a left-handed coordinate system.
 // The creation of a right-handed projection matrix with flipped depth values
 // is difficult, and this is just one difficulty that these helpers aid on.
-namespace szg_geometry
+namespace syzygy
 {
 typedef std::array<glm::vec3, 8> AABBVertices;
 
@@ -67,4 +67,4 @@ glm::mat4x4 transformVk(glm::vec3 position, glm::vec3 eulerAngles);
 glm::mat4x4 viewVk(glm::vec3 position, glm::vec3 eulerAngles);
 
 auto randomQuat() -> glm::quat;
-} // namespace szg_geometry
+} // namespace syzygy

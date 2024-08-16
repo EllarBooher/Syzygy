@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-namespace szg_renderer
+namespace syzygy
 {
 struct DescriptorLayoutBuilder
 {
@@ -86,4 +86,4 @@ private:
     VkDevice m_device{VK_NULL_HANDLE};
     VkDescriptorPool m_pool{VK_NULL_HANDLE};
 };
-} // namespace szg_renderer
+} // namespace syzygy

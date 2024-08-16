@@ -56,7 +56,7 @@ auto ImmediateSubmissionQueue::create(
     );
 
     VkFenceCreateInfo const fenceCreateInfo{
-        szg_renderer::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
+        syzygy::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT)
     };
 
     VkFence busyFence{VK_NULL_HANDLE};
@@ -95,11 +95,9 @@ auto ImmediateSubmissionQueue::immediateSubmit(
         SubmissionResult::FAILED
     );
 
-    VkCommandBufferBeginInfo const cmdBeginInfo{
-        szg_renderer::commandBufferBeginInfo(
-            VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-        )
-    };
+    VkCommandBufferBeginInfo const cmdBeginInfo{syzygy::commandBufferBeginInfo(
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    )};
 
     SZG_TRY_VK(
         vkBeginCommandBuffer(m_commandBuffer, &cmdBeginInfo),
@@ -116,12 +114,10 @@ auto ImmediateSubmissionQueue::immediateSubmit(
     );
 
     VkCommandBufferSubmitInfo const cmdSubmitInfo{
-        szg_renderer::commandBufferSubmitInfo(m_commandBuffer)
+        syzygy::commandBufferSubmitInfo(m_commandBuffer)
     };
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
-    VkSubmitInfo2 const submitInfo{
-        szg_renderer::submitInfo(cmdSubmitInfos, {}, {})
-    };
+    VkSubmitInfo2 const submitInfo{syzygy::submitInfo(cmdSubmitInfos, {}, {})};
 
     SZG_TRY_VK(
         vkQueueSubmit2(queue, 1, &submitInfo, m_busyFence),

@@ -12,7 +12,7 @@
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
-namespace szg_renderer
+namespace syzygy
 {
 auto GBuffer::create(
     VkDevice const device,
@@ -23,25 +23,25 @@ auto GBuffer::create(
 {
     DeletionQueue cleanupCallbacks{};
 
-    szg_renderer::ImageAllocationParameters const imageParameters{
+    syzygy::ImageAllocationParameters const imageParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    szg_renderer::ImageAllocationParameters const worldPositionParameters{
+    syzygy::ImageAllocationParameters const worldPositionParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
-    szg_renderer::ImageViewAllocationParameters const viewParameters{
+    syzygy::ImageViewAllocationParameters const viewParameters{
         .subresourceRange =
-            szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+            syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> diffuseResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> diffuseResult{
+        syzygy::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -51,8 +51,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> specularResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> specularResult{
+        syzygy::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -62,8 +62,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> normalResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> normalResult{
+        syzygy::ImageView::allocate(
             device, allocator, imageParameters, viewParameters
         )
     };
@@ -73,8 +73,8 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<szg_renderer::ImageView>> positionResult{
-        szg_renderer::ImageView::allocate(
+    std::optional<std::unique_ptr<syzygy::ImageView>> positionResult{
+        syzygy::ImageView::allocate(
             device, allocator, worldPositionParameters, viewParameters
         )
     };
@@ -96,7 +96,7 @@ auto GBuffer::create(
     );
 
     {
-        VkSamplerCreateInfo const samplerInfo{szg_renderer::samplerCreateInfo(
+        VkSamplerCreateInfo const samplerInfo{syzygy::samplerCreateInfo(
             0,
             VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
             VK_FILTER_NEAREST,
@@ -261,4 +261,4 @@ void GBuffer::cleanup(VkDevice const device)
 
     vkDestroyDescriptorSetLayout(device, descriptorLayout, nullptr);
 }
-} // namespace szg_renderer
+} // namespace syzygy

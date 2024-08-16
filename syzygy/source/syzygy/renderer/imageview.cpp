@@ -7,15 +7,15 @@
 #include <spdlog/fmt/bundled/format.h>
 #include <utility>
 
-szg_renderer::ImageView::ImageView(ImageView&& other) noexcept
+syzygy::ImageView::ImageView(ImageView&& other) noexcept
 {
     m_image = std::move(other.m_image);
     m_memory = std::exchange(other.m_memory, ImageViewMemory{});
 }
 
-szg_renderer::ImageView::~ImageView() { destroy(); }
+syzygy::ImageView::~ImageView() { destroy(); }
 
-auto szg_renderer::ImageView::allocate(
+auto syzygy::ImageView::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
     ImageAllocationParameters const& imageParameters,
@@ -72,13 +72,13 @@ auto szg_renderer::ImageView::allocate(
 }
 
 // NOLINTNEXTLINE(readability-make-member-function-const)
-auto szg_renderer::ImageView::view() -> VkImageView { return m_memory.view; }
+auto syzygy::ImageView::view() -> VkImageView { return m_memory.view; }
 
-auto szg_renderer::ImageView::image() -> Image& { return *m_image; }
+auto syzygy::ImageView::image() -> Image& { return *m_image; }
 
-auto szg_renderer::ImageView::image() const -> Image const& { return *m_image; }
+auto syzygy::ImageView::image() const -> Image const& { return *m_image; }
 
-void szg_renderer::ImageView::recordTransitionBarriered(
+void syzygy::ImageView::recordTransitionBarriered(
     VkCommandBuffer const cmd, VkImageLayout const dst
 )
 {
@@ -87,13 +87,13 @@ void szg_renderer::ImageView::recordTransitionBarriered(
     );
 }
 
-auto szg_renderer::ImageView::expectedLayout() const -> VkImageLayout
+auto syzygy::ImageView::expectedLayout() const -> VkImageLayout
 {
     return m_image != nullptr ? m_image->expectedLayout()
                               : VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-void szg_renderer::ImageView::destroy()
+void syzygy::ImageView::destroy()
 {
     bool leaked{false};
     if (m_memory.view != VK_NULL_HANDLE)

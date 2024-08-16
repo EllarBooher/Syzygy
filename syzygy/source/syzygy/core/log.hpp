@@ -3,7 +3,7 @@
 #include <memory>
 #include <spdlog/logger.h>
 
-namespace szg_log
+namespace syzygy
 {
 class Logger
 {
@@ -14,10 +14,10 @@ public:
 private:
     static std::shared_ptr<spdlog::logger> m_logger;
 };
-} // namespace szg_log
+} // namespace syzygy
 
-#define SZG_TRACE(...) szg_log::Logger::getLogger().trace(__VA_ARGS__);
-#define SZG_INFO(...) szg_log::Logger::getLogger().info(__VA_ARGS__);
-#define SZG_WARNING(...) szg_log::Logger::getLogger().warn(__VA_ARGS__);
-#define SZG_ERROR(...) szg_log::Logger::getLogger().error(__VA_ARGS__);
-#define SZG_CRITICAL(...) szg_log::Logger::getLogger().critical(__VA_ARGS__);
+#define SZG_TRACE(...) syzygy::Logger::getLogger().trace(__VA_ARGS__);
+#define SZG_INFO(...) syzygy::Logger::getLogger().info(__VA_ARGS__);
+#define SZG_WARNING(...) syzygy::Logger::getLogger().warn(__VA_ARGS__);
+#define SZG_ERROR(...) syzygy::Logger::getLogger().error(__VA_ARGS__);
+#define SZG_CRITICAL(...) syzygy::Logger::getLogger().critical(__VA_ARGS__);

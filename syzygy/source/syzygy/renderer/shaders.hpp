@@ -10,7 +10,7 @@
 #include <variant>
 #include <vector>
 
-namespace szg_renderer
+namespace syzygy
 {
 // Contains reflected data from a ShaderModule, to aid with UI
 // and proper piping of data.
@@ -322,4 +322,4 @@ struct ComputeShaderWrapper
         vkDestroyPipeline(device, pipeline, nullptr);
     }
 };
-} // namespace szg_renderer
+} // namespace syzygy

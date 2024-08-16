@@ -29,7 +29,7 @@ public:
     auto universalQueueFamily() const -> uint32_t;
 
     auto allocator() -> VmaAllocator;
-    auto descriptorAllocator() -> szg_renderer::DescriptorAllocator&;
+    auto descriptorAllocator() -> syzygy::DescriptorAllocator&;
 
 private:
     GraphicsContext() = default;
@@ -45,5 +45,5 @@ private:
     uint32_t m_universalQueueFamily{};
 
     VmaAllocator m_allocator{VK_NULL_HANDLE};
-    std::unique_ptr<szg_renderer::DescriptorAllocator> m_descriptorAllocator{};
+    std::unique_ptr<syzygy::DescriptorAllocator> m_descriptorAllocator{};
 };

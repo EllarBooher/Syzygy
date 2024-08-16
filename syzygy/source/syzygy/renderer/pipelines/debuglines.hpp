@@ -11,7 +11,7 @@
 
 struct Vertex;
 
-namespace szg_renderer
+namespace syzygy
 {
 struct DebugLines
 {
@@ -55,4 +55,4 @@ public:
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 };
-} // namespace szg_renderer
+} // namespace syzygy

@@ -6,7 +6,7 @@ enum class EditorResult
     ERROR,
 };
 
-namespace szg_editor
+namespace syzygy
 {
 auto run() -> EditorResult;
 }

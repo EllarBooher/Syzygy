@@ -4,7 +4,7 @@
 
 void renderpass::recordClearDepthImage(
     VkCommandBuffer const cmd,
-    szg_renderer::Image& depth,
+    syzygy::Image& depth,
     VkClearDepthStencilValue const value
 )
 {
@@ -13,7 +13,7 @@ void renderpass::recordClearDepthImage(
     );
 
     VkImageSubresourceRange const range{
-        szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
+        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_DEPTH_BIT)
     };
     vkCmdClearDepthStencilImage(
         cmd, depth.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range
@@ -22,7 +22,7 @@ void renderpass::recordClearDepthImage(
 
 void renderpass::recordClearColorImage(
     VkCommandBuffer const cmd,
-    szg_renderer::Image& color,
+    syzygy::Image& color,
     VkClearColorValue const value
 )
 {
@@ -31,7 +31,7 @@ void renderpass::recordClearColorImage(
     );
 
     VkImageSubresourceRange const range{
-        szg_renderer::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+        syzygy::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
     };
     vkCmdClearColorImage(
         cmd, color.image(), VK_IMAGE_LAYOUT_GENERAL, &value, 1, &range
