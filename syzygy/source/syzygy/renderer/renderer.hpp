@@ -18,11 +18,11 @@ class DescriptorAllocator;
 struct Atmosphere;
 struct Camera;
 } // namespace szg_renderer
-namespace scene
+namespace szg_scene
 {
 struct Scene;
 }
-namespace ui
+namespace szg_ui
 {
 struct DockingLayout;
 }
@@ -49,25 +49,25 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        scene::SceneTexture const& sceneTexture
+        szg_scene::SceneTexture const& sceneTexture
     ) -> std::optional<Renderer>;
 
     // TODO: Remove this, but right now relies on internal state.
-    void uiEngineControls(ui::DockingLayout const&);
+    void uiEngineControls(szg_ui::DockingLayout const&);
 
     void recordDraw(
         VkCommandBuffer,
-        scene::Scene const& scene,
-        scene::SceneTexture& sceneTexture,
-        std::optional<scene::SceneViewport> const& sceneViewport
+        szg_scene::Scene const& szg_scene,
+        szg_scene::SceneTexture& sceneTexture,
+        std::optional<szg_scene::SceneViewport> const& sceneViewport
     );
 
 private:
     void recordDrawDebugLines(
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
-        scene::SceneTexture& sceneTexture,
-        scene::SceneViewport const& sceneViewport,
+        szg_scene::SceneTexture& sceneTexture,
+        szg_scene::SceneViewport const& sceneViewport,
         TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
     );
 
@@ -81,7 +81,7 @@ private:
     void
     initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
 
-    void initGenericComputePipelines(VkDevice, scene::SceneTexture const&);
+    void initGenericComputePipelines(VkDevice, szg_scene::SceneTexture const&);
 
     VkDevice m_device{VK_NULL_HANDLE};
     VmaAllocator m_allocator{VK_NULL_HANDLE};

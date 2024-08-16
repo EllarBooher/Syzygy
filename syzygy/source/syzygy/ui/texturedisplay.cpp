@@ -15,7 +15,7 @@
 #include <regex>
 #include <utility>
 
-ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
+szg_ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
 {
     destroy();
 
@@ -25,9 +25,9 @@ ui::TextureDisplay::TextureDisplay(TextureDisplay&& other) noexcept
     m_imguiDescriptor = std::exchange(other.m_imguiDescriptor, VK_NULL_HANDLE);
 }
 
-ui::TextureDisplay::~TextureDisplay() { destroy(); }
+szg_ui::TextureDisplay::~TextureDisplay() { destroy(); }
 
-auto ui::TextureDisplay::create(
+auto szg_ui::TextureDisplay::create(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
@@ -110,15 +110,15 @@ auto ui::TextureDisplay::create(
     };
 }
 
-auto ui::TextureDisplay::uiRender(
+auto szg_ui::TextureDisplay::uiRender(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     VkCommandBuffer const cmd,
     std::span<szg_assets::AssetRef<szg_renderer::Image> const> const textures
 ) -> TextureDisplay::UIResult
 {
-    ui::UIWindow const sceneViewport{
-        ui::UIWindow::beginDockable(title, dockNode)
+    szg_ui::UIWindow const sceneViewport{
+        szg_ui::UIWindow::beginDockable(title, dockNode)
     };
 
     TextureDisplay::UIResult result{};
@@ -285,7 +285,7 @@ auto ui::TextureDisplay::uiRender(
     return result;
 }
 
-void ui::TextureDisplay::destroy()
+void szg_ui::TextureDisplay::destroy()
 {
     if (m_device != VK_NULL_HANDLE)
     {

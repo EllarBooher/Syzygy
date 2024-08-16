@@ -44,8 +44,8 @@
 
 struct UIResults
 {
-    ui::HUDState hud;
-    ui::DockingLayout dockingLayout;
+    szg_ui::HUDState hud;
+    szg_ui::DockingLayout dockingLayout;
     bool reloadRequested;
 };
 
@@ -477,14 +477,15 @@ auto uiInit(
     return imguiDescriptorPool;
 }
 auto uiBegin(
-    ui::UIPreferences& preferences, ui::UIPreferences const& defaultPreferences
+    szg_ui::UIPreferences& preferences,
+    szg_ui::UIPreferences const& defaultPreferences
 ) -> UIResults
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ui::HUDState const hud{renderHUD(preferences)};
+    szg_ui::HUDState const hud{renderHUD(preferences)};
 
     bool const reloadUI{
         hud.applyPreferencesRequested || hud.resetPreferencesRequested
@@ -493,7 +494,7 @@ auto uiBegin(
     {
         preferences = defaultPreferences;
     }
-    ui::DockingLayout dockingLayout{};
+    szg_ui::DockingLayout dockingLayout{};
 
     if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
     {
@@ -509,7 +510,7 @@ auto uiBegin(
 }
 auto uiRecordDraw(
     VkCommandBuffer const cmd,
-    scene::SceneTexture& sceneTexture,
+    szg_scene::SceneTexture& sceneTexture,
     szg_renderer::ImageView& windowTexture
 ) -> VkRect2D
 {
@@ -563,7 +564,7 @@ void uiCleanup()
 }
 // Resets the ImGui style and reloads other resources like fonts, then
 // builds a new style from the passed preferences.
-void uiReload(VkDevice const device, ui::UIPreferences const preferences)
+void uiReload(VkDevice const device, szg_ui::UIPreferences const preferences)
 {
     float constexpr FONT_BASE_SIZE{13.0F};
 
@@ -630,8 +631,8 @@ auto szg_editor::run() -> EditorResult
 
     // We oversize textures and use resizable subregion
     VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
-    std::optional<scene::SceneTexture> sceneTextureResult{
-        scene::SceneTexture::create(
+    std::optional<szg_scene::SceneTexture> sceneTextureResult{
+        szg_scene::SceneTexture::create(
             graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.descriptorAllocator(),
@@ -652,8 +653,8 @@ auto szg_editor::run() -> EditorResult
                 .extent = TEXTURE_MAX,
                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                 .usageFlags =
-                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT        // copy to swapchain
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT      // copy from scene
+                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT   // copy to swapchain
+                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy from szg_scene
                     | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
 
             },
@@ -709,9 +710,9 @@ auto szg_editor::run() -> EditorResult
     szg_assets::AssetLibrary assetLibrary{};
 
     // A test widget that can display a texture in a UI window
-    std::unique_ptr<ui::TextureDisplay> testImageWidget{};
-    if (std::optional<ui::TextureDisplay> textureDisplayResult{
-            ui::TextureDisplay::create(
+    std::unique_ptr<szg_ui::TextureDisplay> testImageWidget{};
+    if (std::optional<szg_ui::TextureDisplay> textureDisplayResult{
+            szg_ui::TextureDisplay::create(
                 graphicsContext.device(),
                 graphicsContext.allocator(),
                 graphicsContext.universalQueue(),
@@ -722,7 +723,7 @@ auto szg_editor::run() -> EditorResult
         };
         textureDisplayResult.has_value())
     {
-        testImageWidget = std::make_unique<ui::TextureDisplay>(
+        testImageWidget = std::make_unique<szg_ui::TextureDisplay>(
             std::move(textureDisplayResult).value()
         );
     }
@@ -732,11 +733,11 @@ auto szg_editor::run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    scene::Scene scene{scene::Scene::defaultScene(
+    szg_scene::Scene szg_scene{szg_scene::Scene::defaultScene(
         graphicsContext.device(), graphicsContext.allocator(), meshAssets
     )};
 
-    scene::SceneTexture& sceneTexture = sceneTextureResult.value();
+    szg_scene::SceneTexture& sceneTexture = sceneTextureResult.value();
     szg_renderer::ImageView& windowTexture = *windowTextureResult.value();
 
     std::optional<szg_renderer::Renderer> rendererResult{
@@ -754,7 +755,7 @@ auto szg_editor::run() -> EditorResult
     }
     szg_renderer::Renderer& renderer{rendererResult.value()};
 
-    ui::UIPreferences uiPreferences{};
+    szg_ui::UIPreferences uiPreferences{};
     bool uiReloadNecessary{false};
     uiReload(graphicsContext.device(), uiPreferences);
 
@@ -797,9 +798,9 @@ auto szg_editor::run() -> EditorResult
 
         if (inputCapturedByScene)
         {
-            scene.handleInput(lastFrameTiming, inputSnapshot);
+            szg_scene.handleInput(lastFrameTiming, inputSnapshot);
         }
-        scene.tick(lastFrameTiming);
+        szg_scene.tick(lastFrameTiming);
 
         frameBuffer.increment();
         Frame const& currentFrame{frameBuffer.currentFrame()};
@@ -818,22 +819,24 @@ auto szg_editor::run() -> EditorResult
             uiReload(graphicsContext.device(), uiPreferences);
         }
 
-        UIResults const uiResults{uiBegin(uiPreferences, ui::UIPreferences{})};
+        UIResults const uiResults{
+            uiBegin(uiPreferences, szg_ui::UIPreferences{})
+        };
         uiReloadNecessary = uiResults.reloadRequested;
         renderer.uiEngineControls(uiResults.dockingLayout);
-        ui::performanceWindow(
+        szg_ui::performanceWindow(
             "Engine Performance",
             uiResults.dockingLayout.centerBottom,
             fpsHistory,
             fpsTarget
         );
-        ui::WindowResult<std::optional<scene::SceneViewport>> const
-            sceneViewport{ui::sceneViewportWindow(
+        szg_ui::WindowResult<std::optional<szg_scene::SceneViewport>> const
+            sceneViewport{szg_ui::sceneViewportWindow(
                 "Scene Viewport",
                 uiResults.dockingLayout.centerTop,
                 uiResults.hud.maximizeSceneViewport
                     ? uiResults.hud.workArea
-                    : std::optional<ui::UIRectangle>{},
+                    : std::optional<szg_ui::UIRectangle>{},
                 sceneTexture,
                 inputCapturedByScene
             )};
@@ -879,14 +882,14 @@ auto szg_editor::run() -> EditorResult
             }
         }
 
-        ui::sceneControlsWindow(
-            "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
+        szg_ui::sceneControlsWindow(
+            "Default Scene", uiResults.dockingLayout.left, szg_scene, meshAssets
         );
         uiEnd();
 
         renderer.recordDraw(
             currentFrame.mainCommandBuffer,
-            scene,
+            szg_scene,
             sceneTexture,
             sceneViewport.payload
         );

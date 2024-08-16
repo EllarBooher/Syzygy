@@ -4,17 +4,17 @@
 
 namespace
 {
-auto getWindowContent_imgui() -> ui::UIRectangle
+auto getWindowContent_imgui() -> szg_ui::UIRectangle
 {
-    return ui::UIRectangle{
+    return szg_ui::UIRectangle{
         .min{ImGui::GetWindowContentRegionMin()},
         .max{ImGui::GetWindowContentRegionMax()}
     };
 };
 } // namespace
 
-auto ui::UIWindow::beginMaximized(
-    std::string const& name, ui::UIRectangle const workArea
+auto szg_ui::UIWindow::beginMaximized(
+    std::string const& name, szg_ui::UIRectangle const workArea
 ) -> UIWindow
 {
     ImGui::SetNextWindowPos(workArea.pos());
@@ -34,7 +34,7 @@ auto ui::UIWindow::beginMaximized(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-auto ui::UIWindow::beginDockable(
+auto szg_ui::UIWindow::beginDockable(
     std::string const& name, std::optional<ImGuiID> const dockspace
 ) -> UIWindow
 {
@@ -53,18 +53,19 @@ auto ui::UIWindow::beginDockable(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-ui::UIWindow::UIWindow(UIWindow&& other) noexcept
+szg_ui::UIWindow::UIWindow(UIWindow&& other) noexcept
 {
-    screenRectangle = std::exchange(other.screenRectangle, ui::UIRectangle{});
+    screenRectangle =
+        std::exchange(other.screenRectangle, szg_ui::UIRectangle{});
     open = std::exchange(other.open, false);
 
     m_styleVariables = std::exchange(other.m_styleVariables, 0);
     m_initialized = std::exchange(other.m_initialized, false);
 }
 
-ui::UIWindow::~UIWindow() { end(); }
+szg_ui::UIWindow::~UIWindow() { end(); }
 
-void ui::UIWindow::end()
+void szg_ui::UIWindow::end()
 {
     if (!m_initialized)
     {

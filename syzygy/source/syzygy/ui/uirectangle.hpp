@@ -3,7 +3,7 @@
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
 
-namespace ui
+namespace szg_ui
 {
 struct UIRectangle
 {
@@ -51,4 +51,4 @@ struct UIRectangle
         };
     }
 };
-} // namespace ui
+} // namespace szg_ui

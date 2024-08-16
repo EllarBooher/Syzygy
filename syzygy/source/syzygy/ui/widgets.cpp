@@ -21,14 +21,14 @@
 #include <utility>
 #include <vector>
 
-void ui::performanceWindow(
+void szg_ui::performanceWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     RingBuffer const& values,
     float& targetFPS
 )
 {
-    ui::UIWindow const window{ui::UIWindow::beginDockable(
+    szg_ui::UIWindow const window{szg_ui::UIWindow::beginDockable(
         std::format("{}##performance", title), dockNode
     )};
     if (!window.open)
@@ -89,7 +89,8 @@ void ui::performanceWindow(
 namespace
 {
 void uiAtmosphere(
-    scene::Atmosphere& atmosphere, scene::Atmosphere const& defaultValues
+    szg_scene::Atmosphere& atmosphere,
+    szg_scene::Atmosphere const& defaultValues
 )
 {
     float constexpr EULER_ANGLES_SPEED{0.1F};
@@ -184,8 +185,8 @@ void uiAtmosphere(
         .end();
 }
 void uiCamera(
-    scene::Camera& camera,
-    scene::Camera const& defaultValues,
+    szg_scene::Camera& camera,
+    szg_scene::Camera const& defaultValues,
     float& cameraSpeed,
     float const& defaultCameraSpeed
 )
@@ -256,8 +257,8 @@ void uiCamera(
         .end();
 }
 void uiSceneGeometry(
-    scene::SceneBounds& bounds,
-    std::span<scene::MeshInstanced> const geometry,
+    szg_scene::SceneBounds& bounds,
+    std::span<szg_scene::MeshInstanced> const geometry,
     MeshAssetLibrary const& meshes
 )
 {
@@ -282,7 +283,7 @@ void uiSceneGeometry(
         )
         .childPropertyEnd();
 
-    for (scene::MeshInstanced& instance : geometry)
+    for (szg_scene::MeshInstanced& instance : geometry)
     {
         table.rowChildPropertyBegin(instance.name);
         table.rowBoolean("Render", instance.render, true);
@@ -328,16 +329,16 @@ void uiSceneGeometry(
 }
 } // namespace
 
-void ui::sceneControlsWindow(
+void szg_ui::sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
-    scene::Scene& scene,
+    szg_scene::Scene& szg_scene,
     MeshAssetLibrary const& meshes
 )
 {
-    ui::UIWindow const window{
-        ui::UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
-    };
+    szg_ui::UIWindow const window{szg_ui::UIWindow::beginDockable(
+        std::format("{}##scene", title), dockNode
+    )};
     if (!window.open)
     {
         return;
@@ -347,8 +348,8 @@ void ui::sceneControlsWindow(
             "Sun Animation", ImGuiTreeNodeFlags_DefaultOpen
         ))
     {
-        scene::SunAnimation const& defaultAnimation{
-            scene::Scene::DEFAULT_SUN_ANIMATION
+        szg_scene::SunAnimation const& defaultAnimation{
+            szg_scene::Scene::DEFAULT_SUN_ANIMATION
         };
 
         FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
@@ -357,11 +358,11 @@ void ui::sceneControlsWindow(
 
         PropertyTable::begin()
             .rowBoolean(
-                "Frozen", scene.sunAnimation.frozen, defaultAnimation.frozen
+                "Frozen", szg_scene.sunAnimation.frozen, defaultAnimation.frozen
             )
             .rowFloat(
                 "Time",
-                scene.sunAnimation.time,
+                szg_scene.sunAnimation.time,
                 defaultAnimation.time,
                 PropertySliderBehavior{
                     .bounds = {0.0F, 1.0F},
@@ -369,7 +370,7 @@ void ui::sceneControlsWindow(
             )
             .rowFloat(
                 "Speed",
-                scene.sunAnimation.speed,
+                szg_scene.sunAnimation.speed,
                 defaultAnimation.speed,
                 PropertySliderBehavior{
                     .bounds = SUN_ANIMATION_SPEED_BOUNDS,
@@ -377,7 +378,7 @@ void ui::sceneControlsWindow(
             )
             .rowBoolean(
                 "Skip Night",
-                scene.sunAnimation.skipNight,
+                szg_scene.sunAnimation.skipNight,
                 defaultAnimation.skipNight
             )
             .end();
@@ -385,39 +386,41 @@ void ui::sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiAtmosphere(scene.atmosphere, scene::Scene::DEFAULT_ATMOSPHERE_EARTH);
+        uiAtmosphere(
+            szg_scene.atmosphere, szg_scene::Scene::DEFAULT_ATMOSPHERE_EARTH
+        );
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
     {
         uiCamera(
-            scene.camera,
-            scene::Scene::DEFAULT_CAMERA,
-            scene.cameraControlledSpeed,
-            scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
+            szg_scene.camera,
+            szg_scene::Scene::DEFAULT_CAMERA,
+            szg_scene.cameraControlledSpeed,
+            szg_scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
         );
     }
 
     if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
     {
         PropertyTable::begin()
-            .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
+            .rowBoolean("Render Spotlights", szg_scene.spotlightsRender, true)
             .end();
     }
 
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiSceneGeometry(scene.bounds, scene.geometry, meshes);
+        uiSceneGeometry(szg_scene.bounds, szg_scene.geometry, meshes);
     }
 }
 
-auto ui::sceneViewportWindow(
+auto szg_ui::sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    scene::SceneTexture const& texture,
+    szg_scene::SceneTexture const& texture,
     bool const focused
-) -> WindowResult<std::optional<scene::SceneViewport>>
+) -> WindowResult<std::optional<szg_scene::SceneViewport>>
 {
     size_t pushedStyleColors{0};
     if (focused)
@@ -429,10 +432,10 @@ auto ui::sceneViewportWindow(
         pushedStyleColors += 1;
     }
 
-    ui::UIWindow sceneViewport{
+    szg_ui::UIWindow sceneViewport{
         maximizeArea.has_value()
-            ? ui::UIWindow::beginMaximized(title, maximizeArea.value())
-            : ui::UIWindow::beginDockable(title, dockNode)
+            ? szg_ui::UIWindow::beginMaximized(title, maximizeArea.value())
+            : szg_ui::UIWindow::beginDockable(title, dockNode)
     };
 
     if (!sceneViewport.open)
@@ -477,7 +480,7 @@ auto ui::sceneViewportWindow(
     return {
         .focused = clicked,
         .payload =
-            scene::SceneViewport{
+            szg_scene::SceneViewport{
                 .rect =
                     VkRect2D{
                         .offset = {0, 0},

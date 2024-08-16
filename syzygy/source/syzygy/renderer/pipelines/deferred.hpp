@@ -18,10 +18,10 @@ struct Image;
 } // namespace szg_renderer
 
 class DescriptorAllocator;
-namespace scene
+namespace szg_scene
 {
 struct MeshInstanced;
-} // namespace scene
+} // namespace szg_scene
 
 namespace szg_renderer
 {
@@ -46,7 +46,7 @@ public:
         TStagedBuffer<szg_renderer::Camera> const& cameras,
         uint32_t atmosphereIndex,
         TStagedBuffer<szg_renderer::Atmosphere> const& atmospheres,
-        std::span<scene::MeshInstanced const> sceneGeometry
+        std::span<szg_scene::MeshInstanced const> sceneGeometry
     );
 
     void updateRenderTargetDescriptors(
@@ -72,7 +72,7 @@ private:
     VkDescriptorSetLayout m_drawImageLayout{VK_NULL_HANDLE};
 
     VkDescriptorSet m_depthImageSet{VK_NULL_HANDLE};
-    // Used by compute shaders to read scene depth
+    // Used by compute shaders to read szg_scene depth
     VkDescriptorSetLayout m_depthImageLayout{VK_NULL_HANDLE};
 
     VkSampler m_depthImageImmutableSampler{VK_NULL_HANDLE};

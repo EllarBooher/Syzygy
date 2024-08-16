@@ -11,7 +11,7 @@ namespace szg_renderer
 class DescriptorAllocator;
 }
 
-namespace scene
+namespace szg_scene
 {
 struct SceneTexture
 {
@@ -85,4 +85,4 @@ struct SceneViewport
 {
     VkRect2D rect;
 };
-} // namespace scene
+} // namespace szg_scene

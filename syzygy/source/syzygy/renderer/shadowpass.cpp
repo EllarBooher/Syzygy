@@ -11,10 +11,10 @@
 #include "syzygy/renderpass/renderpass.hpp"
 #include <utility>
 
-namespace scene
+namespace szg_scene
 {
 struct MeshInstanced;
-} // namespace scene
+} // namespace szg_scene
 
 namespace szg_renderer
 {
@@ -251,7 +251,7 @@ void ShadowPassArray::recordInitialize(
 
 void ShadowPassArray::recordDrawCommands(
     VkCommandBuffer const cmd,
-    std::span<scene::MeshInstanced const> const geometry,
+    std::span<szg_scene::MeshInstanced const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 )
 {

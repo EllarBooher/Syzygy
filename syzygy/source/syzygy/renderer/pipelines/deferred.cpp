@@ -457,13 +457,13 @@ void setRasterizationShaderObjectState(
 auto collectGeometryCullFlags(
     VkCommandBuffer const cmd,
     VkPipelineStageFlags2 const bufferAccessStages,
-    std::span<scene::MeshInstanced const> meshes
+    std::span<szg_scene::MeshInstanced const> meshes
 ) -> std::vector<RenderOverride>
 {
     std::vector<RenderOverride> renderOverrides{};
     renderOverrides.reserve(meshes.size());
 
-    for (scene::MeshInstanced const& instance : meshes)
+    for (szg_scene::MeshInstanced const& instance : meshes)
     {
         RenderOverride const override{
             .render = instance.render && instance.mesh != nullptr
@@ -502,7 +502,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     TStagedBuffer<szg_renderer::Camera> const& cameras,
     uint32_t const atmosphereIndex,
     TStagedBuffer<szg_renderer::Atmosphere> const& atmospheres,
-    std::span<scene::MeshInstanced const> sceneGeometry
+    std::span<szg_scene::MeshInstanced const> sceneGeometry
 )
 {
     VkPipelineStageFlags2 constexpr GBUFFER_ACCESS_STAGES{
@@ -687,7 +687,7 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         for (size_t index{0}; index < sceneGeometry.size(); index++)
         {
-            scene::MeshInstanced const& instance{sceneGeometry[index]};
+            szg_scene::MeshInstanced const& instance{sceneGeometry[index]};
 
             bool render{instance.render};
             if (index < renderOverrides.size())

@@ -6,16 +6,16 @@
 #include <optional>
 #include <string>
 
-namespace scene
+namespace szg_scene
 {
 struct Scene;
 }
 struct MeshAssetLibrary;
 struct RingBuffer;
 
-// A collection of ui widgets that are free standing functions.
+// A collection of szg_ui widgets that are free standing functions.
 
-namespace ui
+namespace szg_ui
 {
 void performanceWindow(
     std::string const& title,
@@ -26,7 +26,7 @@ void performanceWindow(
 void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
-    scene::Scene& scene,
+    szg_scene::Scene& szg_scene,
     MeshAssetLibrary const& meshes
 );
 
@@ -37,12 +37,12 @@ template <typename T> struct WindowResult
 };
 
 // The returned value indicates the extent from (0,0) to (x,y) that will be read
-// from the the scene texture by ImGui when the final image is composited.
+// from the the szg_scene texture by ImGui when the final image is composited.
 auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    scene::SceneTexture const& texture,
+    szg_scene::SceneTexture const& texture,
     bool focused
-) -> WindowResult<std::optional<scene::SceneViewport>>;
-} // namespace ui
+) -> WindowResult<std::optional<szg_scene::SceneViewport>>;
+} // namespace szg_ui

@@ -88,7 +88,7 @@ auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    scene::SceneTexture const& sceneTexture
+    szg_scene::SceneTexture const& sceneTexture
 ) -> std::optional<Renderer>
 {
     std::optional<Renderer> rendererResult{Renderer{}};
@@ -210,7 +210,7 @@ void Renderer::initDeferredShadingPipeline(
 }
 
 void Renderer::initGenericComputePipelines(
-    VkDevice const device, scene::SceneTexture const& sceneTexture
+    VkDevice const device, szg_scene::SceneTexture const& sceneTexture
 )
 {
     std::vector<std::string> const shaderPaths{
@@ -224,7 +224,7 @@ void Renderer::initGenericComputePipelines(
     );
 }
 
-// TODO: Once scenes are made, extract this to a testing scene
+// TODO: Once scenes are made, extract this to a testing szg_scene
 #if VKRENDERER_COMPILE_WITH_TESTING
 void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 {
@@ -252,11 +252,11 @@ void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
 }
 #endif
 
-void Renderer::uiEngineControls(ui::DockingLayout const& dockingLayout)
+void Renderer::uiEngineControls(szg_ui::DockingLayout const& dockingLayout)
 {
-    if (ui::UIWindow const engineControls{
-            ui::UIWindow::beginDockable("Engine Controls", dockingLayout.right)
-        };
+    if (szg_ui::UIWindow const engineControls{szg_ui::UIWindow::beginDockable(
+            "Engine Controls", dockingLayout.right
+        )};
         engineControls.open)
     {
         imguiRenderingSelection(m_activeRenderingPipeline);
@@ -282,12 +282,12 @@ void Renderer::uiEngineControls(ui::DockingLayout const& dockingLayout)
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
-    scene::Scene const& scene,
-    scene::SceneTexture& sceneTexture,
-    std::optional<scene::SceneViewport> const& sceneViewport
+    szg_scene::Scene const& szg_scene,
+    szg_scene::SceneTexture& sceneTexture,
+    std::optional<szg_scene::SceneViewport> const& sceneViewport
 )
 {
-    // Begin scene drawing
+    // Begin szg_scene drawing
 
     m_debugLines.clear();
     if (!sceneViewport.has_value())
@@ -306,7 +306,7 @@ void Renderer::recordDraw(
 
     { // Copy cameras to gpu
         szg_renderer::Camera const mainCamera{
-            scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
+            szg_scene.camera.toDeviceEquivalent(static_cast<float>(aspectRatio))
         };
 
         m_camerasBuffer->clearStaged();
@@ -316,8 +316,8 @@ void Renderer::recordDraw(
 
     std::vector<szg_renderer::LightDirectional> directionalLights{};
     { // Copy atmospheres to gpu
-        scene::AtmosphereBaked const bakedAtmosphere{
-            scene.atmosphere.baked(scene.bounds)
+        szg_scene::AtmosphereBaked const bakedAtmosphere{
+            szg_scene.atmosphere.baked(szg_scene.bounds)
         };
         if (bakedAtmosphere.moonlight.has_value())
         {
@@ -333,7 +333,7 @@ void Renderer::recordDraw(
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
-    for (scene::MeshInstanced const& instance : scene.geometry)
+    for (szg_scene::MeshInstanced const& instance : szg_scene.geometry)
     {
         if (instance.models != nullptr)
         {
@@ -365,13 +365,14 @@ void Renderer::recordDraw(
                 sceneTexture.texture().image(),
                 *m_sceneDepthTexture,
                 directionalLights,
-                scene.spotlightsRender ? scene.spotlights
-                                       : std::vector<szg_renderer::LightSpot>{},
+                szg_scene.spotlightsRender
+                    ? szg_scene.spotlights
+                    : std::vector<szg_renderer::LightSpot>{},
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
                 *m_atmospheresBuffer,
-                scene.geometry
+                szg_scene.geometry
             );
 
             sceneTexture.texture().recordTransitionBarriered(
@@ -379,9 +380,9 @@ void Renderer::recordDraw(
             );
 
             m_debugLines.pushBox(
-                scene.bounds.center,
+                szg_scene.bounds.center,
                 glm::identity<glm::quat>(),
-                scene.bounds.extent
+                szg_scene.bounds.extent
             );
 
             recordDrawDebugLines(
@@ -407,14 +408,14 @@ void Renderer::recordDraw(
         }
     }
 
-    // End scene drawing
+    // End szg_scene drawing
 }
 
 void Renderer::recordDrawDebugLines(
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
-    scene::SceneTexture& sceneTexture,
-    scene::SceneViewport const& sceneViewport,
+    szg_scene::SceneTexture& sceneTexture,
+    szg_scene::SceneViewport const& sceneViewport,
     TStagedBuffer<szg_renderer::Camera> const& camerasBuffer
 )
 {

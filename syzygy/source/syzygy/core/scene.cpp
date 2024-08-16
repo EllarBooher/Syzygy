@@ -35,8 +35,8 @@
  * Account Atmospheric Scattering" by Tomoyuki Nishita, Takao Sirai, Katsumi
  * Tadamura, Eihachiro Nakamae
  */
-scene::Atmosphere const scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
-    scene::Atmosphere{
+szg_scene::Atmosphere const szg_scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
+    szg_scene::Atmosphere{
         .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
         .earthRadiusMeters = 6378000,
@@ -53,7 +53,7 @@ scene::Atmosphere const scene::Scene::DEFAULT_ATMOSPHERE_EARTH{
     }
 };
 
-scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
+szg_scene::Camera const szg_scene::Scene::DEFAULT_CAMERA{szg_scene::Camera{
     .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
     .eulerAngles = glm::vec3(0.0F, 0.0F, 0.0F),
     .fovDegrees = 70.0F,
@@ -61,17 +61,17 @@ scene::Camera const scene::Scene::DEFAULT_CAMERA{scene::Camera{
     .far = 10000.0F,
 }};
 
-float const scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
+float const szg_scene::Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
-scene::SunAnimation const scene::Scene::DEFAULT_SUN_ANIMATION{
-    scene::SunAnimation{
+szg_scene::SunAnimation const szg_scene::Scene::DEFAULT_SUN_ANIMATION{
+    szg_scene::SunAnimation{
         .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
     }
 };
 
-float const scene::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
+float const szg_scene::SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
-auto scene::Scene::defaultScene(
+auto szg_scene::Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     MeshAssetLibrary const& meshes
@@ -248,7 +248,7 @@ auto scene::Scene::defaultScene(
     };
 }
 
-void scene::Scene::handleInput(
+void szg_scene::Scene::handleInput(
     TickTiming const lastFrame, szg_input::InputSnapshot const& input
 )
 {
@@ -309,7 +309,7 @@ void scene::Scene::handleInput(
                            * accumulatedMovement;
 }
 
-void scene::Scene::tick(TickTiming const lastFrame)
+void szg_scene::Scene::tick(TickTiming const lastFrame)
 {
     if (!sunAnimation.frozen)
     {
@@ -317,7 +317,7 @@ void scene::Scene::tick(TickTiming const lastFrame)
             sunAnimation.time
             + sunAnimation.speed
                   * static_cast<float>(lastFrame.deltaTimeSeconds)
-                  / scene::SunAnimation::DAY_LENGTH_SECONDS
+                  / szg_scene::SunAnimation::DAY_LENGTH_SECONDS
         );
     }
 
@@ -403,7 +403,7 @@ void scene::Scene::tick(TickTiming const lastFrame)
 namespace
 {
 auto createSunlight(
-    scene::SceneBounds const sceneBounds,
+    szg_scene::SceneBounds const sceneBounds,
     glm::vec3 const sunEulerAngles,
     glm::vec3 const sunlightRGB
 ) -> szg_renderer::LightDirectional
@@ -419,7 +419,7 @@ auto createSunlight(
     );
 }
 auto createMoonlight(
-    scene::SceneBounds const sceneBounds,
+    szg_scene::SceneBounds const sceneBounds,
     float const sunCosine,
     float const sunsetCosine
 ) -> szg_renderer::LightDirectional
@@ -449,7 +449,7 @@ auto createMoonlight(
 
 // Returns an estimate of the color of sunlight that has reached the
 // origin, attenuated due to scattering.
-auto computeSunlightColor(scene::Atmosphere const& atmosphere) -> glm::vec4
+auto computeSunlightColor(szg_scene::Atmosphere const& atmosphere) -> glm::vec4
 {
     float const surfaceCosine{
         glm::dot(atmosphere.directionToSun(), glm::vec3{0.0, -1.0, 0.0})
@@ -498,12 +498,13 @@ auto computeSunlightColor(scene::Atmosphere const& atmosphere) -> glm::vec4
 }
 } // namespace
 
-auto scene::Atmosphere::directionToSun() const -> glm::vec3
+auto szg_scene::Atmosphere::directionToSun() const -> glm::vec3
 {
     return -szg_geometry::forwardFromEulers(sunEulerAngles);
 }
 
-auto scene::Atmosphere::toDeviceEquivalent() const -> szg_renderer::Atmosphere
+auto szg_scene::Atmosphere::toDeviceEquivalent() const
+    -> szg_renderer::Atmosphere
 {
     // TODO: move these computations out to somewhere more sensible
 
@@ -525,7 +526,7 @@ auto scene::Atmosphere::toDeviceEquivalent() const -> szg_renderer::Atmosphere
     };
 }
 
-auto scene::Atmosphere::baked(SceneBounds const sceneBounds) const
+auto szg_scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     -> AtmosphereBaked
 {
     szg_renderer::Atmosphere const atmosphere{toDeviceEquivalent()};
@@ -556,7 +557,7 @@ auto scene::Atmosphere::baked(SceneBounds const sceneBounds) const
     };
 }
 
-auto scene::Camera::toDeviceEquivalent(float const aspectRatio) const
+auto szg_scene::Camera::toDeviceEquivalent(float const aspectRatio) const
     -> szg_renderer::Camera
 {
     glm::mat4x4 const proj{projection(aspectRatio)};
@@ -574,27 +575,27 @@ auto scene::Camera::toDeviceEquivalent(float const aspectRatio) const
     };
 }
 
-auto scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
+auto szg_scene::Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
 {
     return projection(aspectRatio) * view();
 }
 
-auto scene::Camera::rotation() const -> glm::mat4x4
+auto szg_scene::Camera::rotation() const -> glm::mat4x4
 {
     return glm::orientate4(eulerAngles);
 }
 
-auto scene::Camera::transform() const -> glm::mat4x4
+auto szg_scene::Camera::transform() const -> glm::mat4x4
 {
     return szg_geometry::transformVk(cameraPosition, eulerAngles);
 }
 
-auto scene::Camera::view() const -> glm::mat4x4
+auto szg_scene::Camera::view() const -> glm::mat4x4
 {
     return szg_geometry::viewVk(cameraPosition, eulerAngles);
 }
 
-auto scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
+auto szg_scene::Camera::projection(float const aspectRatio) const -> glm::mat4x4
 {
     if (orthographic)
     {

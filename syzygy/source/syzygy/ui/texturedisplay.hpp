@@ -17,7 +17,7 @@ struct Image;
 } // namespace szg_renderer
 struct ImmediateSubmissionQueue;
 
-namespace ui
+namespace szg_ui
 {
 // A UI widget that displays the color aspect of an image
 struct TextureDisplay
@@ -80,4 +80,4 @@ private:
     std::string m_nameFilter{};
     std::optional<szg_assets::AssetMetadata> m_cachedMetadata{};
 };
-} // namespace ui
+} // namespace szg_ui

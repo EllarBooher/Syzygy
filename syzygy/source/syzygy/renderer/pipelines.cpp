@@ -685,7 +685,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     szg_renderer::ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-    std::span<scene::MeshInstanced const> const geometry,
+    std::span<szg_scene::MeshInstanced const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 ) const
 {
@@ -744,7 +744,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     for (size_t index{0}; index < geometry.size(); index++)
     {
-        scene::MeshInstanced const& instance{geometry[index]};
+        szg_scene::MeshInstanced const& instance{geometry[index]};
 
         bool render{instance.render};
         if (index < renderOverrides.size())

@@ -17,7 +17,7 @@ class DescriptorAllocator;
 struct LightDirectional;
 struct LightSpot;
 } // namespace szg_renderer
-namespace scene
+namespace szg_scene
 {
 struct MeshInstanced;
 }
@@ -57,7 +57,7 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
-        std::span<scene::MeshInstanced const> geometry,
+        std::span<szg_scene::MeshInstanced const> geometry,
         std::span<RenderOverride const> renderOverrides
     );
 

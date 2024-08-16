@@ -3,7 +3,7 @@
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
 
-namespace ui
+namespace szg_ui
 {
 struct UIPreferences
 {
@@ -26,4 +26,4 @@ struct HUDState
 };
 
 HUDState renderHUD(UIPreferences& preferences);
-} // namespace ui
+} // namespace szg_ui

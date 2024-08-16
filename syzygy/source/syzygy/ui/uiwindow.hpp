@@ -6,14 +6,14 @@
 #include <optional>
 #include <string>
 
-namespace ui
+namespace szg_ui
 {
 // Opens the context for a Dear ImGui window. ImGui:: calls during the lifetime
 // of the UIWindow object will occur within the context of the window.
 struct UIWindow
 {
     static auto
-    beginMaximized(std::string const& name, ui::UIRectangle const workArea)
+    beginMaximized(std::string const& name, szg_ui::UIRectangle const workArea)
         -> UIWindow;
 
     static auto beginDockable(
@@ -27,12 +27,12 @@ struct UIWindow
     ~UIWindow();
     void end();
 
-    ui::UIRectangle screenRectangle{};
+    szg_ui::UIRectangle screenRectangle{};
     bool open{false};
 
 private:
     UIWindow(
-        ui::UIRectangle screenRectangle, bool open, uint16_t styleVariables
+        szg_ui::UIRectangle screenRectangle, bool open, uint16_t styleVariables
     )
         : screenRectangle{screenRectangle}
         , open{open}
@@ -44,4 +44,4 @@ private:
     uint16_t m_styleVariables{0};
     bool m_initialized{false};
 };
-} // namespace ui
+} // namespace szg_ui

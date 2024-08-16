@@ -19,7 +19,7 @@ struct MeshAsset;
 struct MeshAssetLibrary;
 struct TickTiming;
 
-namespace scene
+namespace szg_scene
 {
 struct SceneBounds
 {
@@ -138,4 +138,4 @@ struct Scene
     void handleInput(TickTiming, szg_input::InputSnapshot const&);
     void tick(TickTiming);
 };
-} // namespace scene
+} // namespace szg_scene

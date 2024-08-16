@@ -11,13 +11,13 @@
 #include <imgui_impl_vulkan.h>
 #include <vector>
 
-scene::SceneTexture::SceneTexture(SceneTexture&& other) noexcept
+szg_scene::SceneTexture::SceneTexture(SceneTexture&& other) noexcept
 {
     *this = std::move(other);
 }
 
-auto scene::SceneTexture::operator=(SceneTexture&& other) noexcept
-    -> scene::SceneTexture&
+auto szg_scene::SceneTexture::operator=(SceneTexture&& other) noexcept
+    -> szg_scene::SceneTexture&
 {
     destroy();
 
@@ -36,9 +36,9 @@ auto scene::SceneTexture::operator=(SceneTexture&& other) noexcept
     return *this;
 }
 
-scene::SceneTexture::~SceneTexture() { destroy(); }
+szg_scene::SceneTexture::~SceneTexture() { destroy(); }
 
-auto scene::SceneTexture::create(
+auto szg_scene::SceneTexture::create(
     VkDevice const device,
     VmaAllocator const allocator,
     szg_renderer::DescriptorAllocator& descriptorAllocator,
@@ -171,34 +171,34 @@ auto scene::SceneTexture::create(
     };
 }
 
-auto scene::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
+auto szg_scene::SceneTexture::sampler() const -> VkSampler { return m_sampler; }
 
-auto scene::SceneTexture::texture() -> szg_renderer::ImageView&
+auto szg_scene::SceneTexture::texture() -> szg_renderer::ImageView&
 {
     return *m_texture;
 }
 
-auto scene::SceneTexture::texture() const -> szg_renderer::ImageView const&
+auto szg_scene::SceneTexture::texture() const -> szg_renderer::ImageView const&
 {
     return *m_texture;
 }
 
-auto scene::SceneTexture::singletonDescriptor() const -> VkDescriptorSet
+auto szg_scene::SceneTexture::singletonDescriptor() const -> VkDescriptorSet
 {
     return m_singletonDescriptor;
 }
 
-auto scene::SceneTexture::singletonLayout() const -> VkDescriptorSetLayout
+auto szg_scene::SceneTexture::singletonLayout() const -> VkDescriptorSetLayout
 {
     return m_singletonDescriptorLayout;
 }
 
-auto scene::SceneTexture::imguiDescriptor() const -> VkDescriptorSet
+auto szg_scene::SceneTexture::imguiDescriptor() const -> VkDescriptorSet
 {
     return m_imguiDescriptor;
 }
 
-void scene::SceneTexture::destroy() noexcept
+void szg_scene::SceneTexture::destroy() noexcept
 {
     if (m_device != VK_NULL_HANDLE)
     {

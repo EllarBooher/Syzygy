@@ -18,7 +18,7 @@ struct ImageView;
 template <typename T> struct TStagedBuffer;
 } // namespace szg_renderer
 struct Vertex;
-namespace scene
+namespace szg_scene
 {
 struct MeshInstanced;
 }
@@ -141,7 +141,7 @@ public:
         szg_renderer::ImageView& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-        std::span<scene::MeshInstanced const> geometry,
+        std::span<szg_scene::MeshInstanced const> geometry,
         std::span<RenderOverride const> const renderOverrides
     ) const;
 
