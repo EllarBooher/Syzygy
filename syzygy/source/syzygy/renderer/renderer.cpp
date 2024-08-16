@@ -24,8 +24,6 @@
 #include <utility>
 #include <vector>
 
-#define VKRENDERER_COMPILE_WITH_TESTING 0
-
 namespace syzygy
 {
 Renderer::Renderer(Renderer&& other) noexcept
@@ -222,34 +220,6 @@ void Renderer::initGenericComputePipelines(
         device, sceneTexture.singletonLayout(), shaderPaths
     );
 }
-
-// TODO: Once scenes are made, extract this to a testing syzygy
-#if VKRENDERER_COMPILE_WITH_TESTING
-void testDebugLines(float currentTimeSeconds, DebugLines& debugLines)
-{
-    glm::quat const boxOrientation{glm::toQuat(glm::orientate3(glm::vec3(
-        currentTimeSeconds, currentTimeSeconds * glm::euler<float>(), 0.0
-    )))};
-
-    debugLines.pushBox(
-        glm::vec3(
-            3.0 * glm::cos(2.0 * currentTimeSeconds),
-            -2.0,
-            3.0 * glm::sin(2.0 * currentTimeSeconds)
-        ),
-        boxOrientation,
-        glm::vec3{1.0, 1.0, 1.0}
-    );
-
-    debugLines.pushRectangle(
-        glm::vec3{2.0, -2.0, 0.0},
-        glm::quatLookAt(
-            glm::vec3(-1.0, -1.0, 1.0), glm::vec3(-1.0, -1.0, -1.0)
-        ),
-        glm::vec2{3.0, 1.0}
-    );
-}
-#endif
 
 void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
 {
