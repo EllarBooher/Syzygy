@@ -44,23 +44,14 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
     std::filesystem::path const& path
 );
 
+namespace szg_assets
+{
 struct AssetFile
 {
     std::filesystem::path path{};
     std::vector<uint8_t> fileBytes{};
 };
 
-struct AssetLoadingError
-{
-    std::string message{};
-};
-
-using AssetLoadingResult = std::variant<AssetFile, AssetLoadingError>;
-
-AssetLoadingResult loadAssetFile(std::filesystem::path const& path);
-
-namespace szg_assets
-{
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>;
 struct AssetMetadata

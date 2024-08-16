@@ -547,34 +547,27 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    AssetLoadingResult const fileLoadingResult{loadAssetFile(path)};
-
-    return std::visit(
-        overloaded{
-            [&](AssetFile const& file)
+    std::optional<szg_assets::AssetFile> const fileResult{
+        szg_assets::loadAssetFile(path)
+    };
+    if (!fileResult.has_value())
     {
-        return std::optional<ShaderObjectReflected>{
-            ShaderObjectReflected::fromBytecodeReflected(
-                device,
-                file.path.filename().string(),
-                file.fileBytes,
-                stage,
-                nextStage,
-                layouts,
-                specializationInfo
-            )
-        };
-    },
-            [&](AssetLoadingError const& error)
-    {
-        SZG_ERROR(
-            fmt::format("Failed to load asset for shader: {}", error.message)
-        );
-        return std::optional<ShaderObjectReflected>{};
+        SZG_ERROR("Failed to load file for texture at '{}'", path.string());
+        return std::nullopt;
     }
-        },
-        fileLoadingResult
-    );
+    auto const& file{fileResult.value()};
+
+    return std::optional<ShaderObjectReflected>{
+        ShaderObjectReflected::fromBytecodeReflected(
+            device,
+            file.path.filename().string(),
+            file.fileBytes,
+            stage,
+            nextStage,
+            layouts,
+            specializationInfo
+        )
+    };
 }
 
 auto loadShaderObject(
@@ -587,36 +580,29 @@ auto loadShaderObject(
     VkSpecializationInfo const specializationInfo
 ) -> std::optional<ShaderObjectReflected>
 {
-    AssetLoadingResult const fileLoadingResult{loadAssetFile(path)};
+    std::optional<szg_assets::AssetFile> const fileResult{
+        szg_assets::loadAssetFile(path)
+    };
+    if (!fileResult.has_value())
+    {
+        SZG_ERROR("Failed to load file for texture at '{}'", path.string());
+        return std::nullopt;
+    }
+    auto const& file{fileResult.value()};
 
     std::array<VkPushConstantRange, 1> rangeOverrides{rangeOverride};
-    return std::visit(
-        overloaded{
-            [&](AssetFile const& file)
-    {
-        return std::optional<ShaderObjectReflected>{
-            ShaderObjectReflected::fromBytecode(
-                device,
-                file.path.filename().string(),
-                file.fileBytes,
-                stage,
-                nextStage,
-                layouts,
-                rangeOverrides,
-                specializationInfo
-            )
-        };
-    },
-            [&](AssetLoadingError const& error)
-    {
-        SZG_ERROR(
-            fmt::format("Failed to load asset for shader: {}", error.message)
-        );
-        return std::optional<ShaderObjectReflected>{};
-    }
-        },
-        fileLoadingResult
-    );
+    return std::optional<ShaderObjectReflected>{
+        ShaderObjectReflected::fromBytecode(
+            device,
+            file.path.filename().string(),
+            file.fileBytes,
+            stage,
+            nextStage,
+            layouts,
+            rangeOverrides,
+            specializationInfo
+        )
+    };
 }
 
 auto compileShaderModule(
@@ -647,27 +633,20 @@ auto compileShaderModule(
 auto loadShaderModule(VkDevice const device, std::string const& path)
     -> std::optional<ShaderModuleReflected>
 {
-    AssetLoadingResult const fileLoadingResult{loadAssetFile(path)};
-
-    return std::visit(
-        overloaded{
-            [&](AssetFile const& file)
+    std::optional<szg_assets::AssetFile> const fileResult{
+        szg_assets::loadAssetFile(path)
+    };
+    if (!fileResult.has_value())
     {
-        return std::optional<ShaderModuleReflected>{
-            ShaderModuleReflected::FromBytecode(
-                device, file.path.filename().string(), file.fileBytes
-            )
-        };
-    },
-            [&](AssetLoadingError const& error)
-    {
-        SZG_ERROR(
-            fmt::format("Failed to load asset for shader: {}", error.message)
-        );
-        return std::optional<ShaderModuleReflected>{};
+        SZG_ERROR("Failed to load file for texture at '{}'", path);
+        return std::nullopt;
     }
-        },
-        fileLoadingResult
-    );
+    auto const& file{fileResult.value()};
+
+    return std::optional<ShaderModuleReflected>{
+        ShaderModuleReflected::FromBytecode(
+            device, file.path.filename().string(), file.fileBytes
+        )
+    };
 }
 } // namespace szg_renderer

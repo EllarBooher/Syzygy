@@ -475,53 +475,11 @@ auto ensureAbsolute(
 }
 } // namespace
 
-auto loadAssetFile(std::filesystem::path const& path) -> AssetLoadingResult
-{
-    auto const workingDir{std::filesystem::current_path()};
-    std::filesystem::path const assetPath{ensureAbsolute(path, workingDir)};
-
-    std::ifstream file(assetPath, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open())
-    {
-        return AssetLoadingError{
-            .message = fmt::format(
-                "Unable to parse file at \"{}\", this indicates the asset does "
-                "not exist or the path is malformed",
-                assetPath.string()
-            ),
-        };
-    }
-
-    size_t const fileSizeBytes = static_cast<size_t>(file.tellg());
-    if (fileSizeBytes == 0)
-    {
-        return AssetLoadingError{
-            .message = fmt::format(
-                "Shader file is empty at \"{}\"", assetPath.string()
-            ),
-        };
-    }
-
-    std::vector<uint8_t> buffer(fileSizeBytes);
-
-    file.seekg(0, std::ios::beg);
-    file.read(
-        reinterpret_cast<char*>(buffer.data()),
-        static_cast<std::streamsize>(fileSizeBytes)
-    );
-
-    file.close();
-
-    return AssetFile{
-        .path = path,
-        .fileBytes = buffer,
-    };
-}
-
 auto szg_assets::loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
+    auto const workingDir{std::filesystem::current_path()};
+    std::filesystem::path const assetPath{ensureAbsolute(path, workingDir)};
     std::ifstream file(path, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
