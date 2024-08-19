@@ -1,10 +1,13 @@
 #pragma once
 
 #include "syzygy/platform/integer.hpp"
-#include <GLFW/glfw3.h>
 #include <array>
 #include <glm/vec2.hpp>
+#include <memory>
+#include <optional>
 #include <string>
+
+struct GLFWwindow;
 
 namespace syzygy
 {
@@ -56,24 +59,29 @@ struct InputSnapshot
 class InputHandler
 {
 public:
-    static void callbackKey_glfw(
-        GLFWwindow* window, int key, int scancode, int action, int mods
-    );
-    void
-    handleKey_glfw(int32_t key, int32_t scancode, int32_t action, int32_t mods);
-
-    static void
-    callbackMouse_glfw(GLFWwindow* window, double xpos, double ypos);
-    void handleMouse_glfw(double xpos, double ypos);
+    static auto create_glfw(GLFWwindow*)
+        -> std::optional<std::unique_ptr<InputHandler>>;
 
     auto collect() -> InputSnapshot;
 
-    // This sets a flag such that upon the next time a cursor position is
-    // reported, that position is set as the previous AND new positions for the
-    // mouse. This way, if a large jump is expected (such as when focus is
-    // captured or the cursor is otherwise teleported), we can ignore that noisy
-    // jump which does not indicate any real input by the user.
-    void setSkipNextCursorDelta(bool skip = true);
+    void setCursorCaptured(bool captured);
+
+    ~InputHandler();
+
+private:
+    void
+    handleKey_glfw(int32_t key, int32_t scancode, int32_t action, int32_t mods);
+    void handleMouse_glfw(double xpos, double ypos);
+
+    static void callbackKey_glfw(
+        GLFWwindow* window, int key, int scancode, int action, int mods
+    );
+    static void
+    callbackMouse_glfw(GLFWwindow* window, double xpos, double ypos);
+
+    InputHandler() = default;
+
+    void destroy() noexcept;
 
 private:
     struct KeysState
@@ -84,6 +92,8 @@ private:
     {
         glm::u16vec2 position;
     };
+
+    GLFWwindow* m_window{};
 
     bool m_skipNextCursorDelta{};
 

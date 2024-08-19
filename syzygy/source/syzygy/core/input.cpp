@@ -1,6 +1,8 @@
 #include "input.hpp"
 
+#include "syzygy/core/log.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
+#include <GLFW/glfw3.h>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <optional>
@@ -79,7 +81,37 @@ auto toString(syzygy::KeyCode const key) -> std::string
 
 namespace syzygy
 {
+auto InputHandler::create_glfw(GLFWwindow* const handle)
+    -> std::optional<std::unique_ptr<InputHandler>>
+{
+    auto* const activeUserPointer{
+        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(handle))
+    };
 
+    if (activeUserPointer != nullptr)
+    {
+        SZG_ERROR(
+            "Cannot create Input Handler, GLFW user pointer already exists."
+        );
+        return std::nullopt;
+    }
+
+    std::optional<std::unique_ptr<InputHandler>> handlerResult{
+        std::unique_ptr<InputHandler>{new InputHandler()}
+    };
+    InputHandler& handler{*handlerResult.value()};
+    handler.m_window = handle;
+
+    glfwSetWindowUserPointer(
+        handler.m_window, reinterpret_cast<void*>(&handler)
+    );
+    glfwSetKeyCallback(handler.m_window, InputHandler::callbackKey_glfw);
+    glfwSetCursorPosCallback(
+        handler.m_window, InputHandler::callbackMouse_glfw
+    );
+
+    return handlerResult;
+}
 void InputHandler::callbackKey_glfw(
     GLFWwindow* window, int key, int scancode, int action, int mods
 )
@@ -166,10 +198,49 @@ auto InputHandler::collect() -> InputSnapshot
     };
 }
 
-void InputHandler::setSkipNextCursorDelta(bool const skip)
+void InputHandler::setCursorCaptured(bool captured)
 {
-    m_skipNextCursorDelta = skip;
+    if (m_window == nullptr)
+    {
+        SZG_ERROR("Input Handler's Window handle is null.");
+        return;
+    }
+
+    glfwSetInputMode(
+        m_window,
+        GLFW_CURSOR,
+        captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
+    );
+
+    m_skipNextCursorDelta = true;
 }
+
+void InputHandler::destroy() noexcept
+{
+    if (m_window == nullptr)
+    {
+        return;
+    }
+
+    auto* const activeUserPointer{
+        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(m_window))
+    };
+
+    if (activeUserPointer != this)
+    {
+        SZG_ERROR("Destroyed input handler was not the window's user pointer.");
+        return;
+    }
+
+    glfwSetWindowUserPointer(m_window, nullptr);
+
+    glfwSetKeyCallback(m_window, nullptr);
+    glfwSetCursorPosCallback(m_window, nullptr);
+
+    m_window = nullptr;
+}
+
+InputHandler::~InputHandler() { destroy(); }
 
 auto KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
 {

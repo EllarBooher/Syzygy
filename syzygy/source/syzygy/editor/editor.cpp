@@ -614,14 +614,17 @@ auto run() -> EditorResult
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
 
     // Init input before imgui so it properly chains our callbacks
-    InputHandler inputHandler{};
-    glfwSetWindowUserPointer(
-        mainWindow.handle(), reinterpret_cast<void*>(&inputHandler)
-    );
-    glfwSetKeyCallback(mainWindow.handle(), InputHandler::callbackKey_glfw);
-    glfwSetCursorPosCallback(
-        mainWindow.handle(), InputHandler::callbackMouse_glfw
-    );
+    std::optional<std::unique_ptr<InputHandler>> inputHandlerResult{
+        InputHandler::create_glfw(mainWindow.handle())
+    };
+    if (!inputHandlerResult.has_value()
+        || inputHandlerResult.value() == nullptr)
+    {
+        SZG_ERROR("Unable to initialize input handler.");
+        return EditorResult::ERROR;
+    }
+    InputHandler& inputHandler{*inputHandlerResult.value()};
+
     VkDescriptorPool const imguiPool{uiInit(
         graphicsContext.instance(),
         graphicsContext.physicalDevice(),
@@ -841,11 +844,8 @@ auto run() -> EditorResult
             if (sceneViewport.focused)
             {
                 ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
-                glfwSetInputMode(
-                    mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_DISABLED
-                );
+                inputHandler.setCursorCaptured(true);
                 ImGui::SetWindowFocus(nullptr);
-                inputHandler.setSkipNextCursorDelta(true);
                 inputCapturedByScene = true;
             }
         }
@@ -854,11 +854,8 @@ auto run() -> EditorResult
             if (inputSnapshot.keys.getStatus(KeyCode::TAB).pressed())
             {
                 ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-                glfwSetInputMode(
-                    mainWindow.handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL
-                );
+                inputHandler.setCursorCaptured(false);
                 ImGui::SetWindowFocus(nullptr);
-                inputHandler.setSkipNextCursorDelta(true);
                 inputCapturedByScene = false;
             }
         }
