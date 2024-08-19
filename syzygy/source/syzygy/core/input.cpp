@@ -1,16 +1,43 @@
 #include "input.hpp"
 
 #include "syzygy/core/log.hpp"
+#include "syzygy/editor/window.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include <GLFW/glfw3.h>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <optional>
 #include <spdlog/fmt/bundled/core.h>
+#include <unordered_map>
 
 namespace
 {
-auto toKeyCode_glfw(int32_t key) -> std::optional<syzygy::KeyCode>
+struct InputState
+{
+    struct KeysState
+    {
+        std::array<bool, static_cast<size_t>(syzygy::KeyCode::MAX)> keysDown;
+    };
+    struct CursorState
+    {
+        glm::u16vec2 position;
+    };
+
+    bool skipNextCursorDelta{};
+
+    KeysState keysOld;
+    CursorState cursorOld;
+
+    KeysState keysNew;
+    CursorState cursorNew;
+};
+} // namespace
+
+namespace detail_glfw
+{
+std::unordered_map<GLFWwindow*, InputState> s_GLFWstates{};
+
+auto keyToKeyCode(int32_t key) -> std::optional<syzygy::KeyCode>
 {
     switch (key)
     {
@@ -32,7 +59,8 @@ auto toKeyCode_glfw(int32_t key) -> std::optional<syzygy::KeyCode>
         return std::nullopt;
     }
 }
-auto isDown_glfw(bool const currentDown, int32_t const action) -> bool
+
+auto isDownFromAction(bool const currentDown, int32_t const action) -> bool
 {
     switch (action)
     {
@@ -45,6 +73,183 @@ auto isDown_glfw(bool const currentDown, int32_t const action) -> bool
         return currentDown;
     }
 }
+
+void callbackKey(
+    GLFWwindow* const window,
+    int const key,
+    int const /*scancode*/,
+    int const action,
+    int const /*mods*/
+)
+{
+    if (!s_GLFWstates.contains(window))
+    {
+        return;
+    }
+
+    InputState& state{s_GLFWstates.at(window)};
+
+    std::optional<syzygy::KeyCode> const keyResult{keyToKeyCode(key)};
+    if (!keyResult.has_value())
+    {
+        return;
+    }
+    syzygy::KeyCode const keyCode{keyResult.value()};
+
+    bool& isDown{state.keysNew.keysDown[static_cast<size_t>(keyCode)]};
+    isDown = isDownFromAction(isDown, action);
+}
+
+void callbackCursorPos(
+    GLFWwindow* const window, double const xpos, double const ypos
+)
+{
+    if (!s_GLFWstates.contains(window))
+    {
+        return;
+    }
+
+    InputState& state{s_GLFWstates.at(window)};
+
+    state.cursorNew.position =
+        glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
+    if (state.skipNextCursorDelta)
+    {
+        state.cursorOld.position = state.cursorNew.position;
+        state.skipNextCursorDelta = false;
+        return;
+    }
+}
+
+// Returns true on success
+auto registerWindow(GLFWwindow* const handle) -> bool
+{
+    if (handle == nullptr)
+    {
+        SZG_ERROR("Input Handler tried to register null GLFWwindow.");
+        return false;
+    }
+
+    if (detail_glfw::s_GLFWstates.contains(handle))
+    {
+        SZG_ERROR(
+            "Input Handler tried to register already-registered GLFWwindow."
+        );
+        return false;
+    }
+
+    detail_glfw::s_GLFWstates.emplace(handle, InputState{});
+
+    auto* const previousKeyCallback{glfwSetKeyCallback(handle, callbackKey)};
+    auto* const previousCursorPosCallback{
+        glfwSetCursorPosCallback(handle, callbackCursorPos)
+    };
+
+    if (previousKeyCallback != nullptr)
+    {
+        SZG_WARNING("Input Handler overwrote key callback.");
+    }
+    if (previousCursorPosCallback != nullptr)
+    {
+        SZG_WARNING("Input Handler overwrote previous cursor pos callback.");
+    }
+
+    return true;
+}
+
+void unregisterWindow(GLFWwindow* const handle)
+{
+    if (handle == nullptr)
+    {
+        SZG_ERROR("Input Handler tried to unregister null GLFWwindow.");
+        return;
+    }
+
+    if (!detail_glfw::s_GLFWstates.contains(handle))
+    {
+        SZG_ERROR("Input Handler tried to unregister not-registered GLFWwindow."
+        );
+        return;
+    }
+
+    detail_glfw::s_GLFWstates.erase(handle);
+
+    auto* const previousKeyCallback{glfwSetKeyCallback(handle, nullptr)};
+    auto* const previousCursorPosCallback{
+        glfwSetCursorPosCallback(handle, nullptr)
+    };
+
+    if (previousKeyCallback != callbackKey)
+    {
+        SZG_WARNING("Input Handler deleted unknown key callback.");
+    }
+    if (previousCursorPosCallback != callbackCursorPos)
+    {
+        SZG_WARNING("Input Handler deleted unkown cursor pos callback.");
+    }
+}
+
+} // namespace detail_glfw
+
+namespace syzygy
+{
+struct InputHandler::Impl
+{
+
+public:
+    Impl(Impl const&) = delete;
+    auto operator=(Impl const&) -> Impl& = delete;
+
+    Impl(Impl&& other) noexcept { *this = std::move(other); };
+    auto operator=(Impl&& other) noexcept -> Impl&
+    {
+        m_window = std::exchange(other.m_window, nullptr);
+        return *this;
+    };
+
+    ~Impl() { detail_glfw::unregisterWindow(m_window); }
+
+    static auto create(GLFWwindow* const handle)
+        -> std::optional<std::unique_ptr<Impl>>
+    {
+        if (!detail_glfw::registerWindow(handle))
+        {
+            return std::nullopt;
+        }
+
+        std::optional<std::unique_ptr<Impl>> result{new Impl{}};
+
+        result.value()->m_window = handle;
+
+        return result;
+    }
+
+    void setCursorEnabled(bool const enabled)
+    {
+        glfwSetInputMode(
+            m_window,
+            GLFW_CURSOR,
+            enabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED
+        );
+    }
+
+    auto getState() -> InputState&
+    {
+        // Throw on out-of-bounds access is OK since InputState should never be
+        // missing
+        return detail_glfw::s_GLFWstates.at(m_window);
+    }
+
+private:
+    Impl() = default;
+
+    GLFWwindow* m_window{};
+};
+} // namespace syzygy
+
+namespace
+{
+
 auto toString(syzygy::KeyStatus const status) -> std::string
 {
     if (status.down)
@@ -81,103 +286,35 @@ auto toString(syzygy::KeyCode const key) -> std::string
 
 namespace syzygy
 {
-auto InputHandler::create_glfw(GLFWwindow* const handle)
-    -> std::optional<std::unique_ptr<InputHandler>>
+InputHandler::~InputHandler() { m_impl.reset(); }
+auto InputHandler::create(PlatformWindow const& window)
+    -> std::optional<InputHandler>
 {
-    auto* const activeUserPointer{
-        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(handle))
-    };
+    GLFWwindow* const windowHandle{window.handle()};
 
-    if (activeUserPointer != nullptr)
+    std::optional<InputHandler> handlerResult{InputHandler{}};
+    InputHandler& handler{handlerResult.value()};
+
+    auto implResult{Impl::create(windowHandle)};
+    if (!implResult.has_value() || implResult.value() == nullptr)
     {
-        SZG_ERROR(
-            "Cannot create Input Handler, GLFW user pointer already exists."
-        );
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<InputHandler>> handlerResult{
-        std::unique_ptr<InputHandler>{new InputHandler()}
-    };
-    InputHandler& handler{*handlerResult.value()};
-    handler.m_window = handle;
-
-    glfwSetWindowUserPointer(
-        handler.m_window, reinterpret_cast<void*>(&handler)
-    );
-    glfwSetKeyCallback(handler.m_window, InputHandler::callbackKey_glfw);
-    glfwSetCursorPosCallback(
-        handler.m_window, InputHandler::callbackMouse_glfw
-    );
+    handler.m_impl = std::move(implResult).value();
 
     return handlerResult;
-}
-void InputHandler::callbackKey_glfw(
-    GLFWwindow* window, int key, int scancode, int action, int mods
-)
-{
-    InputHandler* activeHandler{
-        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(window))
-    };
-
-    if (activeHandler == nullptr)
-    {
-        return;
-    }
-
-    activeHandler->handleKey_glfw(key, scancode, action, mods);
-}
-
-void InputHandler::callbackMouse_glfw(
-    GLFWwindow* window, double xpos, double ypos
-)
-{
-    InputHandler* activeHandler{
-        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(window))
-    };
-
-    if (activeHandler == nullptr)
-    {
-        return;
-    }
-
-    activeHandler->handleMouse_glfw(xpos, ypos);
-}
-
-void InputHandler::handleKey_glfw(
-    int32_t key, int32_t /*scancode*/, int32_t action, int32_t /*mods*/
-)
-{
-    std::optional<KeyCode> const keyResult{toKeyCode_glfw(key)};
-    if (!keyResult.has_value())
-    {
-        return;
-    }
-    KeyCode const keyCode{keyResult.value()};
-
-    bool& isDown{m_keysNew.keysDown[static_cast<size_t>(keyCode)]};
-    isDown = isDown_glfw(isDown, action);
-}
-
-void InputHandler::handleMouse_glfw(double xpos, double ypos)
-{
-    m_cursorNew.position =
-        glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
-    if (m_skipNextCursorDelta)
-    {
-        m_cursorOld.position = m_cursorNew.position;
-        m_skipNextCursorDelta = false;
-        return;
-    }
 }
 
 auto InputHandler::collect() -> InputSnapshot
 {
+    InputState& state{m_impl->getState()};
+
     KeySnapshot keys{};
-    for (size_t index{0}; index < m_keysNew.keysDown.size(); index++)
+    for (size_t index{0}; index < state.keysNew.keysDown.size(); index++)
     {
-        bool const oldDown{m_keysOld.keysDown[index]};
-        bool const isDown{m_keysNew.keysDown[index]};
+        bool const oldDown{state.keysOld.keysDown[index]};
+        bool const isDown{state.keysNew.keysDown[index]};
 
         keys.keys[index] = KeyStatus{
             .down = isDown,
@@ -186,11 +323,11 @@ auto InputHandler::collect() -> InputSnapshot
     }
 
     CursorSnapshot cursor{};
-    cursor.currentPosition = m_cursorNew.position;
-    cursor.lastPosition = m_cursorOld.position;
+    cursor.currentPosition = state.cursorNew.position;
+    cursor.lastPosition = state.cursorOld.position;
 
-    m_cursorOld = m_cursorNew;
-    m_keysOld = m_keysNew;
+    state.cursorOld = state.cursorNew;
+    state.keysOld = state.keysNew;
 
     return {
         .keys = keys,
@@ -200,47 +337,23 @@ auto InputHandler::collect() -> InputSnapshot
 
 void InputHandler::setCursorCaptured(bool captured)
 {
-    if (m_window == nullptr)
-    {
-        SZG_ERROR("Input Handler's Window handle is null.");
-        return;
-    }
+    InputState& state{m_impl->getState()};
 
-    glfwSetInputMode(
-        m_window,
-        GLFW_CURSOR,
-        captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
-    );
+    m_impl->setCursorEnabled(!captured);
 
-    m_skipNextCursorDelta = true;
+    state.skipNextCursorDelta = true;
 }
 
-void InputHandler::destroy() noexcept
+InputHandler::InputHandler(InputHandler&& other) noexcept
 {
-    if (m_window == nullptr)
-    {
-        return;
-    }
-
-    auto* const activeUserPointer{
-        reinterpret_cast<InputHandler*>(glfwGetWindowUserPointer(m_window))
-    };
-
-    if (activeUserPointer != this)
-    {
-        SZG_ERROR("Destroyed input handler was not the window's user pointer.");
-        return;
-    }
-
-    glfwSetWindowUserPointer(m_window, nullptr);
-
-    glfwSetKeyCallback(m_window, nullptr);
-    glfwSetCursorPosCallback(m_window, nullptr);
-
-    m_window = nullptr;
+    *this = std::move(other);
 }
 
-InputHandler::~InputHandler() { destroy(); }
+auto InputHandler::operator=(InputHandler&& other) noexcept -> InputHandler&
+{
+    m_impl = std::move(other.m_impl);
+    return *this;
+}
 
 auto KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
 {

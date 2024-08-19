@@ -614,16 +614,15 @@ auto run() -> EditorResult
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
 
     // Init input before imgui so it properly chains our callbacks
-    std::optional<std::unique_ptr<InputHandler>> inputHandlerResult{
-        InputHandler::create_glfw(mainWindow.handle())
+    std::optional<InputHandler> inputHandlerResult{
+        InputHandler::create(mainWindow)
     };
-    if (!inputHandlerResult.has_value()
-        || inputHandlerResult.value() == nullptr)
+    if (!inputHandlerResult.has_value())
     {
         SZG_ERROR("Unable to initialize input handler.");
         return EditorResult::ERROR;
     }
-    InputHandler& inputHandler{*inputHandlerResult.value()};
+    InputHandler& inputHandler{inputHandlerResult.value()};
 
     VkDescriptorPool const imguiPool{uiInit(
         graphicsContext.instance(),

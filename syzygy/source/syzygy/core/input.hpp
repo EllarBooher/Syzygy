@@ -7,8 +7,6 @@
 #include <optional>
 #include <string>
 
-struct GLFWwindow;
-
 namespace syzygy
 {
 struct KeyStatus
@@ -56,51 +54,32 @@ struct InputSnapshot
     auto format() const -> std::string;
 };
 
+struct PlatformWindow;
+
 class InputHandler
 {
 public:
-    static auto create_glfw(GLFWwindow*)
-        -> std::optional<std::unique_ptr<InputHandler>>;
+    InputHandler(InputHandler const&) = delete;
+    auto operator=(InputHandler const&) -> InputHandler& = delete;
 
-    auto collect() -> InputSnapshot;
-
-    void setCursorCaptured(bool captured);
+    InputHandler(InputHandler&&) noexcept;
+    auto operator=(InputHandler&&) noexcept -> InputHandler&;
 
     ~InputHandler();
 
 private:
-    void
-    handleKey_glfw(int32_t key, int32_t scancode, int32_t action, int32_t mods);
-    void handleMouse_glfw(double xpos, double ypos);
-
-    static void callbackKey_glfw(
-        GLFWwindow* window, int key, int scancode, int action, int mods
-    );
-    static void
-    callbackMouse_glfw(GLFWwindow* window, double xpos, double ypos);
-
     InputHandler() = default;
 
-    void destroy() noexcept;
+public:
+    static auto create(PlatformWindow const&) -> std::optional<InputHandler>;
+
+    auto collect() -> InputSnapshot;
+    void setCursorCaptured(bool captured);
 
 private:
-    struct KeysState
-    {
-        std::array<bool, static_cast<size_t>(KeyCode::MAX)> keysDown;
-    };
-    struct CursorState
-    {
-        glm::u16vec2 position;
-    };
+    struct Impl;
 
-    GLFWwindow* m_window{};
-
-    bool m_skipNextCursorDelta{};
-
-    KeysState m_keysOld;
-    CursorState m_cursorOld;
-
-    KeysState m_keysNew;
-    CursorState m_cursorNew;
+    // This pointer cannot be null when initialized via InputHandler::create.
+    std::unique_ptr<Impl> m_impl;
 };
 } // namespace syzygy
