@@ -25,13 +25,14 @@ void uiReload(VkDevice const device, UIPreferences const preferences)
 {
     float constexpr FONT_BASE_SIZE{13.0F};
 
+    ImFontConfig fontConfig{};
+    fontConfig.SizePixels = FONT_BASE_SIZE * preferences.dpiScale;
+    fontConfig.OversampleH = 1;
+    fontConfig.OversampleV = 1;
+    fontConfig.PixelSnapH = true;
+
     ImGui::GetIO().Fonts->Clear();
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        ensureAbsolutePath("assets/proggyfonts/ProggyClean.ttf")
-            .string()
-            .c_str(),
-        FONT_BASE_SIZE * preferences.dpiScale
-    );
+    ImGui::GetIO().Fonts->AddFontDefault(&fontConfig);
 
     // Wait for idle since we are modifying backend resources
     vkDeviceWaitIdle(device);
