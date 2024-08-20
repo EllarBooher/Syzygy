@@ -1,11 +1,17 @@
 ﻿#
 # Justification for removals:
 #
+# llvm-header-guard
+# #pragma once works well enough since headers are unique
+#
 # misc-include-cleaner
 # IWYU is set up for the project, so this is redundant.
 #
 # misc-misplaced-const
 # Too noisy, since Vulkan contains many typedef'd pointers i.e. VkDevice is VkDevice_T*
+#
+# readability-named-parameter
+# Not naming a parameter expresses that the type name is enough.
 #
 # readability-identifier-length
 # Does not seem to impact readability all that much.
@@ -15,18 +21,23 @@
 #
 
 FormatStyle:        file
+HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
+HeaderFilterRegex: '.*\\syzygy\\(include|source)\\*'
+ImplementationFileExtensions: ['c','cc','cpp','cxx']
 Checks: >
   -*,
   bugprone-*,
   -bugprone-unchecked-optional-access,
   clang-analyzer-*,
   llvm-*,
+  -llvm-header-guard,
   misc-*,
   -misc-include-cleaner,
   -misc-misplaced-const,
   modernize-*,
   performance-*,
   readability*,
+  -readability-named-parameter,
   -readability-identifier-length,
 
 WarningsAsErrors: '*'
