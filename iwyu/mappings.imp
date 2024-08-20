@@ -138,8 +138,9 @@
   { "include": [ "<glm/ext/scalar_constants.hpp>", "private", "<glm/gtc/constants.hpp>", "public" ] },
   { "include": [ "<glm/ext/scalar_constants.inl>", "private", "<glm/ext/scalar_constants.hpp>", "private" ] },
 
-  { "include": [ "<vk_mem_alloc.h>", "private", "\"syzygy/vulkanusage.hpp\"", "public" ] },
-  { "include": [ "<volk.h>", "private", "\"syzygy/vulkanusage.hpp\"", "public" ] },
+  { "include": [ "<vk_mem_alloc.h>", "private", "\"syzygy/platform/vulkanusage.hpp\"", "public" ] },
+  { "include": [ "<vulkan/vk_enum_string_helper.h>", "private", "\"syzygy/platform/vulkanmacros.hpp\"", "public" ] },
+  { "include": [ "<volk.h>", "private", "\"syzygy/platform/vulkanusage.hpp\"", "public" ] },
 
   { "include": [ "<vulkan/vulkan.h>", "private", "<volk.h>", "private" ] },
   { "include": [ "<vulkan/vulkan_core.h>", "private", "<vulkan/vulkan.h>", "private" ] },
@@ -170,12 +171,12 @@
   { "symbol": [ "std::reference_wrapper", "private", "<functional>", "public" ] },
 
 
-  { "symbol": [ "size_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "uint8_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "uint16_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "uint32_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "uint64_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "int32_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] },
-  { "symbol": [ "uintptr_t", "private", "\"syzygy/core/integer.hpp\"", "public" ] }
+  { "symbol": [ "size_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint8_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint16_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint32_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint64_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "int32_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uintptr_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] }
 
 ]
