@@ -46,9 +46,9 @@ struct DrawResultsGraphics
 class PipelineBuilder
 {
 public:
-    PipelineBuilder(){};
+    PipelineBuilder()= default;
 
-    VkPipeline buildPipeline(VkDevice device, VkPipelineLayout layout) const;
+    auto buildPipeline(VkDevice device, VkPipelineLayout layout) const -> VkPipeline;
 
     void pushShader(
         ShaderModuleReflected const& shader, VkShaderStageFlagBits stage
@@ -128,7 +128,7 @@ public:
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
         std::span<syzygy::MeshInstanced const> geometry,
-        std::span<RenderOverride const> const renderOverrides
+        std::span<RenderOverride const> renderOverrides
     ) const;
 
     void cleanup(VkDevice device);
@@ -150,13 +150,13 @@ private:
     };
 
 public:
-    ShaderModuleReflected const& vertexShader() const
+    [[nodiscard]] auto vertexShader() const -> ShaderModuleReflected const&
     {
         return m_vertexShader;
     };
 
-    ShaderReflectionData::PushConstant const&
-    vertexPushConstantReflected() const
+    [[nodiscard]] auto
+    vertexPushConstantReflected() const -> ShaderReflectionData::PushConstant const&
     {
         return m_vertexShader.reflectionData().defaultPushConstant();
     };
@@ -182,20 +182,20 @@ public:
 
     void cleanup(VkDevice device);
 
-    std::span<uint8_t> mapPushConstantBytes()
+    auto mapPushConstantBytes() -> std::span<uint8_t>
     {
         return m_shaderPushConstants[m_shaderIndex];
     }
-    std::span<uint8_t const> readPushConstantBytes() const
+    [[nodiscard]] auto readPushConstantBytes() const -> std::span<uint8_t const>
     {
         return m_shaderPushConstants[m_shaderIndex];
     }
 
-    ShaderObjectReflected const& currentShader() const
+    [[nodiscard]] auto currentShader() const -> ShaderObjectReflected const&
     {
         return m_shaders[m_shaderIndex];
     }
-    VkPipelineLayout currentLayout() const { return m_layouts[m_shaderIndex]; }
+    [[nodiscard]] auto currentLayout() const -> VkPipelineLayout { return m_layouts[m_shaderIndex]; }
 
     void selectShader(size_t const index)
     {
@@ -204,7 +204,7 @@ public:
         {
             return;
         }
-        else if (index >= count)
+        if (index >= count)
         {
             SZG_WARNING("Shader index {} is out of bounds of {}", index, count);
             return;
@@ -212,9 +212,9 @@ public:
 
         m_shaderIndex = index;
     }
-    size_t shaderIndex() const { return m_shaderIndex; };
-    size_t shaderCount() const { return m_shaders.size(); };
-    std::span<ShaderObjectReflected const> shaders() const
+    [[nodiscard]] auto shaderIndex() const -> size_t { return m_shaderIndex; };
+    [[nodiscard]] auto shaderCount() const -> size_t { return m_shaders.size(); };
+    [[nodiscard]] auto shaders() const -> std::span<ShaderObjectReflected const>
     {
         return m_shaders;
     };
@@ -240,7 +240,7 @@ public:
 
     DebugLineGraphicsPipeline(VkDevice device, ImageFormats formats);
 
-    DrawResultsGraphics recordDrawCommands(
+    auto recordDrawCommands(
         VkCommandBuffer cmd,
         bool reuseDepthAttachment,
         float lineWidth,
@@ -251,7 +251,7 @@ public:
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
         TStagedBuffer<syzygy::VertexPacked> const& endpoints,
         TStagedBuffer<uint32_t> const& indices
-    ) const;
+    ) const -> DrawResultsGraphics;
 
     void cleanup(VkDevice device);
 
@@ -275,16 +275,16 @@ private:
     VkPipelineLayout m_graphicsPipelineLayout{VK_NULL_HANDLE};
 
 public:
-    ShaderModuleReflected const& vertexShader() const
+    auto vertexShader() const -> ShaderModuleReflected const&
     {
         return m_vertexShader;
     };
-    VertexPushConstant const& vertexPushConstant() const
+    auto vertexPushConstant() const -> VertexPushConstant const&
     {
         return m_vertexPushConstant;
     };
 
-    ShaderModuleReflected const& fragmentShader() const
+    auto fragmentShader() const -> ShaderModuleReflected const&
     {
         return m_fragmentShader;
     };

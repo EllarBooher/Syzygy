@@ -20,7 +20,7 @@ struct FloatBounds
 
 struct PropertySliderBehavior
 {
-    float const speed{0.0f};
+    float const speed{0.0F};
     ImGuiSliderFlags const flags{ImGuiSliderFlags_None};
     FloatBounds bounds{};
 };
@@ -28,7 +28,7 @@ struct PropertySliderBehavior
 struct PropertyTable
 {
 private:
-    typedef PropertyTable Self;
+    using Self = PropertyTable;
 
     // We use 16 bit unsized integers that fit inside ImGui's expected
     // 32 bit signed integers.
@@ -65,9 +65,9 @@ private:
 
     static void nameColumn(std::string const& name);
 
-    static bool resetColumn(std::string const& name, bool visible);
+    static auto resetColumn(std::string const& name, bool visible) -> bool;
 
-    static float collapseButtonWidth()
+    static auto collapseButtonWidth() -> float
     {
         return ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
     }
@@ -85,7 +85,7 @@ private:
         );
     }
 
-    bool hideNextRow() const
+    [[nodiscard]] [[nodiscard]] auto hideNextRow() const -> bool
     {
         return m_childPropertyFirstCollapse.has_value()
             && m_childPropertyDepth > m_childPropertyFirstCollapse.value();
@@ -93,7 +93,7 @@ private:
 
     // If this returns false, the row should not be modified further.
     // Do NOT call rowEnd if this returns false.
-    bool rowBegin(std::string const& name);
+    auto rowBegin(std::string const& name) -> bool;
     void rowEnd();
 
 public:
@@ -102,7 +102,8 @@ public:
 
     // Using the default name synchronizes many of the table's properties
     // across the window.
-    static PropertyTable begin(std::string const& name = "PropertyTable");
+    static auto begin(std::string const& name = "PropertyTable")
+        -> PropertyTable;
 
     void end();
 
@@ -110,95 +111,96 @@ public:
     // section. Further calls to row drawing methods will be skipped until
     // childPropertyEnd is called, depending on if this rows button is
     // collapsed or not. This is tracked internally.
-    PropertyTable& childPropertyBegin();
+    auto childPropertyBegin() -> PropertyTable&;
 
     // This adds a new row for the collapsing button.
     // See PropertyTable::childPropertyBegin.
-    PropertyTable& rowChildPropertyBegin(std::string const& name);
+    auto rowChildPropertyBegin(std::string const& name) -> PropertyTable&;
 
     // A corresponding PropertyTable::rowChildPropertyBegin
     // or PropertyTable::childPropertyBegin must have been called.
-    PropertyTable& childPropertyEnd();
+    auto childPropertyEnd() -> PropertyTable&;
 
     // Adds a row that contains a dropdown, containing a list of values,
     // alongside a reset button.
-    PropertyTable& rowDropdown(
+    auto rowDropdown(
         std::string const& name,
         size_t& selectedIndex,
         size_t const& defaultIndex,
         std::span<std::string const> displayValues
-    );
+    ) -> PropertyTable&;
 
     // Adds a row that runs a callback for the content column. Useful to render
     // custom UI.
-    PropertyTable& rowCustom(
+    auto rowCustom(
         std::string const& name, std::function<void()> const& contentCallback
-    );
+    ) -> PropertyTable&;
 
     // Adds a row that contains an interactable text entry,
     // alongside a reset button.
-    PropertyTable& rowTextInput(
+    auto rowTextInput(
         std::string const& name,
         std::string& value,
         std::string const& resetValue
-    );
+    ) -> PropertyTable&;
 
     // Adds a row that contains text that is interactable, but readonly.
-    PropertyTable& rowReadOnlyTextInput(
+    auto rowReadOnlyTextInput(
         std::string const& name, std::string const& value, bool multiline
-    );
+    ) -> PropertyTable&;
 
     // Adds a row that contains some read only text.
-    PropertyTable&
-    rowTextLabel(std::string const& name, std::string const& value);
+    auto rowTextLabel(std::string const& name, std::string const& value)
+        -> PropertyTable&;
 
     // Adds a row that contains an interactable 32-bit signed integer entry,
     // alongside a reset button.
-    PropertyTable& rowInteger(
+    auto rowInteger(
         std::string const& name,
         int32_t& value,
         int32_t const& resetValue,
-        PropertySliderBehavior const behavior
-    );
+        PropertySliderBehavior behavior
+    ) -> PropertyTable&;
 
     // Adds a row that contains a read only integer.
     // TODO: more generic row types for all integer widths and types
-    PropertyTable&
-    rowReadOnlyInteger(std::string const& name, int32_t const& value);
+    auto rowReadOnlyInteger(std::string const& name, int32_t const& value)
+        -> PropertyTable&;
 
     // Adds a row that contains an interactable three-float vector entry,
     // alongside a reset button.
-    PropertyTable& rowVec3(
+    auto rowVec3(
         std::string const& name,
         glm::vec3& value,
         glm::vec3 const& resetValue,
-        PropertySliderBehavior const behavior
-    );
+        PropertySliderBehavior behavior
+    ) -> PropertyTable&;
 
     // Adds a row that contains a non-interactable three-float vector entry.
-    PropertyTable&
-    rowReadOnlyVec3(std::string const& name, glm::vec3 const& value);
+    auto rowReadOnlyVec3(std::string const& name, glm::vec3 const& value)
+        -> PropertyTable&;
 
     // Adds a row that contains an interactable float entry,
     // alongside a reset button.
-    PropertyTable& rowFloat(
+    auto rowFloat(
         std::string const& name,
         float& value,
         float const& resetValue,
-        PropertySliderBehavior const behavior
-    );
+        PropertySliderBehavior behavior
+    ) -> PropertyTable&;
 
     // Adds a row that contains a non-interactable float entry.
-    PropertyTable&
-    rowReadOnlyFloat(std::string const& name, float const& value);
+    auto rowReadOnlyFloat(std::string const& name, float const& value)
+        -> PropertyTable&;
 
     // Adds a row that contains an interactable boolean entry,
     // alongside a reset button.
-    PropertyTable&
-    rowBoolean(std::string const& name, bool& value, bool const& resetValue);
+    auto
+    rowBoolean(std::string const& name, bool& value, bool const& resetValue)
+        -> PropertyTable&;
 
     // Adds a row that contains a non-interactable float entry.
-    PropertyTable&
-    rowReadOnlyBoolean(std::string const& name, bool const& value);
+    auto rowReadOnlyBoolean(std::string const& name, bool const& value)
+        -> PropertyTable&;
 };
 } // namespace syzygy

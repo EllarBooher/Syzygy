@@ -23,7 +23,7 @@ public:
     {
         *this = std::move(other);
     };
-    AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept
+    auto operator=(AllocatedBuffer&& other) noexcept -> AllocatedBuffer&
     {
         destroy();
 
@@ -41,11 +41,10 @@ public:
     }
 
     AllocatedBuffer(AllocatedBuffer const& other) = delete;
-    AllocatedBuffer& operator=(AllocatedBuffer const& other) = delete;
+    auto operator=(AllocatedBuffer const& other) -> AllocatedBuffer& = delete;
 
     ~AllocatedBuffer() noexcept { destroy(); }
 
-public:
     static auto allocate(
         VkDevice device,
         VmaAllocator allocator,
@@ -55,18 +54,18 @@ public:
         VmaAllocationCreateFlags createFlags
     ) -> AllocatedBuffer;
 
-    auto bufferSize() const -> VkDeviceSize;
+    [[nodiscard]] auto bufferSize() const -> VkDeviceSize;
 
-    auto isMapped() const -> bool;
+    [[nodiscard]] auto isMapped() const -> bool;
 
     void writeBytes(VkDeviceSize offset, std::span<uint8_t const> data);
-    auto readBytes() const -> std::span<uint8_t const>;
+    [[nodiscard]] auto readBytes() const -> std::span<uint8_t const>;
     auto mappedBytes() -> std::span<uint8_t>;
 
-    auto deviceAddress() const -> VkDeviceAddress;
-    auto buffer() const -> VkBuffer;
+    [[nodiscard]] auto deviceAddress() const -> VkDeviceAddress;
+    [[nodiscard]] auto buffer() const -> VkBuffer;
 
-    VkResult flush();
+    auto flush() -> VkResult;
 
 private:
     void destroy() const;
@@ -112,23 +111,23 @@ struct StagedBuffer
 {
     StagedBuffer() = delete;
 
-    StagedBuffer(StagedBuffer&& other) { *this = std::move(other); }
+    StagedBuffer(StagedBuffer&& other) noexcept { *this = std::move(other); }
 
-    StagedBuffer& operator=(StagedBuffer&& other)
+    auto operator=(StagedBuffer&& other) noexcept -> StagedBuffer&
     {
         m_dirty = std::exchange(other.m_dirty, false);
 
-        m_deviceBuffer.reset(other.m_deviceBuffer.release());
+        m_deviceBuffer = std::move(other.m_deviceBuffer);
         m_deviceSizeBytes = std::exchange(other.m_deviceSizeBytes, 0);
 
-        m_stagingBuffer.reset(other.m_stagingBuffer.release());
+        m_stagingBuffer = std::move(other.m_stagingBuffer);
         m_stagedSizeBytes = std::exchange(other.m_stagedSizeBytes, 0);
 
         return *this;
     }
 
     StagedBuffer(StagedBuffer const& other) = delete;
-    StagedBuffer& operator=(StagedBuffer const& other) = delete;
+    auto operator=(StagedBuffer const& other) -> StagedBuffer& = delete;
 
     static auto allocate(
         VkDevice device,
@@ -139,8 +138,8 @@ struct StagedBuffer
 
     ~StagedBuffer() noexcept = default;
 
-    auto deviceAddress() const -> VkDeviceAddress;
-    auto deviceBuffer() const -> VkBuffer;
+    [[nodiscard]] auto deviceAddress() const -> VkDeviceAddress;
+    [[nodiscard]] auto deviceBuffer() const -> VkBuffer;
 
     void clearStaged();
     void clearStagedAndDevice();
@@ -169,17 +168,17 @@ protected:
     // visible when further read accesses are executed.
     // Thus, this represents a read after write hazard that the caller must be
     // careful of.
-    auto deviceSizeQueuedBytes() const -> VkDeviceSize;
+    [[nodiscard]] auto deviceSizeQueuedBytes() const -> VkDeviceSize;
 
-    auto stagedCapacityBytes() const -> VkDeviceSize;
-    auto stagedSizeBytes() const -> VkDeviceSize;
+    [[nodiscard]] auto stagedCapacityBytes() const -> VkDeviceSize;
+    [[nodiscard]] auto stagedSizeBytes() const -> VkDeviceSize;
 
     auto mapStagedBytes() -> std::span<uint8_t>;
-    auto readStagedBytes() const -> std::span<uint8_t const>;
+    [[nodiscard]] auto readStagedBytes() const -> std::span<uint8_t const>;
 
     // The buffer is dirtied when the the staged bytes are write accessed, and
     // cleaned when a copy is recorded.
-    auto isDirty() const -> bool;
+    [[nodiscard]] auto isDirty() const -> bool;
 
 private:
     StagedBuffer(
@@ -237,9 +236,9 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
     // upon command execution.
     // Use this only as a convenient interface for modifying the staged values.
     // TODO: get rid of this and have a write-only interface instead
-    std::span<T> mapValidStaged()
+    auto mapValidStaged() -> std::span<T>
     {
-        std::span<uint8_t> byteSpan{mapStagedBytes()};
+        std::span<uint8_t> const byteSpan{mapStagedBytes()};
 
         assert(byteSpan.size_bytes() % sizeof(T) == 0);
 
@@ -251,7 +250,7 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
 
     // This can be used as a proxy for values on the device,
     // as long as the only writes are from the host.
-    std::span<T const> readValidStaged() const
+    [[nodiscard]] auto readValidStaged() const -> std::span<T const>
     {
         if (isDirty())
         {
@@ -261,7 +260,7 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
             );
         }
 
-        std::span<uint8_t const> byteSpan{readStagedBytes()};
+        std::span<uint8_t const> const byteSpan{readStagedBytes()};
 
         assert(byteSpan.size_bytes() % sizeof(T) == 0);
 
@@ -271,12 +270,12 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
         };
     }
 
-    static TStagedBuffer<T> allocate(
+    static auto allocate(
         VkDevice const device,
         VmaAllocator const allocator,
         VkDeviceSize const capacity,
         VkBufferUsageFlags const bufferUsage
-    )
+    ) -> TStagedBuffer<T>
     {
         VkDeviceSize const allocationSizeBytes{capacity * sizeof(T)};
         return TStagedBuffer<T>(StagedBuffer::allocate(
@@ -284,17 +283,17 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
         ));
     }
 
-    VkDeviceSize deviceSize() const
+    [[nodiscard]] auto deviceSize() const -> VkDeviceSize
     {
         return StagedBuffer::deviceSizeQueuedBytes() / sizeof(T);
     }
 
-    VkDeviceSize stagingCapacity() const
+    [[nodiscard]] auto stagingCapacity() const -> VkDeviceSize
     {
         return StagedBuffer::stagedCapacityBytes() / sizeof(T);
     }
 
-    VkDeviceSize stagedSize() const
+    [[nodiscard]] auto stagedSize() const -> VkDeviceSize
     {
         return StagedBuffer::stagedSizeBytes() / sizeof(T);
     }
@@ -316,17 +315,23 @@ struct GPUMeshBuffers
 
     GPUMeshBuffers(GPUMeshBuffers&& other) = default;
 
-    GPUMeshBuffers& operator=(GPUMeshBuffers const& other) = delete;
+    auto operator=(GPUMeshBuffers const& other) -> GPUMeshBuffers& = delete;
 
-    GPUMeshBuffers& operator=(GPUMeshBuffers&& other) = default;
+    auto operator=(GPUMeshBuffers&& other) -> GPUMeshBuffers& = default;
 
     // These are not const since they give access to the underlying memory.
 
-    VkDeviceAddress indexAddress() { return m_indexBuffer.deviceAddress(); }
-    VkBuffer indexBuffer() { return m_indexBuffer.buffer(); }
+    auto indexAddress() -> VkDeviceAddress
+    {
+        return m_indexBuffer.deviceAddress();
+    }
+    auto indexBuffer() -> VkBuffer { return m_indexBuffer.buffer(); }
 
-    VkDeviceAddress vertexAddress() { return m_vertexBuffer.deviceAddress(); }
-    VkBuffer vertexBuffer() { return m_vertexBuffer.buffer(); }
+    auto vertexAddress() -> VkDeviceAddress
+    {
+        return m_vertexBuffer.deviceAddress();
+    }
+    auto vertexBuffer() -> VkBuffer { return m_vertexBuffer.buffer(); }
 
 private:
     AllocatedBuffer m_indexBuffer;

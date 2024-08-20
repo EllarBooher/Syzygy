@@ -50,10 +50,10 @@ struct Atmosphere
     glm::vec3 scatteringCoefficientMie{1.0};
     float altitudeDecayMie{1.0};
 
-    auto directionToSun() const -> glm::vec3;
+    [[nodiscard]] auto directionToSun() const -> glm::vec3;
 
-    auto toDeviceEquivalent() const -> AtmospherePacked;
-    auto baked(SceneBounds) const -> AtmosphereBaked;
+    [[nodiscard]] auto toDeviceEquivalent() const -> AtmospherePacked;
+    [[nodiscard]] auto baked(SceneBounds) const -> AtmosphereBaked;
 };
 
 struct Camera
@@ -69,19 +69,20 @@ struct Camera
     // may depend on the drawn surface.
 
     // Rotates (but does not translate) from camera to world space
-    auto rotation() const -> glm::mat4x4;
+    [[nodiscard]] auto rotation() const -> glm::mat4x4;
     // The matrix that transforms from camera to world space
-    auto transform() const -> glm::mat4x4;
+    [[nodiscard]] auto transform() const -> glm::mat4x4;
     // The inverse of transform, transforms from world to camera space
-    auto view() const -> glm::mat4x4;
+    [[nodiscard]] auto view() const -> glm::mat4x4;
     // Projects from camera space to clip space
-    auto projection(float aspectRatio) const -> glm::mat4x4;
+    [[nodiscard]] auto projection(float aspectRatio) const -> glm::mat4x4;
 
     // Gives the projection * view matrix that transforms from world to
     // clip space.
-    auto toProjView(float aspectRatio) const -> glm::mat4x4;
+    [[nodiscard]] auto toProjView(float aspectRatio) const -> glm::mat4x4;
 
-    auto toDeviceEquivalent(float aspectRatio) const -> CameraPacked;
+    [[nodiscard]] auto toDeviceEquivalent(float aspectRatio) const
+        -> CameraPacked;
 };
 
 struct MeshInstanced

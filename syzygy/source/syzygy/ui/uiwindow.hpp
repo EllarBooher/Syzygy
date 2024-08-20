@@ -13,15 +13,15 @@ namespace syzygy
 struct UIWindow
 {
     static auto
-    beginMaximized(std::string const& name, syzygy::UIRectangle const workArea)
+    beginMaximized(std::string const& name, syzygy::UIRectangle workArea)
         -> UIWindow;
 
-    static auto beginDockable(
-        std::string const& name, std::optional<ImGuiID> const dockspace
-    ) -> UIWindow;
+    static auto
+    beginDockable(std::string const& name, std::optional<ImGuiID> dockspace)
+        -> UIWindow;
 
-    UIWindow& operator=(UIWindow const& other) = delete;
-    UIWindow& operator=(UIWindow&& other) = delete;
+    auto operator=(UIWindow const& other) -> UIWindow& = delete;
+    auto operator=(UIWindow&& other) -> UIWindow& = delete;
     UIWindow(UIWindow&& other) noexcept;
 
     ~UIWindow();

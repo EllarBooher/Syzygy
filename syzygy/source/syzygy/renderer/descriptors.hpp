@@ -19,19 +19,20 @@ struct DescriptorLayoutBuilder
     };
 
     // Adds an additional binding that will be built.
-    DescriptorLayoutBuilder&
-    addBinding(AddBindingParameters parameters, uint32_t count);
+    auto addBinding(AddBindingParameters parameters, uint32_t count)
+        -> DescriptorLayoutBuilder&;
 
     // Adds an additional binding that will be built. Infers the count from the
     // length of samplers.
-    DescriptorLayoutBuilder& addBinding(
-        AddBindingParameters parameters, std::vector<VkSampler> samplers
-    );
+    auto
+    addBinding(AddBindingParameters parameters, std::vector<VkSampler> samplers)
+        -> DescriptorLayoutBuilder&;
 
     void clear();
 
-    std::optional<VkDescriptorSetLayout>
-    build(VkDevice device, VkDescriptorSetLayoutCreateFlags layoutFlags) const;
+    auto
+    build(VkDevice device, VkDescriptorSetLayoutCreateFlags layoutFlags) const
+        -> std::optional<VkDescriptorSetLayout>;
 
 private:
     struct Binding
@@ -51,16 +52,16 @@ public:
     struct PoolSizeRatio
     {
         VkDescriptorType type{VK_DESCRIPTOR_TYPE_SAMPLER};
-        float ratio{0.0f};
+        float ratio{0.0F};
     };
 
     DescriptorAllocator() = delete;
 
     DescriptorAllocator(DescriptorAllocator const&) = delete;
-    DescriptorAllocator& operator=(DescriptorAllocator const&) = delete;
+    auto operator=(DescriptorAllocator const&) -> DescriptorAllocator& = delete;
 
     DescriptorAllocator(DescriptorAllocator&&) noexcept;
-    DescriptorAllocator& operator=(DescriptorAllocator&&) noexcept;
+    auto operator=(DescriptorAllocator&&) noexcept -> DescriptorAllocator&;
 
     ~DescriptorAllocator();
 
@@ -72,7 +73,8 @@ public:
     ) -> DescriptorAllocator;
     void clearDescriptors(VkDevice device);
 
-    VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout);
+    auto allocate(VkDevice device, VkDescriptorSetLayout layout)
+        -> VkDescriptorSet;
 
 private:
     DescriptorAllocator(VkDevice device, VkDescriptorPool pool)

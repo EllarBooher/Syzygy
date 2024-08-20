@@ -8,7 +8,7 @@ struct UUID
 {
 public:
     static auto createNew() -> UUID;
-    auto valid() const -> bool;
+    [[nodiscard]] auto valid() const -> bool;
 
     operator uint64_t() const;
 

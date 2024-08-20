@@ -37,10 +37,10 @@ struct ImageViewMemory
 struct ImageView
 {
 public:
-    ImageView& operator=(ImageView&&) = delete;
+    auto operator=(ImageView&&) -> ImageView& = delete;
 
     ImageView(ImageView const&) = delete;
-    ImageView& operator=(ImageView const&) = delete;
+    auto operator=(ImageView const&) -> ImageView& = delete;
 
     ImageView(ImageView&&) noexcept;
     ~ImageView();
@@ -61,12 +61,12 @@ public:
     auto view() -> VkImageView;
 
     auto image() -> Image&;
-    auto image() const -> Image const&;
+    [[nodiscard]] auto image() const -> Image const&;
 
     // Transitions the underlying image, according to the aspect(s) of the view.
     void recordTransitionBarriered(VkCommandBuffer, VkImageLayout);
 
-    auto expectedLayout() const -> VkImageLayout;
+    [[nodiscard]] auto expectedLayout() const -> VkImageLayout;
 
 private:
     // So far, images and views are 1 to 1. In the future this could be a

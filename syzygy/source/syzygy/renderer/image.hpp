@@ -32,10 +32,10 @@ struct ImageAllocationParameters
 struct Image
 {
 public:
-    Image& operator=(Image&&) = delete;
+    auto operator=(Image&&) -> Image& = delete;
 
     Image(Image const&) = delete;
-    Image& operator=(Image const&) = delete;
+    auto operator=(Image const&) -> Image& = delete;
 
     Image(Image&&) noexcept;
     ~Image();
@@ -50,18 +50,18 @@ public:
         -> std::optional<std::unique_ptr<Image>>;
 
     // For now, all images are 2D (depth of 1)
-    auto extent3D() const -> VkExtent3D;
-    auto extent2D() const -> VkExtent2D;
+    [[nodiscard]] auto extent3D() const -> VkExtent3D;
+    [[nodiscard]] auto extent2D() const -> VkExtent2D;
 
-    auto aspectRatio() const -> std::optional<double>;
-    auto format() const -> VkFormat;
+    [[nodiscard]] auto aspectRatio() const -> std::optional<double>;
+    [[nodiscard]] auto format() const -> VkFormat;
 
     // WARNING: Do not destroy this image. Be careful of implicit layout
     // transitions, which may break the guarantee of Image::expectedLayout.
     auto image() -> VkImage;
     auto fetchAllocationInfo() -> std::optional<VmaAllocationInfo>;
 
-    auto expectedLayout() const -> VkImageLayout;
+    [[nodiscard]] auto expectedLayout() const -> VkImageLayout;
     void recordTransitionBarriered(
         VkCommandBuffer, VkImageLayout dst, VkImageAspectFlags
     );

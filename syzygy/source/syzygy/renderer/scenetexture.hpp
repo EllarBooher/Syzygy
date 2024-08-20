@@ -9,7 +9,7 @@
 namespace syzygy
 {
 class DescriptorAllocator;
-}
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -18,10 +18,10 @@ struct SceneTexture
     SceneTexture() = delete;
 
     SceneTexture(SceneTexture const&) = delete;
-    SceneTexture& operator=(SceneTexture const&) = delete;
+    auto operator=(SceneTexture const&) -> SceneTexture& = delete;
 
     SceneTexture(SceneTexture&&) noexcept;
-    SceneTexture& operator=(SceneTexture&&) noexcept;
+    auto operator=(SceneTexture&&) noexcept -> SceneTexture&;
 
     ~SceneTexture();
 
@@ -37,17 +37,17 @@ struct SceneTexture
         VkFormat format
     ) -> std::optional<SceneTexture>;
 
-    auto sampler() const -> VkSampler;
+    [[nodiscard]] auto sampler() const -> VkSampler;
     auto texture() -> syzygy::ImageView&;
-    auto texture() const -> syzygy::ImageView const&;
+    [[nodiscard]] auto texture() const -> syzygy::ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
-    auto singletonDescriptor() const -> VkDescriptorSet;
-    auto singletonLayout() const -> VkDescriptorSetLayout;
+    [[nodiscard]] auto singletonDescriptor() const -> VkDescriptorSet;
+    [[nodiscard]] auto singletonLayout() const -> VkDescriptorSetLayout;
 
     // The descriptor set that ImGui's backend allocates, the layout is opaque.
-    auto imguiDescriptor() const -> VkDescriptorSet;
+    [[nodiscard]] auto imguiDescriptor() const -> VkDescriptorSet;
 
 private:
     SceneTexture(

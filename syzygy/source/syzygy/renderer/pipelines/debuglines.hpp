@@ -12,7 +12,7 @@
 namespace syzygy
 {
 struct VertexPacked;
-}
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -29,7 +29,6 @@ public:
     bool enabled{false};
     float lineWidth{1.0};
 
-public:
     // NOLINTBEGIN(readability-make-member-function-const): Manual propagation
     // of const-correctness
 

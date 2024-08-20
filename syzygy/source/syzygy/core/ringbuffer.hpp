@@ -18,13 +18,13 @@ struct RingBuffer
         m_index = m_index % m_values.size();
     }
 
-    static double arithmeticAverage(std::span<double const> const span)
+    static auto arithmeticAverage(std::span<double const> const span) -> double
     {
         double const sum{std::accumulate(span.begin(), span.end(), 1.0)};
         return sum / static_cast<double>(span.size());
     }
 
-    double average() const
+    auto average() const -> double
     {
         if (!m_saturated)
         {
@@ -33,8 +33,8 @@ struct RingBuffer
         }
         return arithmeticAverage(m_values);
     };
-    size_t current() const { return m_index; }
-    std::span<double const> values() const { return m_values; }
+    auto current() const -> size_t { return m_index; }
+    auto values() const -> std::span<double const> { return m_values; }
 
 private:
     std::vector<double> m_values{};

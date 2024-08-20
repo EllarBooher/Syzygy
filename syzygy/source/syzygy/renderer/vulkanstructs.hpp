@@ -12,69 +12,71 @@
 
 namespace syzygy
 {
-VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
-VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
-VkCommandBufferBeginInfo
-commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
+auto fenceCreateInfo(VkFenceCreateFlags flags = 0) -> VkFenceCreateInfo;
+auto semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0)
+    -> VkSemaphoreCreateInfo;
+auto commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0)
+    -> VkCommandBufferBeginInfo;
 
-VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
-VkImageSubresourceLayers imageSubresourceLayers(
+auto imageSubresourceRange(VkImageAspectFlags aspectMask)
+    -> VkImageSubresourceRange;
+auto imageSubresourceLayers(
     VkImageAspectFlags aspectMask,
     uint32_t mipLevel = 0,
     uint32_t baseArrayLayer = 0,
     uint32_t baseArrayCount = 1
-);
+) -> VkImageSubresourceLayers;
 
-VkSemaphoreSubmitInfo
-semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
-VkCommandBufferSubmitInfo commandBufferSubmitInfo(VkCommandBuffer cmd);
-VkSubmitInfo2 submitInfo(
+auto semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore)
+    -> VkSemaphoreSubmitInfo;
+auto commandBufferSubmitInfo(VkCommandBuffer cmd) -> VkCommandBufferSubmitInfo;
+auto submitInfo(
     std::vector<VkCommandBufferSubmitInfo> const& cmdInfo,
     std::vector<VkSemaphoreSubmitInfo> const& waitSemaphoreInfo,
     std::vector<VkSemaphoreSubmitInfo> const& signalSemaphoreInfo
-);
+) -> VkSubmitInfo2;
 
-VkImageCreateInfo imageCreateInfo(
+auto imageCreateInfo(
     VkFormat format,
     VkImageLayout initialLayout,
     VkImageUsageFlags usageMask,
     VkExtent3D extent,
     VkImageTiling tiling
-);
+) -> VkImageCreateInfo;
 
-VkSamplerCreateInfo samplerCreateInfo(
+auto samplerCreateInfo(
     VkSamplerCreateFlags flags,
     VkBorderColor borderColor,
     VkFilter filter,
     VkSamplerAddressMode addressMode
-);
+) -> VkSamplerCreateInfo;
 
-VkImageViewCreateInfo imageViewCreateInfo(
+auto imageViewCreateInfo(
     VkFormat format, VkImage image, VkImageAspectFlags aspectFlags
-);
+) -> VkImageViewCreateInfo;
 
-VkRenderingAttachmentInfo renderingAttachmentInfo(
+auto renderingAttachmentInfo(
     VkImageView view,
     VkImageLayout layout,
     std::optional<VkClearValue> clearValue = {}
-);
+) -> VkRenderingAttachmentInfo;
 
-VkRenderingInfo renderingInfo(
+auto renderingInfo(
     VkRect2D drawRect,
     std::span<VkRenderingAttachmentInfo const> colorAttachments,
     VkRenderingAttachmentInfo const* pDepthAttachment
-);
+) -> VkRenderingInfo;
 
-VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(
+auto pipelineShaderStageCreateInfo(
     VkShaderStageFlagBits stage,
     VkShaderModule module,
     std::string const& entryPoint
-);
+) -> VkPipelineShaderStageCreateInfo;
 
-VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
+auto pipelineLayoutCreateInfo(
     VkPipelineLayoutCreateFlags flags,
     std::span<VkDescriptorSetLayout const> layouts,
     std::span<VkPushConstantRange const> ranges
-);
+) -> VkPipelineLayoutCreateInfo;
 
 } // namespace syzygy

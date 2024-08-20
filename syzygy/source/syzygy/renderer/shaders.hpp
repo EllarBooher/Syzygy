@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -29,7 +30,7 @@ struct ShaderReflectionData
     {
         bool signedness;
 
-        bool operator==(Integer const& other) const;
+        auto operator==(Integer const& other) const -> bool;
     };
 
     // Corresponds to OpTypeFloat
@@ -40,14 +41,14 @@ struct ShaderReflectionData
     {
         uint32_t componentCount;
 
-        bool operator==(Vector const& other) const;
+        auto operator==(Vector const& other) const -> bool;
     };
     struct Matrix
     {
         uint32_t columnCount;
         uint32_t rowCount;
 
-        bool operator==(Matrix const& other) const;
+        auto operator==(Matrix const& other) const -> bool;
     };
 
     struct NumericType
@@ -59,13 +60,13 @@ struct ShaderReflectionData
         ComponentType componentType;
         Format format;
 
-        bool operator==(NumericType const& other) const;
+        auto operator==(NumericType const& other) const -> bool;
     };
 
     // TODO: add info of what it points to
     struct Pointer
     {
-        bool operator==(Pointer const& other) const = default;
+        auto operator==(Pointer const& /*other*/) const -> bool = default;
     };
 
     // Represents a type whose reflection data could not be generated,
@@ -100,7 +101,8 @@ struct ShaderReflectionData
 
         // Mutually checks if the members of this struct match
         // any bitwise overlapping members in the other struct.
-        bool logicallyCompatible(Structure const& other) const;
+        [[nodiscard]] auto logicallyCompatible(Structure const& other) const
+            -> bool;
     };
 
     // TODO: structs can have padding, as in bits in their representation
@@ -120,8 +122,8 @@ struct ShaderReflectionData
         // offset in the total size.
         uint32_t layoutOffsetBytes{0};
 
-        VkPushConstantRange totalRange(VkShaderStageFlags const stageFlags
-        ) const
+        [[nodiscard]] auto totalRange(VkShaderStageFlags const stageFlags) const
+            -> VkPushConstantRange
         {
             return VkPushConstantRange{
                 .stageFlags = stageFlags,
@@ -135,30 +137,30 @@ struct ShaderReflectionData
 
     std::string defaultEntryPoint{};
 
-    bool defaultEntryPointHasPushConstant() const
+    [[nodiscard]] auto defaultEntryPointHasPushConstant() const -> bool
     {
         return pushConstantsByEntryPoint.contains(defaultEntryPoint);
     }
 
-    PushConstant const& defaultPushConstant() const
+    [[nodiscard]] auto defaultPushConstant() const -> PushConstant const&
     {
         return pushConstantsByEntryPoint.at(defaultEntryPoint);
     }
 };
 
-ShaderReflectionData
-generateReflectionData(std::span<uint8_t const> spirv_bytecode);
+auto generateReflectionData(std::span<uint8_t const> spirv_bytecode)
+    -> ShaderReflectionData;
 
 class ShaderReflectedBase
 {
 public:
     ShaderReflectedBase() = delete;
 
-    ShaderReflectionData const& reflectionData() const
+    [[nodiscard]] auto reflectionData() const -> ShaderReflectionData const&
     {
         return m_reflectionData;
     }
-    std::string name() const { return m_name; }
+    [[nodiscard]] auto name() const -> std::string { return m_name; }
 
     void cleanup(VkDevice device);
 
@@ -168,17 +170,17 @@ protected:
         ShaderReflectionData reflectionData,
         std::variant<VkShaderModule, VkShaderEXT> shaderHandle
     )
-        : m_name(name)
-        , m_reflectionData(reflectionData)
+        : m_name(std::move(name))
+        , m_reflectionData(std::move(reflectionData))
         , m_shaderHandle(shaderHandle)
     {
     }
 
-    VkShaderModule shaderModule() const
+    [[nodiscard]] auto shaderModule() const -> VkShaderModule
     {
         return std::get<VkShaderModule>(m_shaderHandle);
     }
-    VkShaderEXT shaderObject() const
+    [[nodiscard]] auto shaderObject() const -> VkShaderEXT
     {
         return std::get<VkShaderEXT>(m_shaderHandle);
     }
@@ -197,24 +199,26 @@ private:
         ShaderReflectionData reflectionData,
         VkShaderModule shaderHandle
     )
-        : ShaderReflectedBase(name, reflectionData, shaderHandle)
+        : ShaderReflectedBase(
+            std::move(name), std::move(reflectionData), shaderHandle
+        )
     {
     }
 
 public:
-    static std::optional<ShaderModuleReflected> FromBytecode(
+    static auto FromBytecode(
         VkDevice device,
         std::string const& name,
         std::span<uint8_t const> spirvBytecode
-    );
-    static ShaderModuleReflected MakeInvalid()
+    ) -> std::optional<ShaderModuleReflected>;
+    static auto MakeInvalid() -> ShaderModuleReflected
     {
         return ShaderModuleReflected(
             "invalid_shader_module", {}, VK_NULL_HANDLE
         );
     }
 
-    VkShaderModule shaderModule() const
+    [[nodiscard]] auto shaderModule() const -> VkShaderModule
     {
         return ShaderReflectedBase::shaderModule();
     }
@@ -228,12 +232,14 @@ private:
         ShaderReflectionData reflectionData,
         VkShaderEXT shaderHandle
     )
-        : ShaderReflectedBase(name, reflectionData, shaderHandle)
+        : ShaderReflectedBase(
+            std::move(name), std::move(reflectionData), shaderHandle
+        )
     {
     }
 
 public:
-    static std::optional<ShaderObjectReflected> fromBytecode(
+    static auto fromBytecode(
         VkDevice device,
         std::string const& name,
         std::span<uint8_t const> spirvBytecode,
@@ -242,11 +248,11 @@ public:
         std::span<VkDescriptorSetLayout const> layouts,
         std::span<VkPushConstantRange const> pushConstantRanges,
         VkSpecializationInfo specializationInfo
-    );
+    ) -> std::optional<ShaderObjectReflected>;
 
     // Compiles a shader object,
     // but derives push constant data from reflection
-    static std::optional<ShaderObjectReflected> fromBytecodeReflected(
+    static auto fromBytecodeReflected(
         VkDevice device,
         std::string const& name,
         std::span<uint8_t const> spirvBytecode,
@@ -254,16 +260,16 @@ public:
         VkShaderStageFlags nextStage,
         std::span<VkDescriptorSetLayout const> layouts,
         VkSpecializationInfo specializationInfo
-    );
+    ) -> std::optional<ShaderObjectReflected>;
 
-    static ShaderObjectReflected makeInvalid()
+    static auto makeInvalid() -> ShaderObjectReflected
     {
         return ShaderObjectReflected(
             "invalid_shader_object", {}, VK_NULL_HANDLE
         );
     }
 
-    VkShaderEXT shaderObject() const
+    [[nodiscard]] auto shaderObject() const -> VkShaderEXT
     {
         return ShaderReflectedBase::shaderObject();
     }
@@ -275,7 +281,7 @@ template <typename T> struct ShaderResult
     VkResult result;
 };
 
-ShaderResult<VkShaderEXT> compileShaderObject(
+auto compileShaderObject(
     VkDevice device,
     std::span<uint8_t const> spirvBytecode,
     VkShaderStageFlagBits stage,
@@ -283,20 +289,21 @@ ShaderResult<VkShaderEXT> compileShaderObject(
     std::span<VkDescriptorSetLayout const> layouts,
     std::span<VkPushConstantRange const> pushConstantRanges,
     VkSpecializationInfo specializationInfo
-);
+) -> ShaderResult<VkShaderEXT>;
 
-ShaderResult<VkShaderModule>
-compileShaderModule(VkDevice device, std::span<uint8_t const> spirvBytecode);
+auto compileShaderModule(
+    VkDevice device, std::span<uint8_t const> spirvBytecode
+) -> ShaderResult<VkShaderModule>;
 
-std::optional<ShaderObjectReflected> loadShaderObject(
+auto loadShaderObject(
     VkDevice device,
     std::filesystem::path const& path,
     VkShaderStageFlagBits stage,
     VkShaderStageFlags nextStage,
     std::span<VkDescriptorSetLayout const> layouts,
     VkSpecializationInfo specializationInfo
-);
-std::optional<ShaderObjectReflected> loadShaderObject(
+) -> std::optional<ShaderObjectReflected>;
+auto loadShaderObject(
     VkDevice device,
     std::filesystem::path const& path,
     VkShaderStageFlagBits stage,
@@ -304,10 +311,10 @@ std::optional<ShaderObjectReflected> loadShaderObject(
     std::span<VkDescriptorSetLayout const> layouts,
     VkPushConstantRange rangeOverride,
     VkSpecializationInfo specializationInfo
-);
+) -> std::optional<ShaderObjectReflected>;
 
-std::optional<ShaderModuleReflected>
-loadShaderModule(VkDevice device, std::string const& path);
+auto loadShaderModule(VkDevice device, std::string const& path)
+    -> std::optional<ShaderModuleReflected>;
 
 struct ComputeShaderWrapper
 {

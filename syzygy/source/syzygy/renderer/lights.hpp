@@ -5,13 +5,13 @@
 
 namespace syzygy
 {
-static DirectionalLightPacked makeDirectional(
+static auto makeDirectional(
     glm::vec4 const color,
     float const strength,
     glm::vec3 const eulerAngles,
     glm::vec3 const geometryCenter,
     glm::vec3 const geometryExtent
-)
+) -> DirectionalLightPacked
 {
     glm::mat4x4 const view{syzygy::viewVk(glm::vec3{0.0}, eulerAngles)};
 
@@ -29,7 +29,7 @@ static DirectionalLightPacked makeDirectional(
 }
 
 // TODO: less parameters constructor
-static SpotLightPacked makeSpot(
+static auto makeSpot(
     glm::vec4 const color,
     float const strength,
     float const falloffFactor,
@@ -40,7 +40,7 @@ static SpotLightPacked makeSpot(
     glm::vec3 const position,
     float const near,
     float const far
-)
+) -> SpotLightPacked
 {
     return SpotLightPacked{
         .color = color,

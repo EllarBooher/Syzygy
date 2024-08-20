@@ -9,7 +9,7 @@
 namespace syzygy
 {
 struct PlatformWindow;
-}
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -17,9 +17,9 @@ namespace syzygy
 struct GraphicsContext
 {
 public:
-    GraphicsContext& operator=(GraphicsContext&&) = delete;
+    auto operator=(GraphicsContext&&) -> GraphicsContext& = delete;
     GraphicsContext(GraphicsContext const&) = delete;
-    GraphicsContext& operator=(GraphicsContext const&) = delete;
+    auto operator=(GraphicsContext const&) -> GraphicsContext& = delete;
 
     GraphicsContext(GraphicsContext&&) noexcept;
     ~GraphicsContext();
@@ -31,7 +31,7 @@ public:
     auto physicalDevice() -> VkPhysicalDevice;
     auto device() -> VkDevice;
     auto universalQueue() -> VkQueue;
-    auto universalQueueFamily() const -> uint32_t;
+    [[nodiscard]] auto universalQueueFamily() const -> uint32_t;
 
     auto allocator() -> VmaAllocator;
     auto descriptorAllocator() -> syzygy::DescriptorAllocator&;

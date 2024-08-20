@@ -10,10 +10,10 @@ struct UIRectangle
     glm::vec2 min{};
     glm::vec2 max{};
 
-    glm::vec2 pos() const { return min; }
-    glm::vec2 size() const { return max - min; }
+    [[nodiscard]] auto pos() const -> glm::vec2 { return min; }
+    [[nodiscard]] auto size() const -> glm::vec2 { return max - min; }
 
-    static UIRectangle fromPosSize(glm::vec2 const pos, glm::vec2 const size)
+    static auto fromPosSize(glm::vec2 const pos, glm::vec2 const size) -> UIRectangle
     {
         return UIRectangle{
             .min{pos},
@@ -21,7 +21,7 @@ struct UIRectangle
         };
     }
 
-    UIRectangle clampToMin() const
+    [[nodiscard]] auto clampToMin() const -> UIRectangle
     {
         return UIRectangle{
             .min{min},
@@ -29,21 +29,21 @@ struct UIRectangle
         };
     }
 
-    UIRectangle shrink(glm::vec2 const margins) const
+    [[nodiscard]] auto shrink(glm::vec2 const margins) const -> UIRectangle
     {
         return UIRectangle{
             .min{min + margins},
             .max{max - margins},
         };
     }
-    UIRectangle shrinkMin(glm::vec2 const margins) const
+    [[nodiscard]] auto shrinkMin(glm::vec2 const margins) const -> UIRectangle
     {
         return UIRectangle{
             .min{min + margins},
             .max{max},
         };
     }
-    UIRectangle shrinkMax(glm::vec2 const margins) const
+    [[nodiscard]] auto shrinkMax(glm::vec2 const margins) const -> UIRectangle
     {
         return UIRectangle{
             .min{min},

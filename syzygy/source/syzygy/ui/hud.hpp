@@ -7,7 +7,7 @@ namespace syzygy
 {
 struct UIPreferences
 {
-    float dpiScale{2.0f};
+    float dpiScale{2.0F};
 };
 
 struct HUDState
@@ -25,5 +25,5 @@ struct HUDState
     bool applyPreferencesRequested{false};
 };
 
-HUDState renderHUD(UIPreferences& preferences);
+auto renderHUD(UIPreferences& preferences) -> HUDState;
 } // namespace syzygy

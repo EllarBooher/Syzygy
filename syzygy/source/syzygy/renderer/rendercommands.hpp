@@ -4,7 +4,7 @@
 namespace syzygy
 {
 struct Image;
-}
+} // namespace syzygy
 
 // All of these methods transition inputs, but not outputs
 namespace syzygy

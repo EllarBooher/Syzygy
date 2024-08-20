@@ -41,13 +41,13 @@ struct MeshAssetLibrary
     std::vector<std::shared_ptr<MeshAsset>> loadedMeshes;
 };
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(
+auto loadGltfMeshes(
     VkDevice,
     VmaAllocator,
     VkQueue transferQueue,
     syzygy::ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path
-);
+) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>;
 
 struct AssetFile
 {
@@ -96,9 +96,9 @@ struct ImageRGBA
 auto loadTextureFromFile(
     VkDevice,
     VmaAllocator,
-    VkQueue const transferQueue,
+    VkQueue transferQueue,
     ImmediateSubmissionQueue const&,
     std::filesystem::path const& path,
-    VkImageUsageFlags const additionalFlags
+    VkImageUsageFlags additionalFlags
 ) -> std::optional<Asset<syzygy::Image>>;
 } // namespace syzygy

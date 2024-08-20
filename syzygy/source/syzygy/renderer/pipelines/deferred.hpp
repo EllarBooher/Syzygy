@@ -54,11 +54,10 @@ private:
 
     std::unique_ptr<syzygy::ImageView> m_drawImage{};
 
-    typedef TStagedBuffer<syzygy::DirectionalLightPacked>
-        LightDirectionalBuffer;
+    using LightDirectionalBuffer = TStagedBuffer<syzygy::DirectionalLightPacked>;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
-    typedef TStagedBuffer<syzygy::SpotLightPacked> LightSpotBuffer;
+    using LightSpotBuffer = TStagedBuffer<syzygy::SpotLightPacked>;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
 
     VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};

@@ -25,9 +25,9 @@ namespace syzygy
 class Renderer
 {
 public:
-    Renderer& operator=(Renderer&&) = delete;
+    auto operator=(Renderer&&) -> Renderer& = delete;
     Renderer(Renderer const&) = delete;
-    Renderer& operator=(Renderer const&) = delete;
+    auto operator=(Renderer const&) -> Renderer& = delete;
 
     Renderer(Renderer&&) noexcept;
     ~Renderer();
@@ -65,7 +65,6 @@ private:
 
     // Begin Vulkan
 
-private:
     void initDrawTargets(VkDevice, VmaAllocator);
 
     void initWorld(VkDevice, VmaAllocator);
@@ -98,7 +97,6 @@ private:
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
 
-private:
     // Scene
 
     static uint32_t constexpr CAMERA_CAPACITY{20};

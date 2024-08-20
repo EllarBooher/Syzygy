@@ -23,8 +23,8 @@ namespace syzygy
 {
 struct ShadowPassParameters
 {
-    float depthBiasConstant{2.00f};
-    float depthBiasSlope{-1.75f};
+    float depthBiasConstant{2.00F};
+    float depthBiasSlope{-1.75F};
 };
 
 // Handles the resources for an array of depth maps,
@@ -62,10 +62,10 @@ public:
     void
     recordTransitionActiveShadowMaps(VkCommandBuffer, VkImageLayout dstLayout);
 
-    auto samplerSetLayout() const -> VkDescriptorSetLayout;
-    auto texturesSetLayout() const -> VkDescriptorSetLayout;
-    auto samplerSet() const -> VkDescriptorSet;
-    auto textureSet() const -> VkDescriptorSet;
+    [[nodiscard]] auto samplerSetLayout() const -> VkDescriptorSetLayout;
+    [[nodiscard]] auto texturesSetLayout() const -> VkDescriptorSetLayout;
+    [[nodiscard]] auto samplerSet() const -> VkDescriptorSet;
+    [[nodiscard]] auto textureSet() const -> VkDescriptorSet;
 
     void cleanup(VkDevice, VmaAllocator);
 

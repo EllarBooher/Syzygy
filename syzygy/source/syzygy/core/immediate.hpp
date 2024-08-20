@@ -17,8 +17,8 @@ public:
         *this = std::move(other);
     }
 
-    ImmediateSubmissionQueue& operator=(ImmediateSubmissionQueue&& other
-    ) noexcept;
+    auto operator=(ImmediateSubmissionQueue&& other
+    ) noexcept -> ImmediateSubmissionQueue&;
 
     ~ImmediateSubmissionQueue() noexcept { destroy(); }
 
@@ -36,7 +36,7 @@ public:
     // The passed queue should support the desired operations that will be
     // recorded in the callback. This waits for the submission to complete.
     auto immediateSubmit(
-        VkQueue const queue,
+        VkQueue queue,
         std::function<void(VkCommandBuffer cmd)>&& recordingCallback
     ) const -> SubmissionResult;
 

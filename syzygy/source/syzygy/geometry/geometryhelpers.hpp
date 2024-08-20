@@ -25,7 +25,7 @@
 // on.
 namespace syzygy
 {
-typedef std::array<glm::vec3, 8> AABBVertices;
+using AABBVertices = std::array<glm::vec3, 8>;
 
 struct Plane
 {
@@ -33,15 +33,15 @@ struct Plane
     glm::vec3 normal;
 };
 
-glm::vec3 projectPointOnPlane(Plane plane, glm::vec3 point);
+auto projectPointOnPlane(Plane plane, glm::vec3 point) -> glm::vec3;
 
-AABBVertices collectAABBVertices(glm::vec3 center, glm::vec3 extent);
+auto collectAABBVertices(glm::vec3 center, glm::vec3 extent) -> AABBVertices;
 
-glm::mat4x4 lookAtVk(glm::vec3 eye, glm::vec3 center, glm::vec3 up);
+auto lookAtVk(glm::vec3 eye, glm::vec3 center, glm::vec3 up) -> glm::mat4x4;
 
 // Creates a look at matrix, with a fallback WORLD_UP direction in case
 // the WORLD_FORWARD is already WORLD_UP.
-glm::mat4x4 lookAtVkSafe(glm::vec3 eye, glm::vec3 center);
+auto lookAtVkSafe(glm::vec3 eye, glm::vec3 center) -> glm::mat4x4;
 
 struct PerspectiveProjectionParameters
 {
@@ -51,21 +51,21 @@ struct PerspectiveProjectionParameters
     float far;
 };
 
-glm::mat4x4 projectionVk(PerspectiveProjectionParameters parameters);
+auto projectionVk(PerspectiveProjectionParameters parameters) -> glm::mat4x4;
 
-glm::mat4x4 projectionOrthoVk(glm::vec3 min, glm::vec3 max);
+auto projectionOrthoVk(glm::vec3 min, glm::vec3 max) -> glm::mat4x4;
 
 // Creates an orthographic projection that contains the entirety of a AABB.
 // TODO: support aspect ratios.
-glm::mat4x4 projectionOrthoAABBVk(
+auto projectionOrthoAABBVk(
     glm::mat4x4 view, glm::vec3 geometryCenter, glm::vec3 geometryExtent
-);
+) -> glm::mat4x4;
 
-glm::vec3 forwardFromEulers(glm::vec3 eulerAngles);
+auto forwardFromEulers(glm::vec3 eulerAngles) -> glm::vec3;
 
-glm::mat4x4 transformVk(glm::vec3 position, glm::vec3 eulerAngles);
+auto transformVk(glm::vec3 position, glm::vec3 eulerAngles) -> glm::mat4x4;
 
-glm::mat4x4 viewVk(glm::vec3 position, glm::vec3 eulerAngles);
+auto viewVk(glm::vec3 position, glm::vec3 eulerAngles) -> glm::mat4x4;
 
 auto randomQuat() -> glm::quat;
 } // namespace syzygy

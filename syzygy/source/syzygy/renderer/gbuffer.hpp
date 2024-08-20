@@ -9,7 +9,7 @@
 namespace syzygy
 {
 class DescriptorAllocator;
-}
+} // namespace syzygy
 
 namespace syzygy
 {
@@ -26,14 +26,14 @@ struct GBuffer
     // We keep these since their handles are baked into descriptors
     std::vector<VkSampler> immutableSamplers{};
 
-    static std::optional<GBuffer> create(
+    static auto create(
         VkDevice device,
         VkExtent2D drawExtent,
         VmaAllocator allocator,
         DescriptorAllocator& descriptorAllocator
-    );
+    ) -> std::optional<GBuffer>;
 
-    VkExtent2D extent() const;
+    [[nodiscard]] auto extent() const -> VkExtent2D;
 
     void
     recordTransitionImages(VkCommandBuffer cmd, VkImageLayout dstLayout) const;
