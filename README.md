@@ -54,7 +54,7 @@ cmake path/including/Syzygy -G "Visual Studio 17 2022"
 Some notes on building:
 
 - If you have [include-what-you-use](https://github.com/include-what-you-use/include-what-you-use) installed, there is a CMake cache variable `IWYU_ENABLE` to run it alongside compilation.
-- `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` can be ran via a utility target, while `clang-tidy` is enabled with `CLANG_TIDY_ENABLE` to run it through CMake's [`CMAKE_CXX_CLANG_TIDY`](https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_CLANG_TIDY.html) target property.
+- `clang-format` and `clang-tidy` are used to enforce coding standards in this project. `clang-format` can be ran via a utility target, while `clang-tidy` is enabled with `CLANG_TIDY_ENABLE` to run it through CMake's [`CMAKE_CXX_CLANG_TIDY`](https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_CLANG_TIDY.html) target property. Run the `clang-tidy-apply-fixes` utility target to apply the suggested fixes output by `clang-tidy`.
 - CMake is set up to `find_program` for each of these tools, but you can also set their respective `[TOOL NAME]_PATH` cache variable to override the location.
 
 ## Showcase
