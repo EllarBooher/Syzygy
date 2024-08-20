@@ -40,6 +40,7 @@ add_library(
 	"source/syzygy/editor/graphicscontext.cpp"
 	"source/syzygy/editor/swapchain.cpp"
 	"source/syzygy/editor/framebuffer.cpp"
+	"source/syzygy/editor/uilayer.cpp"
 
 	"source/syzygy/core/log.cpp"
     "source/syzygy/core/immediate.cpp"

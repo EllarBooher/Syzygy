@@ -3,13 +3,14 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/input.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/editor/framebuffer.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/swapchain.hpp"
+#include "syzygy/editor/uilayer.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -18,30 +19,26 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/renderer.hpp"
 #include "syzygy/renderer/scene.hpp"
-#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
 #include "syzygy/ui/texturedisplay.hpp"
-#include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <glm/vec2.hpp>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
-#include <implot.h>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <span>
-#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
+
+VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
 
 struct UIResults
 {
@@ -56,13 +53,15 @@ struct EditorResources
     syzygy::GraphicsContext graphics;
     syzygy::Swapchain swapchain;
     syzygy::FrameBuffer frameBuffer;
+    syzygy::InputHandler inputHandler;
+    syzygy::UILayer uiLayer;
 };
 
 namespace
 {
 auto initialize() -> std::optional<EditorResources>
 {
-    SZG_INFO("Initializing Editor resources.");
+    SZG_INFO("Initializing Editor resources...");
 
     SZG_INFO("Creating window...");
 
@@ -77,8 +76,6 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_INFO("Window created.");
-
     SZG_INFO("Creating Graphics Context...");
 
     std::optional<syzygy::GraphicsContext> graphicsResult{
@@ -90,8 +87,6 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
     syzygy::GraphicsContext& graphicsContext{graphicsResult.value()};
-
-    SZG_INFO("Created Graphics Context.");
 
     SZG_INFO("Creating Swapchain...");
 
@@ -108,8 +103,6 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_INFO("Created Swapchain.");
-
     SZG_INFO("Creating Frame Buffer...");
 
     std::optional<syzygy::FrameBuffer> frameBufferResult{
@@ -123,7 +116,41 @@ auto initialize() -> std::optional<EditorResources>
         return std::nullopt;
     }
 
-    SZG_INFO("Created Frame Buffer.");
+    SZG_INFO("Creating Input Handler...");
+
+    // Init input handler before UI backend so it chains our callbacks.
+    // TODO: break this dependency where we depend on ImGui's GLFW backend to
+    // chain our callbacks for us
+
+    std::optional<syzygy::InputHandler> inputHandlerResult{
+        syzygy::InputHandler::create(windowResult.value())
+    };
+    if (!inputHandlerResult.has_value())
+    {
+        SZG_ERROR("Failed to create input handler.");
+        return std::nullopt;
+    }
+    syzygy::InputHandler const& inputHandler{inputHandlerResult.value()};
+
+    SZG_INFO("Creating UI Layer...");
+
+    std::optional<syzygy::UILayer> uiLayerResult{syzygy::UILayer::create(
+        graphicsContext.instance(),
+        graphicsContext.physicalDevice(),
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        graphicsContext.descriptorAllocator(),
+        TEXTURE_MAX,
+        graphicsContext.universalQueueFamily(),
+        graphicsContext.universalQueue(),
+        windowResult.value(),
+        syzygy::UIPreferences{}
+    )};
+    if (!uiLayerResult.has_value())
+    {
+        SZG_ERROR("Failed to create UI Layer.");
+        return std::nullopt;
+    }
 
     SZG_INFO("Successfully initialized Editor resources.");
 
@@ -132,6 +159,8 @@ auto initialize() -> std::optional<EditorResources>
         .graphics = std::move(graphicsResult).value(),
         .swapchain = std::move(swapchainResult).value(),
         .frameBuffer = std::move(frameBufferResult).value(),
+        .inputHandler = std::move(inputHandlerResult).value(),
+        .uiLayer = std::move(uiLayerResult).value(),
     };
 }
 auto defaultRefreshRate() -> float
@@ -355,244 +384,6 @@ auto endFrame(
 
     return VK_SUCCESS;
 }
-auto uiInit(
-    VkInstance const instance,
-    VkPhysicalDevice const physicalDevice,
-    VkDevice const device,
-    uint32_t const graphicsQueueFamily,
-    VkQueue const graphicsQueue,
-    GLFWwindow* const window
-) -> VkDescriptorPool
-{
-    SZG_INFO("Initializing ImGui...");
-
-    std::vector<VkDescriptorPoolSize> const poolSizes{
-        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
-    };
-
-    VkDescriptorPoolCreateInfo const poolInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-
-        .maxSets = 1000,
-        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
-        .pPoolSizes = poolSizes.data(),
-    };
-
-    VkDescriptorPool imguiDescriptorPool{VK_NULL_HANDLE};
-    SZG_CHECK_VK(
-        vkCreateDescriptorPool(device, &poolInfo, nullptr, &imguiDescriptorPool)
-    );
-
-    ImGui::CreateContext();
-    ImPlot::CreateContext();
-
-    std::vector<VkFormat> const colorAttachmentFormats{
-        VK_FORMAT_R16G16B16A16_SFLOAT
-    };
-    VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .pNext = nullptr,
-
-        .viewMask = 0, // Not sure on this value
-        .colorAttachmentCount =
-            static_cast<uint32_t>(colorAttachmentFormats.size()),
-        .pColorAttachmentFormats = colorAttachmentFormats.data(),
-
-        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
-        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED,
-    };
-
-    ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForVulkan(window, true);
-
-    // Load functions since we are using volk,
-    // and not the built-in vulkan loader
-    ImGui_ImplVulkan_LoadFunctions(
-        [](char const* functionName, void* vkInstance)
-    {
-        return vkGetInstanceProcAddr(
-            *(reinterpret_cast<VkInstance*>(vkInstance)), functionName
-        );
-    },
-        const_cast<VkInstance*>(&instance)
-    );
-
-    // This amount is recommended by ImGui to satisfy validation layers, even if
-    // a little wasteful
-    VkDeviceSize constexpr IMGUI_MIN_ALLOCATION_SIZE{1024ULL * 1024ULL};
-
-    auto const checkVkResult_imgui{
-        [](VkResult const result)
-    {
-        if (result == VK_SUCCESS)
-        {
-            return;
-        }
-
-        SZG_ERROR(
-            "Dear ImGui Detected Vulkan Error : {}", string_VkResult(result)
-        );
-    },
-    };
-
-    ImGui_ImplVulkan_InitInfo initInfo{
-        .Instance = instance,
-        .PhysicalDevice = physicalDevice,
-        .Device = device,
-
-        .QueueFamily = graphicsQueueFamily,
-        .Queue = graphicsQueue,
-
-        .DescriptorPool = imguiDescriptorPool,
-
-        .MinImageCount = 3,
-        .ImageCount = 3,
-        .MSAASamples = VK_SAMPLE_COUNT_1_BIT, // No MSAA
-
-        // Dynamic rendering
-        .UseDynamicRendering = true,
-        .PipelineRenderingCreateInfo = dynamicRenderingInfo,
-
-        // Allocation/Debug
-        .Allocator = nullptr,
-        .CheckVkResultFn = checkVkResult_imgui,
-        .MinAllocationSize = IMGUI_MIN_ALLOCATION_SIZE,
-    };
-
-    ImGui_ImplVulkan_Init(&initInfo);
-
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    SZG_INFO("ImGui initialized.");
-
-    return imguiDescriptorPool;
-}
-auto uiBegin(
-    syzygy::UIPreferences& preferences,
-    syzygy::UIPreferences const& defaultPreferences
-) -> UIResults
-{
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    syzygy::HUDState const hud{renderHUD(preferences)};
-
-    bool const reloadUI{
-        hud.applyPreferencesRequested || hud.resetPreferencesRequested
-    };
-    if (hud.resetPreferencesRequested)
-    {
-        preferences = defaultPreferences;
-    }
-    syzygy::DockingLayout dockingLayout{};
-
-    if (hud.rebuildLayoutRequested && hud.dockspaceID != 0)
-    {
-        dockingLayout =
-            buildDefaultMultiWindowLayout(hud.workArea, hud.dockspaceID);
-    }
-
-    return {
-        .hud = hud,
-        .dockingLayout = dockingLayout,
-        .reloadRequested = reloadUI,
-    };
-}
-auto uiRecordDraw(
-    VkCommandBuffer const cmd,
-    syzygy::SceneTexture& sceneTexture,
-    syzygy::ImageView& windowTexture
-) -> VkRect2D
-{
-    sceneTexture.texture().recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
-    windowTexture.recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    );
-
-    ImDrawData* const drawData{ImGui::GetDrawData()};
-
-    VkRect2D renderedArea{
-        .offset{VkOffset2D{
-            .x = static_cast<int32_t>(drawData->DisplayPos.x),
-            .y = static_cast<int32_t>(drawData->DisplayPos.y),
-        }},
-        .extent{VkExtent2D{
-            .width = static_cast<uint32_t>(drawData->DisplaySize.x),
-            .height = static_cast<uint32_t>(drawData->DisplaySize.y),
-        }},
-    };
-
-    VkRenderingAttachmentInfo const colorAttachmentInfo{
-        syzygy::renderingAttachmentInfo(
-            windowTexture.view(), VK_IMAGE_LAYOUT_GENERAL
-        )
-    };
-    std::vector<VkRenderingAttachmentInfo> const colorAttachments{
-        colorAttachmentInfo
-    };
-    VkRenderingInfo const renderingInfo{
-        syzygy::renderingInfo(renderedArea, colorAttachments, nullptr)
-    };
-    vkCmdBeginRendering(cmd, &renderingInfo);
-
-    ImGui_ImplVulkan_RenderDrawData(drawData, cmd);
-
-    vkCmdEndRendering(cmd);
-
-    return renderedArea;
-}
-void uiEnd() { ImGui::Render(); }
-void uiCleanup()
-{
-    ImPlot::DestroyContext();
-
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-}
-// Resets the ImGui style and reloads other resources like fonts, then
-// builds a new style from the passed preferences.
-void uiReload(VkDevice const device, syzygy::UIPreferences const preferences)
-{
-    float constexpr FONT_BASE_SIZE{13.0F};
-
-    ImGui::GetIO().Fonts->Clear();
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(
-        syzygy::ensureAbsolutePath("assets/proggyfonts/ProggyClean.ttf")
-            .string()
-            .c_str(),
-        FONT_BASE_SIZE * preferences.dpiScale
-    );
-
-    // Wait for idle since we are modifying backend resources
-    vkDeviceWaitIdle(device);
-    // We destroy this to later force a rebuild when the fonts are needed.
-    ImGui_ImplVulkan_DestroyFontsTexture();
-
-    // TODO: is rebuilding the font with a specific scale good?
-    // ImGui recommends building fonts at various sizes then just
-    // selecting them
-
-    // Reset style so further scaling works off the base "1.0x" scaling
-    ImGui::GetStyle() = ImGuiStyle{};
-    ImGui::StyleColorsDark();
-
-    ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
-}
 } // namespace
 
 namespace syzygy
@@ -612,65 +403,8 @@ auto run() -> EditorResult
     GraphicsContext& graphicsContext{resourcesResult.value().graphics};
     Swapchain& swapchain{resourcesResult.value().swapchain};
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
-
-    // Init input before imgui so it properly chains our callbacks
-    std::optional<InputHandler> inputHandlerResult{
-        InputHandler::create(mainWindow)
-    };
-    if (!inputHandlerResult.has_value())
-    {
-        SZG_ERROR("Unable to initialize input handler.");
-        return EditorResult::ERROR;
-    }
-    InputHandler& inputHandler{inputHandlerResult.value()};
-
-    VkDescriptorPool const imguiPool{uiInit(
-        graphicsContext.instance(),
-        graphicsContext.physicalDevice(),
-        graphicsContext.device(),
-        graphicsContext.universalQueueFamily(),
-        graphicsContext.universalQueue(),
-        mainWindow.handle()
-    )};
-
-    // We oversize textures and use resizable subregion
-    VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
-    std::optional<SceneTexture> sceneTextureResult{SceneTexture::create(
-        graphicsContext.device(),
-        graphicsContext.allocator(),
-        graphicsContext.descriptorAllocator(),
-        TEXTURE_MAX,
-        VK_FORMAT_R16G16B16A16_SFLOAT
-    )};
-    if (!sceneTextureResult.has_value())
-    {
-        SZG_ERROR("Failed to allocate scene texture");
-        return EditorResult::ERROR;
-    }
-    std::optional<std::unique_ptr<ImageView>> windowTextureResult{
-        ImageView::allocate(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            ImageAllocationParameters{
-                .extent = TEXTURE_MAX,
-                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                .usageFlags =
-                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT        // copy to swapchain
-                    | VK_IMAGE_USAGE_TRANSFER_DST_BIT      // copy from syzygy
-                    | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
-
-            },
-            ImageViewAllocationParameters{
-                .subresourceRange =
-                    imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
-            }
-        )
-    };
-    if (!windowTextureResult.has_value())
-    {
-        SZG_ERROR("Failed to allocate window texture.");
-        return EditorResult::ERROR;
-    }
+    InputHandler& inputHandler{resourcesResult.value().inputHandler};
+    UILayer& uiLayer{resourcesResult.value().uiLayer};
 
     ImmediateSubmissionQueue submissionQueue{};
     if (auto result{ImmediateSubmissionQueue::create(
@@ -738,14 +472,11 @@ auto run() -> EditorResult
         graphicsContext.device(), graphicsContext.allocator(), meshAssets
     )};
 
-    SceneTexture& sceneTexture = sceneTextureResult.value();
-    ImageView& windowTexture = *windowTextureResult.value();
-
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
         graphicsContext.descriptorAllocator(),
-        sceneTexture
+        uiLayer.sceneTextureLayout().value_or(VK_NULL_HANDLE)
     )};
     if (!rendererResult.has_value())
     {
@@ -753,10 +484,6 @@ auto run() -> EditorResult
         return EditorResult::ERROR;
     }
     Renderer& renderer{rendererResult.value()};
-
-    UIPreferences uiPreferences{};
-    bool uiReloadNecessary{false};
-    uiReload(graphicsContext.device(), uiPreferences);
 
     double timeSecondsPrevious{0.0};
     RingBuffer fpsHistory{};
@@ -813,82 +540,77 @@ auto run() -> EditorResult
             return EditorResult::ERROR;
         }
 
-        if (uiReloadNecessary)
-        {
-            uiReload(graphicsContext.device(), uiPreferences);
-        }
+        DockingLayout const& dockingLayout{uiLayer.begin()};
 
-        UIResults const uiResults{uiBegin(uiPreferences, UIPreferences{})};
-        uiReloadNecessary = uiResults.reloadRequested;
-        renderer.uiEngineControls(uiResults.dockingLayout);
+        renderer.uiEngineControls(dockingLayout);
         performanceWindow(
             "Engine Performance",
-            uiResults.dockingLayout.centerBottom,
+            dockingLayout.centerBottom,
             fpsHistory,
             fpsTarget
         );
-        WindowResult<std::optional<SceneViewport>> const sceneViewport{
-            sceneViewportWindow(
-                "Scene Viewport",
-                uiResults.dockingLayout.centerTop,
-                uiResults.hud.maximizeSceneViewport
-                    ? uiResults.hud.workArea
-                    : std::optional<UIRectangle>{},
-                sceneTexture,
-                inputCapturedByScene
-            )
+
+        std::optional<SceneViewport> sceneViewport{
+            uiLayer.sceneViewport(inputCapturedByScene)
         };
-        if (!inputCapturedByScene)
+
+        if (inputCapturedByScene
+            && (!sceneViewport.has_value()
+                || inputSnapshot.keys.getStatus(KeyCode::TAB).pressed()))
         {
-            if (sceneViewport.focused)
-            {
-                ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
-                inputHandler.setCursorCaptured(true);
-                ImGui::SetWindowFocus(nullptr);
-                inputCapturedByScene = true;
-            }
+            uiLayer.setCursorEnabled(true);
+            inputHandler.setCursorCaptured(false);
+            inputCapturedByScene = false;
         }
-        else
+        if (!inputCapturedByScene && sceneViewport.has_value()
+            && sceneViewport.value().focused)
         {
-            if (inputSnapshot.keys.getStatus(KeyCode::TAB).pressed())
-            {
-                ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-                inputHandler.setCursorCaptured(false);
-                ImGui::SetWindowFocus(nullptr);
-                inputCapturedByScene = false;
-            }
+            uiLayer.setCursorEnabled(false);
+            inputHandler.setCursorCaptured(true);
+            inputCapturedByScene = true;
         }
 
+        if (TextureDisplay::UIResult const textureDisplayResult{
+                testImageWidget->uiRender(
+                    "Texture Viewer",
+                    dockingLayout.right,
+                    currentFrame.mainCommandBuffer,
+                    assetLibrary.fetchAssets()
+                )
+            };
+            textureDisplayResult.loadTexturesRequested)
         {
-            auto const textureDisplayResult{testImageWidget->uiRender(
-                "Texture Viewer",
-                uiResults.dockingLayout.right,
-                currentFrame.mainCommandBuffer,
-                assetLibrary.fetchAssets()
-            )};
-            if (textureDisplayResult.loadTexturesRequested)
-            {
-                assetLibrary.loadTexturesDialog(
-                    mainWindow, graphicsContext, submissionQueue
-                );
-            }
+            assetLibrary.loadTexturesDialog(
+                mainWindow, graphicsContext, submissionQueue
+            );
         }
 
         sceneControlsWindow(
-            "Default Scene", uiResults.dockingLayout.left, scene, meshAssets
-        );
-        uiEnd();
-
-        renderer.recordDraw(
-            currentFrame.mainCommandBuffer,
-            scene,
-            sceneTexture,
-            sceneViewport.payload
+            "Default Scene", dockingLayout.left, scene, meshAssets
         );
 
-        VkRect2D const windowTextureDrawArea{uiRecordDraw(
-            currentFrame.mainCommandBuffer, sceneTexture, windowTexture
-        )};
+        uiLayer.end();
+
+        if (sceneViewport.has_value())
+        {
+            renderer.recordDraw(
+                currentFrame.mainCommandBuffer,
+                scene,
+                sceneViewport.value().texture,
+                sceneViewport.value().renderedSubregion
+            );
+        }
+
+        std::optional<UIOutputImage> uiOutput{
+            uiLayer.recordDraw(currentFrame.mainCommandBuffer)
+        };
+        if (!uiOutput.has_value())
+        {
+            // TODO: make this not a fatal error, but that requires better
+            // handling on frame resources like the open command buffer
+            SZG_ERROR("UI Layer did not have output image.");
+            return EditorResult::ERROR;
+        }
 
         if (VkResult const endFrameResult{endFrame(
                 currentFrame,
@@ -896,8 +618,8 @@ auto run() -> EditorResult
                 graphicsContext.device(),
                 graphicsContext.universalQueue(),
                 currentFrame.mainCommandBuffer,
-                windowTexture.image(),
-                windowTextureDrawArea
+                uiOutput.value().texture.get().image(),
+                uiOutput.value().renderedSubregion
             )};
             endFrameResult != VK_SUCCESS)
         {
@@ -927,8 +649,6 @@ auto run() -> EditorResult
     }
 
     vkDeviceWaitIdle(graphicsContext.device());
-    uiCleanup();
-    vkDestroyDescriptorPool(graphicsContext.device(), imguiPool, nullptr);
 
     return EditorResult::SUCCESS;
 }

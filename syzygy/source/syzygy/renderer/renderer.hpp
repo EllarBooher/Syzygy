@@ -7,7 +7,6 @@
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
-#include "syzygy/renderer/scenetexture.hpp"
 #include <memory>
 #include <optional>
 
@@ -18,6 +17,7 @@ struct AtmospherePacked;
 struct CameraPacked;
 struct Scene;
 struct DockingLayout;
+struct SceneTexture;
 } // namespace syzygy
 
 namespace syzygy
@@ -41,7 +41,7 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        syzygy::SceneTexture const& sceneTexture
+        VkDescriptorSetLayout computeImageDescriptorLayout
     ) -> std::optional<Renderer>;
 
     // TODO: Remove this, but WORLD_RIGHT now relies on internal state.
@@ -51,7 +51,7 @@ public:
         VkCommandBuffer,
         syzygy::Scene const& scene,
         syzygy::SceneTexture& sceneTexture,
-        std::optional<syzygy::SceneViewport> const& sceneViewport
+        VkRect2D sceneSubregion
     );
 
 private:
@@ -59,7 +59,7 @@ private:
         VkCommandBuffer cmd,
         uint32_t cameraIndex,
         syzygy::SceneTexture& sceneTexture,
-        syzygy::SceneViewport const& sceneViewport,
+        VkRect2D sceneSubregion,
         TStagedBuffer<syzygy::CameraPacked> const& camerasBuffer
     );
 
@@ -72,7 +72,15 @@ private:
     void
     initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
 
-    void initGenericComputePipelines(VkDevice, syzygy::SceneTexture const&);
+    // TODO: This should be changed. Passing the layout is wrong since the
+    // pipeline/shaders know what layout they want. Compatibility with the
+    // passed set should be checked at rendering time.
+
+    // imageDescriptorLayout is the layout of the set that will be bound at
+    // rendering time, containing the image that is drawn to
+    void initGenericComputePipelines(
+        VkDevice, VkDescriptorSetLayout imageDescriptorLayout
+    );
 
     VkDevice m_device{VK_NULL_HANDLE};
     VmaAllocator m_allocator{VK_NULL_HANDLE};

@@ -7,6 +7,7 @@
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/scene.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
@@ -418,7 +419,7 @@ auto sceneViewportWindow(
     std::optional<UIRectangle> maximizeArea,
     SceneTexture const& texture,
     bool const focused
-) -> WindowResult<std::optional<SceneViewport>>
+) -> WindowResult<std::optional<VkRect2D>>
 {
     size_t pushedStyleColors{0};
     if (focused)
@@ -475,21 +476,18 @@ auto sceneViewportWindow(
 
     ImGui::PopStyleColor(pushedStyleColors);
 
+    VkRect2D const renderedSubregion{
+        .offset = {0, 0},
+        .extent =
+            VkExtent2D{
+                .width = static_cast<uint32_t>(contentExtent.x),
+                .height = static_cast<uint32_t>(contentExtent.y),
+            }
+    };
+
     return {
         .focused = clicked,
-        .payload =
-            SceneViewport{
-                .rect =
-                    VkRect2D{
-                        .offset = {0, 0},
-                        .extent =
-                            VkExtent2D{
-                                .width = static_cast<uint32_t>(contentExtent.x),
-                                .height =
-                                    static_cast<uint32_t>(contentExtent.y),
-                            }
-                    }
-            }
+        .payload = renderedSubregion,
     };
 }
 } // namespace syzygy

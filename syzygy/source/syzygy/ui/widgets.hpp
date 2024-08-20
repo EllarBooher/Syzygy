@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/renderer/scenetexture.hpp"
+#include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
 #include <optional>
@@ -9,6 +9,7 @@
 namespace syzygy
 {
 struct Scene;
+struct SceneTexture;
 struct MeshAssetLibrary;
 struct RingBuffer;
 } // namespace syzygy
@@ -44,5 +45,5 @@ auto sceneViewportWindow(
     std::optional<UIRectangle> maximizeArea,
     syzygy::SceneTexture const& texture,
     bool focused
-) -> WindowResult<std::optional<syzygy::SceneViewport>>;
+) -> WindowResult<std::optional<VkRect2D>>;
 } // namespace syzygy

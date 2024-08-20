@@ -85,7 +85,7 @@ auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    SceneTexture const& sceneTexture
+    VkDescriptorSetLayout const computeImageDescriptorLayout
 ) -> std::optional<Renderer>
 {
     std::optional<Renderer> rendererResult{Renderer{}};
@@ -98,7 +98,7 @@ auto Renderer::create(
 
     renderer.initWorld(device, allocator);
     renderer.initDebug(device, allocator);
-    renderer.initGenericComputePipelines(device, sceneTexture);
+    renderer.initGenericComputePipelines(device, computeImageDescriptorLayout);
 
     renderer.initDeferredShadingPipeline(
         device, allocator, descriptorAllocator
@@ -207,7 +207,7 @@ void Renderer::initDeferredShadingPipeline(
 }
 
 void Renderer::initGenericComputePipelines(
-    VkDevice const device, SceneTexture const& sceneTexture
+    VkDevice const device, VkDescriptorSetLayout const imageDescriptorLayout
 )
 {
     std::vector<std::string> const shaderPaths{
@@ -217,7 +217,7 @@ void Renderer::initGenericComputePipelines(
         "shaders/matrix_color.comp.spv"
     };
     m_genericComputePipeline = std::make_unique<ComputeCollectionPipeline>(
-        device, sceneTexture.singletonLayout(), shaderPaths
+        device, imageDescriptorLayout, shaderPaths
     );
 }
 
@@ -253,19 +253,19 @@ void Renderer::recordDraw(
     VkCommandBuffer const cmd,
     Scene const& scene,
     SceneTexture& sceneTexture,
-    std::optional<SceneViewport> const& sceneViewport
+    VkRect2D const sceneSubregion
 )
 {
     // Begin syzygy drawing
 
     m_debugLines.clear();
-    if (!sceneViewport.has_value())
+    if (sceneSubregion.extent.width <= 0 || sceneSubregion.extent.height <= 0)
     {
         return;
     }
 
     std::optional<double> const viewportAspectRatioResult{
-        aspectRatio(sceneViewport.value().rect.extent)
+        aspectRatio(sceneSubregion.extent)
     };
     if (!viewportAspectRatioResult.has_value())
     {
@@ -330,7 +330,7 @@ void Renderer::recordDraw(
 
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
-                sceneViewport.value().rect,
+                sceneSubregion,
                 sceneTexture.texture().image(),
                 *m_sceneDepthTexture,
                 directionalLights,
@@ -354,11 +354,7 @@ void Renderer::recordDraw(
             );
 
             recordDrawDebugLines(
-                cmd,
-                cameraIndex,
-                sceneTexture,
-                sceneViewport.value(),
-                *m_camerasBuffer
+                cmd, cameraIndex, sceneTexture, sceneSubregion, *m_camerasBuffer
             );
 
             break;
@@ -366,9 +362,7 @@ void Renderer::recordDraw(
         case RenderingPipelines::COMPUTE_COLLECTION:
         {
             m_genericComputePipeline->recordDrawCommands(
-                cmd,
-                sceneTexture.singletonDescriptor(),
-                sceneViewport.value().rect.extent
+                cmd, sceneTexture.singletonDescriptor(), sceneSubregion.extent
             );
 
             break;
@@ -383,7 +377,7 @@ void Renderer::recordDrawDebugLines(
     VkCommandBuffer const cmd,
     uint32_t const cameraIndex,
     SceneTexture& sceneTexture,
-    SceneViewport const& sceneViewport,
+    VkRect2D const sceneSubregion,
     TStagedBuffer<CameraPacked> const& camerasBuffer
 )
 {
@@ -398,7 +392,7 @@ void Renderer::recordDrawDebugLines(
                 cmd,
                 false,
                 m_debugLines.lineWidth,
-                sceneViewport.rect,
+                sceneSubregion,
                 sceneTexture.texture(),
                 *m_sceneDepthTexture,
                 cameraIndex,

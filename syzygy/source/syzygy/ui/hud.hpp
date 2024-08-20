@@ -7,7 +7,9 @@ namespace syzygy
 {
 struct UIPreferences
 {
-    float dpiScale{2.0F};
+    static float constexpr DEFAULT_DPI_SCALE{2.0F};
+
+    float dpiScale{DEFAULT_DPI_SCALE};
 };
 
 struct HUDState

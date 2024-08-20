@@ -80,9 +80,4 @@ private:
 
     VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 };
-
-struct SceneViewport
-{
-    VkRect2D rect;
-};
 } // namespace syzygy
