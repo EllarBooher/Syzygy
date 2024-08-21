@@ -104,6 +104,8 @@ public:
         {
             return m_meshes.empty();
         }
+
+        return true;
     }
 
     void loadTexturesDialog(
