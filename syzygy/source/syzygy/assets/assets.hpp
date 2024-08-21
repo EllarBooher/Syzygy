@@ -120,6 +120,8 @@ public:
         ImmediateSubmissionQueue& submissionQueue
     );
 
+    void loadDefaultAssets(GraphicsContext&, ImmediateSubmissionQueue&);
+
 private:
     std::vector<Asset<Image>> m_textures{};
     std::vector<Asset<MeshAsset>> m_meshes{};

@@ -670,4 +670,67 @@ void AssetLibrary::loadMeshesDialog(
         );
     }
 }
+void AssetLibrary::loadDefaultAssets(
+    GraphicsContext& graphicsContext, ImmediateSubmissionQueue& submissionQueue
+)
+{
+    std::filesystem::path const assetsRoot{ensureAbsolutePath("assets")};
+    if (!std::filesystem::exists(assetsRoot))
+    {
+        SZG_WARNING(
+            "Default assets folder was NOT found in the working directory."
+        );
+        return;
+    }
+
+    SZG_INFO(
+        "Default assets folder found, now attempting to load default scene."
+    );
+
+    std::filesystem::path const meshPath{assetsRoot / "vkguide/basicmesh.glb"};
+
+    auto meshLoadResult{loadGltfMeshes(
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        graphicsContext.universalQueue(),
+        submissionQueue,
+        meshPath
+    )};
+    if (!meshLoadResult.has_value())
+    {
+        SZG_WARNING("Unable to load glTF for default mesh.");
+        return;
+    }
+
+    size_t loadedMeshes{0};
+
+    for (auto& pMesh : meshLoadResult.value())
+    {
+        if (pMesh == nullptr)
+        {
+            continue;
+        }
+        MeshAsset& mesh{*pMesh};
+
+        assert(pMesh.use_count() <= 1);
+        m_meshes.push_back(Asset<MeshAsset>{
+            .metadata =
+                AssetMetadata{
+                    .displayName = mesh.name,
+                    .fileLocalPath = meshPath.string(),
+                    .id = UUID::createNew()
+                },
+            .data = pMesh,
+        });
+        loadedMeshes++;
+    }
+
+    if (loadedMeshes == 0)
+    {
+        SZG_WARNING("No meshes found in default glTF");
+        return;
+    }
+
+    SZG_INFO("Loaded {} meshes.", loadedMeshes);
+}
 } // namespace syzygy

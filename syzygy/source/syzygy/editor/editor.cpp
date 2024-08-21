@@ -421,6 +421,7 @@ auto run() -> EditorResult
     }
 
     AssetLibrary assetLibrary{};
+    assetLibrary.loadDefaultAssets(graphicsContext, submissionQueue);
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<TextureDisplay> testImageWidget{};
@@ -446,9 +447,20 @@ auto run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    Scene scene{Scene::defaultScene(
-        graphicsContext.device(), graphicsContext.allocator(), std::nullopt
-    )};
+    Scene scene{};
+    {
+        auto const loadedMeshes{assetLibrary.fetchAssets<MeshAsset>()};
+
+        std::optional<AssetRef<MeshAsset>> initialMesh{};
+        if (!loadedMeshes.empty())
+        {
+            initialMesh = loadedMeshes[0];
+        }
+
+        scene = Scene::defaultScene(
+            graphicsContext.device(), graphicsContext.allocator(), initialMesh
+        );
+    }
 
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
