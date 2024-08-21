@@ -309,6 +309,8 @@ auto UILayer::begin() -> syzygy::DockingLayout const&
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    m_open = true;
+
     m_currentHUD = renderHUD(m_currentPreferences);
 
     m_reloadNecessary = m_currentHUD.applyPreferencesRequested
@@ -327,6 +329,34 @@ auto UILayer::begin() -> syzygy::DockingLayout const&
     }
 
     return m_currentDockingLayout;
+}
+
+auto UILayer::HUDMenuItem(std::string const& menu, std::string const& item)
+    -> bool
+{
+    if (!m_open)
+    {
+        SZG_WARNING("UILayer method called while UI frame is not open.");
+        return false;
+    }
+
+    bool clicked{};
+
+    ImGui::Begin("BackgroundWindow");
+
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::BeginMenu("Tools"))
+        {
+            clicked = ImGui::MenuItem("Load Mesh (.glTF)");
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
+    ImGui::End();
+
+    return clicked;
 }
 
 auto UILayer::sceneTextureLayout() const -> std::optional<VkDescriptorSetLayout>
@@ -389,8 +419,18 @@ void UILayer::setCursorEnabled(bool const enabled, bool const breakWindowFocus)
     }
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void UILayer::end() { ImGui::Render(); }
+void UILayer::end()
+{
+    if (!m_open)
+    {
+        SZG_ERROR("UILayer::end() called without matching UILayer::open().");
+        return;
+    };
+
+    ImGui::Render();
+
+    m_open = false;
+}
 auto UILayer::recordDraw(VkCommandBuffer const cmd)
     -> std::optional<UIOutputImage>
 {

@@ -136,7 +136,7 @@ struct Scene
     SceneBounds bounds{};
 
     static auto defaultScene(
-        VkDevice, VmaAllocator, std::span<AssetRef<MeshAsset> const> meshes
+        VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh
     ) -> Scene;
     void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);

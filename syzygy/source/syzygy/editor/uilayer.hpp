@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 
 namespace syzygy
 {
@@ -64,6 +65,8 @@ public:
 
     auto begin() -> syzygy::DockingLayout const&;
 
+    auto HUDMenuItem(std::string const& menu, std::string const& item) -> bool;
+
     [[nodiscard]] auto sceneTextureLayout() const
         -> std::optional<VkDescriptorSetLayout>;
 
@@ -86,6 +89,7 @@ private:
 
     VkDescriptorPool m_imguiPool{VK_NULL_HANDLE};
 
+    bool m_open{false};
     HUDState m_currentHUD{};
     DockingLayout m_currentDockingLayout{};
 

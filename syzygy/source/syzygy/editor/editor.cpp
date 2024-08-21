@@ -421,12 +421,6 @@ auto run() -> EditorResult
     }
 
     AssetLibrary assetLibrary{};
-    assetLibrary.loadMeshesDialog(mainWindow, graphicsContext, submissionQueue);
-    if (assetLibrary.empty<MeshAsset>())
-    {
-        SZG_ERROR("Failed to load any meshes.");
-        return EditorResult::ERROR;
-    }
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<TextureDisplay> testImageWidget{};
@@ -453,9 +447,7 @@ auto run() -> EditorResult
 
     bool inputCapturedByScene{false};
     Scene scene{Scene::defaultScene(
-        graphicsContext.device(),
-        graphicsContext.allocator(),
-        assetLibrary.fetchAssets<MeshAsset>()
+        graphicsContext.device(), graphicsContext.allocator(), std::nullopt
     )};
 
     std::optional<Renderer> rendererResult{Renderer::create(
@@ -527,6 +519,12 @@ auto run() -> EditorResult
         }
 
         DockingLayout const& dockingLayout{uiLayer.begin()};
+        if (uiLayer.HUDMenuItem("Tools", "Load Mesh (.glTF)"))
+        {
+            assetLibrary.loadMeshesDialog(
+                mainWindow, graphicsContext, submissionQueue
+            );
+        }
 
         renderer.uiEngineControls(dockingLayout);
         performanceWindow(
