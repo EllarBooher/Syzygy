@@ -35,14 +35,6 @@ struct MeshAsset
     std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
 };
 
-auto loadGltfMeshes(
-    VkDevice,
-    VmaAllocator,
-    VkQueue transferQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
-    std::filesystem::path const& path
-) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>;
-
 struct AssetFile
 {
     std::filesystem::path path{};
@@ -51,6 +43,7 @@ struct AssetFile
 
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>;
+
 struct AssetMetadata
 {
     std::string displayName{};
@@ -108,37 +101,39 @@ public:
         return true;
     }
 
+    auto loadTextureFromPath(
+        VkDevice,
+        VmaAllocator,
+        VkQueue,
+        ImmediateSubmissionQueue const&,
+        std::filesystem::path const& filePath,
+        VkImageUsageFlags const additionalFlags
+    ) -> std::optional<syzygy::Asset<syzygy::Image>>;
+
     void loadTexturesDialog(
         PlatformWindow const&,
         GraphicsContext&,
-        ImmediateSubmissionQueue& submissionQueue
+        ImmediateSubmissionQueue const& submissionQueue
+    );
+
+    void loadMeshesFromPath(
+        GraphicsContext&,
+        ImmediateSubmissionQueue const&,
+        std::filesystem::path const& filePath
     );
 
     void loadMeshesDialog(
         PlatformWindow const&,
         GraphicsContext&,
-        ImmediateSubmissionQueue& submissionQueue
+        ImmediateSubmissionQueue const& submissionQueue
     );
 
-    void loadDefaultAssets(GraphicsContext&, ImmediateSubmissionQueue&);
+    void loadDefaultAssets(
+        GraphicsContext&, ImmediateSubmissionQueue const& submissionQueue
+    );
 
 private:
     std::vector<Asset<Image>> m_textures{};
     std::vector<Asset<MeshAsset>> m_meshes{};
 };
-
-struct ImageRGBA
-{
-    uint32_t x{0};
-    uint32_t y{0};
-    std::vector<uint8_t> bytes{};
-};
-auto loadTextureFromFile(
-    VkDevice,
-    VmaAllocator,
-    VkQueue transferQueue,
-    ImmediateSubmissionQueue const&,
-    std::filesystem::path const& path,
-    VkImageUsageFlags additionalFlags
-) -> std::optional<Asset<syzygy::Image>>;
 } // namespace syzygy

@@ -33,6 +33,13 @@
 
 namespace
 {
+struct ImageRGBA
+{
+    uint32_t x{0};
+    uint32_t y{0};
+    std::vector<uint8_t> bytes{};
+};
+
 auto uploadMeshToGPU(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -130,7 +137,7 @@ auto uploadMeshToGPU(
 }
 
 auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
-    -> std::optional<syzygy::ImageRGBA>
+    -> std::optional<ImageRGBA>
 {
     int32_t x{0};
     int32_t y{0};
@@ -175,9 +182,7 @@ auto RGBAfromJPEG_stbi(std::span<uint8_t const> const jpegBytes)
 
     delete parsedImage;
 
-    return syzygy::ImageRGBA{
-        .x = widthPixels, .y = heightPixels, .bytes = rgba
-    };
+    return ImageRGBA{.x = widthPixels, .y = heightPixels, .bytes = rgba};
 }
 
 auto uploadImageToGPU(
@@ -187,7 +192,7 @@ auto uploadImageToGPU(
     syzygy::ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const format,
     VkImageUsageFlags const additionalFlags,
-    syzygy::ImageRGBA const& image
+    ImageRGBA const& image
 ) -> std::optional<std::unique_ptr<syzygy::Image>>
 {
     VkExtent2D const imageExtent{.width = image.x, .height = image.y};
@@ -281,19 +286,15 @@ auto uploadImageToGPU(
 
     return std::move(finalImageResult).value();
 }
-} // namespace
-
-namespace syzygy
-{
 auto loadGltfMeshes(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    ImmediateSubmissionQueue const& submissionQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& path
-) -> std::optional<std::vector<std::shared_ptr<MeshAsset>>>
+) -> std::optional<std::vector<std::shared_ptr<syzygy::MeshAsset>>>
 {
-    std::filesystem::path const assetPath{ensureAbsolutePath(path)};
+    std::filesystem::path const assetPath{syzygy::ensureAbsolutePath(path)};
 
     SZG_INFO("Loading glTF: {}", assetPath.string());
 
@@ -319,18 +320,18 @@ auto loadGltfMeshes(
     }
     fastgltf::Asset const gltf{std::move(load.get())};
 
-    std::vector<std::shared_ptr<MeshAsset>> newMeshes{};
+    std::vector<std::shared_ptr<syzygy::MeshAsset>> newMeshes{};
     for (fastgltf::Mesh const& mesh : gltf.meshes)
     {
         std::vector<uint32_t> indices{};
-        std::vector<VertexPacked> vertices{};
+        std::vector<syzygy::VertexPacked> vertices{};
 
-        std::vector<GeometrySurface> surfaces{};
+        std::vector<syzygy::GeometrySurface> surfaces{};
 
         // Proliferate indices and vertices
         for (auto&& primitive : mesh.primitives)
         {
-            surfaces.push_back(GeometrySurface{
+            surfaces.push_back(syzygy::GeometrySurface{
                 .firstIndex = static_cast<uint32_t>(indices.size()),
                 .indexCount = static_cast<uint32_t>(
                     gltf.accessors[primitive.indicesAccessor.value()].count
@@ -365,7 +366,7 @@ auto loadGltfMeshes(
                     positionAccessor,
                     [&](glm::vec3 position, size_t /*index*/)
                 {
-                    vertices.push_back(VertexPacked{
+                    vertices.push_back(syzygy::VertexPacked{
                         .position = position,
                         .uv_x = 0.0F,
                         .normal = glm::vec3{1, 0, 0},
@@ -424,7 +425,7 @@ auto loadGltfMeshes(
         bool constexpr DEBUG_OVERRIDE_COLORS{false};
         if (DEBUG_OVERRIDE_COLORS)
         {
-            for (VertexPacked& vertex : vertices)
+            for (syzygy::VertexPacked& vertex : vertices)
             {
                 vertex.color = glm::vec4(vertex.normal, 1.0F);
             }
@@ -433,48 +434,30 @@ auto loadGltfMeshes(
         bool constexpr FLIP_Y{true};
         if (FLIP_Y)
         {
-            for (VertexPacked& vertex : vertices)
+            for (syzygy::VertexPacked& vertex : vertices)
             {
                 vertex.normal.y *= -1;
                 vertex.position.y *= -1;
             }
         }
 
-        newMeshes.push_back(std::make_shared<MeshAsset>(MeshAsset{
-            .name = std::string{mesh.name},
-            .surfaces = surfaces,
-            .meshBuffers = uploadMeshToGPU(
-                device,
-                allocator,
-                transferQueue,
-                submissionQueue,
-                indices,
-                vertices
-            ),
-        }));
+        newMeshes.push_back(
+            std::make_shared<syzygy::MeshAsset>(syzygy::MeshAsset{
+                .name = std::string{mesh.name},
+                .surfaces = surfaces,
+                .meshBuffers = uploadMeshToGPU(
+                    device,
+                    allocator,
+                    transferQueue,
+                    submissionQueue,
+                    indices,
+                    vertices
+                ),
+            })
+        );
     }
 
     return newMeshes;
-}
-} // namespace syzygy
-
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-
-namespace
-{
-auto ensureAbsolute(
-    std::filesystem::path const& relative, std::filesystem::path const& root
-) -> std::filesystem::path
-{
-    if (relative.is_absolute())
-    {
-        return relative;
-    }
-
-    return root / relative;
 }
 } // namespace
 
@@ -483,8 +466,7 @@ namespace syzygy
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
-    auto const workingDir{std::filesystem::current_path()};
-    std::filesystem::path const assetPath{ensureAbsolute(path, workingDir)};
+    std::filesystem::path const assetPath{syzygy::ensureAbsolutePath(path)};
     std::ifstream file(path, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
@@ -516,20 +498,20 @@ auto loadAssetFile(std::filesystem::path const& path)
     };
 }
 
-auto loadTextureFromFile(
+auto AssetLibrary::loadTextureFromPath(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    ImmediateSubmissionQueue const& submissionQueue,
-    std::filesystem::path const& path,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    std::filesystem::path const& filePath,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<Asset<Image>>
+) -> std::optional<syzygy::Asset<syzygy::Image>>
 {
-    SZG_INFO("Loading Texture from '{}'", path.string());
-    std::optional<AssetFile> const fileResult{loadAssetFile(path)};
+    SZG_INFO("Loading Texture from '{}'", filePath.string());
+    std::optional<AssetFile> const fileResult{loadAssetFile(filePath)};
     if (!fileResult.has_value())
     {
-        SZG_ERROR("Failed to load file for texture at '{}'", path.string());
+        SZG_ERROR("Failed to load file for texture at '{}'", filePath.string());
         return std::nullopt;
     }
 
@@ -549,7 +531,7 @@ auto loadTextureFromFile(
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<Image>> uploadResult{uploadImageToGPU(
+    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
         device,
         allocator,
         transferQueue,
@@ -564,21 +546,23 @@ auto loadTextureFromFile(
         return std::nullopt;
     }
 
-    return std::optional<Asset<Image>>{Asset<Image>{
-        .metadata =
-            AssetMetadata{
-                .displayName = file.path.filename().string(),
-                .fileLocalPath = file.path.string(),
-                .id = syzygy::UUID::createNew(),
-            },
-        .data = std::move(uploadResult).value(),
-    }};
+    return std::optional<syzygy::Asset<syzygy::Image>>{
+        syzygy::Asset<syzygy::Image>{
+            .metadata =
+                syzygy::AssetMetadata{
+                    .displayName = file.path.filename().string(),
+                    .fileLocalPath = file.path.string(),
+                    .id = syzygy::UUID::createNew(),
+                },
+            .data = std::move(uploadResult).value(),
+        }
+    };
 }
 
 void AssetLibrary::loadTexturesDialog(
     PlatformWindow const& window,
     GraphicsContext& graphicsContext,
-    ImmediateSubmissionQueue& submissionQueue
+    ImmediateSubmissionQueue const& submissionQueue
 )
 {
     auto const paths{openFiles(window)};
@@ -590,7 +574,7 @@ void AssetLibrary::loadTexturesDialog(
     size_t loaded{0};
     for (auto const& path : paths)
     {
-        auto textureLoadResult{loadTextureFromFile(
+        auto textureLoadResult{loadTextureFromPath(
             graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.universalQueue(),
@@ -612,34 +596,25 @@ void AssetLibrary::loadTexturesDialog(
         SZG_INFO("Loaded {} textures.", loaded);
     }
 }
-void AssetLibrary::loadMeshesDialog(
-    PlatformWindow const& window,
+
+void AssetLibrary::loadMeshesFromPath(
     GraphicsContext& graphicsContext,
-    ImmediateSubmissionQueue& submissionQueue
+    ImmediateSubmissionQueue const& submissionQueue,
+    std::filesystem::path const& filePath
 )
 {
-    auto const paths{openFiles(window)};
-    if (paths.empty())
-    {
-        return;
-    }
+    auto meshLoadResult{loadGltfMeshes(
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        graphicsContext.universalQueue(),
+        submissionQueue,
+        filePath
+    )};
 
-    size_t loadedFiles{0};
     size_t loadedMeshes{0};
-    for (auto const& path : paths)
-    {
-        auto meshLoadResult{loadGltfMeshes(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            path
-        )};
-        if (!meshLoadResult.has_value())
-        {
-            continue;
-        }
 
+    if (meshLoadResult.has_value())
+    {
         for (auto& pMesh : meshLoadResult.value())
         {
             if (pMesh == nullptr)
@@ -653,25 +628,39 @@ void AssetLibrary::loadMeshesDialog(
                 .metadata =
                     AssetMetadata{
                         .displayName = mesh.name,
-                        .fileLocalPath = path.string(),
+                        .fileLocalPath = filePath.string(),
                         .id = UUID::createNew()
                     },
                 .data = pMesh,
             });
             loadedMeshes++;
         }
-        loadedFiles++;
     }
 
-    if (loadedFiles > 0 || loadedMeshes > 0)
+    SZG_INFO("Loaded {} meshes from {}.", loadedMeshes, filePath.string());
+}
+
+void AssetLibrary::loadMeshesDialog(
+    PlatformWindow const& window,
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue const& submissionQueue
+)
+{
+    auto const paths{openFiles(window)};
+    if (paths.empty())
     {
-        SZG_INFO(
-            "Loaded {} meshes from {} valid files.", loadedMeshes, loadedFiles
-        );
+        return;
+    }
+
+    for (auto const& path : paths)
+    {
+        loadMeshesFromPath(graphicsContext, submissionQueue, path);
     }
 }
+
 void AssetLibrary::loadDefaultAssets(
-    GraphicsContext& graphicsContext, ImmediateSubmissionQueue& submissionQueue
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue const& submissionQueue
 )
 {
     std::filesystem::path const assetsRoot{ensureAbsolutePath("assets")};
@@ -687,50 +676,8 @@ void AssetLibrary::loadDefaultAssets(
         "Default assets folder found, now attempting to load default scene."
     );
 
-    std::filesystem::path const meshPath{assetsRoot / "vkguide/basicmesh.glb"};
+    std::filesystem::path const meshPath{assetsRoot / "vkguide\\basicmesh.glb"};
 
-    auto meshLoadResult{loadGltfMeshes(
-        graphicsContext.device(),
-        graphicsContext.allocator(),
-        graphicsContext.universalQueue(),
-        submissionQueue,
-        meshPath
-    )};
-    if (!meshLoadResult.has_value())
-    {
-        SZG_WARNING("Unable to load glTF for default mesh.");
-        return;
-    }
-
-    size_t loadedMeshes{0};
-
-    for (auto& pMesh : meshLoadResult.value())
-    {
-        if (pMesh == nullptr)
-        {
-            continue;
-        }
-        MeshAsset& mesh{*pMesh};
-
-        assert(pMesh.use_count() <= 1);
-        m_meshes.push_back(Asset<MeshAsset>{
-            .metadata =
-                AssetMetadata{
-                    .displayName = mesh.name,
-                    .fileLocalPath = meshPath.string(),
-                    .id = UUID::createNew()
-                },
-            .data = pMesh,
-        });
-        loadedMeshes++;
-    }
-
-    if (loadedMeshes == 0)
-    {
-        SZG_WARNING("No meshes found in default glTF");
-        return;
-    }
-
-    SZG_INFO("Loaded {} meshes.", loadedMeshes);
+    loadMeshesFromPath(graphicsContext, submissionQueue, meshPath);
 }
 } // namespace syzygy
