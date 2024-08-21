@@ -575,49 +575,99 @@ auto loadTextureFromFile(
     }};
 }
 
-void AssetLibrary::registerAsset(Asset<Image>&& asset)
-{
-    m_textures.push_back(std::move(asset));
-}
-
-auto AssetLibrary::fetchAssets() -> std::vector<AssetRef<Image>>
-{
-    std::vector<AssetRef<Image>> assets{};
-
-    assets.reserve(m_textures.size());
-    for (auto& texture : m_textures)
-    {
-        assets.emplace_back(texture);
-    }
-
-    return assets;
-}
-
 void AssetLibrary::loadTexturesDialog(
     PlatformWindow const& window,
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue& submissionQueue
 )
 {
-    if (auto const paths{openFiles(window)}; !paths.empty())
+    auto const paths{openFiles(window)};
+    if (paths.empty())
     {
-        for (auto const& path : paths)
+        return;
+    }
+
+    size_t loaded{0};
+    for (auto const& path : paths)
+    {
+        auto textureLoadResult{loadTextureFromFile(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.universalQueue(),
+            submissionQueue,
+            path,
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        )};
+        if (!textureLoadResult.has_value())
         {
-            auto textureLoadResult{loadTextureFromFile(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                path,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-            )};
-            if (!textureLoadResult.has_value())
+            continue;
+        }
+
+        m_textures.push_back(std::move(textureLoadResult).value());
+        loaded++;
+    }
+
+    if (loaded > 0)
+    {
+        SZG_INFO("Loaded {} textures.", loaded);
+    }
+}
+void AssetLibrary::loadMeshesDialog(
+    PlatformWindow const& window,
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue& submissionQueue
+)
+{
+    auto const paths{openFiles(window)};
+    if (paths.empty())
+    {
+        return;
+    }
+
+    size_t loadedFiles{0};
+    size_t loadedMeshes{0};
+    for (auto const& path : paths)
+    {
+        auto meshLoadResult{loadGltfMeshes(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.universalQueue(),
+            submissionQueue,
+            path
+        )};
+        if (!meshLoadResult.has_value())
+        {
+            continue;
+        }
+
+        for (auto& pMesh : meshLoadResult.value())
+        {
+            if (pMesh == nullptr)
             {
                 continue;
             }
+            MeshAsset& mesh{*pMesh};
 
-            registerAsset(std::move(textureLoadResult).value());
+            assert(pMesh.use_count() <= 1);
+            m_meshes.push_back(Asset<MeshAsset>{
+                .metadata =
+                    AssetMetadata{
+                        .displayName = mesh.name,
+                        .fileLocalPath = path.string(),
+                        .id = UUID::createNew()
+                    },
+                .data = pMesh,
+            });
+            loadedMeshes++;
         }
+        loadedFiles++;
+    }
+
+    if (loadedFiles > 0 || loadedMeshes > 0)
+    {
+        SZG_INFO(
+            "Loaded {} meshes from {} valid files.", loadedMeshes, loadedFiles
+        );
     }
 }
 } // namespace syzygy

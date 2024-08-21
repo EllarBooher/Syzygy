@@ -28,17 +28,11 @@ struct GeometrySurface
     uint32_t firstIndex;
     uint32_t indexCount;
 };
-
 struct MeshAsset
 {
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
     std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
-};
-
-struct MeshAssetLibrary
-{
-    std::vector<std::shared_ptr<MeshAsset>> loadedMeshes;
 };
 
 auto loadGltfMeshes(
@@ -67,7 +61,7 @@ struct AssetMetadata
 template <typename T> struct Asset
 {
     AssetMetadata metadata{};
-    std::unique_ptr<T> data{};
+    std::shared_ptr<T> data{};
 };
 
 template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
@@ -75,16 +69,58 @@ template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
 class AssetLibrary
 {
 public:
-    void registerAsset(Asset<syzygy::Image>&& asset);
-    auto fetchAssets() -> std::vector<AssetRef<syzygy::Image>>;
+    template <typename T>
+    [[nodiscard]] auto fetchAssets() -> std::vector<AssetRef<T>>
+    {
+        std::vector<AssetRef<T>> assets{};
+
+        if constexpr (std::is_same_v<T, Image>)
+        {
+            assets.reserve(m_textures.size());
+            for (auto& texture : m_textures)
+            {
+                assets.emplace_back(texture);
+            }
+        }
+        else if constexpr (std::is_same_v<T, MeshAsset>)
+        {
+            assets.reserve(m_meshes.size());
+            for (auto& texture : m_meshes)
+            {
+                assets.emplace_back(texture);
+            }
+        }
+
+        return assets;
+    }
+
+    template <typename T> [[nodiscard]] auto empty() -> bool
+    {
+        if constexpr (std::is_same_v<T, Image>)
+        {
+            return m_textures.empty();
+        }
+        else if constexpr (std::is_same_v<T, MeshAsset>)
+        {
+            return m_meshes.empty();
+        }
+    }
+
     void loadTexturesDialog(
         PlatformWindow const&,
         GraphicsContext&,
         ImmediateSubmissionQueue& submissionQueue
     );
 
+    void loadMeshesDialog(
+        PlatformWindow const&,
+        GraphicsContext&,
+        ImmediateSubmissionQueue& submissionQueue
+    );
+
 private:
-    std::vector<Asset<syzygy::Image>> m_textures{};
+    std::vector<Asset<Image>> m_textures{};
+    std::vector<Asset<MeshAsset>> m_meshes{};
 };
 
 struct ImageRGBA

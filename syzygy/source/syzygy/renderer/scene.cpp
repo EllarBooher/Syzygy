@@ -71,7 +71,7 @@ float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
-    MeshAssetLibrary const& meshes
+    std::span<AssetRef<MeshAsset> const> const meshes
 ) -> Scene
 {
     std::vector<SpotLightPacked> const spotlights{
@@ -105,7 +105,7 @@ auto Scene::defaultScene(
     geometry.reserve(2);
     std::optional<size_t> cubesIndex{};
     SceneBounds bounds{};
-    if (!meshes.loadedMeshes.empty())
+    if (!meshes.empty())
     {
         int32_t constexpr COORDINATE_MIN{-40};
         int32_t constexpr COORDINATE_MAX{40};
@@ -113,7 +113,7 @@ auto Scene::defaultScene(
         { // Floor
             MeshInstanced floorGeometry{};
             floorGeometry.name = "meshInstanced_Floor";
-            floorGeometry.mesh = meshes.loadedMeshes[0];
+            floorGeometry.mesh = meshes[0].get().data;
             floorGeometry.render = true;
 
             for (int32_t x{COORDINATE_MIN}; x <= COORDINATE_MAX; x++)
@@ -171,7 +171,7 @@ auto Scene::defaultScene(
         { // Cubes
             MeshInstanced cubeGeometry{};
             cubeGeometry.name = "meshInstanced_Cubes";
-            cubeGeometry.mesh = meshes.loadedMeshes[0];
+            cubeGeometry.mesh = meshes[0].get().data;
             cubeGeometry.render = true;
 
             for (int32_t x{COORDINATE_MIN}; x <= COORDINATE_MAX; x++)

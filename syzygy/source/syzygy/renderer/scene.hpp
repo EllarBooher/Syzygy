@@ -4,19 +4,22 @@
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
+#include <functional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
+
+#include "syzygy/assets/assetsfwd.hpp"
 
 namespace syzygy
 {
 struct InputSnapshot;
 struct TickTiming;
 struct MeshAsset;
-struct MeshAssetLibrary;
 } // namespace syzygy
 
 namespace syzygy
@@ -132,9 +135,9 @@ struct Scene
     // shadowmaps
     SceneBounds bounds{};
 
-    static auto
-    defaultScene(VkDevice, VmaAllocator, MeshAssetLibrary const& meshes)
-        -> Scene;
+    static auto defaultScene(
+        VkDevice, VmaAllocator, std::span<AssetRef<MeshAsset> const> meshes
+    ) -> Scene;
     void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);
 };

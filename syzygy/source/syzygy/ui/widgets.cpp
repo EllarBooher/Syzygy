@@ -260,7 +260,7 @@ void uiCamera(
 void uiSceneGeometry(
     syzygy::SceneBounds& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
-    syzygy::MeshAssetLibrary const& meshes
+    std::span<syzygy::AssetRef<syzygy::MeshAsset> const> const meshes
 )
 {
     syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
@@ -292,7 +292,7 @@ void uiSceneGeometry(
             "Mesh Used",
             [&]()
         {
-            ImGui::BeginDisabled(meshes.loadedMeshes.empty());
+            ImGui::BeginDisabled(meshes.empty());
 
             std::string const previewLabel{
                 instance.mesh == nullptr ? "None" : instance.mesh->name
@@ -300,20 +300,22 @@ void uiSceneGeometry(
             if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
             {
                 size_t const index{0};
-                for (std::shared_ptr<syzygy::MeshAsset> const& pMesh :
-                     meshes.loadedMeshes)
+                for (auto const& assetRef : meshes)
                 {
-                    if (pMesh == nullptr)
+                    syzygy::Asset<syzygy::MeshAsset> const& asset{assetRef.get()
+                    };
+
+                    if (asset.data == nullptr)
                     {
                         continue;
                     }
 
-                    syzygy::MeshAsset const& mesh{*pMesh};
-                    bool const selected{pMesh == instance.mesh};
+                    syzygy::MeshAsset const& mesh{*asset.data};
+                    bool const selected{asset.data == instance.mesh};
 
                     if (ImGui::Selectable(mesh.name.c_str(), selected))
                     {
-                        instance.mesh = pMesh;
+                        instance.mesh = asset.data;
                         break;
                     }
                 }
@@ -336,7 +338,7 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     Scene& scene,
-    MeshAssetLibrary const& meshes
+    std::span<AssetRef<MeshAsset> const> const meshes
 )
 {
     UIWindow const window{

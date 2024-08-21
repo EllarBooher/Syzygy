@@ -4,14 +4,17 @@
 #include "syzygy/ui/uirectangle.hpp"
 #include <imgui.h>
 #include <optional>
+#include <span>
 #include <string>
+
+#include "syzygy/assets/assetsfwd.hpp"
 
 namespace syzygy
 {
 struct Scene;
 struct SceneTexture;
-struct MeshAssetLibrary;
 struct RingBuffer;
+struct MeshAsset;
 } // namespace syzygy
 
 // A collection of syzygy widgets that are free standing functions.
@@ -28,7 +31,7 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,
-    MeshAssetLibrary const& meshes
+    std::span<AssetRef<MeshAsset> const> meshes
 );
 
 template <typename T> struct WindowResult

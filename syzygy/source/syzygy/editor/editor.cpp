@@ -420,29 +420,13 @@ auto run() -> EditorResult
         return EditorResult::ERROR;
     }
 
-    MeshAssetLibrary meshAssets{};
-    if (auto result{loadGltfMeshes(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            "assets/vkguide/basicmesh.glb"
-        )};
-        result.has_value())
-    {
-        meshAssets.loadedMeshes.insert(
-            std::end(meshAssets.loadedMeshes),
-            std::begin(result.value()),
-            std::end(result.value())
-        );
-    }
-    if (meshAssets.loadedMeshes.empty())
+    AssetLibrary assetLibrary{};
+    assetLibrary.loadMeshesDialog(mainWindow, graphicsContext, submissionQueue);
+    if (assetLibrary.empty<MeshAsset>())
     {
         SZG_ERROR("Failed to load any meshes.");
         return EditorResult::ERROR;
     }
-
-    AssetLibrary assetLibrary{};
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<TextureDisplay> testImageWidget{};
@@ -469,7 +453,9 @@ auto run() -> EditorResult
 
     bool inputCapturedByScene{false};
     Scene scene{Scene::defaultScene(
-        graphicsContext.device(), graphicsContext.allocator(), meshAssets
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        assetLibrary.fetchAssets<MeshAsset>()
     )};
 
     std::optional<Renderer> rendererResult{Renderer::create(
@@ -575,7 +561,7 @@ auto run() -> EditorResult
                     "Texture Viewer",
                     dockingLayout.right,
                     currentFrame.mainCommandBuffer,
-                    assetLibrary.fetchAssets()
+                    assetLibrary.fetchAssets<Image>()
                 )
             };
             textureDisplayResult.loadTexturesRequested)
@@ -586,7 +572,10 @@ auto run() -> EditorResult
         }
 
         sceneControlsWindow(
-            "Default Scene", dockingLayout.left, scene, meshAssets
+            "Default Scene",
+            dockingLayout.left,
+            scene,
+            assetLibrary.fetchAssets<MeshAsset>()
         );
 
         uiLayer.end();
