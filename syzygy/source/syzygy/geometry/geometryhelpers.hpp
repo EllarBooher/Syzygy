@@ -10,17 +10,17 @@
 // which glm methods to use can be confusing. These helpers aid in that.
 //
 // The convention throughout this engine for world and view space is:
-// +x is WORLD_RIGHT
+// +x is right
 // +y is down
-// +z is WORLD_FORWARD
+// +z is forward
 //
-// This is a WORLD_RIGHT handed coordinate system.
+// This is a right handed coordinate system.
 //
 // HOWEVER for depth values, we use 1.0 as near and 0.0 as far.
 // We do this for better distribution of precision when mapping depths as 1/z.
 //
 // However, this results in a left-handed coordinate system.
-// The creation of a WORLD_RIGHT-handed projection matrix with flipped depth
+// The creation of a right-handed projection matrix with flipped depth
 // values is difficult, and this is just one difficulty that these helpers aid
 // on.
 namespace syzygy
@@ -39,8 +39,8 @@ auto collectAABBVertices(glm::vec3 center, glm::vec3 extent) -> AABBVertices;
 
 auto lookAtVk(glm::vec3 eye, glm::vec3 center, glm::vec3 up) -> glm::mat4x4;
 
-// Creates a look at matrix, with a fallback WORLD_UP direction in case
-// the WORLD_FORWARD is already WORLD_UP.
+// Creates a look at matrix, with a fallback up direction in case
+// the forward (center - eye) is already WORLD_UP.
 auto lookAtVkSafe(glm::vec3 eye, glm::vec3 center) -> glm::mat4x4;
 
 struct PerspectiveProjectionParameters

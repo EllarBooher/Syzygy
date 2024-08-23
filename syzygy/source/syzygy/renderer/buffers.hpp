@@ -162,7 +162,7 @@ protected:
     void pushStagedBytes(std::span<uint8_t const> data);
     void popStagedBytes(size_t count);
 
-    // This structure cannot know exactly how many bytes are WORLD_UP-to-date on
+    // This structure cannot know exactly how many bytes are up-to-date on
     // the device side. This value is updated upon recording a copy, and assumes
     // correct barrier usage so that the staged bytes in the staged amount are
     // visible when further read accesses are executed.

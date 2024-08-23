@@ -101,7 +101,7 @@ auto generateReflectionData(std::span<uint8_t const> const spirv_bytecode)
                                                      : typeDescription.type_name
             };
 
-            // For early exit, if the type ends WORLD_UP being unsupported
+            // For early exit, if the type ends up being unsupported
 
             ShaderReflectionData::Member const unsupportedMember{
                 .offsetBytes = offsetBytes,

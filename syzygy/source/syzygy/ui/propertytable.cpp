@@ -306,7 +306,7 @@ auto PropertyTable::rowTextInput(
 }
 
 // NOLINTBEGIN(bugprone-easily-swappable-parameters): It seems unlikely to mix
-// WORLD_UP the parameters, since name is first across all Property table row
+// up the parameters, since name is first across all Property table row
 // methods.
 
 auto PropertyTable::rowReadOnlyTextInput(

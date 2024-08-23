@@ -804,7 +804,7 @@ auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)
 {
     // When workgroups are larger than 1, but this value does not evenly divide
     // the amount of work needed, we need to dispatch extra to cover this. It is
-    // WORLD_UP to the shader to discard these extra invocations.
+    // up to the shader to discard these extra invocations.
 
     uint32_t const count{invocations / workgroupSize};
 
