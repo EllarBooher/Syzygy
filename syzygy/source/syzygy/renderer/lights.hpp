@@ -5,7 +5,7 @@
 
 namespace syzygy
 {
-static auto makeDirectional(
+auto makeDirectional(
     glm::vec4 const color,
     float const strength,
     glm::vec3 const eulerAngles,
@@ -29,7 +29,7 @@ static auto makeDirectional(
 }
 
 // TODO: less parameters constructor
-static auto makeSpot(
+auto makeSpot(
     glm::vec4 const color,
     float const strength,
     float const falloffFactor,

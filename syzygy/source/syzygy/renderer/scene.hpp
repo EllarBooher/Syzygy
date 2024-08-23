@@ -88,12 +88,28 @@ struct Camera
         -> CameraPacked;
 };
 
+// Some hardcoded animations for demo purposes
+enum class InstanceAnimation
+{
+    None,
+    FIRST = None,
+
+    Diagonal_Wave,
+
+    Spin_Along_World_Up,
+    LAST = Spin_Along_World_Up
+};
+
 struct MeshInstanced
 {
     bool render{false};
     std::string name{};
     std::shared_ptr<MeshAsset> mesh{};
 
+    InstanceAnimation animation{InstanceAnimation::None};
+
+    // TODO: Mesh transforms need to be split up, because it's hard to do
+    // calculations when they are combined
     std::vector<glm::mat4x4> originals{};
 
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
@@ -127,13 +143,21 @@ struct Scene
     bool spotlightsRender{false};
     std::vector<SpotLightPacked> spotlights{};
 
-    std::optional<size_t> cubesIndex{};
     std::vector<MeshInstanced> geometry;
 
     // TODO: compute this on demand instead of making it a tweakable parameter
     // This is used to compute the necessary dimensions of various resource e.g.
     // shadowmaps
     SceneBounds bounds{};
+
+    void addMeshInstance(
+        VkDevice,
+        VmaAllocator,
+        std::optional<AssetRef<MeshAsset>>,
+        InstanceAnimation,
+        std::string const& name,
+        std::span<glm::mat4x4 const> transforms
+    );
 
     static auto defaultScene(
         VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh

@@ -11,6 +11,7 @@
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
+#include <array>
 #include <format>
 #include <functional>
 #include <glm/gtc/constants.hpp>
@@ -288,6 +289,57 @@ void uiSceneGeometry(
     {
         table.rowChildPropertyBegin(instance.name);
         table.rowBoolean("Render", instance.render, true);
+        table.rowCustom(
+            "Instance Animation",
+            [&]()
+        {
+            // Assumes no gaps in enum values
+            std::array<
+                char const*,
+                static_cast<size_t>(syzygy::InstanceAnimation::LAST) + 1>
+                labels{"Unknown"};
+            labels[static_cast<size_t>(syzygy::InstanceAnimation::None)] =
+                "None";
+            labels[static_cast<size_t>(syzygy::InstanceAnimation::Diagonal_Wave
+            )] = "Diagonal Wave";
+            labels[static_cast<size_t>(
+                syzygy::InstanceAnimation::Spin_Along_World_Up
+            )] = "Spin Along World Up";
+
+            auto const selectedAnimationIndex{
+                static_cast<size_t>(instance.animation)
+            };
+            std::string const previewLabel{
+                selectedAnimationIndex >= labels.size()
+                    ? "Unknown"
+                    : labels[selectedAnimationIndex]
+            };
+
+            if (ImGui::BeginCombo(
+                    "##instanceAnimation", labels[selectedAnimationIndex]
+                ))
+            {
+                size_t constexpr FIRST_INDEX{
+                    static_cast<size_t>(syzygy::InstanceAnimation::FIRST)
+                };
+                size_t constexpr LAST_INDEX{
+                    static_cast<size_t>(syzygy::InstanceAnimation::LAST)
+                };
+                for (size_t index{FIRST_INDEX}; index <= LAST_INDEX; index++)
+                {
+                    if (ImGui::Selectable(
+                            labels[index], selectedAnimationIndex == index
+                        ))
+                    {
+                        instance.animation =
+                            static_cast<syzygy::InstanceAnimation>(index);
+                        break;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
+        );
         table.rowCustom(
             "Mesh Used",
             [&]()
