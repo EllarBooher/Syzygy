@@ -19,6 +19,32 @@
 #include <glm/vec4.hpp>
 #include <limits>
 
+namespace
+{
+constexpr auto checkUnit(glm::vec3 const vector) -> bool
+{
+    float const magnitudeSquared{glm::dot(vector, vector)};
+
+    return glm::abs(magnitudeSquared - 1.0F)
+         < std::numeric_limits<float>::min();
+}
+
+constexpr auto checkOrthogonal(glm::vec3 const a, glm::vec3 const b) -> bool
+{
+    float const dot{glm::dot(a, b)};
+
+    return glm::abs(dot) < std::numeric_limits<float>::min();
+}
+
+static_assert(checkUnit(syzygy::WORLD_FORWARD));
+static_assert(checkUnit(syzygy::WORLD_RIGHT));
+static_assert(checkUnit(syzygy::WORLD_UP));
+
+static_assert(checkOrthogonal(syzygy::WORLD_FORWARD, syzygy::WORLD_RIGHT));
+static_assert(checkOrthogonal(syzygy::WORLD_RIGHT, syzygy::WORLD_UP));
+static_assert(checkOrthogonal(syzygy::WORLD_UP, syzygy::WORLD_FORWARD));
+} // namespace
+
 namespace syzygy
 {
 auto projectPointOnPlane(Plane const plane, glm::vec3 const point) -> glm::vec3
@@ -71,7 +97,7 @@ auto projectionVk(PerspectiveProjectionParameters const parameters)
     float const swappedFar{parameters.near};
 
     return glm::perspectiveLH_ZO(
-        glm::radians(parameters.fov_y),
+        glm::radians(parameters.fov_y_degrees),
         parameters.aspectRatio,
         swappedNear,
         swappedFar
@@ -86,6 +112,64 @@ auto projectionOrthoVk(glm::vec3 const min, glm::vec3 const max) -> glm::mat4x4
 auto forwardFromEulers(glm::vec3 const eulerAngles) -> glm::vec3
 {
     return glm::orientate3(eulerAngles) * WORLD_FORWARD;
+}
+
+auto eulersFromForward(glm::vec3 const forward) -> glm::vec3
+{
+    if (glm::epsilonEqual(glm::length2(forward), 0.0F, glm::epsilon<float>()))
+    {
+        return glm::vec3{0.0F};
+    }
+
+    glm::vec3 const forwardNormalized{glm::normalize(forward)};
+
+    // World basis is orthonormal, so we convert bases thusly
+    float const dot_forward{glm::dot(forwardNormalized, WORLD_FORWARD)};
+    float const dot_right{glm::dot(forwardNormalized, WORLD_RIGHT)};
+    float const dot_up{glm::dot(forwardNormalized, WORLD_UP)};
+
+    // GLM convention:
+    // - yaw is around y axis (0,1,0)
+    // - pitch is around x axis (1,0,0)
+    // - roll is around z axis (0,0,1)
+
+    // Euler angles passed by convention as (pitch, roll, yaw)
+
+    // GLM applies yaw -> pitch -> roll. This is documented as Y * X * Z. We
+    // compute our values in reverse order, representing inverting the 3
+    // rotations GLM would apply.
+
+    // Roll is ambiguous from a forward with no up
+    float constexpr roll{0.0F};
+
+    // Compute pitch from (dot_right, dot_up, dot_forward) to (dot_right,
+    // 0, dot_forward)
+    // We must also convert from our right handed system to GLM left handed
+    // system
+    float const pitch{glm::asin(dot_up /* / 1.0F */)};
+
+    // Compute rotation from (dot_right, 0, dot_forward) to (0, 0, 1)
+    float yaw{};
+    if (glm::epsilonEqual(dot_forward, 0.0F, glm::epsilon<float>()))
+    {
+        // degenerate yaw case, where the ratio of forward/right is infinity
+        yaw = glm::sign(dot_right) * glm::half_pi<float>();
+    }
+    else
+    {
+        float const angleRadians{glm::atan(dot_right / dot_forward)};
+
+        if (dot_forward < 0.0F)
+        {
+            yaw = glm::pi<float>() + angleRadians;
+        }
+        else
+        {
+            yaw = angleRadians;
+        }
+    }
+
+    return {pitch, roll, yaw};
 }
 
 auto transformVk(glm::vec3 const position, glm::vec3 const eulerAngles)

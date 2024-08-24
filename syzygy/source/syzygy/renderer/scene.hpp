@@ -100,6 +100,18 @@ enum class InstanceAnimation
     LAST = Spin_Along_World_Up
 };
 
+struct Transform
+{
+    glm::vec3 translation{0.0F};
+    glm::vec3 eulerAnglesRadians{0.0F};
+    glm::vec3 scale{1.0F};
+
+    [[nodiscard]] auto toMatrix() const -> glm::mat4x4;
+    [[nodiscard]] static auto
+    lookAt(glm::vec3 const eye, glm::vec3 const target, glm::vec3 const scale)
+        -> Transform;
+};
+
 struct MeshInstanced
 {
     bool render{false};
@@ -108,9 +120,10 @@ struct MeshInstanced
 
     InstanceAnimation animation{InstanceAnimation::None};
 
-    // TODO: Mesh transforms need to be split up, because it's hard to do
-    // calculations when they are combined
-    std::vector<glm::mat4x4> originals{};
+    // This transform data + gpu buffers requires manual management for now
+
+    std::vector<Transform> originals{};
+    std::vector<Transform> transforms{};
 
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
@@ -156,12 +169,16 @@ struct Scene
         std::optional<AssetRef<MeshAsset>>,
         InstanceAnimation,
         std::string const& name,
-        std::span<glm::mat4x4 const> transforms
+        std::span<Transform const> transforms
     );
 
     static auto defaultScene(
         VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh
     ) -> Scene;
+    static auto diagonalWaveScene(
+        VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh
+    ) -> Scene;
+
     void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);
 };

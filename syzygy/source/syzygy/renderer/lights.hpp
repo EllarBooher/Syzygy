@@ -28,35 +28,39 @@ auto makeDirectional(
     };
 }
 
+struct SpotlightParams
+{
+    glm::vec4 color;
+    float strength;
+    float falloffFactor;
+    float falloffDistance;
+    float verticalFOVDegrees;
+    float horizontalScale;
+    glm::vec3 eulerAngles;
+    glm::vec3 position;
+    float near;
+    float far;
+};
+
 // TODO: less parameters constructor
-auto makeSpot(
-    glm::vec4 const color,
-    float const strength,
-    float const falloffFactor,
-    float const falloffDistance,
-    float const verticalFOV,
-    float const horizontalScale,
-    glm::vec3 const eulerAngles,
-    glm::vec3 const position,
-    float const near,
-    float const far
-) -> SpotLightPacked
+auto makeSpot(SpotlightParams const params) -> SpotLightPacked
 {
     return SpotLightPacked{
-        .color = color,
-        .forward = glm::vec4{syzygy::forwardFromEulers(eulerAngles), 0.0},
+        .color = params.color,
+        .forward =
+            glm::vec4{syzygy::forwardFromEulers(params.eulerAngles), 0.0},
         .projection =
             syzygy::projectionVk(syzygy::PerspectiveProjectionParameters{
-                .fov_y = verticalFOV,
-                .aspectRatio = horizontalScale,
-                .near = near,
-                .far = far,
+                .fov_y_degrees = params.verticalFOVDegrees,
+                .aspectRatio = params.horizontalScale,
+                .near = params.near,
+                .far = params.far,
             }),
-        .view = syzygy::viewVk(position, eulerAngles),
-        .position = glm::vec4(position, 1.0),
-        .strength = strength,
-        .falloffFactor = falloffFactor,
-        .falloffDistance = falloffDistance,
+        .view = syzygy::viewVk(params.position, params.eulerAngles),
+        .position = glm::vec4(params.position, 1.0),
+        .strength = params.strength,
+        .falloffFactor = params.falloffFactor,
+        .falloffDistance = params.falloffDistance,
     };
 }
 } // namespace syzygy

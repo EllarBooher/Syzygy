@@ -2,6 +2,7 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/editor.hpp"
+#include "syzygy/geometry/geometrytests.hpp"
 #include <GLFW/glfw3.h>
 
 namespace syzygy
@@ -15,6 +16,12 @@ auto runApplication() -> RunResult
     }
 
     Logger::initLogging();
+
+    if (!syzygy_tests::runTests())
+    {
+        SZG_ERROR("One or more tests failed.");
+        return RunResult::FAILURE;
+    }
 
     EditorResult const runResult{run()};
 

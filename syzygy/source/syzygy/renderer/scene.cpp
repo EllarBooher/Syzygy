@@ -75,18 +75,22 @@ void Scene::addMeshInstance(
     std::optional<AssetRef<MeshAsset>> const mesh,
     InstanceAnimation const animation,
     std::string const& name,
-    std::span<glm::mat4x4 const> const transforms
+    std::span<Transform const> const transforms
 )
 {
     MeshInstanced instance{
         .render = true,
-        .name = fmt::format("meshInstanced_{}", name),
+        .name =
+            fmt::format("meshInstanced_{}", name), // TODO: name deduplication
         .mesh = mesh.has_value() ? mesh.value().get().data : nullptr,
         .animation = animation,
     };
 
     instance.originals.insert(
         instance.originals.begin(), transforms.begin(), transforms.end()
+    );
+    instance.transforms.insert(
+        instance.transforms.begin(), transforms.begin(), transforms.end()
     );
 
     VkDeviceSize const bufferSize{
@@ -105,15 +109,13 @@ void Scene::addMeshInstance(
         )
     );
 
-    std::vector<glm::mat4x4> modelInverseTransposes{};
-    modelInverseTransposes.reserve(instance.originals.size());
-    for (glm::mat4x4 const& model : instance.originals)
+    for (Transform const& model : instance.originals)
     {
-        modelInverseTransposes.push_back(glm::inverseTranspose(model));
-    }
+        glm::mat4x4 const matrix{model.toMatrix()};
 
-    instance.models->stage(instance.originals);
-    instance.modelInverseTransposes->stage(modelInverseTransposes);
+        instance.models->push(matrix);
+        instance.modelInverseTransposes->push(glm::inverseTranspose(matrix));
+    }
 
     geometry.push_back(std::move(instance));
 }
@@ -126,34 +128,106 @@ auto Scene::defaultScene(
 {
     Scene scene{};
 
-    std::vector<SpotLightPacked> DEFAULT_SPOTLIGHTS{
-        makeSpot(
-            glm::vec4(0.0, 1.0, 0.0, 1.0),
-            30.0,
-            1.0,
-            1.0,
-            60,
-            1.0,
-            glm::vec3(-1.0, 0.0, 1.0),
-            glm::vec3(-8.0, -10.0, -2.0),
-            0.1,
-            1000.0
-        ),
-        makeSpot(
-            glm::vec4(1.0, 0.0, 0.0, 1.0),
-            30.0,
-            1.0,
-            1.0,
-            60,
-            1.0,
-            glm::vec3(-1.0, 0.0, -1.0),
-            glm::vec3(8.0, -10.0, 2.0),
-            0.1,
-            1000.0
-        ),
+    SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
+        .center = glm::vec3{0.0, -4.0, 0.0},
+        .extent = glm::vec3{20.0, 5.0, 20.0},
     };
+    scene.bounds = DEFAULT_SCENE_BOUNDS;
+
+    std::shared_ptr<MeshAsset> const pMesh{
+        initialMesh.has_value() ? initialMesh.value().get().data : nullptr
+    };
+
+    { // Floor
+        std::array<Transform, 1> const transform{Transform{
+            .translation = glm::vec3{0.0F},
+            .eulerAnglesRadians = glm::vec3{0.0F},
+            .scale = glm::vec3{400.0F, 1.0F, 400.0F}
+        }};
+
+        scene.addMeshInstance(
+            device,
+            allocator,
+            initialMesh,
+            InstanceAnimation::None,
+            "Floor",
+            transform
+        );
+    }
+
+    glm::vec3 const floatingMeshPosition{4.0F * WORLD_UP};
+
+    { // Single floating demo mesh
+        std::array<Transform, 1> const transform{Transform{
+            .translation = floatingMeshPosition,
+            .eulerAnglesRadians = glm::vec3{0.0F},
+            .scale = glm::vec3{1.0F}
+        }};
+
+        scene.addMeshInstance(
+            device,
+            allocator,
+            initialMesh,
+            InstanceAnimation::None,
+            "Floating",
+            transform
+        );
+    }
+
+    { // Lights to shine on mesh
+        SpotlightParams const sharedParams{
+            .strength = 30.0F,
+            .falloffFactor = 1.0F,
+            .falloffDistance = 1.0F,
+            .verticalFOVDegrees = 60.0F,
+            .horizontalScale = 1.0F,
+            .near = 0.1F,
+            .far = 1000.0F
+        };
+
+        glm::vec3 const lightsHeight{8.0F * WORLD_UP};
+        glm::vec3 const lightsOffset{8.0F * (WORLD_FORWARD + WORLD_RIGHT)};
+
+        {
+            Transform const lightTransform{Transform::lookAt(
+                floatingMeshPosition + lightsHeight + lightsOffset,
+                floatingMeshPosition,
+                glm::vec3{1.0F}
+            )};
+            SpotlightParams lightParams{sharedParams};
+            lightParams.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
+            lightParams.eulerAngles = lightTransform.eulerAnglesRadians;
+            lightParams.position = lightTransform.translation;
+
+            scene.spotlights.push_back(makeSpot(lightParams));
+        }
+        {
+            Transform const lightTransform{Transform::lookAt(
+                floatingMeshPosition + lightsHeight - lightsOffset,
+                floatingMeshPosition,
+                glm::vec3{1.0F}
+            )};
+            SpotlightParams lightParams{sharedParams};
+            lightParams.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+            lightParams.eulerAngles = lightTransform.eulerAnglesRadians;
+            lightParams.position = lightTransform.translation;
+
+            scene.spotlights.push_back(makeSpot(lightParams));
+        }
+    };
+
     scene.spotlightsRender = true;
-    scene.spotlights = std::move(DEFAULT_SPOTLIGHTS);
+
+    return scene;
+}
+
+auto Scene::diagonalWaveScene(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    std::optional<AssetRef<MeshAsset>> const initialMesh
+) -> Scene
+{
+    Scene scene{};
 
     SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
         .center = glm::vec3{0.0, -4.0, 0.0},
@@ -169,10 +243,11 @@ auto Scene::defaultScene(
     };
 
     { // Floor
-        std::array<glm::mat4x4, 1> const transform{
-            glm::translate(glm::vec3{0.0F, 1.0F, 0.0F})
-            * glm::scale(glm::vec3{400.0F, 2.0F, 400.0F})
-        };
+        std::array<Transform, 1> const transform{Transform{
+            .translation = glm::vec3{0.0F},
+            .eulerAnglesRadians = glm::vec3{0.0F},
+            .scale = glm::vec3{400.0F, 1.0F, 400.0F}
+        }};
 
         scene.addMeshInstance(
             device,
@@ -185,7 +260,7 @@ auto Scene::defaultScene(
     }
 
     { // Cubes
-        std::vector<glm::mat4x4> transforms{};
+        std::vector<Transform> transforms{};
 
         for (int32_t x{COORDINATE_MIN}; x <= COORDINATE_MAX; x++)
         {
@@ -194,13 +269,14 @@ auto Scene::defaultScene(
                 glm::vec3 const position{
                     static_cast<float>(x), -4.0, static_cast<float>(z)
                 };
-                glm::quat const orientation{randomQuat()};
+                glm::vec3 const eulerAngles{glm::eulerAngles(randomQuat())};
                 glm::vec3 const scale{0.2F};
 
-                transforms.push_back(
-                    glm::translate(position) * glm::toMat4(orientation)
-                    * glm::scale(scale)
-                );
+                transforms.push_back(Transform{
+                    .translation = position,
+                    .eulerAnglesRadians = eulerAngles,
+                    .scale = scale,
+                });
             }
         }
 
@@ -225,10 +301,10 @@ void Scene::handleInput(TickTiming const lastFrame, InputSnapshot const& input)
         cursorDelta.x / 100.0F, cursorDelta.y / 200.0F
     };
 
-    // left to WORLD_RIGHT
+    // left to right
     camera.eulerAngles.z += adjustedCursorDelta.x;
 
-    // WORLD_UP and down, avoid flipping camera
+    // up and down, avoid flipping camera
     camera.eulerAngles.x = glm::clamp(
         camera.eulerAngles.x - adjustedCursorDelta.y,
         -glm::half_pi<float>(),
@@ -239,7 +315,7 @@ void Scene::handleInput(TickTiming const lastFrame, InputSnapshot const& input)
 
     glm::vec3 const forward{transform * WORLD_FORWARD};
     glm::vec3 const right{transform * WORLD_RIGHT};
-    // We do not rotate WORLD_UP, since the controls would be disorienting
+    // We do not rotate up, since the controls would be disorienting
     glm::vec3 const up{WORLD_UP};
 
     glm::vec3 accumulatedMovement{};
@@ -345,14 +421,12 @@ void Scene::tick(TickTiming const lastFrame)
         case InstanceAnimation::Diagonal_Wave:
             for (size_t index{0}; index < instance.originals.size(); index++)
             {
-                glm::mat4x4 const modelOriginal{instance.originals[index]};
-
-                glm::vec4 const position{
-                    modelOriginal * glm::vec4(0.0, 0.0, 0.0, 1.0)
-                };
+                Transform const& original{instance.originals[index]};
 
                 double const timeOffset{
-                    (position.x - (-10) + position.z - (-10)) / 3.1415
+                    (original.translation.x - (-10) + original.translation.z
+                     - (-10))
+                    / 3.1415
                 };
 
                 double const y{
@@ -363,57 +437,43 @@ void Scene::tick(TickTiming const lastFrame)
                     glm::translate(glm::vec3(0.0, y, 0.0))
                 };
 
-                models[index] = translation * modelOriginal;
+                glm::mat4x4 const model{
+                    glm::translate(glm::vec3(0.0, y, 0.0)) * original.toMatrix()
+                };
 
-                // In general, the model inverse transposes only need to be
-                // updated once per tick, before rendering and after the last
-                // update of the model matrices. For now, we only update once
-                // per tick, so we just compute it here.
-                modelInverseTransposes[index] =
-                    glm::inverseTranspose(models[index]);
+                models[index] = model;
+                modelInverseTransposes[index] = glm::inverseTranspose(model);
             }
             break;
         case InstanceAnimation::Spin_Along_World_Up:
             for (size_t index{0}; index < instance.originals.size(); index++)
             {
-                glm::mat4x4 const modelOriginal{instance.originals[index]};
+                Transform const& original{instance.originals[index]};
 
-                glm::vec3 scale;
-                glm::quat rotation;
-                glm::vec3 translation;
-                glm::vec3 skew;
-                glm::vec4 perspective;
-                glm::decompose(
-                    modelOriginal,
-                    scale,
-                    rotation,
-                    translation,
-                    skew,
-                    perspective
-                );
-
-                models[index] =
-                    glm::translate(translation)
+                glm::mat4x4 const model{
+                    glm::translate(original.translation)
                     * glm::rotate(
                         glm::identity<glm::mat4x4>(),
                         static_cast<float>(lastFrame.timeElapsedSeconds),
                         syzygy::WORLD_UP
                     )
-                    * glm::toMat4(rotation) * glm::scale(scale);
+                    * glm::orientate4(original.eulerAnglesRadians)
+                    * glm::scale(original.scale)
+                };
 
-                modelInverseTransposes[index] =
-                    glm::inverseTranspose(models[index]);
+                models[index] = model;
+                modelInverseTransposes[index] = glm::inverseTranspose(model);
             }
             break;
         default:
             for (size_t index{0}; index < instance.originals.size(); index++)
             {
-                glm::mat4x4 const modelOriginal{instance.originals[index]};
+                Transform const& original{instance.originals[index]};
 
-                models[index] = modelOriginal;
+                glm::mat4x4 const model{original.toMatrix()};
 
-                modelInverseTransposes[index] =
-                    glm::inverseTranspose(models[index]);
+                models[index] = model;
+                modelInverseTransposes[index] = glm::inverseTranspose(model);
             }
             break;
         }
@@ -496,7 +556,7 @@ auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
 
     float const atmosphereThickness{outDistance};
 
-    // Calculations derived from sky.comp, we do a single ray straight WORLD_UP
+    // Calculations derived from sky.comp, we do a single ray straight up
     // to get an idea of the ambient color
     float const opticalDepthRayleigh{
         atmosphere.altitudeDecayRayleigh / surfaceCosine
@@ -624,10 +684,31 @@ auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
     }
 
     return projectionVk(PerspectiveProjectionParameters{
-        .fov_y = fovDegrees,
+        .fov_y_degrees = fovDegrees,
         .aspectRatio = aspectRatio,
         .near = near,
         .far = far,
     });
+}
+
+auto Transform::toMatrix() const -> glm::mat4x4
+{
+    return glm::translate(translation) * glm::orientate4(eulerAnglesRadians)
+         * glm::scale(scale);
+}
+
+auto Transform::lookAt(
+    glm::vec3 const eye, glm::vec3 const target, glm::vec3 const scale
+) -> Transform
+{
+    glm::vec3 const forward{glm::normalize(target - eye)};
+
+    glm::vec3 const eulerAngles{eulersFromForward(forward)};
+
+    return Transform{
+        .translation = eye,
+        .eulerAnglesRadians = eulerAngles,
+        .scale = scale,
+    };
 }
 } // namespace syzygy

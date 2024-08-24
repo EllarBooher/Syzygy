@@ -1,0 +1,122 @@
+#include "geometrytests.hpp"
+
+#include "syzygy/core/log.hpp"
+#include <glm/gtx/string_cast.hpp>
+
+namespace
+{
+float constexpr TEST_EPSILON{3.0F * glm::epsilon<float>()};
+
+auto eulerAnglesTestInverse(
+    glm::vec3 const unnormalizedForward, bool const quiet = false
+) -> bool
+{
+    glm::vec3 const forward{glm::normalize(unnormalizedForward)};
+    glm::vec3 const eulers{syzygy::eulersFromForward(forward)};
+    glm::vec3 const reconstructedForward{syzygy::forwardFromEulers(eulers)};
+
+    if (glm::epsilonEqual(forward, reconstructedForward, TEST_EPSILON)
+        != glm::bvec3(true))
+    {
+        if (!quiet)
+        {
+            SZG_ERROR(
+                "Failed geometry test - eulerAnglesTestInverse \n"
+                " - start {} \n"
+                " - middle {} \n"
+                " - end {}",
+                glm::to_string(forward),
+                glm::to_string(eulers),
+                glm::to_string(reconstructedForward)
+            );
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+auto eulerAnglesTestInverseCombinations(
+    glm::vec3 const a,
+    glm::vec3 const b,
+    glm::vec3 const c,
+    bool const quiet = false
+) -> bool
+{
+    bool success{true};
+
+    success &= eulerAnglesTestInverse(a, quiet);
+    success &= eulerAnglesTestInverse(b, quiet);
+    success &= eulerAnglesTestInverse(c, quiet);
+
+    success &= eulerAnglesTestInverse(a + b, quiet);
+    success &= eulerAnglesTestInverse(b + c, quiet);
+    success &= eulerAnglesTestInverse(c + a, quiet);
+
+    success &= eulerAnglesTestInverse(a + b + c, quiet);
+
+    return success;
+}
+
+auto eulerAnglesTests() -> bool
+{
+    bool success{true};
+
+    success &= eulerAnglesTestInverse(glm::vec3{1.0F, 0.0F, 0.0F});
+    success &= eulerAnglesTestInverse(glm::vec3{0.0F, 1.0F, 0.0F});
+    success &= eulerAnglesTestInverse(glm::vec3{0.0F, 0.0F, 1.0F});
+
+    success &= eulerAnglesTestInverseCombinations(
+        syzygy::WORLD_FORWARD, syzygy::WORLD_RIGHT, syzygy::WORLD_UP
+    );
+
+    success &= eulerAnglesTestInverseCombinations(
+        -1.0F * syzygy::WORLD_FORWARD,
+        -1.0F * syzygy::WORLD_RIGHT,
+        -1.0F * syzygy::WORLD_UP
+    );
+
+    // We expect precision errors with larger vectors to cause issues when
+    // converting back and forth, so we test that to see how bad it is
+    float precisionFactor{1.0F};
+
+    bool precisionSuccess{true};
+    while (precisionSuccess)
+    {
+        precisionSuccess &= eulerAnglesTestInverseCombinations(
+            precisionFactor * syzygy::WORLD_FORWARD,
+            precisionFactor * syzygy::WORLD_RIGHT,
+            precisionFactor * syzygy::WORLD_UP,
+            true
+        );
+
+        precisionSuccess &= eulerAnglesTestInverseCombinations(
+            -precisionFactor * syzygy::WORLD_FORWARD,
+            -precisionFactor * syzygy::WORLD_RIGHT,
+            -precisionFactor * syzygy::WORLD_UP,
+            true
+        );
+
+        precisionFactor *= 2;
+    }
+
+    SZG_INFO(
+        "Euler Angles precision test - magnitudes up to {} still pass.",
+        precisionFactor
+    );
+
+    return success;
+}
+} // namespace
+
+auto syzygy_tests::runTests() -> bool
+{
+    SZG_INFO("Running geometry tests.");
+
+    bool success{true};
+
+    success &= eulerAnglesTests();
+
+    return success;
+}

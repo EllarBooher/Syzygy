@@ -45,7 +45,7 @@ auto lookAtVkSafe(glm::vec3 eye, glm::vec3 center) -> glm::mat4x4;
 
 struct PerspectiveProjectionParameters
 {
-    float fov_y;
+    float fov_y_degrees;
     float aspectRatio;
     float near;
     float far;
@@ -61,7 +61,10 @@ auto projectionOrthoAABBVk(
     glm::mat4x4 view, glm::vec3 geometryCenter, glm::vec3 geometryExtent
 ) -> glm::mat4x4;
 
+// Angles are (pitch, roll, yaw) in radians
 auto forwardFromEulers(glm::vec3 eulerAngles) -> glm::vec3;
+// Angles are (pitch, roll, yaw) in radians
+auto eulersFromForward(glm::vec3 forward) -> glm::vec3;
 
 auto transformVk(glm::vec3 position, glm::vec3 eulerAngles) -> glm::mat4x4;
 
