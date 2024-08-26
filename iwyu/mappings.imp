@@ -127,6 +127,7 @@
   { "symbol": [ "asin", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
   { "symbol": [ "sin", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
   { "symbol": [ "atan", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "atan2", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
   { "symbol": [ "tan", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
   { "symbol": [ "acos", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
   { "symbol": [ "cos", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },

@@ -149,25 +149,7 @@ auto eulersFromForward(glm::vec3 const forward) -> glm::vec3
     float const pitch{glm::asin(dot_up /* / 1.0F */)};
 
     // Compute rotation from (dot_right, 0, dot_forward) to (0, 0, 1)
-    float yaw{};
-    if (glm::epsilonEqual(dot_forward, 0.0F, glm::epsilon<float>()))
-    {
-        // degenerate yaw case, where the ratio of forward/right is infinity
-        yaw = glm::sign(dot_right) * glm::half_pi<float>();
-    }
-    else
-    {
-        float const angleRadians{glm::atan(dot_right / dot_forward)};
-
-        if (dot_forward < 0.0F)
-        {
-            yaw = glm::pi<float>() + angleRadians;
-        }
-        else
-        {
-            yaw = angleRadians;
-        }
-    }
+    float const yaw{glm::atan2(dot_right, dot_forward)};
 
     return {pitch, roll, yaw};
 }
