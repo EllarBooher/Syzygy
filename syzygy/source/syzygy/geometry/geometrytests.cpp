@@ -59,6 +59,37 @@ auto eulerAnglesTestInverseCombinations(
     return success;
 }
 
+auto eulerAnglesTestEquality(
+    glm::vec3 const unnormalizedForward,
+    glm::vec3 const expectedAngles,
+    bool const quiet = false
+) -> bool
+{
+    glm::vec3 const forward{glm::normalize(unnormalizedForward)};
+    glm::vec3 const eulers{syzygy::eulersFromForward(forward)};
+
+    if (glm::epsilonEqual(expectedAngles, eulers, TEST_EPSILON)
+        != glm::bvec3(true))
+    {
+        if (!quiet)
+        {
+            SZG_ERROR(
+                "Failed geometry test - eulerAnglesTestEquality \n"
+                " - forward {} \n"
+                " - eulers {} \n"
+                " - expected {}",
+                glm::to_string(forward),
+                glm::to_string(eulers),
+                glm::to_string(expectedAngles)
+            );
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
 auto eulerAnglesTests() -> bool
 {
     bool success{true};
@@ -75,6 +106,74 @@ auto eulerAnglesTests() -> bool
         -1.0F * syzygy::WORLD_FORWARD,
         -1.0F * syzygy::WORLD_RIGHT,
         -1.0F * syzygy::WORLD_UP
+    );
+
+    success &= eulerAnglesTestEquality(syzygy::WORLD_FORWARD, glm::vec3{0.0F});
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_FORWARD, glm::vec3{0.0F, 0.0F, -glm::pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_RIGHT, glm::vec3{0.0F, 0.0F, glm::half_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_RIGHT, glm::vec3{0.0F, 0.0F, -glm::half_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_UP, glm::vec3{glm::half_pi<float>(), 0.0F, 0.0F}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_UP, glm::vec3{-glm::half_pi<float>(), 0.0F, 0.0F}
+    );
+
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_FORWARD + syzygy::WORLD_UP,
+        glm::vec3{glm::quarter_pi<float>(), 0.0F, 0.0F}
+    );
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_FORWARD - syzygy::WORLD_UP,
+        glm::vec3{-glm::quarter_pi<float>(), 0.0F, 0.0F}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_FORWARD - syzygy::WORLD_UP,
+        glm::vec3{-glm::quarter_pi<float>(), 0.0F, glm::pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_FORWARD + syzygy::WORLD_UP,
+        glm::vec3{glm::quarter_pi<float>(), 0.0F, glm::pi<float>()}
+    );
+
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_UP + syzygy::WORLD_RIGHT,
+        glm::vec3{glm::quarter_pi<float>(), 0.0F, glm::half_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_UP - syzygy::WORLD_RIGHT,
+        glm::vec3{glm::quarter_pi<float>(), 0.0F, -glm::half_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_UP - syzygy::WORLD_RIGHT,
+        glm::vec3{-glm::quarter_pi<float>(), 0.0F, -glm::half_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_UP + syzygy::WORLD_RIGHT,
+        glm::vec3{-glm::quarter_pi<float>(), 0.0F, glm::half_pi<float>()}
+    );
+
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_RIGHT + syzygy::WORLD_FORWARD,
+        glm::vec3{0.0F, 0.0F, glm::quarter_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        syzygy::WORLD_RIGHT - syzygy::WORLD_FORWARD,
+        glm::vec3{0.0F, 0.0F, 3 * glm::quarter_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_RIGHT - syzygy::WORLD_FORWARD,
+        glm::vec3{0.0F, 0.0F, -3 * glm::quarter_pi<float>()}
+    );
+    success &= eulerAnglesTestEquality(
+        -syzygy::WORLD_RIGHT + syzygy::WORLD_FORWARD,
+        glm::vec3{0.0F, 0.0F, -glm::quarter_pi<float>()}
     );
 
     // We expect precision errors with larger vectors to cause issues when
