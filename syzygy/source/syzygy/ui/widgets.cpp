@@ -289,6 +289,34 @@ void uiSceneGeometry(
     {
         table.rowChildPropertyBegin(instance.name);
         table.rowBoolean("Render", instance.render, true);
+        for (syzygy::Transform& transform : instance.originals)
+        {
+            table.rowVec3(
+                "Translation",
+                transform.translation,
+                glm::vec3{0.0F},
+                syzygy::PropertySliderBehavior{.speed = 1.0F}
+            );
+            table.rowVec3(
+                "Euler Angles (Radians)",
+                transform.eulerAnglesRadians,
+                glm::vec3{0.0F},
+                syzygy::PropertySliderBehavior{
+                    .bounds =
+                        syzygy::FloatBounds{
+                            -glm::pi<float>(), glm::pi<float>()
+                        },
+                }
+            );
+            table.rowVec3(
+                "Scale",
+                transform.scale,
+                glm::vec3{1.0F},
+                syzygy::PropertySliderBehavior{
+                    .bounds = syzygy::FloatBounds{.min = 0.1F, .max = 100.0F}
+                }
+            );
+        }
         table.rowCustom(
             "Instance Animation",
             [&]()
