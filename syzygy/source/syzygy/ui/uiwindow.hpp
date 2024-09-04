@@ -27,20 +27,24 @@ struct UIWindow
     ~UIWindow();
     void end();
 
-    syzygy::UIRectangle screenRectangle{};
-    bool open{false};
+    // Returns whether this window is open, as in active in the ImGui stack
+    [[nodiscard]] auto isOpen() const -> bool;
+    // Gives the rectangle this window occupies on the screen, in pixel units
+    [[nodiscard]] auto screenRectangle() const -> UIRectangle const&;
 
 private:
     UIWindow(
         syzygy::UIRectangle screenRectangle, bool open, uint16_t styleVariables
     )
-        : screenRectangle{screenRectangle}
-        , open{open}
+        : m_screenRectangle{screenRectangle}
+        , m_open{open}
         , m_styleVariables{styleVariables}
         , m_initialized{true}
     {
     }
 
+    syzygy::UIRectangle m_screenRectangle{};
+    bool m_open{false};
     uint16_t m_styleVariables{0};
     bool m_initialized{false};
 };

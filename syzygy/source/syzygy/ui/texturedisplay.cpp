@@ -119,7 +119,7 @@ auto TextureDisplay::uiRender(
 
     TextureDisplay::UIResult result{};
 
-    if (!sceneViewport.open)
+    if (!sceneViewport.isOpen())
     {
         return result;
     }
@@ -261,7 +261,7 @@ auto TextureDisplay::uiRender(
     }
 
     {
-        glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+        glm::vec2 const contentExtent{sceneViewport.screenRectangle().size()};
         double const imageHeight{
             m_displayImage->image().aspectRatio().value_or(1.0)
             * contentExtent.x

@@ -33,7 +33,7 @@ void syzygy::performanceWindow(
     syzygy::UIWindow const window{syzygy::UIWindow::beginDockable(
         std::format("{}##performance", title), dockNode
     )};
-    if (!window.open)
+    if (!window.isOpen())
     {
         return;
     }
@@ -430,7 +430,7 @@ void sceneControlsWindow(
     UIWindow const window{
         UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
     };
-    if (!window.open)
+    if (!window.isOpen())
     {
         return;
     }
@@ -525,7 +525,7 @@ auto sceneViewportWindow(
             : UIWindow::beginDockable(title, dockNode)
     };
 
-    if (!sceneViewport.open)
+    if (!sceneViewport.isOpen())
     {
         return {
             .focused = false,
@@ -533,7 +533,7 @@ auto sceneViewportWindow(
         };
     }
 
-    glm::vec2 const contentExtent{sceneViewport.screenRectangle.size()};
+    glm::vec2 const contentExtent{sceneViewport.screenRectangle().size()};
 
     VkExtent2D const textureMax{texture.texture().image().extent2D()};
 

@@ -226,7 +226,7 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
     if (UIWindow const engineControls{
             UIWindow::beginDockable("Engine Controls", dockingLayout.right)
         };
-        engineControls.open)
+        engineControls.isOpen())
     {
         imguiRenderingSelection(m_activeRenderingPipeline);
 

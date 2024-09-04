@@ -57,8 +57,8 @@ auto UIWindow::beginDockable(
 
 UIWindow::UIWindow(UIWindow&& other) noexcept
 {
-    screenRectangle = std::exchange(other.screenRectangle, UIRectangle{});
-    open = std::exchange(other.open, false);
+    m_screenRectangle = std::exchange(other.m_screenRectangle, UIRectangle{});
+    m_open = std::exchange(other.m_open, false);
 
     m_styleVariables = std::exchange(other.m_styleVariables, 0);
     m_initialized = std::exchange(other.m_initialized, false);
@@ -76,5 +76,10 @@ void UIWindow::end()
     ImGui::PopStyleVar(m_styleVariables);
     m_initialized = false;
     m_styleVariables = 0;
+}
+auto UIWindow::isOpen() const -> bool { return m_open; }
+auto UIWindow::screenRectangle() const -> UIRectangle const&
+{
+    return m_screenRectangle;
 }
 } // namespace syzygy
