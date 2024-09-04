@@ -57,6 +57,13 @@ public:
         ImageViewAllocationParameters const& viewParameters
     ) -> std::optional<std::unique_ptr<ImageView>>;
 
+    static auto allocate(
+        VkDevice,
+        VmaAllocator,
+        Image&&,
+        ImageViewAllocationParameters const& viewParameters
+    ) -> std::optional<std::unique_ptr<ImageView>>;
+
     // WARNING: Do not destroy this image view.
     auto view() -> VkImageView;
 

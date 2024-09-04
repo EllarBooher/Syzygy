@@ -40,8 +40,29 @@ auto ImageView::allocate(
         return std::nullopt;
     }
 
+    return allocate(
+        device,
+        allocator,
+        std::move(*imageAllocationResult.value()),
+        viewParameters
+    );
+}
+
+auto ImageView::allocate(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    Image&& preallocatedImage,
+    ImageViewAllocationParameters const& viewParameters
+) -> std::optional<std::unique_ptr<ImageView>>
+{
+    if (device == VK_NULL_HANDLE || allocator == VK_NULL_HANDLE)
+    {
+        SZG_ERROR("Device or allocator were null.");
+        return std::nullopt;
+    }
+
     ImageView finalView{};
-    finalView.m_image = std::move(imageAllocationResult).value();
+    finalView.m_image = std::make_unique<Image>(std::move(preallocatedImage));
 
     Image& image{*finalView.m_image};
 
