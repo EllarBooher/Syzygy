@@ -44,7 +44,7 @@ Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
     .earthRadiusMeters = 6378000,
     .atmosphereRadiusMeters = 6420000,
 
-    .groundColor = glm::vec3{0.9, 0.8, 0.6},
+    .groundColor = glm::vec3{1.0, 1.0, 1.0},
 
     .scatteringCoefficientRayleigh = glm::vec3(0.0000038, 0.0000135, 0.0000331),
     .altitudeDecayRayleigh = 7994.0,
@@ -64,7 +64,7 @@ Camera const Scene::DEFAULT_CAMERA{Camera{
 float const Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
 SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
-    .frozen = false, .time = 0.27F, .speed = 100.0F, .skipNight = false
+    .frozen = false, .time = 0.5F, .speed = 100.0F, .skipNight = false
 }};
 
 float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
@@ -72,19 +72,20 @@ float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 void Scene::addMeshInstance(
     VkDevice const device,
     VmaAllocator const allocator,
+    DescriptorAllocator& descriptorAllocator,
     std::optional<AssetRef<MeshAsset>> const mesh,
     InstanceAnimation const animation,
     std::string const& name,
     std::span<Transform const> const transforms
 )
 {
-    MeshInstanced instance{
-        .render = true,
-        .name =
-            fmt::format("meshInstanced_{}", name), // TODO: name deduplication
-        .mesh = mesh.has_value() ? mesh.value().get().data : nullptr,
-        .animation = animation,
-    };
+    MeshInstanced instance{};
+    instance.render = true;
+    // TODO: name deduplication
+    instance.name = fmt::format("meshInstanced_{}", name);
+    instance.setMesh(mesh.has_value() ? mesh.value().get().data : nullptr);
+    instance.prepareDescriptors(device, descriptorAllocator);
+    instance.animation = animation;
 
     instance.originals.insert(
         instance.originals.begin(), transforms.begin(), transforms.end()
@@ -120,9 +121,36 @@ void Scene::addMeshInstance(
     geometry.push_back(std::move(instance));
 }
 
+void Scene::addSpotlight(
+    glm::vec3 const color, glm::vec3 const position, glm::vec3 const target
+)
+{
+    Transform const lightTransform{
+        Transform::lookAt(position, target, glm::vec3{1.0F})
+    };
+
+    SpotlightParams const lightParams{
+        .color = glm::vec4{color, 1.0},
+        .strength = 300.0F,
+        .falloffFactor = 1.0F,
+        .falloffDistance = 1.0F,
+        .verticalFOVDegrees = 30.0F,
+        .horizontalScale = 1.0F,
+        .eulerAngles = lightTransform.eulerAnglesRadians,
+        .position = lightTransform.translation,
+        .near = 0.1F,
+        .far = 1000.0F
+    };
+
+    spotlights.push_back(makeSpot(lightParams));
+
+    spotlightsRender = true;
+}
+
 auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
+    DescriptorAllocator& descriptorAllocator,
     std::optional<AssetRef<MeshAsset>> const initialMesh
 ) -> Scene
 {
@@ -148,6 +176,7 @@ auto Scene::defaultScene(
         scene.addMeshInstance(
             device,
             allocator,
+            descriptorAllocator,
             initialMesh,
             InstanceAnimation::None,
             "Floor",
@@ -167,6 +196,7 @@ auto Scene::defaultScene(
         scene.addMeshInstance(
             device,
             allocator,
+            descriptorAllocator,
             initialMesh,
             InstanceAnimation::None,
             "Floating",
@@ -224,6 +254,7 @@ auto Scene::defaultScene(
 auto Scene::diagonalWaveScene(
     VkDevice const device,
     VmaAllocator const allocator,
+    DescriptorAllocator& descriptorAllocator,
     std::optional<AssetRef<MeshAsset>> const initialMesh
 ) -> Scene
 {
@@ -252,6 +283,7 @@ auto Scene::diagonalWaveScene(
         scene.addMeshInstance(
             device,
             allocator,
+            descriptorAllocator,
             initialMesh,
             InstanceAnimation::None,
             "Floor",
@@ -283,6 +315,7 @@ auto Scene::diagonalWaveScene(
         scene.addMeshInstance(
             device,
             allocator,
+            descriptorAllocator,
             initialMesh,
             InstanceAnimation::Diagonal_Wave,
             "DiagonalWave",
@@ -488,7 +521,7 @@ auto createSunlight(
     glm::vec3 const sunlightRGB
 ) -> DirectionalLightPacked
 {
-    float constexpr SUNLIGHT_STRENGTH{0.5F};
+    float constexpr SUNLIGHT_STRENGTH{3.0F};
 
     return makeDirectional(
         glm::vec4(sunlightRGB, 1.0),
@@ -507,7 +540,7 @@ auto createMoonlight(
     float constexpr MOONRISE_LENGTH{0.08};
 
     float const moonlightStrength{
-        0.1F
+        0.5F
         * glm::clamp(
             0.0F, 1.0F, glm::abs(sunCosine - sunsetCosine) / MOONRISE_LENGTH
         )
@@ -710,5 +743,65 @@ auto Transform::lookAt(
         .eulerAnglesRadians = eulerAngles,
         .scale = scale,
     };
+}
+
+void MeshInstanced::setMesh(std::shared_ptr<MeshAsset> mesh)
+{
+    m_mesh = mesh;
+    m_surfaceDescriptorsDirty = true;
+}
+
+void MeshInstanced::prepareDescriptors(
+    VkDevice const device, DescriptorAllocator& descriptorAllocator
+)
+{
+    if (!m_surfaceDescriptorsDirty)
+    {
+        return;
+    }
+
+    m_surfaceDescriptorsDirty = false;
+
+    while (m_surfaceDescriptors.size() < m_mesh->surfaces.size())
+    {
+        std::optional<MaterialDescriptors> descriptorsResult{
+            MaterialDescriptors::create(device, descriptorAllocator)
+        };
+        if (!descriptorsResult.has_value())
+        {
+            SZG_ERROR(
+                "Failed to allocate MaterialDescriptors while setting mesh."
+            );
+            m_mesh = nullptr;
+            return;
+        }
+
+        m_surfaceDescriptors.push_back(std::move(descriptorsResult).value());
+    }
+
+    for (size_t index{0}; index < m_mesh->surfaces.size(); index++)
+    {
+        GeometrySurface const& surface{m_mesh->surfaces[index]};
+        MaterialDescriptors& descriptors{m_surfaceDescriptors[index]};
+
+        descriptors.write(surface.material);
+    }
+}
+
+auto MeshInstanced::getMesh() const
+    -> std::optional<std::reference_wrapper<MeshAsset>>
+{
+    if (m_mesh == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *m_mesh;
+}
+
+auto MeshInstanced::getMeshDescriptors() const
+    -> std::span<MaterialDescriptors const>
+{
+    return m_surfaceDescriptors;
 }
 } // namespace syzygy

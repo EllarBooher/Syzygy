@@ -743,12 +743,13 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
             render = renderOverride.render;
         }
 
-        if (!render)
+        std::optional<std::reference_wrapper<MeshAsset>> const&
+            meshAssetOptional{instance.getMesh()};
+        if (!render || !meshAssetOptional.has_value())
         {
             continue;
         }
-
-        MeshAsset const& meshAsset{*instance.mesh};
+        MeshAsset const& meshAsset{meshAssetOptional.value().get()};
         TStagedBuffer<glm::mat4x4> const& models{*instance.models};
 
         GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};
@@ -770,21 +771,26 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
             );
         }
 
-        GeometrySurface const& drawnSurface{meshAsset.surfaces[0]};
+        for (size_t surfaceIndex{0}; surfaceIndex < meshAsset.surfaces.size();
+             surfaceIndex++)
+        {
+            GeometrySurface const& drawnSurface{meshAsset.surfaces[surfaceIndex]
+            };
 
-        // Bind the entire index buffer of the mesh,
-        // but only draw a single surface.
-        vkCmdBindIndexBuffer(
-            cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
-        );
-        vkCmdDrawIndexed(
-            cmd,
-            drawnSurface.indexCount,
-            models.deviceSize(),
-            drawnSurface.firstIndex,
-            0,
-            0
-        );
+            // Bind the entire index buffer of the mesh, but only draw a
+            // single surface.
+            vkCmdBindIndexBuffer(
+                cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
+            );
+            vkCmdDrawIndexed(
+                cmd,
+                drawnSurface.indexCount,
+                models.deviceSize(),
+                drawnSurface.firstIndex,
+                0,
+                0
+            );
+        }
     }
 
     vkCmdEndRendering(cmd);

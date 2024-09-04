@@ -3,8 +3,9 @@
 #extension GL_ARB_shading_language_include : require
 #extension GL_EXT_nonuniform_qualifier : require
 
-// Deferred Blinn-phong shading consuming a GBuffer plus array of shadowmaps.
-// Supports directional and spotlights.
+// Deferred shading pass consuming a GBuffer plus array of shadowmaps.
+// Supports directional and spot lights.
+// Portions are based on results in https://renderwonk.com/publications/s2010-shading-course/
 
 #include "../types/camera.glsl"
 #include "../types/atmosphere.glsl"
@@ -17,6 +18,7 @@ layout(set = 1, binding = 0) uniform sampler2D samplerDiffuse;
 layout(set = 1, binding = 1) uniform sampler2D samplerSpecular;
 layout(set = 1, binding = 2) uniform sampler2D samplerNormal;
 layout(set = 1, binding = 3) uniform sampler2D samplerWorldPosition;
+layout(set = 1, binding = 4) uniform sampler2D samplerOcclusionRoughnessMetallic;
 
 layout(set = 2, binding = 0) uniform sampler shadowMapSampler;
 layout(set = 3, binding = 0) uniform texture2D shadowMaps[];
@@ -65,7 +67,7 @@ float sampleShadowMap(vec4 shadowCoord, uint index)
 	return 1.0;
 }
 
-const mat4 toTexCoordMat = mat4(
+const mat4 TO_TEX_COORD_MAT = mat4(
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
 	0.0, 0.0, 1.0, 0.0,
@@ -78,72 +80,146 @@ struct GBufferTexel
 	vec4 normal;
 	vec4 diffuseColor;
 	vec4 specularColor;
+	vec4 occlusionRoughnessMetallic;
 };
 
-vec3 computeDirectionalLight(const LightDirectional light, const GBufferTexel gbuffer, const vec3 viewDirection, const uint shadowMapIndex)
+struct PBRTexel
 {
-	// SHADOW
-	const mat4 shadowMatrix = toTexCoordMat * light.projection * light.view;
-	vec4 shadowCoord = shadowMatrix * gbuffer.position;
-	shadowCoord /= shadowCoord.w;
-	
-	const float attenuationShadow = sampleShadowMap(shadowCoord, shadowMapIndex); 
-	const vec3 lightColor = light.color.rgb;
+	vec3 position;
+	vec3 normal;
+	vec3 subscatteringColor;
+	vec3 normalReflectance;
+	float occlusion;
+	float roughness;
+	float metallic;
+};
 
-	const vec3 lightDirection = normalize(-light.forward.xyz);
-	const float lambertian = max(dot(lightDirection, gbuffer.normal.xyz), 0.0);
-
-	// DIFFUSE
-	const vec3 diffuseContribution = lambertian * gbuffer.diffuseColor.rgb * lightColor;
-
-	// SPECULAR 
-	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-	const float specularCosine = clamp(dot(halfwayDirection, gbuffer.normal.xyz), 0.0,1.0);
-
-	const float shininess = 16.0;
-	const float fade = smoothstep(0.0,0.01,lambertian);
-	const float specular = fade * pow(specularCosine, shininess);
-	const vec3 specularContribution = specular * gbuffer.specularColor.rgb * lightColor;
-
-	return attenuationShadow * (diffuseContribution + specularContribution) * light.strength;
+float max3(const vec3 rgb)
+{
+	return max(max(rgb.r,rgb.g),rgb.b);
 }
 
-vec3 computeSpotLight(const LightSpot light, const GBufferTexel gbuffer, const vec3 viewDirection, const uint shadowMapIndex)
+PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
 {
-	// SHADOW
-	const mat4 shadowMatrix = toTexCoordMat * light.projection * light.view;
-	vec4 shadowCoord = shadowMatrix * gbuffer.position;
+	const float maxRoughness = 160;
+
+	const vec3 dialectricReflectence = vec3(0.04);
+	const vec3 metallicReflectence = vec3(0.95) * gbuffer.specularColor.rgb / max3(gbuffer.specularColor.rgb); 
+
+	const float metallic = gbuffer.occlusionRoughnessMetallic.b;
+
+	return PBRTexel(
+		/* position = */ gbuffer.position.xyz,
+		/* normal = */ gbuffer.normal.xyz,
+		/* subscatteringColor = */ gbuffer.diffuseColor.rgb,
+		/* normalReflectance = */ mix(dialectricReflectence, metallicReflectence, metallic),
+		/* occlusion = */ gbuffer.occlusionRoughnessMetallic.r,
+		/* roughness = */ pow(maxRoughness, gbuffer.occlusionRoughnessMetallic.g),
+		/* metallic = */ metallic
+	);
+}
+
+float extractOcclusion(const GBufferTexel gbuffer)
+{
+	return gbuffer.occlusionRoughnessMetallic.r;
+}
+
+float extractRoughness(const GBufferTexel gbuffer)
+{
+	const float map = gbuffer.occlusionRoughnessMetallic.g;
+	const float maxRoughness = 160;
+
+	return pow(maxRoughness, map);
+}
+
+float extractMetallic(const GBufferTexel gbuffer)
+{
+	return gbuffer.occlusionRoughnessMetallic.b;
+}
+
+struct IncomingLight
+{
+	vec3 lightDirectionUnit;
+	vec3 lightSpectralFactor;
+};
+
+vec4 computeShadowCoord(mat4 lightProjView, vec3 worldPosition)
+{
+	const mat4 shadowMatrix = TO_TEX_COORD_MAT * lightProjView;
+	vec4 shadowCoord = shadowMatrix * vec4(worldPosition, 1.0);
 	shadowCoord /= shadowCoord.w;
 
-	const float distanceUV = distance(shadowCoord.st, vec2(0.5,0.5));
-	if (distanceUV > 0.5)
-	{
-		return vec3(0.0);
-	}
+	return shadowCoord;
+}
 
-	const float attenuationShadow = sampleShadowMap(shadowCoord, shadowMapIndex); 
+IncomingLight computeIncomingLight(const LightDirectional light, const vec4 shadowCoord, const uint shadowMapIndex)
+{
+	const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
+	const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadowCoord, shadowMapIndex);
 
-	const vec3 lightColor = light.color.rgb;
+	return IncomingLight(lightDirectionUnit, lightSpectralFactor);
+}
 
-	const vec3 lightDirection = normalize(-light.forward.xyz);
-	const float lambertian = max(dot(lightDirection, gbuffer.normal.xyz), 0.0);
+IncomingLight computeIncomingLight(const LightSpot light, const vec3 worldPosition, const vec4 shadowCoord, const uint shadowMapIndex)
+{
+	const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
 
-	// DIFFUSE
-	const vec3 diffuseContribution = lambertian * gbuffer.diffuseColor.rgb * lightColor;
+	const float lightNormalizedDistance = distance(light.position.xyz, worldPosition) / light.falloffDistance;
+	const float lightFalloff = light.falloffFactor * lightNormalizedDistance * lightNormalizedDistance;
 
-	// SPECULAR 
+	// Quadratic falloff from center of light to edge, using the shadowmap as the bounds of the light
+	const float distanceUV = clamp(distance(shadowCoord.st, vec2(0.5,0.5)) / 0.5, 0.0, 1.0);
+	const float edgeSoftening = 1.0 - distanceUV * distanceUV;
+
+	const vec3 lightSpectralFactor = light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadowCoord, shadowMapIndex);
+
+	return IncomingLight(lightDirectionUnit, lightSpectralFactor);
+}
+
+vec3 computeFresnel(const PBRTexel material, const vec3 lightDirection, const vec3 viewDirection)
+{
 	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-	const float specularCosine = clamp(dot(halfwayDirection, gbuffer.normal.xyz), 0.0,1.0);
 
-	const float shininess = 16.0;
-	const float fade = smoothstep(0.0,0.01,lambertian);
-	const float specular = fade * pow(specularCosine, shininess);
-	const vec3 specularContribution = specular * gbuffer.specularColor.rgb * lightColor;
+	// Schlick approximation of fresnel reflection
+	const vec3 fresnel = material.normalReflectance + (1.0 - material.normalReflectance) * pow(1.0-clamp(dot(halfwayDirection, lightDirection), 0.0,1.0), 5);
 
-	const float falloff = light.falloffFactor * distance(light.position, gbuffer.position) / light.falloffDistance;
-	const float attenuationEdge = (0.5 - distanceUV) * (0.5 - distanceUV) * 4.0;
+	return fresnel;
+}
 
-	return attenuationEdge * attenuationShadow * (diffuseContribution + specularContribution) * light.strength / falloff;
+vec3 diffuseBRDF(const PBRTexel material, const vec3 lightDirection)
+{
+	// Lambertian BRDF
+
+	return material.subscatteringColor / 3.14159265359;
+}
+
+vec3 specularBRDF(const PBRTexel material, const vec3 lightDirection, const vec3 viewDirection)
+{
+	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+
+	const float specularPower = material.roughness;
+	const float microfacetDistribution = pow(clamp(dot(halfwayDirection, material.normal), 0.0,1.0), specularPower);
+
+	// Without this term, the overall brightness decreases as roughness increases
+	const float normalizationTerm = (specularPower + 2) / 8.0;
+
+	return vec3(normalizationTerm * microfacetDistribution);
+}
+
+vec3 computeLightContribution(const IncomingLight light, const PBRTexel material, const vec3 viewDirection)
+{
+	// Our model uses a microfacet specular BRDF layered with a diffuse BRDF
+	// The assumption is that all diffuse light is scattered from whatever is not reflected as a specular highlight
+	
+	const vec3 lightDirection = light.lightDirectionUnit;
+
+	const vec3 diffuseContribution = diffuseBRDF(material, lightDirection);
+	const vec3 specularContribution = specularBRDF(material, lightDirection,  viewDirection);
+
+	const vec3 fresnel = computeFresnel(material, lightDirection, viewDirection);
+
+	// Lerping preserves the energy conservation of our BRDFs
+	return material.occlusion * mix(diffuseContribution, specularContribution, fresnel) * light.lightSpectralFactor;
 }
 
 void main()
@@ -159,36 +235,41 @@ void main()
 	const vec2 offset = vec2(0.5,0.5);
 	const vec2 gbufferUV = (vec2(texelCoord) + offset) / pushConstant.gbufferExtent;
 
-	const GBufferTexel gbuffer = GBufferTexel(
-		texture(samplerWorldPosition, gbufferUV)
-		, texture(samplerNormal, gbufferUV)
-		, texture(samplerDiffuse, gbufferUV)
-		, texture(samplerSpecular, gbufferUV)
-	); 
+	const vec4 gbufferDiffuse = texture(samplerDiffuse, gbufferUV);
 
 	// No transparent geometry for now, less than 1.0 alpha indicates background texels
-	if (gbuffer.diffuseColor.a < 1.0)
+	if (gbufferDiffuse.a < 1.0)
 	{
 		return;
 	}
 
+	const PBRTexel material = convertPBRProperties(GBufferTexel(
+		texture(samplerWorldPosition, gbufferUV)
+		, texture(samplerNormal, gbufferUV)
+		, gbufferDiffuse
+		, texture(samplerSpecular, gbufferUV)
+		, texture(samplerOcclusionRoughnessMetallic, gbufferUV)
+	));
+
 	const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 
 	const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
-	const vec3 viewDirection = normalize(camera.position.xyz - gbuffer.position.xyz);
+	const vec3 viewDirection = normalize(camera.position.xyz - material.position.xyz);
 
 	// AMBIENT
-	const vec3 ambientContribution = gbuffer.diffuseColor.rgb * atmosphere.ambientColor;
+	const vec3 ambientContribution = material.subscatteringColor * atmosphere.ambientColor;
 
 	vec3 lightContribution = vec3(0.0);
 
-	// We assume shadow maps are laid out in the following order
+	// We assume shadow maps are laid out in the following order across all lights
 	uint shadowMapIndex = 0;
 
 	for (int i = 0; i < pushConstant.directionalLightCount; i++)
 	{
 		const LightDirectional light = pushConstant.directionalLights.lights[i];
-		lightContribution += computeDirectionalLight(light, gbuffer, viewDirection, shadowMapIndex);
+		const vec4 shadowCoord = computeShadowCoord(light.projection * light.view, material.position);
+		const IncomingLight incomingLight = computeIncomingLight(light, shadowCoord, shadowMapIndex);
+		lightContribution += computeLightContribution(incomingLight, material, viewDirection);
 
 		shadowMapIndex += 1;
 	}
@@ -196,7 +277,9 @@ void main()
 	for (int i = 0; i < pushConstant.spotLightCount; i++)
 	{
 		const LightSpot light = pushConstant.spotLights.lights[i];
-		lightContribution += computeSpotLight(light, gbuffer, viewDirection, shadowMapIndex);
+		const vec4 shadowCoord = computeShadowCoord(light.projection * light.view, material.position);
+		const IncomingLight incomingLight = computeIncomingLight(light, material.position, shadowCoord, shadowMapIndex);
+		lightContribution += computeLightContribution(incomingLight, material, viewDirection);
 
 		shadowMapIndex += 1;
 	}

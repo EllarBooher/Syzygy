@@ -4,6 +4,7 @@
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
+#include "syzygy/renderer/material.hpp"
 #include <functional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -116,7 +117,6 @@ struct MeshInstanced
 {
     bool render{false};
     std::string name{};
-    std::shared_ptr<MeshAsset> mesh{};
 
     InstanceAnimation animation{InstanceAnimation::None};
 
@@ -127,6 +127,18 @@ struct MeshInstanced
 
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+
+    void setMesh(std::shared_ptr<MeshAsset>);
+    void prepareDescriptors(VkDevice, DescriptorAllocator&);
+
+    auto getMesh() const -> std::optional<std::reference_wrapper<MeshAsset>>;
+    auto getMeshDescriptors() const -> std::span<MaterialDescriptors const>;
+
+private:
+    bool m_surfaceDescriptorsDirty{false};
+
+    std::shared_ptr<MeshAsset> m_mesh{};
+    std::vector<MaterialDescriptors> m_surfaceDescriptors{};
 };
 
 struct SunAnimation
@@ -161,22 +173,33 @@ struct Scene
     // TODO: compute this on demand instead of making it a tweakable parameter
     // This is used to compute the necessary dimensions of various resource e.g.
     // shadowmaps
-    SceneBounds bounds{};
+    SceneBounds bounds{
+        .center = glm::vec3{0.0F, -4.0F, 0.0F},
+        .extent = glm::vec3{20.0F, 20.0F, 20.0F},
+    };
 
     void addMeshInstance(
         VkDevice,
         VmaAllocator,
+        DescriptorAllocator&,
         std::optional<AssetRef<MeshAsset>>,
         InstanceAnimation,
         std::string const& name,
         std::span<Transform const> transforms
     );
+    void addSpotlight(glm::vec3 color, glm::vec3 position, glm::vec3 target);
 
     static auto defaultScene(
-        VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh
+        VkDevice,
+        VmaAllocator,
+        DescriptorAllocator&,
+        std::optional<AssetRef<MeshAsset>> initialMesh
     ) -> Scene;
     static auto diagonalWaveScene(
-        VkDevice, VmaAllocator, std::optional<AssetRef<MeshAsset>> initialMesh
+        VkDevice,
+        VmaAllocator,
+        DescriptorAllocator&,
+        std::optional<AssetRef<MeshAsset>> initialMesh
     ) -> Scene;
 
     void handleInput(TickTiming, InputSnapshot const&);

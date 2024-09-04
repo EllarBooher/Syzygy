@@ -2,10 +2,9 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
-layout(location = 0) out vec3 outDiffuseColor;
-layout(location = 1) out vec3 outSpecularColor;
+layout(location = 0) out vec3 outWorldPosition;
+layout(location = 1) out vec2 outTexCoord;
 layout(location = 2) out vec3 outNormal;
-layout(location = 3) out vec3 outWorldPosition;
 
 #include "../types/camera.glsl"
 #include "../types/vertex.glsl"
@@ -47,9 +46,7 @@ void main()
 
 	gl_Position = camera.projection * camera.view * position;
 
-	vec4 normal = modelInverseTranspose * vec4(vertex.normal, 0.0);
-	outNormal = normalize(normal.xyz);
+	outNormal = normalize((modelInverseTranspose * vec4(vertex.normal, 0.0)).xyz);
 
-	outDiffuseColor = vec3(0.8);
-	outSpecularColor = vec3(1.0);
+	outTexCoord = vec2(vertex.uv_x, vertex.uv_y);
 }

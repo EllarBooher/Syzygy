@@ -374,8 +374,12 @@ void uiSceneGeometry(
         {
             ImGui::BeginDisabled(meshes.empty());
 
+            std::optional<std::reference_wrapper<syzygy::MeshAsset>>
+                meshOptional{instance.getMesh()};
+
             std::string const previewLabel{
-                instance.mesh == nullptr ? "None" : instance.mesh->name
+                meshOptional.has_value() ? meshOptional.value().get().name
+                                         : "None"
             };
             if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
             {
@@ -391,11 +395,13 @@ void uiSceneGeometry(
                     }
 
                     syzygy::MeshAsset const& mesh{*asset.data};
-                    bool const selected{asset.data == instance.mesh};
+                    bool const selected{
+                        asset.data.get() == &meshOptional.value().get()
+                    };
 
                     if (ImGui::Selectable(mesh.name.c_str(), selected))
                     {
-                        instance.mesh = asset.data;
+                        instance.setMesh(asset.data);
                         break;
                     }
                 }

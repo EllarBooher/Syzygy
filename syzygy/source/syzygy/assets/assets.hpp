@@ -5,6 +5,7 @@
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/material.hpp"
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -27,7 +28,9 @@ struct GeometrySurface
 {
     uint32_t firstIndex;
     uint32_t indexCount;
+    MaterialData material{};
 };
+
 struct MeshAsset
 {
     std::string name{};
@@ -116,7 +119,7 @@ public:
         ImmediateSubmissionQueue const& submissionQueue
     );
 
-    void loadMeshesFromPath(
+    void loadGLTFFromPath(
         GraphicsContext&,
         ImmediateSubmissionQueue const&,
         std::filesystem::path const& filePath
@@ -128,12 +131,20 @@ public:
         ImmediateSubmissionQueue const& submissionQueue
     );
 
-    void loadDefaultAssets(
+    static auto loadDefaultAssets(
         GraphicsContext&, ImmediateSubmissionQueue const& submissionQueue
-    );
+    ) -> std::optional<AssetLibrary>;
 
 private:
+    AssetLibrary() = default;
+
     std::vector<Asset<Image>> m_textures{};
+
+    size_t m_defaultColorIndex{0};
+    size_t m_defaultNormalIndex{0};
+    size_t m_defaultORMIndex{0};
+    std::vector<Asset<ImageView>> m_imageViews{};
+
     std::vector<Asset<MeshAsset>> m_meshes{};
 };
 } // namespace syzygy

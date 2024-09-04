@@ -29,6 +29,8 @@ auto GBuffer::create(
         .usageFlags =
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     };
+
+    // Give world position larger components to avoid precision issues
     ImageAllocationParameters const worldPositionParameters{
         .extent = drawExtent,
         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
@@ -77,7 +79,16 @@ auto GBuffer::create(
         return std::nullopt;
     }
 
-    std::array<VkSampler, 4> immutableSamplers{};
+    std::optional<std::unique_ptr<ImageView>> ormResult{
+        ImageView::allocate(device, allocator, imageParameters, viewParameters)
+    };
+    if (!ormResult.has_value() || ormResult.value() == nullptr)
+    {
+        SZG_ERROR("Failed to create GBuffer occlusionRoughnessMetallic image.");
+        return std::nullopt;
+    }
+
+    std::array<VkSampler, GBUFFER_TEXTURE_COUNT> immutableSamplers{};
     cleanupCallbacks.pushFunction(
         [&]()
     {
@@ -96,7 +107,7 @@ auto GBuffer::create(
             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
         )};
 
-        for (size_t i{0}; i < 4; i++)
+        for (size_t i{0}; i < GBUFFER_TEXTURE_COUNT; i++)
         {
             VkSampler sampler{VK_NULL_HANDLE};
             VkResult const samplerResult{vkCreateSampler(
@@ -116,6 +127,7 @@ auto GBuffer::create(
     VkSampler const specularColorSampler{immutableSamplers[1]};
     VkSampler const normalSampler{immutableSamplers[2]};
     VkSampler const positionSampler{immutableSamplers[3]};
+    VkSampler const ormSampler{immutableSamplers[4]};
 
     // The descriptor for accessing all the samplers in the lighting passes
     std::optional<VkDescriptorSetLayout> const descriptorLayoutResult{
@@ -156,6 +168,15 @@ auto GBuffer::create(
                 },
                 {positionSampler}
             )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 4,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                {ormSampler}
+            )
             .build(device, 0)
             .value_or(VK_NULL_HANDLE)
     };
@@ -189,6 +210,11 @@ auto GBuffer::create(
             .sampler = VK_NULL_HANDLE,
             .imageView = positionResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+        },
+        VkDescriptorImageInfo{
+            .sampler = VK_NULL_HANDLE,
+            .imageView = ormResult.value()->view(),
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
     };
 
@@ -217,6 +243,7 @@ auto GBuffer::create(
         .specularColor = std::move(specularResult).value(),
         .normal = std::move(normalResult).value(),
         .worldPosition = std::move(positionResult).value(),
+        .occlusionRoughnessMetallic = std::move(ormResult).value(),
         .descriptorLayout = descriptorLayoutResult.value(),
         .descriptors = descriptorSet,
         .immutableSamplers =
@@ -238,6 +265,7 @@ void GBuffer::recordTransitionImages(
     specularColor->recordTransitionBarriered(cmd, dstLayout);
     normal->recordTransitionBarriered(cmd, dstLayout);
     worldPosition->recordTransitionBarriered(cmd, dstLayout);
+    occlusionRoughnessMetallic->recordTransitionBarriered(cmd, dstLayout);
 }
 
 void GBuffer::cleanup(VkDevice const device)
@@ -246,6 +274,7 @@ void GBuffer::cleanup(VkDevice const device)
     specularColor.reset();
     normal.reset();
     worldPosition.reset();
+    occlusionRoughnessMetallic.reset();
 
     for (VkSampler const sampler : immutableSamplers)
     {

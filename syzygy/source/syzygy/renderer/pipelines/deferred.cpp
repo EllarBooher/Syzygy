@@ -309,10 +309,53 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
     { // GBuffer pipelines
         VkPushConstantRange const graphicsPushConstantRange{
-            .stageFlags =
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             .offset = 0,
             .size = sizeof(GBufferVertexPushConstant),
+        };
+
+        VkDescriptorSetLayout const emptyDescriptorLayout{
+            DescriptorLayoutBuilder{}
+                .build(device, static_cast<VkFlags>(0))
+                .value_or(VK_NULL_HANDLE)
+        };
+
+        std::vector<VkDescriptorSetLayout> const descriptorLayouts{
+            emptyDescriptorLayout,
+            emptyDescriptorLayout,
+            emptyDescriptorLayout,
+            DescriptorLayoutBuilder{} // Color texture
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 0,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    1
+                )
+                // Normal texture
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 1,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    1
+                )
+                // ORM texture
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 2,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    1
+                )
+                .build(device, static_cast<VkFlags>(0))
+                .value_or(VK_NULL_HANDLE)
         };
 
         m_gBufferVertexShader = loadShader(
@@ -320,7 +363,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             "shaders/deferred/offscreen.vert.spv",
             VK_SHADER_STAGE_VERTEX_BIT,
             VK_SHADER_STAGE_FRAGMENT_BIT,
-            {},
+            descriptorLayouts,
             graphicsPushConstantRange
         );
 
@@ -329,18 +372,15 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             "shaders/deferred/offscreen.frag.spv",
             VK_SHADER_STAGE_FRAGMENT_BIT,
             0,
-            {},
+            descriptorLayouts,
             graphicsPushConstantRange
         );
 
         std::vector<VkPushConstantRange> const gBufferPushConstantRanges{
-            VkPushConstantRange{
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-                .offset = 0,
-                .size = sizeof(GBufferVertexPushConstant),
-            }
+            graphicsPushConstantRange
         };
-        m_gBufferLayout = createLayout(device, {}, gBufferPushConstantRanges);
+        m_gBufferLayout =
+            createLayout(device, descriptorLayouts, gBufferPushConstantRanges);
     }
 
     { // Lighting pass pipeline
@@ -465,9 +505,13 @@ auto collectGeometryCullFlags(
 
     for (syzygy::MeshInstanced const& instance : meshes)
     {
+        std::optional<std::reference_wrapper<syzygy::MeshAsset>> mesh{
+            instance.getMesh()
+        };
+
         syzygy::RenderOverride const override{
-            .render = instance.render && instance.mesh != nullptr
-                   && instance.mesh->meshBuffers != nullptr
+            .render = instance.render && mesh.has_value()
+                   && mesh.value().get().meshBuffers != nullptr
                    && instance.models != nullptr
                    && instance.modelInverseTransposes != nullptr
         };
@@ -586,7 +630,9 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
 
-        std::array<VkRenderingAttachmentInfo, 4> const gBufferAttachments{
+        std::array<
+            VkRenderingAttachmentInfo,
+            GBuffer::GBUFFER_TEXTURE_COUNT> const gBufferAttachments{
             renderingAttachmentInfo(
                 m_gBuffer.diffuseColor->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -601,6 +647,10 @@ void DeferredShadingPipeline::recordDrawCommands(
             ),
             renderingAttachmentInfo(
                 m_gBuffer.worldPosition->view(),
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            ),
+            renderingAttachmentInfo(
+                m_gBuffer.occlusionRoughnessMetallic->view(),
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             )
         };
@@ -626,17 +676,18 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT
             | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
         };
-        std::array<VkColorComponentFlags, 4> const attachmentWriteMasks{
-            colorComponentFlags,
-            colorComponentFlags,
-            colorComponentFlags,
-            colorComponentFlags
-        };
+        std::array<VkColorComponentFlags, GBuffer::GBUFFER_TEXTURE_COUNT> const
+            attachmentWriteMasks{
+                colorComponentFlags,
+                colorComponentFlags,
+                colorComponentFlags,
+                colorComponentFlags,
+                colorComponentFlags
+            };
         vkCmdSetColorWriteMaskEXT(cmd, 0, VKR_ARRAY(attachmentWriteMasks));
 
-        std::array<VkBool32, 4> const colorBlendEnabled{
-            VK_FALSE, VK_FALSE, VK_FALSE, VK_FALSE
-        };
+        std::array<VkBool32, GBuffer::GBUFFER_TEXTURE_COUNT> const
+            colorBlendEnabled{VK_FALSE, VK_FALSE, VK_FALSE, VK_FALSE, VK_FALSE};
         vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
 
         VkRenderingInfo const renderInfo{renderingInfo(
@@ -656,28 +707,34 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdBeginRendering(cmd, &renderInfo);
 
         VkClearValue const clearColor{.color{.float32{0.0, 0.0, 0.0, 0.0}}};
-        std::array<VkClearAttachment, 4> const clearAttachments{
-            VkClearAttachment{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .colorAttachment = 0,
-                .clearValue = clearColor,
-            },
-            VkClearAttachment{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .colorAttachment = 1,
-                .clearValue = clearColor,
-            },
-            VkClearAttachment{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .colorAttachment = 2,
-                .clearValue = clearColor,
-            },
-            VkClearAttachment{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .colorAttachment = 3,
-                .clearValue = clearColor,
-            }
-        };
+        std::array<VkClearAttachment, GBuffer::GBUFFER_TEXTURE_COUNT> const
+            clearAttachments{
+                VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 0,
+                    .clearValue = clearColor,
+                },
+                VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 1,
+                    .clearValue = clearColor,
+                },
+                VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 2,
+                    .clearValue = clearColor,
+                },
+                VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 3,
+                    .clearValue = clearColor,
+                },
+                VkClearAttachment{
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .colorAttachment = 4,
+                    .clearValue = clearColor,
+                }
+            };
         VkClearRect const clearRect{
             .rect = VkRect2D{.extent{drawRect.extent}},
             .baseArrayLayer = 0,
@@ -699,12 +756,14 @@ void DeferredShadingPipeline::recordDrawCommands(
                 render = renderOverride.render;
             }
 
-            if (!render)
+            std::optional<std::reference_wrapper<MeshAsset>> const&
+                meshAssetOptional{instance.getMesh()};
+            if (!render || !meshAssetOptional.has_value())
             {
                 continue;
             }
+            MeshAsset const& meshAsset{meshAssetOptional.value().get()};
 
-            MeshAsset const& meshAsset{*instance.mesh};
             TStagedBuffer<glm::mat4x4> const& models{*instance.models};
             TStagedBuffer<glm::mat4x4> const& modelInverseTransposes{
                 *instance.modelInverseTransposes
@@ -731,21 +790,38 @@ void DeferredShadingPipeline::recordDrawCommands(
                 );
             }
 
-            GeometrySurface const& drawnSurface{meshAsset.surfaces[0]};
+            std::span<MaterialDescriptors const> const surfaceDescriptors{
+                instance.getMeshDescriptors()
+            };
+            for (size_t surfaceIndex{0};
+                 surfaceIndex < std::min(
+                     meshAsset.surfaces.size(), surfaceDescriptors.size()
+                 );
+                 surfaceIndex++)
+            {
+                GeometrySurface const& drawnSurface{
+                    meshAsset.surfaces[surfaceIndex]
+                };
+                MaterialDescriptors const& descriptors{
+                    surfaceDescriptors[surfaceIndex]
+                };
 
-            // Bind the entire index buffer of the mesh, but only draw a single
-            // surface.
-            vkCmdBindIndexBuffer(
-                cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
-            );
-            vkCmdDrawIndexed(
-                cmd,
-                drawnSurface.indexCount,
-                models.deviceSize(),
-                drawnSurface.firstIndex,
-                0,
-                0
-            );
+                descriptors.bind(cmd, m_gBufferLayout, 3);
+
+                // Bind the entire index buffer of the mesh, but only draw a
+                // single surface.
+                vkCmdBindIndexBuffer(
+                    cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
+                );
+                vkCmdDrawIndexed(
+                    cmd,
+                    drawnSurface.indexCount,
+                    models.deviceSize(),
+                    drawnSurface.firstIndex,
+                    0,
+                    0
+                );
+            }
         }
 
         std::array<VkShaderStageFlagBits, 2> const unboundStages{

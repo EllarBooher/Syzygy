@@ -420,8 +420,15 @@ auto run() -> EditorResult
         return EditorResult::ERROR;
     }
 
-    AssetLibrary assetLibrary{};
-    assetLibrary.loadDefaultAssets(graphicsContext, submissionQueue);
+    std::optional<AssetLibrary> assetLibraryResult{
+        AssetLibrary::loadDefaultAssets(graphicsContext, submissionQueue)
+    };
+    if (!assetLibraryResult.has_value())
+    {
+        SZG_ERROR("Unable to initialize asset library.");
+        return EditorResult::ERROR;
+    }
+    AssetLibrary& assetLibrary{assetLibraryResult.value()};
 
     // A test widget that can display a texture in a UI window
     std::unique_ptr<TextureDisplay> testImageWidget{};
@@ -451,14 +458,50 @@ auto run() -> EditorResult
     {
         auto const loadedMeshes{assetLibrary.fetchAssets<MeshAsset>()};
 
-        std::optional<AssetRef<MeshAsset>> initialMesh{};
+        std::optional<AssetRef<MeshAsset>> floatingMesh{};
+        std::optional<AssetRef<MeshAsset>> floorMesh{};
         if (!loadedMeshes.empty())
         {
-            initialMesh = loadedMeshes[0];
+            // Assume we loaded vkguide's mesh with a cube, sphere, and suzanne
+            // in that order
+            floatingMesh = loadedMeshes[1];
+            floorMesh = loadedMeshes[0];
         }
 
-        scene = Scene::defaultScene(
-            graphicsContext.device(), graphicsContext.allocator(), initialMesh
+        glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
+
+        scene.addMeshInstance(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.descriptorAllocator(),
+            floatingMesh,
+            InstanceAnimation::None,
+            "Floating",
+            std::array<Transform, 1>{Transform{
+                .translation = floatingPosition,
+                .eulerAnglesRadians = glm::vec3{0.0F},
+                .scale = glm::vec3{0.5F}
+            }}
+        );
+
+        scene.addMeshInstance(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.descriptorAllocator(),
+            floorMesh,
+            InstanceAnimation::None,
+            "Floor",
+            std::array<Transform, 1>{Transform{
+                .translation = glm::vec3{0.0F, 10.0F, 0.0F},
+                .eulerAnglesRadians = glm::vec3{0.0F},
+                .scale = glm::vec3{400.0F, 1.0F, 400.0F}
+            }}
+        );
+
+        scene.addSpotlight(
+            glm::vec3{1.0, 0.0, 0.0},
+            floatingPosition + glm::vec3{-20.0},
+            floatingPosition
         );
     }
 
@@ -531,7 +574,7 @@ auto run() -> EditorResult
         }
 
         DockingLayout const& dockingLayout{uiLayer.begin()};
-        if (uiLayer.HUDMenuItem("Tools", "Load Mesh (.glTF)"))
+        if (uiLayer.HUDMenuItem("Tools", "Load Mesh (.glTF / .glb / .bin)"))
         {
             assetLibrary.loadMeshesDialog(
                 mainWindow, graphicsContext, submissionQueue
@@ -592,6 +635,13 @@ auto run() -> EditorResult
 
         if (sceneViewport.has_value())
         {
+            for (MeshInstanced& instance : scene.geometry)
+            {
+                instance.prepareDescriptors(
+                    graphicsContext.device(),
+                    graphicsContext.descriptorAllocator()
+                );
+            }
             renderer.recordDraw(
                 currentFrame.mainCommandBuffer,
                 scene,

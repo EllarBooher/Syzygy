@@ -15,10 +15,12 @@ namespace syzygy
 {
 struct GBuffer
 {
+    static constexpr size_t GBUFFER_TEXTURE_COUNT{5};
     std::unique_ptr<ImageView> diffuseColor{};
     std::unique_ptr<ImageView> specularColor{};
     std::unique_ptr<ImageView> normal{};
     std::unique_ptr<ImageView> worldPosition{};
+    std::unique_ptr<ImageView> occlusionRoughnessMetallic{};
 
     VkDescriptorSetLayout descriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet descriptors{VK_NULL_HANDLE};
