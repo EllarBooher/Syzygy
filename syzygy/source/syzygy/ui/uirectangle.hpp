@@ -13,7 +13,8 @@ struct UIRectangle
     [[nodiscard]] auto pos() const -> glm::vec2 { return min; }
     [[nodiscard]] auto size() const -> glm::vec2 { return max - min; }
 
-    static auto fromPosSize(glm::vec2 const pos, glm::vec2 const size) -> UIRectangle
+    static auto fromPosSize(glm::vec2 const pos, glm::vec2 const size)
+        -> UIRectangle
     {
         return UIRectangle{
             .min{pos},
