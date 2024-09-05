@@ -7,6 +7,7 @@ add_library(
 	"source/syzygy/assets/assets.cpp"
 
 	"source/syzygy/geometry/geometryhelpers.cpp"
+	"source/syzygy/geometry/geometrytypes.cpp"
 	"source/syzygy/geometry/geometrytests.cpp"
 
 	"source/syzygy/renderer/pipelines/debuglines.cpp"

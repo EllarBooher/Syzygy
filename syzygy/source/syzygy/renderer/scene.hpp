@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
@@ -108,8 +109,7 @@ struct Transform
     glm::vec3 scale{1.0F};
 
     [[nodiscard]] auto toMatrix() const -> glm::mat4x4;
-    [[nodiscard]] static auto
-    lookAt(glm::vec3 const eye, glm::vec3 const target, glm::vec3 const scale)
+    [[nodiscard]] static auto lookAt(Ray eyeTarget, glm::vec3 scale)
         -> Transform;
 };
 

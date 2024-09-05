@@ -126,7 +126,7 @@ void Scene::addSpotlight(
 )
 {
     Transform const lightTransform{
-        Transform::lookAt(position, target, glm::vec3{1.0F})
+        Transform::lookAt(Ray::create(position, target), glm::vec3{1.0F})
     };
 
     SpotlightParams const lightParams{
@@ -220,8 +220,10 @@ auto Scene::defaultScene(
 
         {
             Transform const lightTransform{Transform::lookAt(
-                floatingMeshPosition + lightsHeight + lightsOffset,
-                floatingMeshPosition,
+                Ray::create(
+                    floatingMeshPosition + lightsHeight + lightsOffset,
+                    floatingMeshPosition
+                ),
                 glm::vec3{1.0F}
             )};
             SpotlightParams lightParams{sharedParams};
@@ -233,8 +235,10 @@ auto Scene::defaultScene(
         }
         {
             Transform const lightTransform{Transform::lookAt(
-                floatingMeshPosition + lightsHeight - lightsOffset,
-                floatingMeshPosition,
+                Ray::create(
+                    floatingMeshPosition + lightsHeight - lightsOffset,
+                    floatingMeshPosition
+                ),
                 glm::vec3{1.0F}
             )};
             SpotlightParams lightParams{sharedParams};
@@ -730,16 +734,14 @@ auto Transform::toMatrix() const -> glm::mat4x4
          * glm::scale(scale);
 }
 
-auto Transform::lookAt(
-    glm::vec3 const eye, glm::vec3 const target, glm::vec3 const scale
-) -> Transform
+auto Transform::lookAt(Ray const eyeTarget, glm::vec3 const scale) -> Transform
 {
-    glm::vec3 const forward{glm::normalize(target - eye)};
+    glm::vec3 const forward{glm::normalize(eyeTarget.direction)};
 
     glm::vec3 const eulerAngles{eulersFromForward(forward)};
 
     return Transform{
-        .translation = eye,
+        .translation = eyeTarget.position,
         .eulerAnglesRadians = eulerAngles,
         .scale = scale,
     };
