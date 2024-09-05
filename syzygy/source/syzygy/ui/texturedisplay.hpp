@@ -27,10 +27,10 @@ public:
     ~TextureDisplay();
 
     TextureDisplay() = delete;
-    TextureDisplay& operator=(TextureDisplay&&) = delete;
+    auto operator=(TextureDisplay&&) -> TextureDisplay& = delete;
 
     TextureDisplay(TextureDisplay const&) = delete;
-    TextureDisplay& operator=(TextureDisplay const&) = delete;
+    auto operator=(TextureDisplay const&) -> TextureDisplay& = delete;
 
     // imageCapacity and imageFormat can be set to ensure compatibility with the
     // textures that will be copied later on

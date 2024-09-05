@@ -19,7 +19,7 @@ struct AABB
     static size_t constexpr VERTEX_COUNT{8ULL};
     using Vertices = std::array<glm::vec3, VERTEX_COUNT>;
 
-    auto collectVertices() const -> Vertices;
+    [[nodiscard]] auto collectVertices() const -> Vertices;
 
     glm::vec3 center;
     glm::vec3 halfExtent;

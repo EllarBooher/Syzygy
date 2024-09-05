@@ -65,7 +65,8 @@ public:
 
     auto begin() -> syzygy::DockingLayout const&;
 
-    auto HUDMenuItem(std::string const& menu, std::string const& item) -> bool;
+    [[nodiscard]] auto
+    HUDMenuItem(std::string const& menu, std::string const& item) const -> bool;
 
     [[nodiscard]] auto sceneTextureLayout() const
         -> std::optional<VkDescriptorSetLayout>;

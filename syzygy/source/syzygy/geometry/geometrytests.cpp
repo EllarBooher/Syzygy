@@ -3,10 +3,11 @@
 #include "syzygy/core/log.hpp"
 #include <glm/gtx/string_cast.hpp>
 
+// NOLINTBEGIN
+
 namespace
 {
 float constexpr TEST_EPSILON{3.0F * glm::epsilon<float>()};
-
 auto eulerAnglesTestInverse(
     glm::vec3 const unnormalizedForward, bool const quiet = false
 ) -> bool
@@ -219,3 +220,5 @@ auto syzygy_tests::runTests() -> bool
 
     return success;
 }
+
+// NOLINTEND

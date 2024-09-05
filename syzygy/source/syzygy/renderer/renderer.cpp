@@ -149,17 +149,17 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
     m_camerasBuffer = std::make_unique<TStagedBuffer<CameraPacked>>(
         TStagedBuffer<CameraPacked>::allocate(
             device,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             allocator,
-            CAMERA_CAPACITY,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            CAMERA_CAPACITY
         )
     );
     m_atmospheresBuffer = std::make_unique<TStagedBuffer<AtmospherePacked>>(
         TStagedBuffer<AtmospherePacked>::allocate(
             device,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             allocator,
-            ATMOSPHERE_CAPACITY,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            ATMOSPHERE_CAPACITY
         )
     );
 }
@@ -176,17 +176,17 @@ void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
     m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
         TStagedBuffer<uint32_t>::allocate(
             device,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
             allocator,
-            DEBUGLINES_CAPACITY,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+            DEBUGLINES_CAPACITY
         )
     );
     m_debugLines.vertices = std::make_unique<TStagedBuffer<VertexPacked>>(
         TStagedBuffer<VertexPacked>::allocate(
             device,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             allocator,
-            DEBUGLINES_CAPACITY,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            DEBUGLINES_CAPACITY
         )
     );
 }

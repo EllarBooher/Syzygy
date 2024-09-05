@@ -27,6 +27,9 @@ struct PropertySliderBehavior
 
 struct PropertyTable
 {
+public:
+    PropertyTable() = delete;
+
 private:
     using Self = PropertyTable;
 
@@ -56,7 +59,6 @@ private:
     // within a collapsed child, we can see when to stop being collapsed.
     std::optional<size_t> m_childPropertyFirstCollapse{std::nullopt};
 
-    PropertyTable() = delete;
     explicit PropertyTable(uint16_t styleVariables)
         : m_styleVariablesCount(styleVariables)
         , m_open(true)

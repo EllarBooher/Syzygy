@@ -28,6 +28,7 @@ add_library(
 	"source/syzygy/renderer/scenetexture.cpp" 	
 	"source/syzygy/renderer/scene.cpp"
 	"source/syzygy/renderer/material.cpp"
+	"source/syzygy/renderer/lights.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"

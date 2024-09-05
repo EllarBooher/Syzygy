@@ -19,6 +19,10 @@
 # bugprone-unchecked-optional-access
 # Sometimes causes crashes and has false positives in clang-tidy verison 17
 #
+# bugprone-exception-escape
+# Fires false positives with clang-tidy version 17, on structs with certain types.
+# Seems to be an issue with std::string or std::variant on Windows, but I have not investigated deeply
+#
 
 FormatStyle:        file
 HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
@@ -28,6 +32,7 @@ Checks: >
   -*,
   bugprone-*,
   -bugprone-unchecked-optional-access,
+  -bugprone-exception-escape,
   clang-analyzer-*,
   llvm-*,
   -llvm-header-guard,

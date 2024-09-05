@@ -12,7 +12,7 @@ struct Swapchain
 {
 public:
     Swapchain(Swapchain const&) = delete;
-    Swapchain& operator=(Swapchain const&) = delete;
+    auto operator=(Swapchain const&) -> Swapchain& = delete;
 
     auto operator=(Swapchain&&) noexcept -> Swapchain&;
     Swapchain(Swapchain&&) noexcept;
@@ -31,10 +31,10 @@ public:
         std::optional<VkSwapchainKHR> old
     ) -> std::optional<Swapchain>;
 
-    auto swapchain() const -> VkSwapchainKHR;
-    auto images() const -> std::span<VkImage const>;
-    auto imageViews() const -> std::span<VkImageView const>;
-    auto extent() const -> VkExtent2D;
+    [[nodiscard]] auto swapchain() const -> VkSwapchainKHR;
+    [[nodiscard]] auto images() const -> std::span<VkImage const>;
+    [[nodiscard]] auto imageViews() const -> std::span<VkImageView const>;
+    [[nodiscard]] auto extent() const -> VkExtent2D;
 
 private:
     VkDevice m_device{VK_NULL_HANDLE};

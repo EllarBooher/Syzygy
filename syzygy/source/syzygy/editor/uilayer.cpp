@@ -331,8 +331,9 @@ auto UILayer::begin() -> syzygy::DockingLayout const&
     return m_currentDockingLayout;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 auto UILayer::HUDMenuItem(std::string const& menu, std::string const& item)
-    -> bool
+    const -> bool
 {
     if (!m_open)
     {
@@ -346,9 +347,9 @@ auto UILayer::HUDMenuItem(std::string const& menu, std::string const& item)
 
     if (ImGui::BeginMenuBar())
     {
-        if (ImGui::BeginMenu("Tools"))
+        if (ImGui::BeginMenu(menu.c_str()))
         {
-            clicked = ImGui::MenuItem("Load Mesh (.glTF)");
+            clicked = ImGui::MenuItem(item.c_str());
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();

@@ -32,14 +32,15 @@ struct SceneTexture
     static auto create(
         VkDevice,
         VmaAllocator,
-        syzygy::DescriptorAllocator&,
+        DescriptorAllocator&,
         VkExtent2D textureMax,
         VkFormat format
     ) -> std::optional<SceneTexture>;
 
     [[nodiscard]] auto sampler() const -> VkSampler;
-    auto texture() -> syzygy::ImageView&;
-    [[nodiscard]] auto texture() const -> syzygy::ImageView const&;
+
+    auto texture() -> ImageView&;
+    [[nodiscard]] auto texture() const -> ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
@@ -53,17 +54,17 @@ private:
     SceneTexture(
         VkDevice device,
         VkSampler sampler,
-        std::unique_ptr<syzygy::ImageView> texture,
+        std::unique_ptr<ImageView> texture,
+        VkDescriptorSet imguiDescriptor,
         VkDescriptorSetLayout singletonLayout,
-        VkDescriptorSet singletonSet,
-        VkDescriptorSet imguiDescriptor
+        VkDescriptorSet singletonSet
     )
         : m_device{device}
         , m_sampler{sampler}
         , m_texture{std::move(texture)}
+        , m_imguiDescriptor{imguiDescriptor}
         , m_singletonDescriptorLayout{singletonLayout}
         , m_singletonDescriptor{singletonSet}
-        , m_imguiDescriptor{imguiDescriptor}
     {
     }
 
@@ -75,9 +76,9 @@ private:
     VkSampler m_sampler{VK_NULL_HANDLE};
     std::unique_ptr<syzygy::ImageView> m_texture{};
 
+    VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
+
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};
-
-    VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 };
 } // namespace syzygy

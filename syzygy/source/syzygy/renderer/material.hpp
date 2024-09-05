@@ -11,9 +11,9 @@ struct MaterialData;
 struct MaterialDescriptors
 {
 public:
-    MaterialDescriptors& operator=(MaterialDescriptors&&) = delete;
+    auto operator=(MaterialDescriptors&&) -> MaterialDescriptors& = delete;
     MaterialDescriptors(MaterialDescriptors const&) = delete;
-    MaterialDescriptors& operator=(MaterialDescriptors const&) = delete;
+    auto operator=(MaterialDescriptors const&) -> MaterialDescriptors& = delete;
 
     MaterialDescriptors(MaterialDescriptors&&) noexcept;
     ~MaterialDescriptors();

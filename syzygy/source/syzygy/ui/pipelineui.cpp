@@ -423,8 +423,8 @@ template <> void imguiPipelineControls(ComputeCollectionPipeline& pipeline)
 
 template <> void imguiPipelineControls(DeferredShadingPipeline& pipeline)
 {
-    imguiStructureControls(
-        pipeline.m_parameters.shadowPassParameters, ShadowPassParameters{}
-    );
+    DeferredShadingPipeline::Configuration config{pipeline.getConfiguration()};
+    imguiStructureControls(config.shadowPassParameters, ShadowPassParameters{});
+    pipeline.setConfiguration(config);
 }
 } // namespace syzygy

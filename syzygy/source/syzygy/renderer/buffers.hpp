@@ -272,9 +272,9 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
 
     static auto allocate(
         VkDevice const device,
+        VkBufferUsageFlags const bufferUsage,
         VmaAllocator const allocator,
-        VkDeviceSize const capacity,
-        VkBufferUsageFlags const bufferUsage
+        VkDeviceSize const capacity
     ) -> TStagedBuffer<T>
     {
         VkDeviceSize const allocationSizeBytes{capacity * sizeof(T)};

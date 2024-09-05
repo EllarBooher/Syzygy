@@ -60,7 +60,7 @@ struct Camera
     bool orthographic{false};
     glm::vec3 cameraPosition{0.0F, 0.0F, 0.0F};
     glm::vec3 eulerAngles{0.0F, 0.0F, 0.0F};
-    float fovDegrees{90.0F};
+    float fovDegrees{90.0F}; // NOLINT(readability-magic-numbers)
     float near{0.0F};
     float far{1.0F};
 
@@ -107,6 +107,8 @@ struct Transform
         -> Transform;
 };
 
+// TODO: encapsulate all fields
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes)
 struct MeshInstanced
 {
     bool render{false};
@@ -125,8 +127,10 @@ struct MeshInstanced
     void setMesh(std::shared_ptr<MeshAsset>);
     void prepareDescriptors(VkDevice, DescriptorAllocator&);
 
-    auto getMesh() const -> std::optional<std::reference_wrapper<MeshAsset>>;
-    auto getMeshDescriptors() const -> std::span<MaterialDescriptors const>;
+    [[nodiscard]] auto getMesh() const
+        -> std::optional<std::reference_wrapper<MeshAsset>>;
+    [[nodiscard]] auto getMeshDescriptors() const
+        -> std::span<MaterialDescriptors const>;
 
 private:
     bool m_surfaceDescriptorsDirty{false};
@@ -134,6 +138,7 @@ private:
     std::shared_ptr<MeshAsset> m_mesh{};
     std::vector<MaterialDescriptors> m_surfaceDescriptors{};
 };
+// NOLINTEND(misc-non-private-member-variables-in-classes)
 
 struct SunAnimation
 {
@@ -179,7 +184,7 @@ struct Scene
         std::string const& name,
         std::span<Transform const> transforms
     );
-    void addSpotlight(glm::vec3 color, glm::vec3 position, glm::vec3 target);
+    void addSpotlight(glm::vec3 color, Transform transform);
 
     static auto defaultScene(
         VkDevice,

@@ -14,7 +14,7 @@ struct KeyStatus
     bool down;
     bool edge;
 
-    auto pressed() const -> bool;
+    [[nodiscard]] auto pressed() const -> bool;
 
     auto operator==(KeyStatus const& other) const -> bool;
 };
@@ -35,7 +35,7 @@ struct KeySnapshot
 {
     std::array<KeyStatus, static_cast<size_t>(KeyCode::MAX)> keys;
 
-    auto getStatus(KeyCode) const -> KeyStatus;
+    [[nodiscard]] auto getStatus(KeyCode) const -> KeyStatus;
     void setStatus(KeyCode, KeyStatus);
 };
 struct CursorSnapshot
@@ -43,7 +43,7 @@ struct CursorSnapshot
     glm::u16vec2 lastPosition{};
     glm::u16vec2 currentPosition{};
 
-    auto delta() const -> glm::i32vec2;
+    [[nodiscard]] auto delta() const -> glm::i32vec2;
 };
 
 struct InputSnapshot
@@ -51,7 +51,7 @@ struct InputSnapshot
     KeySnapshot keys;
     CursorSnapshot cursor;
 
-    auto format() const -> std::string;
+    [[nodiscard]] auto format() const -> std::string;
 };
 
 struct PlatformWindow;

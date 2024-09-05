@@ -28,9 +28,9 @@ struct Frame
 class FrameBuffer
 {
 public:
-    FrameBuffer& operator=(FrameBuffer&&) = delete;
+    auto operator=(FrameBuffer&&) -> FrameBuffer& = delete;
     FrameBuffer(FrameBuffer const&) = delete;
-    FrameBuffer& operator=(FrameBuffer const&) = delete;
+    auto operator=(FrameBuffer const&) -> FrameBuffer& = delete;
 
     FrameBuffer(FrameBuffer&&) noexcept;
     ~FrameBuffer();
@@ -41,11 +41,11 @@ private:
 
 public:
     // QueueFamilyIndex should be capable of graphics/compute/transfer/present.
-    static auto create(VkDevice, uint32_t const queueFamilyIndex)
+    static auto create(VkDevice, uint32_t queueFamilyIndex)
         -> std::optional<FrameBuffer>;
 
-    auto currentFrame() const -> Frame const&;
-    auto frameNumber() const -> size_t;
+    [[nodiscard]] auto currentFrame() const -> Frame const&;
+    [[nodiscard]] auto frameNumber() const -> size_t;
 
     void increment();
 

@@ -104,13 +104,14 @@ public:
         return true;
     }
 
-    auto loadTextureFromPath(
+    // TODO: make this a member that adds the texture to the library
+    static auto loadTextureFromPath(
         VkDevice,
         VmaAllocator,
         VkQueue,
         ImmediateSubmissionQueue const&,
         std::filesystem::path const& filePath,
-        VkImageUsageFlags const additionalFlags
+        VkImageUsageFlags additionalFlags
     ) -> std::optional<syzygy::Asset<syzygy::Image>>;
 
     void loadTexturesDialog(

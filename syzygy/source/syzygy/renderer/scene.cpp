@@ -105,13 +105,13 @@ void Scene::addMeshInstance(
 
     instance.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
         TStagedBuffer<glm::mat4x4>::allocate(
-            device, allocator, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, allocator, bufferSize
         )
     );
     instance
         .modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(
         TStagedBuffer<glm::mat4x4>::allocate(
-            device, allocator, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, allocator, bufferSize
         )
     );
 
@@ -126,14 +126,8 @@ void Scene::addMeshInstance(
     geometry.push_back(std::move(instance));
 }
 
-void Scene::addSpotlight(
-    glm::vec3 const color, glm::vec3 const position, glm::vec3 const target
-)
+void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
 {
-    Transform const lightTransform{
-        Transform::lookAt(Ray::create(position, target), glm::vec3{1.0F})
-    };
-
     SpotlightParams const lightParams{
         .color = glm::vec4{color, 1.0},
         .strength = 300.0F,
@@ -141,8 +135,8 @@ void Scene::addSpotlight(
         .falloffDistance = 1.0F,
         .verticalFOVDegrees = 30.0F,
         .horizontalScale = 1.0F,
-        .eulerAngles = lightTransform.eulerAnglesRadians,
-        .position = lightTransform.translation,
+        .eulerAngles = transform.eulerAnglesRadians,
+        .position = transform.translation,
         .near = 0.1F,
         .far = 1000.0F
     };
@@ -393,7 +387,92 @@ void Scene::handleInput(TickTiming const lastFrame, InputSnapshot const& input)
                            * static_cast<float>(lastFrame.deltaTimeSeconds)
                            * accumulatedMovement;
 }
+} // namespace syzygy
 
+namespace
+{
+void tickMeshInstance(
+    syzygy::TickTiming const lastFrame, syzygy::MeshInstanced& instance
+)
+{
+    if (instance.models == nullptr
+        || instance.modelInverseTransposes == nullptr)
+    {
+        return;
+    }
+
+    std::span<glm::mat4x4> const models{instance.models->mapValidStaged()};
+    std::span<glm::mat4x4> const modelInverseTransposes{
+        instance.modelInverseTransposes->mapValidStaged()
+    };
+
+    if (models.size() != modelInverseTransposes.size())
+    {
+        SZG_WARNING("models and modelInverseTransposes out of sync");
+        return;
+    }
+
+    // TODO: extract and generalize these animations
+    switch (instance.animation)
+    {
+    case syzygy::InstanceAnimation::Diagonal_Wave:
+        for (size_t index{0}; index < instance.originals.size(); index++)
+        {
+            syzygy::Transform const& original{instance.originals[index]};
+
+            double const timeOffset{
+                (original.translation.x - (-10) + original.translation.z - (-10)
+                )
+                / 3.1415
+            };
+
+            double const y{glm::sin(lastFrame.timeElapsedSeconds + timeOffset)};
+
+            glm::mat4x4 const model{
+                glm::translate(glm::vec3(0.0, y, 0.0)) * original.toMatrix()
+            };
+
+            models[index] = model;
+            modelInverseTransposes[index] = glm::inverseTranspose(model);
+        }
+        break;
+    case syzygy::InstanceAnimation::Spin_Along_World_Up:
+        for (size_t index{0}; index < instance.originals.size(); index++)
+        {
+            syzygy::Transform const& original{instance.originals[index]};
+
+            glm::mat4x4 const model{
+                glm::translate(original.translation)
+                * glm::rotate(
+                    glm::identity<glm::mat4x4>(),
+                    static_cast<float>(lastFrame.timeElapsedSeconds),
+                    syzygy::WORLD_UP
+                )
+                * glm::orientate4(original.eulerAnglesRadians)
+                * glm::scale(original.scale)
+            };
+
+            models[index] = model;
+            modelInverseTransposes[index] = glm::inverseTranspose(model);
+        }
+        break;
+    default:
+        for (size_t index{0}; index < instance.originals.size(); index++)
+        {
+            syzygy::Transform const& original{instance.originals[index]};
+
+            glm::mat4x4 const model{original.toMatrix()};
+
+            models[index] = model;
+            modelInverseTransposes[index] = glm::inverseTranspose(model);
+        }
+        break;
+    }
+}
+} // namespace
+
+namespace syzygy
+{
 void Scene::tick(TickTiming const lastFrame)
 {
     if (!sunAnimation.frozen)
@@ -440,85 +519,7 @@ void Scene::tick(TickTiming const lastFrame)
 
     for (auto& instance : geometry)
     {
-        if (instance.models == nullptr
-            || instance.modelInverseTransposes == nullptr)
-        {
-            continue;
-        }
-
-        std::span<glm::mat4x4> const models{instance.models->mapValidStaged()};
-        std::span<glm::mat4x4> const modelInverseTransposes{
-            instance.modelInverseTransposes->mapValidStaged()
-        };
-
-        if (models.size() != modelInverseTransposes.size())
-        {
-            SZG_WARNING("models and modelInverseTransposes out of sync");
-            return;
-        }
-
-        // TODO: extract and generalize these animations
-        switch (instance.animation)
-        {
-        case InstanceAnimation::Diagonal_Wave:
-            for (size_t index{0}; index < instance.originals.size(); index++)
-            {
-                Transform const& original{instance.originals[index]};
-
-                double const timeOffset{
-                    (original.translation.x - (-10) + original.translation.z
-                     - (-10))
-                    / 3.1415
-                };
-
-                double const y{
-                    glm::sin(lastFrame.timeElapsedSeconds + timeOffset)
-                };
-
-                glm::mat4x4 const translation{
-                    glm::translate(glm::vec3(0.0, y, 0.0))
-                };
-
-                glm::mat4x4 const model{
-                    glm::translate(glm::vec3(0.0, y, 0.0)) * original.toMatrix()
-                };
-
-                models[index] = model;
-                modelInverseTransposes[index] = glm::inverseTranspose(model);
-            }
-            break;
-        case InstanceAnimation::Spin_Along_World_Up:
-            for (size_t index{0}; index < instance.originals.size(); index++)
-            {
-                Transform const& original{instance.originals[index]};
-
-                glm::mat4x4 const model{
-                    glm::translate(original.translation)
-                    * glm::rotate(
-                        glm::identity<glm::mat4x4>(),
-                        static_cast<float>(lastFrame.timeElapsedSeconds),
-                        syzygy::WORLD_UP
-                    )
-                    * glm::orientate4(original.eulerAnglesRadians)
-                    * glm::scale(original.scale)
-                };
-
-                models[index] = model;
-                modelInverseTransposes[index] = glm::inverseTranspose(model);
-            }
-            break;
-        default:
-            for (size_t index{0}; index < instance.originals.size(); index++)
-            {
-                Transform const& original{instance.originals[index]};
-
-                glm::mat4x4 const model{original.toMatrix()};
-
-                models[index] = model;
-                modelInverseTransposes[index] = glm::inverseTranspose(model);
-            }
-            break;
-        }
+        tickMeshInstance(lastFrame, instance);
     }
 }
 
@@ -750,7 +751,7 @@ auto Transform::lookAt(Ray const eyeTarget, glm::vec3 const scale) -> Transform
 
 void MeshInstanced::setMesh(std::shared_ptr<MeshAsset> mesh)
 {
-    m_mesh = mesh;
+    m_mesh = std::move(mesh);
     m_surfaceDescriptorsDirty = true;
 }
 
@@ -785,7 +786,7 @@ void MeshInstanced::prepareDescriptors(
     for (size_t index{0}; index < m_mesh->surfaces.size(); index++)
     {
         GeometrySurface const& surface{m_mesh->surfaces[index]};
-        MaterialDescriptors& descriptors{m_surfaceDescriptors[index]};
+        MaterialDescriptors const& descriptors{m_surfaceDescriptors[index]};
 
         descriptors.write(surface.material);
     }

@@ -162,13 +162,19 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         m_directionalLights = std::make_unique<
             syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>>(
             syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>::allocate(
-                device, allocator, LIGHT_CAPACITY, 0
+                device,
+                static_cast<VkBufferUsageFlags>(0),
+                allocator,
+                LIGHT_CAPACITY
             )
         );
         m_spotLights =
             std::make_unique<syzygy::TStagedBuffer<syzygy::SpotLightPacked>>(
                 syzygy::TStagedBuffer<syzygy::SpotLightPacked>::allocate(
-                    device, allocator, LIGHT_CAPACITY, 0
+                    device,
+                    static_cast<VkBufferUsageFlags>(0),
+                    allocator,
+                    LIGHT_CAPACITY
                 )
             );
     }
@@ -603,7 +609,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     { // Shadow maps
         m_shadowPassArray.recordInitialize(
             cmd,
-            m_parameters.shadowPassParameters,
+            m_configuration.shadowPassParameters,
             m_directionalLights->readValidStaged(),
             m_spotLights->readValidStaged()
         );
@@ -1061,5 +1067,13 @@ void DeferredShadingPipeline::cleanup(
     m_gBufferFragmentShader.cleanup(device);
     m_lightingPassComputeShader.cleanup(device);
     m_skyPassComputeShader.cleanup(device);
+}
+auto DeferredShadingPipeline::getConfiguration() const -> Configuration
+{
+    return m_configuration;
+}
+void DeferredShadingPipeline::setConfiguration(Configuration const parameters)
+{
+    m_configuration = parameters;
 }
 } // namespace syzygy

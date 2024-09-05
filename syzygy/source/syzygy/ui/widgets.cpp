@@ -258,6 +258,117 @@ void uiCamera(
         )
         .end();
 }
+void uiTransform(syzygy::PropertyTable& table, syzygy::Transform& transform)
+{
+    table.rowVec3(
+        "Translation",
+        transform.translation,
+        glm::vec3{0.0F},
+        syzygy::PropertySliderBehavior{.speed = 1.0F}
+    );
+    table.rowVec3(
+        "Euler Angles (Radians)",
+        transform.eulerAnglesRadians,
+        glm::vec3{0.0F},
+        syzygy::PropertySliderBehavior{
+            .bounds = syzygy::FloatBounds{-glm::pi<float>(), glm::pi<float>()},
+        }
+    );
+    table.rowVec3(
+        "Scale",
+        transform.scale,
+        glm::vec3{1.0F},
+        syzygy::PropertySliderBehavior{
+            .bounds = syzygy::FloatBounds{.min = 0.0F, .max = 100.0F}
+        }
+    );
+}
+void uiInstanceAnimation(syzygy::InstanceAnimation& animation)
+{
+
+    // Assumes no gaps in enum values
+    std::array<
+        char const*,
+        static_cast<size_t>(syzygy::InstanceAnimation::LAST) + 1>
+        labels{"Unknown"};
+    labels[static_cast<size_t>(syzygy::InstanceAnimation::None)] = "None";
+    labels[static_cast<size_t>(syzygy::InstanceAnimation::Diagonal_Wave)] =
+        "Diagonal Wave";
+    labels[static_cast<size_t>(syzygy::InstanceAnimation::Spin_Along_World_Up
+    )] = "Spin Along World Up";
+
+    auto const selectedAnimationIndex{static_cast<size_t>(animation)};
+    std::string const previewLabel{
+        selectedAnimationIndex >= labels.size() ? "Unknown"
+                                                : labels[selectedAnimationIndex]
+    };
+
+    if (ImGui::BeginCombo(
+            "##instanceAnimation", labels[selectedAnimationIndex]
+        ))
+    {
+        size_t constexpr FIRST_INDEX{
+            static_cast<size_t>(syzygy::InstanceAnimation::FIRST)
+        };
+        size_t constexpr LAST_INDEX{
+            static_cast<size_t>(syzygy::InstanceAnimation::LAST)
+        };
+        for (size_t index{FIRST_INDEX}; index <= LAST_INDEX; index++)
+        {
+            if (ImGui::Selectable(
+                    labels[index], selectedAnimationIndex == index
+                ))
+            {
+                animation = static_cast<syzygy::InstanceAnimation>(index);
+                break;
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
+auto uiMeshSelection(
+    std::optional<std::reference_wrapper<syzygy::MeshAsset>> const currentMesh,
+    std::span<syzygy::AssetRef<syzygy::MeshAsset> const> const meshes
+) -> std::optional<std::shared_ptr<syzygy::MeshAsset>>
+{
+    ImGui::BeginDisabled(meshes.empty());
+
+    std::optional<std::shared_ptr<syzygy::MeshAsset>> newMesh{std::nullopt};
+
+    std::string const previewLabel{
+        currentMesh.has_value() ? currentMesh.value().get().name : "None"
+    };
+    if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+    {
+        size_t const index{0};
+        for (auto const& assetRef : meshes)
+        {
+            syzygy::Asset<syzygy::MeshAsset> const& asset{assetRef.get()};
+
+            if (asset.data == nullptr)
+            {
+                continue;
+            }
+
+            syzygy::MeshAsset const& mesh{*asset.data};
+            bool const selected{
+                currentMesh.has_value()
+                && asset.data.get() == &currentMesh.value().get()
+            };
+
+            if (ImGui::Selectable(mesh.name.c_str(), selected))
+            {
+                newMesh = asset.data;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::EndDisabled();
+
+    return newMesh;
+}
+
 void uiSceneGeometry(
     syzygy::AABB& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
@@ -276,7 +387,7 @@ void uiSceneGeometry(
             }
         )
         .rowVec3(
-            "Scene Half Extent",
+            "Scene Half-Extent",
             bounds.halfExtent,
             bounds.halfExtent,
             syzygy::PropertySliderBehavior{
@@ -291,124 +402,21 @@ void uiSceneGeometry(
         table.rowBoolean("Render", instance.render, true);
         for (syzygy::Transform& transform : instance.originals)
         {
-            table.rowVec3(
-                "Translation",
-                transform.translation,
-                glm::vec3{0.0F},
-                syzygy::PropertySliderBehavior{.speed = 1.0F}
-            );
-            table.rowVec3(
-                "Euler Angles (Radians)",
-                transform.eulerAnglesRadians,
-                glm::vec3{0.0F},
-                syzygy::PropertySliderBehavior{
-                    .bounds =
-                        syzygy::FloatBounds{
-                            -glm::pi<float>(), glm::pi<float>()
-                        },
-                }
-            );
-            table.rowVec3(
-                "Scale",
-                transform.scale,
-                glm::vec3{1.0F},
-                syzygy::PropertySliderBehavior{
-                    .bounds = syzygy::FloatBounds{.min = 0.1F, .max = 100.0F}
-                }
-            );
+            uiTransform(table, transform);
         }
         table.rowCustom(
             "Instance Animation",
-            [&]()
-        {
-            // Assumes no gaps in enum values
-            std::array<
-                char const*,
-                static_cast<size_t>(syzygy::InstanceAnimation::LAST) + 1>
-                labels{"Unknown"};
-            labels[static_cast<size_t>(syzygy::InstanceAnimation::None)] =
-                "None";
-            labels[static_cast<size_t>(syzygy::InstanceAnimation::Diagonal_Wave
-            )] = "Diagonal Wave";
-            labels[static_cast<size_t>(
-                syzygy::InstanceAnimation::Spin_Along_World_Up
-            )] = "Spin Along World Up";
-
-            auto const selectedAnimationIndex{
-                static_cast<size_t>(instance.animation)
-            };
-            std::string const previewLabel{
-                selectedAnimationIndex >= labels.size()
-                    ? "Unknown"
-                    : labels[selectedAnimationIndex]
-            };
-
-            if (ImGui::BeginCombo(
-                    "##instanceAnimation", labels[selectedAnimationIndex]
-                ))
-            {
-                size_t constexpr FIRST_INDEX{
-                    static_cast<size_t>(syzygy::InstanceAnimation::FIRST)
-                };
-                size_t constexpr LAST_INDEX{
-                    static_cast<size_t>(syzygy::InstanceAnimation::LAST)
-                };
-                for (size_t index{FIRST_INDEX}; index <= LAST_INDEX; index++)
-                {
-                    if (ImGui::Selectable(
-                            labels[index], selectedAnimationIndex == index
-                        ))
-                    {
-                        instance.animation =
-                            static_cast<syzygy::InstanceAnimation>(index);
-                        break;
-                    }
-                }
-                ImGui::EndCombo();
-            }
-        }
+            [&]() { uiInstanceAnimation(instance.animation); }
         );
         table.rowCustom(
             "Mesh Used",
             [&]()
         {
-            ImGui::BeginDisabled(meshes.empty());
-
-            std::optional<std::reference_wrapper<syzygy::MeshAsset>>
-                meshOptional{instance.getMesh()};
-
-            std::string const previewLabel{
-                meshOptional.has_value() ? meshOptional.value().get().name
-                                         : "None"
-            };
-            if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
+            auto newMesh{uiMeshSelection(instance.getMesh(), meshes)};
+            if (newMesh.has_value())
             {
-                size_t const index{0};
-                for (auto const& assetRef : meshes)
-                {
-                    syzygy::Asset<syzygy::MeshAsset> const& asset{assetRef.get()
-                    };
-
-                    if (asset.data == nullptr)
-                    {
-                        continue;
-                    }
-
-                    syzygy::MeshAsset const& mesh{*asset.data};
-                    bool const selected{
-                        asset.data.get() == &meshOptional.value().get()
-                    };
-
-                    if (ImGui::Selectable(mesh.name.c_str(), selected))
-                    {
-                        instance.setMesh(asset.data);
-                        break;
-                    }
-                }
-                ImGui::EndCombo();
+                instance.setMesh(newMesh.value());
             }
-
-            ImGui::EndDisabled();
         }
         );
         table.childPropertyEnd();
@@ -509,7 +517,7 @@ auto sceneViewportWindow(
     bool const focused
 ) -> WindowResult<std::optional<VkRect2D>>
 {
-    size_t pushedStyleColors{0};
+    uint16_t pushedStyleColors{0};
     if (focused)
     {
         ImVec4 const activeTitleColor{

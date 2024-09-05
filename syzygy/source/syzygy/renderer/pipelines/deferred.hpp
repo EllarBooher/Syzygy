@@ -54,7 +54,8 @@ private:
 
     std::unique_ptr<syzygy::ImageView> m_drawImage{};
 
-    using LightDirectionalBuffer = TStagedBuffer<syzygy::DirectionalLightPacked>;
+    using LightDirectionalBuffer =
+        TStagedBuffer<syzygy::DirectionalLightPacked>;
     std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
     using LightSpotBuffer = TStagedBuffer<syzygy::SpotLightPacked>;
@@ -81,6 +82,8 @@ private:
         VkDeviceAddress cameraBuffer{};
 
         uint32_t cameraIndex{0};
+
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
         uint8_t padding0[12]{};
     };
 
@@ -127,6 +130,7 @@ private:
         glm::vec2 drawOffset{};
         glm::vec2 drawExtent{};
 
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
         uint8_t padding0[8]{};
     };
 
@@ -137,10 +141,15 @@ private:
     VkPipelineLayout m_skyPassLayout{VK_NULL_HANDLE};
 
 public:
-    struct Parameters
+    struct Configuration
     {
         ShadowPassParameters shadowPassParameters{};
     };
-    Parameters m_parameters;
+
+    [[nodiscard]] auto getConfiguration() const -> Configuration;
+    void setConfiguration(Configuration);
+
+private:
+    Configuration m_configuration;
 };
 } // namespace syzygy

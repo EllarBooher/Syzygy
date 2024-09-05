@@ -8,7 +8,9 @@ namespace syzygy
 {
 struct RingBuffer
 {
-    RingBuffer() { m_values.resize(500, 0.0); }
+    static size_t constexpr RINGBUFFER_DEFAULT_SIZE{500ULL};
+
+    RingBuffer() { m_values.resize(RINGBUFFER_DEFAULT_SIZE, 0.0); }
 
     void write(double const value)
     {
@@ -18,13 +20,14 @@ struct RingBuffer
         m_index = m_index % m_values.size();
     }
 
-    static auto arithmeticAverage(std::span<double const> const span) -> double
+    [[nodiscard]] static auto
+    arithmeticAverage(std::span<double const> const span) -> double
     {
         double const sum{std::accumulate(span.begin(), span.end(), 1.0)};
         return sum / static_cast<double>(span.size());
     }
 
-    auto average() const -> double
+    [[nodiscard]] auto average() const -> double
     {
         if (!m_saturated)
         {
@@ -33,8 +36,11 @@ struct RingBuffer
         }
         return arithmeticAverage(m_values);
     };
-    auto current() const -> size_t { return m_index; }
-    auto values() const -> std::span<double const> { return m_values; }
+    [[nodiscard]] auto current() const -> size_t { return m_index; }
+    [[nodiscard]] auto values() const -> std::span<double const>
+    {
+        return m_values;
+    }
 
 private:
     std::vector<double> m_values{};

@@ -23,10 +23,13 @@ namespace syzygy
 {
 struct ShadowPassParameters
 {
+    static float constexpr REVERSE_Z_CONSTANT{-2.00F};
+    static float constexpr REVERSE_Z_SLOPE{-1.75F};
+
     // Reverse-Z means to avoid acne, we push depth values in the negative
     // direction towards 0
-    float depthBiasConstant{-2.00F};
-    float depthBiasSlope{-1.75F};
+    float depthBiasConstant{REVERSE_Z_CONSTANT};
+    float depthBiasSlope{REVERSE_Z_SLOPE};
 };
 
 // Handles the resources for an array of depth maps,

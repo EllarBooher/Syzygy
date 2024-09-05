@@ -165,9 +165,9 @@ auto SceneTexture::create(
         device,
         sampler,
         std::move(textureResult).value(),
+        imguiDescriptor,
         singletonLayout,
         singletonSet,
-        imguiDescriptor,
     };
 }
 

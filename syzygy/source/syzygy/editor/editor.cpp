@@ -470,6 +470,12 @@ auto run() -> EditorResult
 
         glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
 
+        Transform const floatingTransform{
+            .translation = floatingPosition,
+            .eulerAnglesRadians = glm::vec3{0.0F},
+            .scale = glm::vec3{0.5F}
+        };
+
         scene.addMeshInstance(
             graphicsContext.device(),
             graphicsContext.allocator(),
@@ -477,12 +483,14 @@ auto run() -> EditorResult
             floatingMesh,
             InstanceAnimation::None,
             "Floating",
-            std::array<Transform, 1>{Transform{
-                .translation = floatingPosition,
-                .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = glm::vec3{0.5F}
-            }}
+            std::array<Transform, 1>{Transform{floatingTransform}}
         );
+
+        Transform const floorTransform{
+            .translation = glm::vec3{0.0F, 10.0F, 0.0F},
+            .eulerAnglesRadians = glm::vec3{0.0F},
+            .scale = glm::vec3{400.0F, 1.0F, 400.0F}
+        };
 
         scene.addMeshInstance(
             graphicsContext.device(),
@@ -491,17 +499,19 @@ auto run() -> EditorResult
             floorMesh,
             InstanceAnimation::None,
             "Floor",
-            std::array<Transform, 1>{Transform{
-                .translation = glm::vec3{0.0F, 10.0F, 0.0F},
-                .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = glm::vec3{400.0F, 1.0F, 400.0F}
-            }}
+            std::array<Transform, 1>{Transform{floorTransform}}
         );
+
+        glm::vec3 const spotlightOffset{-20.0};
 
         scene.addSpotlight(
             glm::vec3{1.0, 0.0, 0.0},
-            floatingPosition + glm::vec3{-20.0},
-            floatingPosition
+            Transform::lookAt(
+                Ray::create(
+                    floatingPosition + spotlightOffset, floatingPosition
+                ),
+                glm::vec3{1.0F}
+            )
         );
     }
 

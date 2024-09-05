@@ -46,9 +46,10 @@ struct DrawResultsGraphics
 class PipelineBuilder
 {
 public:
-    PipelineBuilder()= default;
+    PipelineBuilder() = default;
 
-    auto buildPipeline(VkDevice device, VkPipelineLayout layout) const -> VkPipeline;
+    auto buildPipeline(VkDevice device, VkPipelineLayout layout) const
+        -> VkPipeline;
 
     void pushShader(
         ShaderModuleReflected const& shader, VkShaderStageFlagBits stage
@@ -146,7 +147,7 @@ private:
 
         VkDeviceAddress projViewBufferAddress{};
         uint32_t projViewIndex{0};
-        uint8_t padding0[4]{};
+        uint8_t padding0[4]{}; // NOLINT(modernize-avoid-c-arrays)
     };
 
 public:
@@ -155,8 +156,8 @@ public:
         return m_vertexShader;
     };
 
-    [[nodiscard]] auto
-    vertexPushConstantReflected() const -> ShaderReflectionData::PushConstant const&
+    [[nodiscard]] auto vertexPushConstantReflected() const
+        -> ShaderReflectionData::PushConstant const&
     {
         return m_vertexShader.reflectionData().defaultPushConstant();
     };
@@ -195,7 +196,10 @@ public:
     {
         return m_shaders[m_shaderIndex];
     }
-    [[nodiscard]] auto currentLayout() const -> VkPipelineLayout { return m_layouts[m_shaderIndex]; }
+    [[nodiscard]] auto currentLayout() const -> VkPipelineLayout
+    {
+        return m_layouts[m_shaderIndex];
+    }
 
     void selectShader(size_t const index)
     {
@@ -213,7 +217,10 @@ public:
         m_shaderIndex = index;
     }
     [[nodiscard]] auto shaderIndex() const -> size_t { return m_shaderIndex; };
-    [[nodiscard]] auto shaderCount() const -> size_t { return m_shaders.size(); };
+    [[nodiscard]] auto shaderCount() const -> size_t
+    {
+        return m_shaders.size();
+    };
     [[nodiscard]] auto shaders() const -> std::span<ShaderObjectReflected const>
     {
         return m_shaders;
@@ -266,6 +273,7 @@ private:
         VkDeviceAddress cameraBuffer{};
 
         uint32_t cameraIndex{0};
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
         uint8_t padding0[12]{};
     };
 

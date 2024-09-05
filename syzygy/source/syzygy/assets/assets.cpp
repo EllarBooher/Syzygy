@@ -318,12 +318,8 @@ auto loadGLTFAsset(std::filesystem::path const& path)
             &data, assetPath.parent_path(), GLTF_OPTIONS
         );
     }
-    else
-    {
-        return parser.loadGltfBinary(
-            &data, assetPath.parent_path(), GLTF_OPTIONS
-        );
-    }
+
+    return parser.loadGltfBinary(&data, assetPath.parent_path(), GLTF_OPTIONS);
 }
 
 // Preserves gltf indexing, with nullptr on any positions where loading
@@ -405,9 +401,9 @@ auto loadImagesOntoDevice(
 auto loadMaterialData(
     std::span<std::shared_ptr<syzygy::ImageView> const> const
         texturesByGLTFIndex,
-    std::shared_ptr<syzygy::ImageView> const defaultColor,
-    std::shared_ptr<syzygy::ImageView> const defaultNormal,
-    std::shared_ptr<syzygy::ImageView> const defaultORM,
+    std::shared_ptr<syzygy::ImageView> const& defaultColor,
+    std::shared_ptr<syzygy::ImageView> const& defaultNormal,
+    std::shared_ptr<syzygy::ImageView> const& defaultORM,
     std::span<fastgltf::Material const> const gltfMaterials
 ) -> std::vector<syzygy::MaterialData>
 {
@@ -517,6 +513,9 @@ auto loadMaterialData(
 // Preserves gltf indexing, with nullptr on any positions where loading
 // failed. All passed gltf objects should come from the same object, so
 // accessors are utilized properly.
+// TODO: simplify and breakup. There are some roadblocks because e.g. fastgltf
+// accessors are separate from the mesh
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto loadMeshes(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -549,7 +548,8 @@ auto loadMeshes(
                             "accessor. It will be skipped.");
                 continue;
             }
-            if (auto* positionAttribute{primitive.findAttribute("POSITION")};
+            if (auto const* positionAttribute{primitive.findAttribute("POSITION"
+                )};
                 positionAttribute == primitive.attributes.end()
                 || positionAttribute == nullptr)
             {
@@ -626,7 +626,7 @@ auto loadMeshes(
                     [&](glm::vec3 position, size_t /*index*/)
                 {
                     vertices.push_back(syzygy::VertexPacked{
-                        .position = 10.0F * position,
+                        .position = position,
                         .uv_x = 0.0F,
                         .normal = glm::vec3{1, 0, 0},
                         .uv_y = 0.0F,
@@ -989,12 +989,11 @@ void AssetLibrary::loadGLTFFromPath(
         {
             continue;
         }
-        MeshAsset& mesh{*pMesh};
 
         m_meshes.push_back(Asset<MeshAsset>{
             .metadata =
                 AssetMetadata{
-                    .displayName = mesh.name,
+                    .displayName = pMesh->name,
                     .fileLocalPath = filePath.string(),
                     .id = UUID::createNew()
                 },
@@ -1037,7 +1036,13 @@ auto AssetLibrary::loadDefaultAssets(
         uint8_t a{std::numeric_limits<uint8_t>::max()};
     };
 
-    ImageRGBA defaultImage{.x = 64U, .y = 64U, .bytes = std::vector<uint8_t>{}};
+    size_t constexpr DEFAULT_IMAGE_DIMENSIONS{64ULL};
+
+    ImageRGBA defaultImage{
+        .x = DEFAULT_IMAGE_DIMENSIONS,
+        .y = DEFAULT_IMAGE_DIMENSIONS,
+        .bytes = std::vector<uint8_t>{}
+    };
     defaultImage.bytes.resize(
         static_cast<size_t>(defaultImage.x)
         * static_cast<size_t>(defaultImage.y) * sizeof(RGBATexel)
@@ -1054,20 +1059,16 @@ auto AssetLibrary::loadDefaultAssets(
             size_t const x{index % defaultImage.x};
             size_t const y{index / defaultImage.x};
 
-            if (((x / 4) + (y / 4)) % 2 == 0)
-            {
-                texel.r = 200U;
-                texel.g = 200U;
-                texel.b = 200U;
-                texel.a = 255U;
-            }
-            else
-            {
-                texel.r = 100U;
-                texel.g = 100U;
-                texel.b = 100U;
-                texel.a = 255U;
-            }
+            RGBATexel constexpr LIGHT_GREY{
+                .r = 200U, .g = 200U, .b = 200U, .a = 255U
+            };
+            RGBATexel constexpr DARK_GREY{
+                .r = 100U, .g = 100U, .b = 100U, .a = 255U
+            };
+
+            bool const lightSquare{((x / 4) + (y / 4)) % 2 == 0};
+
+            texel = lightSquare ? LIGHT_GREY : DARK_GREY;
 
             index++;
         }
@@ -1124,10 +1125,11 @@ auto AssetLibrary::loadDefaultAssets(
              })
         {
             // Signed normal of (0,0,1) stored as unsigned (0.5,0.5,1.0)
-            texel.r = 127U;
-            texel.g = 127U;
-            texel.b = 255U;
-            texel.a = 0U;
+            RGBATexel constexpr DEFAULT_NORMAL{
+                .r = 127U, .g = 127U, .b = 255U, .a = 0U
+            };
+
+            texel = DEFAULT_NORMAL;
         }
 
         std::optional<std::unique_ptr<syzygy::Image>> uploadResult{
@@ -1185,20 +1187,16 @@ auto AssetLibrary::loadDefaultAssets(
             size_t const x{index % defaultImage.x};
             size_t const y{index / defaultImage.x};
 
-            if (((x / 8) + (y / 8)) % 2 == 0)
-            {
-                texel.r = 255U;
-                texel.g = 30U;
-                texel.b = 0U;
-                texel.a = 0U;
-            }
-            else
-            {
-                texel.r = 255U;
-                texel.g = 30U;
-                texel.b = 255U;
-                texel.a = 0U;
-            }
+            RGBATexel constexpr NONMETALLIC_SQUARE{
+                .r = 255U, .g = 30U, .b = 0U, .a = 0U
+            };
+            RGBATexel constexpr METALLIC_SQUARE{
+                .r = 255U, .g = 30U, .b = 255U, .a = 0U
+            };
+
+            bool const nonmetallic{((x / 8) + (y / 8)) % 2 == 0};
+
+            texel = nonmetallic ? NONMETALLIC_SQUARE : METALLIC_SQUARE;
 
             index++;
         }

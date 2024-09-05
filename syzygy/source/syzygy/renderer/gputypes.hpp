@@ -50,9 +50,13 @@ struct AtmospherePacked
 
     // The sunlight that reaches the camera
     glm::vec3 sunlightColor;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding0[4]{};
 
     glm::vec3 groundColor;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding1[4]{};
 };
 
@@ -67,6 +71,8 @@ struct DirectionalLightPacked
     glm::mat4x4 view;
 
     float strength;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding0[12]{};
 };
 
@@ -88,6 +94,8 @@ struct SpotLightPacked
     float falloffFactor;
     // The distance that light starts to fall off
     float falloffDistance;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding0[4]{};
 };
 
