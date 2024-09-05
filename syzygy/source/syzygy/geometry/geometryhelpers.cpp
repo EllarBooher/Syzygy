@@ -55,21 +55,6 @@ auto projectPointOnPlane(Plane const plane, glm::vec3 const point) -> glm::vec3
     return projection + point;
 }
 
-auto collectAABBVertices(glm::vec3 const center, glm::vec3 const extent)
-    -> AABBVertices
-{
-    return AABBVertices{
-        center + glm::vec3(extent.x, extent.y, extent.z),
-        center + glm::vec3(extent.x, extent.y, -extent.z),
-        center + glm::vec3(extent.x, -extent.y, extent.z),
-        center + glm::vec3(extent.x, -extent.y, -extent.z),
-        center + glm::vec3(-extent.x, extent.y, extent.z),
-        center + glm::vec3(-extent.x, extent.y, -extent.z),
-        center + glm::vec3(-extent.x, -extent.y, extent.z),
-        center + glm::vec3(-extent.x, -extent.y, -extent.z),
-    };
-}
-
 auto lookAtVk(glm::vec3 const eye, glm::vec3 const center, glm::vec3 const up)
     -> glm::mat4x4
 {
@@ -178,20 +163,17 @@ auto randomQuat() -> glm::quat
     return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
-auto projectionOrthoAABBVk(
-    glm::mat4x4 const view,
-    glm::vec3 const geometryCenter,
-    glm::vec3 const geometryExtent
-) -> glm::mat4x4
+auto projectionOrthoAABBVk(glm::mat4x4 const view, AABB const capturedBounds)
+    -> glm::mat4x4
 {
     // Project every vertex of the AABB supplied, to determine how large
     // the projection matrix needs to be
 
-    std::array<glm::vec3, 8> const aabbVertices{
-        collectAABBVertices(geometryCenter, geometryExtent)
-    };
+    AABB::Vertices const aabbVertices{capturedBounds.collectVertices()};
 
-    glm::vec3 const centerViewSpace{view * glm::vec4(geometryCenter, 1.0)};
+    glm::vec3 const centerViewSpace{
+        view * glm::vec4(capturedBounds.center, 1.0)
+    };
     glm::vec3 const forwardViewSpace{WORLD_FORWARD};
 
     glm::vec3 viewMax{std::numeric_limits<float>::lowest()};

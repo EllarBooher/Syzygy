@@ -69,6 +69,11 @@ SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
 
 float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
+AABB const Scene::DEFAULT_SCENE_BOUNDS{
+    .center = glm::vec3{0.0F, -4.0F, 0.0F},
+    .halfExtent = glm::vec3{20.0F, 20.0F, 20.0F},
+};
+
 void Scene::addMeshInstance(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -156,9 +161,9 @@ auto Scene::defaultScene(
 {
     Scene scene{};
 
-    SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
+    AABB constexpr DEFAULT_SCENE_BOUNDS{
         .center = glm::vec3{0.0, -4.0, 0.0},
-        .extent = glm::vec3{20.0, 5.0, 20.0},
+        .halfExtent = glm::vec3{20.0, 5.0, 20.0},
     };
     scene.bounds = DEFAULT_SCENE_BOUNDS;
 
@@ -264,9 +269,9 @@ auto Scene::diagonalWaveScene(
 {
     Scene scene{};
 
-    SceneBounds constexpr DEFAULT_SCENE_BOUNDS{
+    AABB constexpr DEFAULT_SCENE_BOUNDS{
         .center = glm::vec3{0.0, -4.0, 0.0},
-        .extent = glm::vec3{45.0, 5.0, 45.0},
+        .halfExtent = glm::vec3{45.0, 5.0, 45.0},
     };
     scene.bounds = DEFAULT_SCENE_BOUNDS;
 
@@ -520,7 +525,7 @@ void Scene::tick(TickTiming const lastFrame)
 namespace
 {
 auto createSunlight(
-    SceneBounds const sceneBounds,
+    AABB const sceneBounds,
     glm::vec3 const sunEulerAngles,
     glm::vec3 const sunlightRGB
 ) -> DirectionalLightPacked
@@ -531,14 +536,11 @@ auto createSunlight(
         glm::vec4(sunlightRGB, 1.0),
         SUNLIGHT_STRENGTH,
         sunEulerAngles,
-        sceneBounds.center,
-        sceneBounds.extent
+        sceneBounds
     );
 }
 auto createMoonlight(
-    SceneBounds const sceneBounds,
-    float const sunCosine,
-    float const sunsetCosine
+    AABB const sceneBounds, float const sunCosine, float const sunsetCosine
 ) -> DirectionalLightPacked
 {
     float constexpr MOONRISE_LENGTH{0.08};
@@ -559,8 +561,7 @@ auto createMoonlight(
         MOONLIGHT_COLOR_RGBA,
         moonlightStrength,
         STRAIGHT_DOWN_EULER_ANGLES,
-        sceneBounds.center,
-        sceneBounds.extent
+        sceneBounds
     );
 }
 
@@ -642,7 +643,7 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
     };
 }
 
-auto Atmosphere::baked(SceneBounds const sceneBounds) const -> AtmosphereBaked
+auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
 {
     AtmospherePacked const atmosphere{toDeviceEquivalent()};
 

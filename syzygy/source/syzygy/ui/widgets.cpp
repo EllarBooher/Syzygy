@@ -259,7 +259,7 @@ void uiCamera(
         .end();
 }
 void uiSceneGeometry(
-    syzygy::SceneBounds& bounds,
+    syzygy::AABB& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
     std::span<syzygy::AssetRef<syzygy::MeshAsset> const> const meshes
 )
@@ -276,9 +276,9 @@ void uiSceneGeometry(
             }
         )
         .rowVec3(
-            "Scene Extent",
-            bounds.extent,
-            bounds.extent,
+            "Scene Half Extent",
+            bounds.halfExtent,
+            bounds.halfExtent,
             syzygy::PropertySliderBehavior{
                 .speed = 1.0F,
             }

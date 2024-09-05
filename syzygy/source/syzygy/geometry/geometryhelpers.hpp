@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/geometry/geometrytypes.hpp"
 #include <array>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
@@ -25,8 +26,6 @@
 // on.
 namespace syzygy
 {
-using AABBVertices = std::array<glm::vec3, 8>;
-
 struct Plane
 {
     glm::vec3 point;
@@ -34,8 +33,6 @@ struct Plane
 };
 
 auto projectPointOnPlane(Plane plane, glm::vec3 point) -> glm::vec3;
-
-auto collectAABBVertices(glm::vec3 center, glm::vec3 extent) -> AABBVertices;
 
 auto lookAtVk(glm::vec3 eye, glm::vec3 center, glm::vec3 up) -> glm::mat4x4;
 
@@ -57,9 +54,8 @@ auto projectionOrthoVk(glm::vec3 min, glm::vec3 max) -> glm::mat4x4;
 
 // Creates an orthographic projection that contains the entirety of a AABB.
 // TODO: support aspect ratios.
-auto projectionOrthoAABBVk(
-    glm::mat4x4 view, glm::vec3 geometryCenter, glm::vec3 geometryExtent
-) -> glm::mat4x4;
+auto projectionOrthoAABBVk(glm::mat4x4 view, AABB capturedBounds)
+    -> glm::mat4x4;
 
 // Angles are (pitch, roll, yaw) in radians
 auto forwardFromEulers(glm::vec3 eulerAngles) -> glm::vec3;

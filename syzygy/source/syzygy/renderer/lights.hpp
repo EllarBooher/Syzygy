@@ -9,14 +9,13 @@ auto makeDirectional(
     glm::vec4 const color,
     float const strength,
     glm::vec3 const eulerAngles,
-    glm::vec3 const geometryCenter,
-    glm::vec3 const geometryExtent
+    AABB const sceneBounds
 ) -> DirectionalLightPacked
 {
     glm::mat4x4 const view{syzygy::viewVk(glm::vec3{0.0}, eulerAngles)};
 
     glm::mat4x4 const projection{
-        syzygy::projectionOrthoAABBVk(view, geometryCenter, geometryExtent)
+        syzygy::projectionOrthoAABBVk(view, sceneBounds)
     };
 
     return DirectionalLightPacked{

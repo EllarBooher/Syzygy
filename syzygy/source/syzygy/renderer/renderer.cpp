@@ -350,7 +350,7 @@ void Renderer::recordDraw(
             m_debugLines.pushBox(
                 scene.bounds.center,
                 glm::identity<glm::quat>(),
-                scene.bounds.extent
+                scene.bounds.halfExtent
             );
 
             recordDrawDebugLines(

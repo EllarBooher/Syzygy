@@ -26,12 +26,6 @@ struct MeshAsset;
 
 namespace syzygy
 {
-struct SceneBounds
-{
-    glm::vec3 center{};
-    glm::vec3 extent{};
-};
-
 struct AtmosphereBaked
 {
     AtmospherePacked atmosphere{};
@@ -58,7 +52,7 @@ struct Atmosphere
     [[nodiscard]] auto directionToSun() const -> glm::vec3;
 
     [[nodiscard]] auto toDeviceEquivalent() const -> AtmospherePacked;
-    [[nodiscard]] auto baked(SceneBounds) const -> AtmosphereBaked;
+    [[nodiscard]] auto baked(AABB) const -> AtmosphereBaked;
 };
 
 struct Camera
@@ -157,6 +151,7 @@ struct Scene
     static Camera const DEFAULT_CAMERA;
     static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
     static SunAnimation const DEFAULT_SUN_ANIMATION;
+    static AABB const DEFAULT_SCENE_BOUNDS;
 
     SunAnimation sunAnimation{DEFAULT_SUN_ANIMATION};
 
@@ -173,10 +168,7 @@ struct Scene
     // TODO: compute this on demand instead of making it a tweakable parameter
     // This is used to compute the necessary dimensions of various resource e.g.
     // shadowmaps
-    SceneBounds bounds{
-        .center = glm::vec3{0.0F, -4.0F, 0.0F},
-        .extent = glm::vec3{20.0F, 20.0F, 20.0F},
-    };
+    AABB bounds{DEFAULT_SCENE_BOUNDS};
 
     void addMeshInstance(
         VkDevice,
