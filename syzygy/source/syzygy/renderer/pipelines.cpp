@@ -3,20 +3,22 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
+#include <filesystem>
+#include <functional>
 #include <glm/vec2.hpp>
 #include <memory>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
 namespace syzygy
 {
-struct CameraPacked;
-
 auto PipelineBuilder::buildPipeline(
     VkDevice const device, VkPipelineLayout const layout
 ) const -> VkPipeline

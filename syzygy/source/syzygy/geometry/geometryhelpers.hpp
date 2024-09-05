@@ -1,10 +1,13 @@
 #pragma once
 
-#include "syzygy/geometry/geometrytypes.hpp"
-#include <array>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+
+namespace syzygy
+{
+struct AABB;
+} // namespace syzygy
 
 // These functions help decide handed-ness and coordinate system.
 // Renderer code generally still needs to consider handedness, but deciding

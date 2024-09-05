@@ -1,7 +1,6 @@
 #pragma once
 
 #include "syzygy/geometry/geometrytypes.hpp"
-#include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
@@ -22,6 +21,7 @@ namespace syzygy
 struct InputSnapshot;
 struct TickTiming;
 struct MeshAsset;
+class DescriptorAllocator;
 } // namespace syzygy
 
 namespace syzygy

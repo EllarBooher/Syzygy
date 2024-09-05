@@ -1,13 +1,18 @@
 #include "geometryhelpers.hpp"
 
-#include "geometrystatics.hpp"
+#include "syzygy/geometry/geometrystatics.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
+#include <array>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/epsilon.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/random.hpp>
+#include <glm/gtx/compatibility.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/transform.hpp>

@@ -3,6 +3,8 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
+#include <spdlog/fmt/bundled/core.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <utility>
 
 namespace syzygy

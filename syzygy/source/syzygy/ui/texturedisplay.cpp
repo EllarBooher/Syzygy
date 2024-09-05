@@ -2,17 +2,25 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
+#include "syzygy/core/log.hpp"
+#include "syzygy/core/uuid.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/propertytable.hpp"
+#include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
+#include <functional>
+#include <glm/vec2.hpp>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <limits>
 #include <misc/cpp/imgui_stdlib.h>
 #include <regex>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
 namespace syzygy
@@ -180,10 +188,11 @@ auto TextureDisplay::uiRender(
             ImGui::BeginDisabled(textures.empty());
 
             if (ImGui::BeginListBox(
-                    "##textureSelection", ImVec2{-FLT_MIN, 0.0}
+                    "##textureSelection",
+                    ImVec2{-std::numeric_limits<float>::min(), 0.0}
                 ))
             {
-                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SetNextItemWidth(-std::numeric_limits<float>::min());
                 ImGui::InputTextWithHint(
                     "##searchBar", "Search", &m_nameFilter
                 );

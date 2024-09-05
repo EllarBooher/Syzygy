@@ -95,7 +95,7 @@
   { "include": [ "<glm/ext/matrix_clip_space.inl>", "private", "<glm/ext/matrix_clip_space.hpp>", "public" ] },
   { "include": [ "<glm/ext/matrix_projection.inl>", "private", "<glm/ext/matrix_projection.hpp>", "public" ] },
   { "include": [ "<glm/ext/matrix_transform.inl>", "private", "<glm/ext/matrix_transform.hpp>", "public" ] },
-
+  { "include": [ "<glm/gtc/epsilon.inl>", "private", "<glm/gtc/epsilon.hpp>", "public" ] },
 
   { "include": [ "<glm/ext/quaternion_float.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
   { "include": [ "<glm/ext/quaternion_float_precision.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
@@ -103,6 +103,7 @@
   { "include": [ "<glm/ext/quaternion_double_precision.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
 
   { "include": [ "<glm/gtx/quaternion.inl>", "private", "<glm/gtx/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/gtc/quaternion.inl>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
 
 
   { "include": [ "<glm/detail/type_quat.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
@@ -153,6 +154,7 @@
   { "symbol": [ "glm::mat4x4", "private", "<glm/ext/matrix_float4x4.hpp>", "private" ] },
   { "symbol": [ "glm::quat", "private", "<glm/ext/quaternion_float.hpp>", "private" ] },
   { "symbol": [ "glm::u16vec2", "private", "<glm/ext/vector_uint2_sized.hpp>", "private" ] },
+  { "symbol": [ "glm::i32vec2", "private", "<glm/ext/vector_int2_sized.hpp>", "private" ] },
 
 
   { "include": [ "<xstring>", "private", "<string>", "public" ] },

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/platform/integer.hpp"
 #include <array>
 #include <glm/vec3.hpp>
 

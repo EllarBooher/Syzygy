@@ -1,13 +1,18 @@
 #pragma once
 
-#include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+
+namespace syzygy
+{
+struct AABB;
+} // namespace syzygy
 
 namespace syzygy
 {
 auto makeDirectional(
     glm::vec4 color, float strength, glm::vec3 eulerAngles, AABB capturedBounds
-
 ) -> DirectionalLightPacked;
 
 struct SpotlightParams

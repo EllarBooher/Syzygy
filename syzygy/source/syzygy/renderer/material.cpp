@@ -1,11 +1,12 @@
 #include "material.hpp"
 
-#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
+#include <utility>
 
 syzygy::MaterialDescriptors::MaterialDescriptors(MaterialDescriptors&& other
 ) noexcept

@@ -7,7 +7,6 @@
 #include <VkBootstrap.h>
 #include <optional>
 #include <span>
-#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 #include <vector>
 

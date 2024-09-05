@@ -1,7 +1,15 @@
 #include "geometrytests.hpp"
 
 #include "syzygy/core/log.hpp"
+#include "syzygy/geometry/geometryhelpers.hpp"
+#include "syzygy/geometry/geometrystatics.hpp"
+#include <glm/fwd.hpp>
+#include <glm/geometric.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/epsilon.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/vec3.hpp>
+#include <string>
 
 // NOLINTBEGIN
 

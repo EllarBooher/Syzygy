@@ -17,8 +17,8 @@ public:
         *this = std::move(other);
     }
 
-    auto operator=(ImmediateSubmissionQueue&& other
-    ) noexcept -> ImmediateSubmissionQueue&;
+    auto operator=(ImmediateSubmissionQueue&& other) noexcept
+        -> ImmediateSubmissionQueue&;
 
     ~ImmediateSubmissionQueue() noexcept { destroy(); }
 

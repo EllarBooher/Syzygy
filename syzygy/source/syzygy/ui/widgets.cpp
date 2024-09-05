@@ -2,6 +2,7 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/ringbuffer.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/image.hpp"
@@ -16,6 +17,7 @@
 #include <functional>
 #include <glm/gtc/constants.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <implot.h>
 #include <memory>
 #include <span>

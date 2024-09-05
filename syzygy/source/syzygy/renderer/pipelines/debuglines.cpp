@@ -1,6 +1,7 @@
 #include "debuglines.hpp"
 
 #include "syzygy/geometry/geometrystatics.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include <glm/vec4.hpp>
 #include <initializer_list>
 #include <span>

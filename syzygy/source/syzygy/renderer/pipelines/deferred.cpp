@@ -1,17 +1,21 @@
 #include "deferred.hpp"
 
 #include "syzygy/assets/assets.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/material.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
+#include <filesystem>
+#include <functional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <optional>

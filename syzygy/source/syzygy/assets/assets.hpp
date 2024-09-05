@@ -11,7 +11,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace syzygy
@@ -19,6 +18,7 @@ namespace syzygy
 struct PlatformWindow;
 struct GraphicsContext;
 struct ImmediateSubmissionQueue;
+struct ImageView;
 } // namespace syzygy
 
 namespace syzygy

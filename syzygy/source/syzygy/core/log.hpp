@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <spdlog/logger.h>
+#include <spdlog/logger.h> // IWYU pragma: keep
 
 namespace syzygy
 {

@@ -3,11 +3,9 @@
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
-#include "syzygy/editor/window.hpp"
 #include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/platformutils.hpp"
-#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
@@ -18,16 +16,17 @@
 #include <fastgltf/glm_element_traits.hpp> // IWYU pragma: keep
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
-#include <fastgltf/util.hpp>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <limits>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
+#include <variant>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>

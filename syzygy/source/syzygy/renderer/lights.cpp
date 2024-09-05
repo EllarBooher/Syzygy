@@ -1,6 +1,8 @@
 #include "lights.hpp"
 
 #include "syzygy/geometry/geometryhelpers.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
+#include <glm/mat4x4.hpp>
 
 namespace syzygy
 {

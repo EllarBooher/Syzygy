@@ -1,6 +1,7 @@
 #include "renderer.hpp"
 
-#include "syzygy/platform/vulkanmacros.hpp"
+#include "syzygy/core/log.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"

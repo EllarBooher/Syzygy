@@ -1,11 +1,21 @@
 #include "platformutils.hpp"
 
 #include "syzygy/core/log.hpp"
-#include <GLFW/glfw3.h>
+#include <GLFW/glfw3.h> // IWYU pragma: keep
 #include <ShObjIdl.h>
-#include <windows.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
+#include "syzygy/editor/window.hpp"
 #include <GLFW/glfw3native.h>
+#include <combaseapi.h>
+#include <filesystem>
+#include <minwindef.h>
+#include <objbase.h>
+#include <optional>
+#include <vector>
+#include <windef.h>
+#include <winerror.h>
+#include <winscard.h>
+#include <wtypesbase.h>
 
 namespace
 {

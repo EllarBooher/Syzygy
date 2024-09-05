@@ -2,7 +2,6 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
@@ -10,7 +9,6 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
-#include <filesystem>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>

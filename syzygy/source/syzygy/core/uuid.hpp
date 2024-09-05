@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syzygy/platform/integer.hpp"
+#include <type_traits>
 
 namespace syzygy
 {
@@ -19,13 +20,11 @@ private:
 
 namespace std
 {
-template <typename T> struct hash;
-
 template <> struct hash<syzygy::UUID>
 {
-    auto operator()(syzygy::UUID const& uuid) const -> std::size_t
+    auto operator()(syzygy::UUID const& uuid) const -> ::size_t
     {
-        return static_cast<uint64_t>(uuid);
+        return static_cast<::uint64_t>(uuid);
     }
 };
 

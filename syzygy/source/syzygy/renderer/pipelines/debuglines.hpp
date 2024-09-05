@@ -3,16 +3,12 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gputypes.hpp" // IWYU pragma: keep
 #include "syzygy/renderer/pipelines.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <memory>
-
-namespace syzygy
-{
-struct VertexPacked;
-} // namespace syzygy
 
 namespace syzygy
 {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include <memory>

@@ -2,14 +2,17 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/input.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
 #include "syzygy/platform/integer.hpp"
-#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/lights.hpp"
+#include <array>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -17,8 +20,6 @@
 #include <glm/gtx/compatibility.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
@@ -27,7 +28,13 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <span>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
+
+namespace syzygy
+{
+class DescriptorAllocator;
+} // namespace syzygy
 
 namespace syzygy
 {

@@ -1,12 +1,15 @@
 #pragma once
 
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
-#include "syzygy/renderer/imageview.hpp"
+#include <memory>
+#include <optional>
 
 namespace syzygy
 {
 class DescriptorAllocator;
 struct MaterialData;
+struct ImageView;
 
 struct MaterialDescriptors
 {

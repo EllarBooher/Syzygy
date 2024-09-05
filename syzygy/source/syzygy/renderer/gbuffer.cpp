@@ -1,6 +1,7 @@
 #include "gbuffer.hpp"
 
 #include "syzygy/core/deletionqueue.hpp"
+#include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"

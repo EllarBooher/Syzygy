@@ -2,13 +2,13 @@
 
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/platform/vulkanmacros.hpp"
 #include <GLFW/glfw3.h>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <optional>
 #include <spdlog/fmt/bundled/core.h>
 #include <unordered_map>
+#include <utility>
 
 namespace
 {

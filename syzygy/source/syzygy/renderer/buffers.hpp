@@ -3,7 +3,6 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
-#include "syzygy/renderer/gputypes.hpp"
 #include <cassert>
 #include <memory>
 #include <span>
