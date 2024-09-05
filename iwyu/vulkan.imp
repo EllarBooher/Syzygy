@@ -1,0 +1,8 @@
+[
+  { "include": [ "<vk_mem_alloc.h>", "private", "\"syzygy/platform/vulkanusage.hpp\"", "public" ] },
+  { "include": [ "<vulkan/vk_enum_string_helper.h>", "private", "\"syzygy/platform/vulkanmacros.hpp\"", "public" ] },
+  { "include": [ "<volk.h>", "private", "\"syzygy/platform/vulkanusage.hpp\"", "public" ] },
+
+  { "include": [ "<vulkan/vulkan.h>", "private", "<volk.h>", "private" ] },
+  { "include": [ "<vulkan/vulkan_core.h>", "private", "<vulkan/vulkan.h>", "private" ] }
+]

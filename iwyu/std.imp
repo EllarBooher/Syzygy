@@ -1,0 +1,16 @@
+[
+  { "include": [ "<xstring>", "private", "<string>", "public" ] },
+  { "include": [ "<xutility>", "private", "<algorithm>", "public" ] },
+  { "include": [ "<corecrt_math.h>", "private", "<cmath>", "public" ] },
+  { "include": [ "<__msvc_chrono.hpp>", "private", "<chrono>", "public" ] },
+
+  { "symbol": [ "std::move", "private", "<utility>", "public" ] },
+  { "symbol": [ "assert", "private", "<cassert>", "public" ] },
+  { "symbol": [ "std::string", "private", "<string>", "public" ] },
+  { "symbol": [ "std::memcpy", "private", "<cstring>", "public" ] },
+  { "symbol": [ "std::isfinite", "private", "<cmath>", "public" ] },
+  { "symbol": [ "std::monostate", "private", "<variant>", "public" ] },
+  { "symbol": [ "std::copy", "private", "<algorithm>", "public" ] },
+  { "symbol": [ "std::is_same", "private", "<type_traits>", "public" ] },
+  { "symbol": [ "std::reference_wrapper", "private", "<functional>", "public" ] },
+]

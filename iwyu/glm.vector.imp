@@ -1,0 +1,59 @@
+[
+  { "include": [ "<glm/ext/vector_bool1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_double1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_float1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/vector_int1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_int1_sized.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint1_sized.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_vec1.hpp>", "private", "<glm/vec1.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_vec1.inl>", "private", "<glm/detail/type_vec1.hpp>", "private" ] },
+
+
+  { "include": [ "<glm/ext/vector_bool2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_double2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_float2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/vector_int2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_int2_sized.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint2_sized.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_vec2.hpp>", "private", "<glm/vec2.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_vec2.inl>", "private", "<glm/detail/type_vec2.hpp>", "private" ] },
+
+
+  { "include": [ "<glm/ext/vector_bool3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_double3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_float3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/vector_int3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_int3_sized.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint3_sized.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_vec3.hpp>", "private", "<glm/vec3.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_vec3.inl>", "private", "<glm/detail/type_vec3.hpp>", "private" ] },
+
+
+  { "include": [ "<glm/ext/vector_bool4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_double4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_float4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/vector_int4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_int4_sized.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/vector_uint4_sized.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_vec4.hpp>", "private", "<glm/vec4.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_vec4.inl>", "private", "<glm/detail/type_vec4.hpp>", "private" ] },
+
+
+  { "symbol": [ "glm::vec2", "private", "<glm/ext/vector_float2.hpp>", "private" ] },
+  { "symbol": [ "glm::vec3", "private", "<glm/ext/vector_float3.hpp>", "private" ] },
+  { "symbol": [ "glm::vec4", "private", "<glm/ext/vector_float4.hpp>", "private" ] },
+  { "symbol": [ "glm::u16vec2", "private", "<glm/ext/vector_uint2_sized.hpp>", "private" ] },
+  { "symbol": [ "glm::i32vec2", "private", "<glm/ext/vector_int2_sized.hpp>", "private" ] }
+]

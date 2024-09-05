@@ -1,0 +1,35 @@
+[
+  { "include": [ "<glm/gtx/compatibility.inl>", "private", "<glm/gtx/compatibility.hpp>", "public" ] },
+
+  { "include": [ "<glm/gtc/constants.inl>", "private", "<glm/gtc/constants.hpp>", "public" ] },
+  { "include": [ "<glm/gtc/random.inl>", "private", "<glm/gtc/random.hpp>", "public" ] },
+  { "include": [ "<glm/gtc/matrix_inverse.inl>", "private", "<glm/gtc/matrix_inverse.hpp>", "public" ] },
+  { "include": [ "<glm/gtx/intersect.inl>", "private", "<glm/gtx/intersect.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_clip_space.inl>", "private", "<glm/ext/matrix_clip_space.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_projection.inl>", "private", "<glm/ext/matrix_projection.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_transform.inl>", "private", "<glm/ext/matrix_transform.hpp>", "public" ] },
+  { "include": [ "<glm/gtc/epsilon.inl>", "private", "<glm/gtc/epsilon.hpp>", "public" ] },
+
+  { "include": [ "<glm/gtx/euler_angles.inl>", "private", "<glm/gtx/euler_angles.hpp>", "public" ] },
+  { "include": [ "<glm/gtx/norm.inl>", "private", "<glm/gtx/norm.hpp>", "public" ] },
+  { "include": [ "<glm/gtx/transform.inl>", "private", "<glm/gtx/transform.hpp>", "public" ] },
+  { "include": [ "<glm/gtx/string_cast.inl>", "private", "<glm/gtx/string_cast.hpp>", "public" ] },
+
+
+  { "include": [ "<glm/detail/func_geometric.inl>", "private", "<glm/geometric.hpp>", "public" ] },
+  { "include": [ "<glm/detail/func_matrix.inl>", "private", "<glm/matrix.hpp>", "public" ] },
+  { "include": [ "<glm/detail/func_common.inl>", "private", "<glm/common.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/func_exponential.inl>", "private", "<glm/exponential.hpp>", "public" ] },
+  { "symbol": [ "sqrt", "private", "<glm/detail/func_exponential.inl>", "private" ] },
+  { "symbol": [ "exp", "private", "<glm/detail/func_exponential.inl>", "private" ] },
+
+  { "include": [ "<glm/detail/func_trigonometric.inl>", "private", "<glm/trigonometric.hpp>", "public" ] },
+  { "symbol": [ "asin", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "sin", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "atan", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "atan2", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "tan", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "acos", "private", "<glm/detail/func_trigonometric.inl>", "private" ] },
+  { "symbol": [ "cos", "private", "<glm/detail/func_trigonometric.inl>", "private" ] }
+]

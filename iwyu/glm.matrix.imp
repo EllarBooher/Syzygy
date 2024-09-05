@@ -1,0 +1,27 @@
+[
+  { "include": [ "<glm/ext/matrix_double3x3.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_float3x3.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/matrix_int3x3.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_int3x3_sized.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_uint3x3.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_uint3x3_sized.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_mat3x3.hpp>", "private", "<glm/mat3x3.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_mat3x3.inl>", "private", "<glm/detail/type_mat3x3.hpp>", "private" ] },
+
+
+  { "include": [ "<glm/ext/matrix_double4x4.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_float4x4.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+
+  { "include": [ "<glm/ext/matrix_int4x4.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_int4x4_sized.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_uint4x4.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+  { "include": [ "<glm/ext/matrix_uint4x4_sized.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_mat4x4.hpp>", "private", "<glm/mat4x4.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_mat4x4.inl>", "private", "<glm/detail/type_mat4x4.hpp>", "private" ] },
+
+
+  { "symbol": [ "glm::mat4x4", "private", "<glm/ext/matrix_float4x4.hpp>", "private" ] },
+]

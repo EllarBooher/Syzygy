@@ -1,0 +1,9 @@
+[
+  { "ref": "glm.vector.imp" },
+  { "ref": "glm.matrix.imp" },
+  { "ref": "glm.quaternion.imp" },
+  { "ref": "glm.functions.imp" },
+
+  { "include": [ "<glm/ext/scalar_constants.hpp>", "private", "<glm/gtc/constants.hpp>", "public" ] },
+  { "include": [ "<glm/ext/scalar_constants.inl>", "private", "<glm/ext/scalar_constants.hpp>", "private" ] }
+]

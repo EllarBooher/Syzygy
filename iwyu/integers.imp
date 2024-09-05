@@ -1,0 +1,9 @@
+[
+  { "symbol": [ "size_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint8_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint16_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint32_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uint64_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "int32_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] },
+  { "symbol": [ "uintptr_t", "private", "\"syzygy/platform/integer.hpp\"", "public" ] }
+]

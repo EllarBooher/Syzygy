@@ -1,0 +1,15 @@
+[
+  { "include": [ "<glm/ext/quaternion_float.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/ext/quaternion_float_precision.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/ext/quaternion_double.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/ext/quaternion_double_precision.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+
+  { "include": [ "<glm/gtx/quaternion.inl>", "private", "<glm/gtx/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/gtc/quaternion.inl>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+
+  { "include": [ "<glm/detail/type_quat.hpp>", "private", "<glm/gtc/quaternion.hpp>", "public" ] },
+  { "include": [ "<glm/detail/type_quat.inl>", "private", "<glm/detail/type_quat.hpp>", "private" ] },
+
+
+  { "symbol": [ "glm::quat", "private", "<glm/ext/quaternion_float.hpp>", "private" ] }
+]
