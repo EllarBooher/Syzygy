@@ -56,23 +56,65 @@ layout (push_constant) uniform PushConstant
 	vec2 gbufferExtent;
 } pushConstant;
 
-float sampleShadowMap(vec4 shadowCoord, uint index)
-{
-	float dist = texture(nonuniformEXT(sampler2D(shadowMaps[index], shadowMapSampler)), shadowCoord.st).r;
-	if (dist > shadowCoord.z && dist > 0.0) 
-	{
-		return 0.0;
-	}
-
-	return 1.0;
-}
-
 const mat4 TO_TEX_COORD_MAT = mat4(
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
 	0.0, 0.0, 1.0, 0.0,
 	0.5, 0.5, 0.0, 1.0
 );
+
+struct ShadowFrame
+{
+	vec4 coord;
+	float dx;
+	float dy;
+};
+
+ShadowFrame computeShadowFrame(mat4 lightProjView, vec3 position, vec3 normal)
+{
+	const mat4 shadowMatrix = TO_TEX_COORD_MAT * lightProjView;
+	vec4 shadowCoord = shadowMatrix * vec4(position, 1.0);
+	shadowCoord /= shadowCoord.w;
+
+	const vec4 projectedNormal = shadowMatrix * vec4(normal, 0.0);
+
+	// The smaller the normal gets in shadowmap space, the further out we should sample
+	const float dx = sqrt(1.0 - clamp(projectedNormal.x * projectedNormal.x, 0.0, 1.0));
+	const float dy = sqrt(1.0 - clamp(projectedNormal.y * projectedNormal.y, 0.0, 1.0));
+
+	return ShadowFrame(shadowCoord, dx, dy);
+}
+
+float sampleShadowMap(const ShadowFrame shadow, const uint index)
+{
+	float fragmentDepth = shadow.coord.z;
+
+	const ivec2 shadowmapDimensions = textureSize(sampler2D(shadowMaps[index], shadowMapSampler), 0);
+
+	const float dx = 1.5 * shadow.dx / float(shadowmapDimensions.x);
+	const float dy = 1.5 * shadow.dy / float(shadowmapDimensions.y);
+
+	float summedDistance = 0.0;
+
+	const int SAMPLE_RANGE = 2;
+	const int SAMPLE_COUNT = (2 * SAMPLE_RANGE + 1) * (2 * SAMPLE_RANGE + 1);
+
+	for (int y = -SAMPLE_RANGE; y <= SAMPLE_RANGE; y++) {
+		for (int x = -SAMPLE_RANGE; x <= SAMPLE_RANGE; x++) {
+			vec2 offsetShadowCoord = shadow.coord.st + vec2(x * dx, y * dy);
+
+			const float occluderDepth = texture(nonuniformEXT(sampler2D(shadowMaps[index], shadowMapSampler)), offsetShadowCoord).r;
+
+			// Reverse-Z
+			if (occluderDepth > 0.0 && occluderDepth > fragmentDepth)
+			{
+				summedDistance += 1.0;
+			}
+		}
+	}
+
+	return 1.0 - summedDistance / SAMPLE_COUNT;
+}
 
 struct GBufferTexel
 {
@@ -143,24 +185,15 @@ struct IncomingLight
 	vec3 lightSpectralFactor;
 };
 
-vec4 computeShadowCoord(mat4 lightProjView, vec3 worldPosition)
-{
-	const mat4 shadowMatrix = TO_TEX_COORD_MAT * lightProjView;
-	vec4 shadowCoord = shadowMatrix * vec4(worldPosition, 1.0);
-	shadowCoord /= shadowCoord.w;
-
-	return shadowCoord;
-}
-
-IncomingLight computeIncomingLight(const LightDirectional light, const vec4 shadowCoord, const uint shadowMapIndex)
+IncomingLight computeIncomingLight(const LightDirectional light, const ShadowFrame shadow, const uint shadowMapIndex)
 {
 	const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
-	const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadowCoord, shadowMapIndex);
+	const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadow, shadowMapIndex);
 
 	return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
 
-IncomingLight computeIncomingLight(const LightSpot light, const vec3 worldPosition, const vec4 shadowCoord, const uint shadowMapIndex)
+IncomingLight computeIncomingLight(const LightSpot light, const vec3 worldPosition, const ShadowFrame shadow, const uint shadowMapIndex)
 {
 	const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
 
@@ -168,10 +201,10 @@ IncomingLight computeIncomingLight(const LightSpot light, const vec3 worldPositi
 	const float lightFalloff = light.falloffFactor * lightNormalizedDistance * lightNormalizedDistance;
 
 	// Quadratic falloff from center of light to edge, using the shadowmap as the bounds of the light
-	const float distanceUV = clamp(distance(shadowCoord.st, vec2(0.5,0.5)) / 0.5, 0.0, 1.0);
+	const float distanceUV = clamp(distance(shadow.coord.st, vec2(0.5,0.5)) / 0.5, 0.0, 1.0);
 	const float edgeSoftening = 1.0 - distanceUV * distanceUV;
 
-	const vec3 lightSpectralFactor = light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadowCoord, shadowMapIndex);
+	const vec3 lightSpectralFactor = light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadow, shadowMapIndex);
 
 	return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
@@ -219,7 +252,7 @@ vec3 computeLightContribution(const IncomingLight light, const PBRTexel material
 	const vec3 fresnel = computeFresnel(material, lightDirection, viewDirection);
 
 	// Lerping preserves the energy conservation of our BRDFs
-	return material.occlusion * mix(diffuseContribution, specularContribution, fresnel) * light.lightSpectralFactor;
+	return material.occlusion * mix(diffuseContribution, specularContribution, fresnel) * light.lightSpectralFactor * clamp(dot(material.normal, lightDirection), 0.0, 1.0);
 }
 
 void main()
@@ -267,8 +300,8 @@ void main()
 	for (int i = 0; i < pushConstant.directionalLightCount; i++)
 	{
 		const LightDirectional light = pushConstant.directionalLights.lights[i];
-		const vec4 shadowCoord = computeShadowCoord(light.projection * light.view, material.position);
-		const IncomingLight incomingLight = computeIncomingLight(light, shadowCoord, shadowMapIndex);
+		const ShadowFrame shadow = computeShadowFrame(light.projection * light.view, material.position, material.normal);
+		const IncomingLight incomingLight = computeIncomingLight(light, shadow, shadowMapIndex);
 		lightContribution += computeLightContribution(incomingLight, material, viewDirection);
 
 		shadowMapIndex += 1;
@@ -277,8 +310,8 @@ void main()
 	for (int i = 0; i < pushConstant.spotLightCount; i++)
 	{
 		const LightSpot light = pushConstant.spotLights.lights[i];
-		const vec4 shadowCoord = computeShadowCoord(light.projection * light.view, material.position);
-		const IncomingLight incomingLight = computeIncomingLight(light, material.position, shadowCoord, shadowMapIndex);
+		const ShadowFrame shadow = computeShadowFrame(light.projection * light.view, material.position, material.normal);
+		const IncomingLight incomingLight = computeIncomingLight(light, material.position, shadow, shadowMapIndex);
 		lightContribution += computeLightContribution(incomingLight, material, viewDirection);
 
 		shadowMapIndex += 1;
