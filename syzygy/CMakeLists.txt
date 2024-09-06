@@ -9,6 +9,7 @@ add_library(
 	"source/syzygy/geometry/geometryhelpers.cpp"
 	"source/syzygy/geometry/geometrytypes.cpp"
 	"source/syzygy/geometry/geometrytests.cpp"
+	"source/syzygy/geometry/transform.cpp"
 
 	"source/syzygy/renderer/pipelines/debuglines.cpp"
 	"source/syzygy/renderer/pipelines/deferred.cpp"

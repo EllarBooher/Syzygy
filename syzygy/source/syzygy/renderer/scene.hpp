@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syzygy/geometry/geometrytypes.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
@@ -94,17 +95,6 @@ enum class InstanceAnimation
 
     Spin_Along_World_Up,
     LAST = Spin_Along_World_Up
-};
-
-struct Transform
-{
-    glm::vec3 translation{0.0F};
-    glm::vec3 eulerAnglesRadians{0.0F};
-    glm::vec3 scale{1.0F};
-
-    [[nodiscard]] auto toMatrix() const -> glm::mat4x4;
-    [[nodiscard]] static auto lookAt(Ray eyeTarget, glm::vec3 scale)
-        -> Transform;
 };
 
 // TODO: encapsulate all fields

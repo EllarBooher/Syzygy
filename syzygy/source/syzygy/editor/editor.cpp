@@ -12,6 +12,7 @@
 #include "syzygy/editor/uilayer.hpp"
 #include "syzygy/editor/window.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/platform/vulkanusage.hpp"

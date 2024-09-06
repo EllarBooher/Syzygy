@@ -3,6 +3,7 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/image.hpp"
