@@ -71,6 +71,11 @@ void PropertyTable::end()
 {
     assert(!m_rowOpen && "end() called on PropertyTable with an open row.");
     assert(m_open && "end() called on PropertyTable that was not open.");
+    assert(
+        m_childPropertyDepth == 0
+        && "end() called on PropertyTable without ending all nested child "
+           "properties."
+    );
 
     m_open = false;
 
