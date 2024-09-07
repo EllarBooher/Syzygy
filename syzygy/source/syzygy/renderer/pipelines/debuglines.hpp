@@ -12,6 +12,12 @@
 
 namespace syzygy
 {
+struct AABB;
+struct Transform;
+} // namespace syzygy
+
+namespace syzygy
+{
 struct DebugLines
 {
     // TODO: Split this up into 3 segments: the pipeline, the line segment
@@ -48,6 +54,7 @@ public:
 
     // Push a rectangular prism, stretched along the (x,y,z) axes by extents.
     void pushBox(glm::vec3 center, glm::quat orientation, glm::vec3 extents);
+    void pushBox(Transform, AABB);
 
     void recordCopy(VkCommandBuffer cmd) const;
 

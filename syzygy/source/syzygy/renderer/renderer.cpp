@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -312,6 +313,17 @@ void Renderer::recordDraw(
         if (instance.models != nullptr)
         {
             instance.modelInverseTransposes->recordCopyToDevice(cmd);
+        }
+
+        if (auto const instanceMeshAsset{instance.getMesh()};
+            instanceMeshAsset.has_value())
+        {
+            MeshAsset const& meshAsset{instanceMeshAsset.value().get()};
+
+            for (Transform const& transform : instance.transforms)
+            {
+                m_debugLines.pushBox(transform, meshAsset.vertexBounds);
+            }
         }
     }
 

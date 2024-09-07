@@ -1,6 +1,8 @@
 #include "debuglines.hpp"
 
 #include "syzygy/geometry/geometrystatics.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include <glm/vec4.hpp>
 #include <initializer_list>
@@ -83,6 +85,32 @@ void DebugLines::pushBox(
     glm::vec3 const right{orientation * (extents * WORLD_RIGHT)};
     glm::vec3 const forward{orientation * (extents * WORLD_FORWARD)};
     glm::vec3 const up{orientation * (extents * WORLD_UP)};
+
+    pushRectangleAxes(center - up, right, forward);
+    pushRectangleAxes(center + up, right, forward);
+
+    pushRectangleAxes(center - right, forward, up);
+    pushRectangleAxes(center + right, forward, up);
+
+    pushRectangleAxes(center - forward, up, right);
+    pushRectangleAxes(center + forward, up, right);
+}
+
+void DebugLines::pushBox(Transform const parent, AABB const box)
+{
+    glm::mat4x4 const transformation{parent.toMatrix()};
+
+    glm::vec3 const right{
+        transformation * glm::vec4{box.halfExtent * WORLD_RIGHT, 0.0F}
+    };
+    glm::vec3 const forward{
+        transformation * glm::vec4{box.halfExtent * WORLD_FORWARD, 0.0F}
+    };
+    glm::vec3 const up{
+        transformation * glm::vec4{box.halfExtent * WORLD_UP, 0.0F}
+    };
+
+    glm::vec3 const center{transformation * glm::vec4{box.center, 1.0F}};
 
     pushRectangleAxes(center - up, right, forward);
     pushRectangleAxes(center + up, right, forward);

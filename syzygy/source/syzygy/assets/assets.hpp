@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syzygy/core/uuid.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
@@ -35,6 +36,7 @@ struct MeshAsset
 {
     std::string name{};
     std::vector<GeometrySurface> surfaces{};
+    AABB vertexBounds{};
     std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
 };
 

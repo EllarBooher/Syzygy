@@ -406,6 +406,7 @@ void uiSceneGeometry(
     for (syzygy::MeshInstanced& instance : geometry)
     {
         table.rowChildPropertyBegin(instance.name);
+
         table.rowBoolean("Render", instance.render, true);
 
         table.rowChildPropertyBegin("Transforms");
@@ -437,6 +438,17 @@ void uiSceneGeometry(
             }
         }
         );
+
+        syzygy::AABB const meshBounds{
+            instance.getMesh().has_value()
+                ? instance.getMesh().value().get().vertexBounds
+                : syzygy::AABB{}
+        };
+        table.rowChildPropertyBegin("Mesh AABB");
+        table.rowReadOnlyVec3("Center", meshBounds.center);
+        table.rowReadOnlyVec3("Half-Extent", meshBounds.halfExtent);
+        table.childPropertyEnd();
+
         table.childPropertyEnd();
     }
 

@@ -695,9 +695,19 @@ auto loadMeshes(
             continue;
         }
 
+        glm::vec3 vertexMinimum{std::numeric_limits<float>::max()};
+        glm::vec3 vertexMaximum{std::numeric_limits<float>::lowest()};
+
+        for (syzygy::VertexPacked const& vertex : vertices)
+        {
+            vertexMinimum = glm::min(vertex.position, vertexMinimum);
+            vertexMaximum = glm::max(vertex.position, vertexMaximum);
+        }
+
         newMesh = std::make_unique<syzygy::MeshAsset>(syzygy::MeshAsset{
             .name = std::string{mesh.name},
             .surfaces = std::move(surfaces),
+            .vertexBounds = syzygy::AABB::create(vertexMinimum, vertexMaximum),
             .meshBuffers = uploadMeshToGPU(
                 device,
                 allocator,
