@@ -261,18 +261,22 @@ void uiCamera(
         )
         .end();
 }
-void uiTransform(syzygy::PropertyTable& table, syzygy::Transform& transform)
+void uiTransform(
+    syzygy::PropertyTable& table,
+    syzygy::Transform& transform,
+    syzygy::Transform const& original
+)
 {
     table.rowVec3(
         "Translation",
         transform.translation,
-        glm::vec3{0.0F},
+        original.translation,
         syzygy::PropertySliderBehavior{.speed = 1.0F}
     );
     table.rowVec3(
         "Euler Angles (Radians)",
         transform.eulerAnglesRadians,
-        glm::vec3{0.0F},
+        original.eulerAnglesRadians,
         syzygy::PropertySliderBehavior{
             .bounds = syzygy::FloatBounds{-glm::pi<float>(), glm::pi<float>()},
         }
@@ -280,7 +284,7 @@ void uiTransform(syzygy::PropertyTable& table, syzygy::Transform& transform)
     table.rowVec3(
         "Scale",
         transform.scale,
-        glm::vec3{1.0F},
+        original.scale,
         syzygy::PropertySliderBehavior{
             .bounds = syzygy::FloatBounds{.min = 0.0F, .max = 100.0F}
         }
@@ -403,10 +407,21 @@ void uiSceneGeometry(
     {
         table.rowChildPropertyBegin(instance.name);
         table.rowBoolean("Render", instance.render, true);
-        for (syzygy::Transform& transform : instance.originals)
+
+        table.rowChildPropertyBegin("Transforms");
+        for (size_t transformIndex{0};
+             transformIndex
+             < std::min(instance.transforms.size(), instance.originals.size());
+             transformIndex++)
         {
-            uiTransform(table, transform);
+            uiTransform(
+                table,
+                instance.transforms[transformIndex],
+                instance.originals[transformIndex]
+            );
         }
+        table.childPropertyEnd();
+
         table.rowCustom(
             "Instance Animation",
             [&]() { uiInstanceAnimation(instance.animation); }

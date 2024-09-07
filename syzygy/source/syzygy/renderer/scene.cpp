@@ -426,6 +426,7 @@ void tickMeshInstance(
         for (size_t index{0}; index < instance.originals.size(); index++)
         {
             syzygy::Transform const& original{instance.originals[index]};
+            syzygy::Transform& current{instance.transforms[index]};
 
             double const timeOffset{
                 (original.translation.x - (-10) + original.translation.z - (-10)
@@ -434,46 +435,31 @@ void tickMeshInstance(
             };
 
             double const y{glm::sin(lastFrame.timeElapsedSeconds + timeOffset)};
-
-            glm::mat4x4 const model{
-                glm::translate(glm::vec3(0.0, y, 0.0)) * original.toMatrix()
-            };
-
-            models[index] = model;
-            modelInverseTransposes[index] = glm::inverseTranspose(model);
+            current.translation = original.translation
+                                + glm::vec3{0.0F, static_cast<float>(y), 0.0F};
         }
         break;
     case syzygy::InstanceAnimation::Spin_Along_World_Up:
         for (size_t index{0}; index < instance.originals.size(); index++)
         {
-            syzygy::Transform const& original{instance.originals[index]};
+            syzygy::Transform& current{instance.transforms[index]};
 
-            glm::mat4x4 const model{
-                glm::translate(original.translation)
-                * glm::rotate(
-                    glm::identity<glm::mat4x4>(),
-                    static_cast<float>(lastFrame.timeElapsedSeconds),
-                    syzygy::WORLD_UP
-                )
-                * glm::orientate4(original.eulerAnglesRadians)
-                * glm::scale(original.scale)
-            };
-
-            models[index] = model;
-            modelInverseTransposes[index] = glm::inverseTranspose(model);
+            current.eulerAnglesRadians.z += lastFrame.deltaTimeSeconds;
         }
         break;
     default:
-        for (size_t index{0}; index < instance.originals.size(); index++)
-        {
-            syzygy::Transform const& original{instance.originals[index]};
-
-            glm::mat4x4 const model{original.toMatrix()};
-
-            models[index] = model;
-            modelInverseTransposes[index] = glm::inverseTranspose(model);
-        }
         break;
+    }
+
+    // TODO: this should be moved to a separate method that prepares all
+    // rendering data for a scene
+    for (size_t index{0}; index < instance.transforms.size(); index++)
+    {
+        syzygy::Transform& transform{instance.transforms[index]};
+
+        glm::mat4x4 const model{transform.toMatrix()};
+        models[index] = model;
+        modelInverseTransposes[index] = glm::inverseTranspose(model);
     }
 }
 } // namespace
