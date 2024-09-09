@@ -288,7 +288,7 @@ void Renderer::recordDraw(
     std::vector<DirectionalLightPacked> directionalLights{};
     { // Copy atmospheres to gpu
         AtmosphereBaked const bakedAtmosphere{
-            scene.atmosphere.baked(scene.bounds)
+            scene.atmosphere.baked(scene.shadowBounds())
         };
         if (bakedAtmosphere.moonlight.has_value())
         {
@@ -304,7 +304,7 @@ void Renderer::recordDraw(
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
-    for (MeshInstanced const& instance : scene.geometry)
+    for (MeshInstanced const& instance : scene.geometry())
     {
         if (instance.models != nullptr)
         {
@@ -353,17 +353,19 @@ void Renderer::recordDraw(
                 *m_camerasBuffer,
                 atmosphereIndex,
                 *m_atmospheresBuffer,
-                scene.geometry
+                scene.geometry()
             );
 
             sceneTexture.texture().recordTransitionBarriered(
                 cmd, VK_IMAGE_LAYOUT_GENERAL
             );
 
+            auto const sceneBounds{scene.shadowBounds()};
+
             m_debugLines.pushBox(
-                scene.bounds.center,
+                sceneBounds.center,
                 glm::identity<glm::quat>(),
-                scene.bounds.halfExtent
+                sceneBounds.halfExtent
             );
 
             recordDrawDebugLines(

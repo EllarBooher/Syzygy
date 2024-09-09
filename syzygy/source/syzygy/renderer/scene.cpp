@@ -12,6 +12,7 @@
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/vector_relational.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/constants.hpp>
@@ -76,10 +77,71 @@ SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
 
 float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
-AABB const Scene::DEFAULT_SCENE_BOUNDS{
-    .center = glm::vec3{0.0F, -4.0F, 0.0F},
-    .halfExtent = glm::vec3{20.0F, 20.0F, 20.0F},
-};
+auto Scene::shadowBounds() const -> AABB { return m_shadowBounds; }
+
+void Scene::calculateShadowBounds()
+{
+    m_shadowBounds = {};
+
+    // Go over every transformed vertex of instances' AABBs
+    // TODO: find a simpler algorithm, there is lots of symmetry to take
+    // advantage of
+
+    glm::vec3 minimumPoint{std::numeric_limits<float>::max()};
+    glm::vec3 maximumPoint{std::numeric_limits<float>::lowest()};
+
+    for (MeshInstanced const& instance : m_geometry)
+    {
+        if (!instance.castsShadow || !instance.render)
+        {
+            continue;
+        }
+
+        std::optional<std::reference_wrapper<MeshAsset>> meshRef{
+            instance.getMesh()
+        };
+
+        if (!meshRef.has_value())
+        {
+            continue;
+        }
+
+        MeshAsset const& mesh{meshRef.value().get()};
+
+        AABB::Vertices const vertices{mesh.vertexBounds.collectVertices()};
+
+        for (Transform const& transform : instance.transforms)
+        {
+            glm::mat4x4 const transformation{transform.toMatrix()};
+
+            for (glm::vec3 const vertex : vertices)
+            {
+                glm::vec3 worldPosition{
+                    transformation * glm::vec4{vertex, 1.0F}
+                };
+
+                minimumPoint = glm::min(worldPosition, minimumPoint);
+                maximumPoint = glm::max(worldPosition, maximumPoint);
+            }
+        }
+    }
+
+    if (glm::any(glm::greaterThan(minimumPoint, maximumPoint)))
+    {
+        // This only occurs when not a single valid vertex was found
+        // Either the mesh vertices or transforms are bad
+        return;
+    }
+
+    m_shadowBounds = AABB::create(minimumPoint, maximumPoint);
+}
+
+auto Scene::geometry() const -> std::span<MeshInstanced const>
+{
+    return m_geometry;
+}
+
+auto Scene::geometry() -> std::span<MeshInstanced> { return m_geometry; }
 
 void Scene::addMeshInstance(
     VkDevice const device,
@@ -88,11 +150,13 @@ void Scene::addMeshInstance(
     std::optional<AssetRef<MeshAsset>> const mesh,
     InstanceAnimation const animation,
     std::string const& name,
-    std::span<Transform const> const transforms
+    std::span<Transform const> const transforms,
+    bool const castsShadow
 )
 {
     MeshInstanced instance{};
     instance.render = true;
+    instance.castsShadow = castsShadow;
     // TODO: name deduplication
     instance.name = fmt::format("meshInstanced_{}", name);
     instance.setMesh(mesh.has_value() ? mesh.value().get().data : nullptr);
@@ -130,7 +194,7 @@ void Scene::addMeshInstance(
         instance.modelInverseTransposes->push(glm::inverseTranspose(matrix));
     }
 
-    geometry.push_back(std::move(instance));
+    m_geometry.push_back(std::move(instance));
 }
 
 void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
@@ -162,12 +226,6 @@ auto Scene::defaultScene(
 {
     Scene scene{};
 
-    AABB constexpr DEFAULT_SCENE_BOUNDS{
-        .center = glm::vec3{0.0, -4.0, 0.0},
-        .halfExtent = glm::vec3{20.0, 5.0, 20.0},
-    };
-    scene.bounds = DEFAULT_SCENE_BOUNDS;
-
     std::shared_ptr<MeshAsset> const pMesh{
         initialMesh.has_value() ? initialMesh.value().get().data : nullptr
     };
@@ -186,7 +244,8 @@ auto Scene::defaultScene(
             initialMesh,
             InstanceAnimation::None,
             "Floor",
-            transform
+            transform,
+            false
         );
     }
 
@@ -270,12 +329,6 @@ auto Scene::diagonalWaveScene(
 {
     Scene scene{};
 
-    AABB constexpr DEFAULT_SCENE_BOUNDS{
-        .center = glm::vec3{0.0, -4.0, 0.0},
-        .halfExtent = glm::vec3{45.0, 5.0, 45.0},
-    };
-    scene.bounds = DEFAULT_SCENE_BOUNDS;
-
     int32_t constexpr COORDINATE_MIN{-40};
     int32_t constexpr COORDINATE_MAX{40};
 
@@ -297,7 +350,8 @@ auto Scene::diagonalWaveScene(
             initialMesh,
             InstanceAnimation::None,
             "Floor",
-            transform
+            transform,
+            false
         );
     }
 
@@ -510,7 +564,7 @@ void Scene::tick(TickTiming const lastFrame)
         atmosphere.sunEulerAngles.z
     };
 
-    for (auto& instance : geometry)
+    for (auto& instance : m_geometry)
     {
         tickMeshInstance(lastFrame, instance);
     }

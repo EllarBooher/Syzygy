@@ -472,13 +472,7 @@ auto run() -> EditorResult
             floorMesh = loadedMeshes[0];
         }
 
-        glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
-
-        Transform const floatingTransform{
-            .translation = floatingPosition,
-            .eulerAnglesRadians = glm::vec3{0.0F},
-            .scale = glm::vec3{0.5F}
-        };
+        glm::vec3 const floatingPosition{glm::vec3{0.0F, -4.0F, 0.0F}};
 
         scene.addMeshInstance(
             graphicsContext.device(),
@@ -486,8 +480,25 @@ auto run() -> EditorResult
             graphicsContext.descriptorAllocator(),
             floatingMesh,
             InstanceAnimation::None,
-            "Floating",
-            std::array<Transform, 1>{Transform{floatingTransform}}
+            "Floating1",
+            std::array<Transform, 1>{Transform{
+                .translation = floatingPosition + glm::vec3{0.0F, 0.0F, 6.0F},
+                .eulerAnglesRadians = glm::vec3{0.0F},
+                .scale = glm::vec3{5.0F}
+            }}
+        );
+        scene.addMeshInstance(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.descriptorAllocator(),
+            floatingMesh,
+            InstanceAnimation::None,
+            "Floating2",
+            std::array<Transform, 1>{Transform{
+                .translation = floatingPosition - glm::vec3{0.0F, 0.0F, 6.0F},
+                .eulerAnglesRadians = glm::vec3{0.0F},
+                .scale = glm::vec3{5.0F}
+            }}
         );
 
         Transform const floorTransform{
@@ -503,7 +514,8 @@ auto run() -> EditorResult
             floorMesh,
             InstanceAnimation::None,
             "Floor",
-            std::array<Transform, 1>{Transform{floorTransform}}
+            std::array<Transform, 1>{Transform{floorTransform}},
+            false
         );
 
         glm::vec3 const spotlightOffset{-20.0};
@@ -647,9 +659,11 @@ auto run() -> EditorResult
 
         uiLayer.end();
 
+        scene.calculateShadowBounds();
+
         if (sceneViewport.has_value())
         {
-            for (MeshInstanced& instance : scene.geometry)
+            for (MeshInstanced& instance : scene.geometry())
             {
                 instance.prepareDescriptors(
                     graphicsContext.device(),

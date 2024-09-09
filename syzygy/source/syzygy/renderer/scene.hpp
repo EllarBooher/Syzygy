@@ -102,6 +102,7 @@ enum class InstanceAnimation
 struct MeshInstanced
 {
     bool render{false};
+    bool castsShadow{true};
     std::string name{};
 
     InstanceAnimation animation{InstanceAnimation::None};
@@ -142,11 +143,11 @@ struct SunAnimation
 
 struct Scene
 {
+public:
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
     static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
     static SunAnimation const DEFAULT_SUN_ANIMATION;
-    static AABB const DEFAULT_SCENE_BOUNDS;
 
     SunAnimation sunAnimation{DEFAULT_SUN_ANIMATION};
 
@@ -158,12 +159,12 @@ struct Scene
     bool spotlightsRender{false};
     std::vector<SpotLightPacked> spotlights{};
 
-    std::vector<MeshInstanced> geometry;
+    void calculateShadowBounds();
+    // The bounds of the scene that are intended to cast shadows.
+    [[nodiscard]] auto shadowBounds() const -> AABB;
 
-    // TODO: compute this on demand instead of making it a tweakable parameter
-    // This is used to compute the necessary dimensions of various resource e.g.
-    // shadowmaps
-    AABB bounds{DEFAULT_SCENE_BOUNDS};
+    [[nodiscard]] auto geometry() const -> std::span<MeshInstanced const>;
+    [[nodiscard]] auto geometry() -> std::span<MeshInstanced>;
 
     void addMeshInstance(
         VkDevice,
@@ -172,7 +173,8 @@ struct Scene
         std::optional<AssetRef<MeshAsset>>,
         InstanceAnimation,
         std::string const& name,
-        std::span<Transform const> transforms
+        std::span<Transform const> transforms,
+        bool castsShadow = true
     );
     void addSpotlight(glm::vec3 color, Transform transform);
 
@@ -191,5 +193,9 @@ struct Scene
 
     void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);
+
+private:
+    AABB m_shadowBounds{};
+    std::vector<MeshInstanced> m_geometry;
 };
 } // namespace syzygy

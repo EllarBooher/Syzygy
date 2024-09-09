@@ -408,6 +408,7 @@ void uiSceneGeometry(
         table.rowChildPropertyBegin(instance.name);
 
         table.rowBoolean("Render", instance.render, true);
+        table.rowBoolean("Casts Shadow", instance.castsShadow, true);
 
         table.rowChildPropertyBegin("Transforms");
         for (size_t transformIndex{0};
@@ -535,7 +536,8 @@ void sceneControlsWindow(
 
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        uiSceneGeometry(scene.bounds, scene.geometry, meshes);
+        auto sceneBounds{scene.shadowBounds()};
+        uiSceneGeometry(sceneBounds, scene.geometry(), meshes);
     }
 }
 

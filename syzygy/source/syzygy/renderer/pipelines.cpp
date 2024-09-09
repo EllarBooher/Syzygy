@@ -739,6 +739,11 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     {
         MeshInstanced const& instance{geometry[index]};
 
+        if (!instance.castsShadow)
+        {
+            continue;
+        }
+
         bool render{instance.render};
         if (index < renderOverrides.size())
         {
