@@ -19,6 +19,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/compatibility.hpp>
+#include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
 #include <glm/gtx/transform.hpp>
@@ -781,6 +782,24 @@ void MeshInstanced::setMesh(std::shared_ptr<MeshAsset> mesh)
 {
     m_mesh = std::move(mesh);
     m_surfaceDescriptorsDirty = true;
+
+    if (m_mesh != nullptr)
+    {
+        AABB const meshBounds{m_mesh->vertexBounds};
+
+        float const smallestDimension{glm::compMin(meshBounds.halfExtent)};
+        float constexpr MINIMUM_DIMENSION{0.01F};
+
+        float const scaleFactor{
+            1.0F / glm::max(smallestDimension, MINIMUM_DIMENSION)
+        };
+
+        assert(transforms.size() == originals.size());
+        for (size_t child{0}; child < transforms.size(); child++)
+        {
+            transforms[child].scale = originals[child].scale * scaleFactor;
+        }
+    }
 }
 
 void MeshInstanced::prepareDescriptors(
