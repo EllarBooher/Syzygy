@@ -79,6 +79,8 @@ endif()
 target_compile_definitions(
 	syzygy
 	PRIVATE
+		$<$<CONFIG:Debug>:SZG_DEBUG_BUILD>
+		$<$<CONFIG:RelWithDebInfo>:SZG_DEBUG_BUILD>
 		GLFW_INCLUDE_VULKAN
 		GLM_ENABLE_EXPERIMENTAL
 		GLM_FORCE_DEPTH_ZERO_TO_ONE
