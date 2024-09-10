@@ -330,10 +330,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                 .value_or(VK_NULL_HANDLE)
         };
 
-        std::vector<VkDescriptorSetLayout> const descriptorLayouts{
-            emptyDescriptorLayout,
-            emptyDescriptorLayout,
-            emptyDescriptorLayout,
+        VkDescriptorSetLayout const materialDataLayout{
             DescriptorLayoutBuilder{} // Color texture
                 .addBinding(
                     DescriptorLayoutBuilder::AddBindingParameters{
@@ -368,6 +365,13 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                 .value_or(VK_NULL_HANDLE)
         };
 
+        std::vector<VkDescriptorSetLayout> const descriptorLayouts{
+            emptyDescriptorLayout,
+            emptyDescriptorLayout,
+            emptyDescriptorLayout,
+            materialDataLayout
+        };
+
         m_gBufferVertexShader = loadShader(
             device,
             "shaders/deferred/offscreen.vert.spv",
@@ -391,6 +395,9 @@ DeferredShadingPipeline::DeferredShadingPipeline(
         };
         m_gBufferLayout =
             createLayout(device, descriptorLayouts, gBufferPushConstantRanges);
+
+        vkDestroyDescriptorSetLayout(device, emptyDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(device, materialDataLayout, nullptr);
     }
 
     { // Lighting pass pipeline

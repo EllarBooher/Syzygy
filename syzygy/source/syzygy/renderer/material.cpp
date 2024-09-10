@@ -11,6 +11,8 @@
 syzygy::MaterialDescriptors::MaterialDescriptors(MaterialDescriptors&& other
 ) noexcept
 {
+    destroy();
+
     m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
     m_sampler = std::exchange(other.m_sampler, VK_NULL_HANDLE);
     m_colorLayout = std::exchange(other.m_colorLayout, VK_NULL_HANDLE);
