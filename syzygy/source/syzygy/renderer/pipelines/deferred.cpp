@@ -410,7 +410,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
         m_lightingPassComputeShader = loadShader(
             device,
-            "shaders/deferred/directional_light.comp.spv",
+            "shaders/deferred/lights.comp.spv",
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
             lightingPassDescriptorSets,
