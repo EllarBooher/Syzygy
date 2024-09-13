@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace syzygy
@@ -48,6 +49,8 @@ struct AssetFile
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>;
 
+// TODO: ID should act as a unique key into a table of metadatas, instead of
+// duplicating this data everywhere AssetMetadata is passed
 struct AssetMetadata
 {
     std::string displayName{};
@@ -139,6 +142,13 @@ public:
 
 private:
     AssetLibrary() = default;
+
+    // Expects a name of format assetType_name and returns assetType_name_N
+    // where N means there have been N-1 in existence
+    // e.g. mesh_Cube becomes mesh_Cube_3
+    auto deduplicateAssetName(std::string const& name) -> std::string;
+
+    std::unordered_map<std::string, size_t> m_nameDuplicationCounters{};
 
     std::vector<Asset<Image>> m_textures{};
 

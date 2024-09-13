@@ -1046,8 +1046,9 @@ void AssetLibrary::loadGLTFFromPath(
         m_meshes.push_back(Asset<Mesh>{
             .metadata =
                 AssetMetadata{
-                    .displayName =
-                        std::format("mesh_{}", gltf.meshes[gltfMeshIndex].name),
+                    .displayName = deduplicateAssetName(
+                        std::format("mesh_{}", gltf.meshes[gltfMeshIndex].name)
+                    ),
                     .fileLocalPath = filePath.string(),
                     .id = UUID::createNew()
                 },
@@ -1163,7 +1164,8 @@ auto AssetLibrary::loadDefaultAssets(
         library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
-                    .displayName = "DefaultTexture_Color",
+                    .displayName =
+                        library.deduplicateAssetName("texture_DefaultColor"),
                     .fileLocalPath = "",
                     .id = syzygy::UUID::createNew(),
                 },
@@ -1222,7 +1224,8 @@ auto AssetLibrary::loadDefaultAssets(
         library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
-                    .displayName = "DefaultTexture_Normal",
+                    .displayName =
+                        library.deduplicateAssetName("texture_DefaultNormal"),
                     .fileLocalPath = "",
                     .id = syzygy::UUID::createNew(),
                 },
@@ -1291,7 +1294,8 @@ auto AssetLibrary::loadDefaultAssets(
         library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
-                    .displayName = "DefaultTexture_ORM",
+                    .displayName =
+                        library.deduplicateAssetName("texture_DefaultORM"),
                     .fileLocalPath = "",
                     .id = syzygy::UUID::createNew(),
                 },
@@ -1319,5 +1323,20 @@ auto AssetLibrary::loadDefaultAssets(
     }
 
     return libraryResult;
+}
+auto AssetLibrary::deduplicateAssetName(std::string const& name) -> std::string
+{
+    size_t& nameCount{m_nameDuplicationCounters[name]};
+
+    nameCount += 1;
+
+    size_t const newNameSuffix{nameCount};
+
+    if (newNameSuffix == 1ULL)
+    {
+        return name;
+    }
+
+    return fmt::format("{}_{}", name, nameCount);
 }
 } // namespace syzygy

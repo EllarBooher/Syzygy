@@ -430,7 +430,11 @@ auto uiMeshSelection(
                 && asset.metadata.id == currentMesh.value().get().metadata.id
             };
 
-            if (ImGui::Selectable(asset.metadata.displayName.c_str(), selected))
+            if (ImGui::Selectable(
+                    fmt::format("{}##{}", asset.metadata.displayName, index)
+                        .c_str(),
+                    selected
+                ))
             {
                 newMesh = asset;
             }
