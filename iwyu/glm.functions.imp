@@ -20,6 +20,9 @@
   { "include": [ "<glm/detail/func_matrix.inl>", "private", "<glm/matrix.hpp>", "public" ] },
   { "include": [ "<glm/detail/func_common.inl>", "private", "<glm/common.hpp>", "public" ] },
 
+  { "include": [ "<glm/detail/func_vector_relational.inl>", "private", "<glm/ext/vector_relational.hpp>", "public" ] },
+  { "include": [ "<glm/gtx/component_wise.inl>", "private", "<glm/gtx/component_wise.hpp>", "public" ] },
+
   { "include": [ "<glm/detail/func_exponential.inl>", "private", "<glm/exponential.hpp>", "public" ] },
   { "symbol": [ "sqrt", "private", "<glm/detail/func_exponential.inl>", "private" ] },
   { "symbol": [ "exp", "private", "<glm/detail/func_exponential.inl>", "private" ] },

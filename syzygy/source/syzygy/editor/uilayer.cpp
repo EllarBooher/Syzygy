@@ -9,6 +9,11 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/widgets.hpp"
+#include <algorithm>
+#include <glm/common.hpp>
+#include <glm/exponential.hpp>
+#include <glm/ext/vector_relational.hpp>
+#include <glm/vec3.hpp>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
@@ -42,10 +47,16 @@ void uiReload(VkDevice const device, UIPreferences const preferences)
     // selecting them
 
     // Reset style so further scaling works off the base "1.0x" scaling
-    ImGui::GetStyle() = ImGuiStyle{};
-    ImGui::StyleColorsDark();
-
-    ImGui::GetStyle().ScaleAllSizes(preferences.dpiScale);
+    // TODO: Resetting is problematic since not all fields are sizes, changes we
+    // have made might be overwritten. A more comprehensive fix is needed.
+    ImGuiStyle newStyle{};
+    std::copy(
+        std::begin(ImGui::GetStyle().Colors),
+        std::end(ImGui::GetStyle().Colors),
+        std::begin(newStyle.Colors)
+    );
+    newStyle.ScaleAllSizes(preferences.dpiScale);
+    ImGui::GetStyle() = newStyle;
 }
 
 UILayer::UILayer(UILayer&& other) noexcept { *this = std::move(other); }
@@ -163,6 +174,31 @@ auto syzygy::UILayer::create(
     ImPlot::CreateContext();
 
     ImGui::StyleColorsDark();
+    for (ImVec4& styleColor : ImGui::GetStyle().Colors)
+    {
+        // We linearize the colors, since ImGui seems to have picked its colors
+        // such that they look best when interpreted as non-linear
+
+        // Transfer implementation as defined in
+        // https://www.color.org/chardata/rgb/srgb.xalter
+
+        glm::vec3 const rgb{styleColor.x, styleColor.y, styleColor.z};
+        glm::bvec3 const linearCutoff{
+            glm::lessThan(rgb, glm::vec3(0.0031308F * 12.92F))
+        };
+        glm::vec3 const linear = rgb / glm::vec3(12.92F);
+        glm::vec3 const nonlinear = glm::pow(
+            (rgb + glm::vec3(0.055F)) / glm::vec3(1.055F), glm::vec3(2.4F)
+        );
+
+        glm::vec3 const converted{
+            0.95F * glm::mix(nonlinear, linear, linearCutoff)
+        };
+
+        styleColor.x = converted.x;
+        styleColor.y = converted.y;
+        styleColor.z = converted.z;
+    }
     ImGui_ImplGlfw_InitForVulkan(mainWindow.handle(), true);
 
     // Load functions since we are using volk,
@@ -241,35 +277,24 @@ auto syzygy::UILayer::create(
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    if (std::optional<std::unique_ptr<ImageView>> outputTextureResult{
-            ImageView::allocate(
-                device,
-                allocator,
-                ImageAllocationParameters{
-                    .extent = textureCapacity,
-                    .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                    .usageFlags =
-                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT   // copy to swapchain
-                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT // copy from syzygy
-                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, // imgui
-
-                },
-                ImageViewAllocationParameters{
-                    .subresourceRange =
-                        imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
-                }
-            )
-        };
+    if (std::optional<SceneTexture> outputTextureResult{SceneTexture::create(
+            device,
+            allocator,
+            descriptorAllocator,
+            textureCapacity,
+            VK_FORMAT_R16G16B16A16_SFLOAT
+        )};
         outputTextureResult.has_value())
     {
-        layer.m_outputTexture = std::move(outputTextureResult).value();
+        layer.m_outputTexture = std::make_unique<SceneTexture>(
+            std::move(outputTextureResult).value()
+        );
     }
     else
     {
         SZG_ERROR("Failed to allocate UI Layer output texture.");
         return std::nullopt;
     }
-
     if (std::optional<SceneTexture> sceneTextureResult{SceneTexture::create(
             device,
             allocator,
@@ -463,7 +488,7 @@ auto UILayer::recordDraw(VkCommandBuffer const cmd)
         );
     }
 
-    m_outputTexture->recordTransitionBarriered(
+    m_outputTexture->texture().recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     );
 
@@ -483,7 +508,11 @@ auto UILayer::recordDraw(VkCommandBuffer const cmd)
 
     VkRenderingAttachmentInfo const colorAttachmentInfo{
         syzygy::renderingAttachmentInfo(
-            m_outputTexture->view(), VK_IMAGE_LAYOUT_GENERAL
+            m_outputTexture->texture().view(),
+            VK_IMAGE_LAYOUT_GENERAL,
+            VkClearValue{
+                .color = VkClearColorValue{.float32 = {0.0F, 0.0F, 0.0F, 1.0F}}
+            }
         )
     };
     std::vector<VkRenderingAttachmentInfo> const colorAttachments{

@@ -6,6 +6,7 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/core/timing.hpp"
+#include "syzygy/editor/editorconfig.hpp"
 #include "syzygy/editor/framebuffer.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
 #include "syzygy/editor/swapchain.hpp"
@@ -19,8 +20,11 @@
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/renderer.hpp"
 #include "syzygy/renderer/scene.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
+#include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
@@ -266,8 +270,9 @@ auto endFrame(
     VkDevice const device,
     VkQueue const submissionQueue,
     VkCommandBuffer const cmd,
-    syzygy::Image& sourceTexture,
-    VkRect2D const sourceSubregion
+    syzygy::SceneTexture& sourceTexture,
+    VkRect2D const sourceSubregion,
+    syzygy::GammaTransferFunction const gammaFunction
 ) -> VkResult
 {
     // Copy image to swapchain
@@ -294,12 +299,54 @@ auto endFrame(
         return acquireResult;
     }
 
-    VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
+    sourceTexture.texture().image().recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT
+    );
 
-    sourceTexture.recordTransitionBarriered(
+    { // Perform conversion linear -> nonlinear before presentation
+        syzygy::ShaderObjectReflected const& shader{
+            swapchain.eotfPipeline(gammaFunction)
+        };
+
+        VkShaderStageFlagBits const stage{VK_SHADER_STAGE_COMPUTE_BIT};
+        VkShaderEXT const shaderObject{shader.shaderObject()};
+        VkPipelineLayout const layout{swapchain.eotfPipelineLayout()};
+        VkDescriptorSet const descriptor{sourceTexture.singletonDescriptor()};
+
+        vkCmdBindShadersEXT(cmd, 1, &stage, &shaderObject);
+
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            layout,
+            0,
+            1,
+            &descriptor,
+            0,
+            nullptr
+        );
+
+        uint32_t constexpr WORKGROUP_SIZE{16};
+
+        VkExtent2D const swapchainExtent{swapchain.extent()};
+
+        vkCmdDispatch(
+            cmd,
+            syzygy::computeDispatchCount(swapchainExtent.width, WORKGROUP_SIZE),
+            syzygy::computeDispatchCount(
+                swapchainExtent.height, WORKGROUP_SIZE
+            ),
+            1
+        );
+
+        vkCmdBindShadersEXT(cmd, 1, &stage, nullptr);
+    }
+
+    sourceTexture.texture().image().recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
     );
 
+    VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
     syzygy::transitionImage(
         cmd,
         swapchainImage,
@@ -310,7 +357,7 @@ auto endFrame(
 
     syzygy::recordCopyImageToImage(
         cmd,
-        sourceTexture.image(),
+        sourceTexture.texture().image().image(),
         swapchainImage,
         sourceSubregion,
         VkRect2D{.extent{swapchain.extent()}}
@@ -335,16 +382,17 @@ auto endFrame(
         syzygy::commandBufferSubmitInfo(cmd)
     };
     VkSemaphoreSubmitInfo const waitInfo{syzygy::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-        currentFrame.swapchainSemaphore
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, currentFrame.swapchainSemaphore
     )};
     VkSemaphoreSubmitInfo const signalInfo{syzygy::semaphoreSubmitInfo(
-        VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, currentFrame.renderSemaphore
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, currentFrame.renderSemaphore
     )};
 
     std::vector<VkCommandBufferSubmitInfo> const cmdSubmitInfos{cmdSubmitInfo};
     std::vector<VkSemaphoreSubmitInfo> const waitInfos{waitInfo};
     std::vector<VkSemaphoreSubmitInfo> const signalInfos{signalInfo};
+
+    // TODO: transferring to the swapchain should have its own command buffer
     VkSubmitInfo2 const submitInfo =
         syzygy::submitInfo(cmdSubmitInfos, waitInfos, signalInfos);
 
@@ -409,6 +457,8 @@ auto run() -> EditorResult
     FrameBuffer& frameBuffer{resourcesResult.value().frameBuffer};
     InputHandler& inputHandler{resourcesResult.value().inputHandler};
     UILayer& uiLayer{resourcesResult.value().uiLayer};
+
+    EditorConfiguration configuration{};
 
     ImmediateSubmissionQueue submissionQueue{};
     if (auto result{ImmediateSubmissionQueue::create(
@@ -607,6 +657,13 @@ auto run() -> EditorResult
             );
         }
 
+        editorConfigurationWindow(
+            "Editor Configuration",
+            dockingLayout.right,
+            configuration,
+            EditorConfiguration{}
+        );
+
         renderer.uiEngineControls(dockingLayout);
         performanceWindow(
             "Engine Performance",
@@ -695,8 +752,9 @@ auto run() -> EditorResult
                 graphicsContext.device(),
                 graphicsContext.universalQueue(),
                 currentFrame.mainCommandBuffer,
-                uiOutput.value().texture.get().image(),
-                uiOutput.value().renderedSubregion
+                uiOutput.value().texture,
+                uiOutput.value().renderedSubregion,
+                configuration.transferFunction
             )};
             endFrameResult != VK_SUCCESS)
         {

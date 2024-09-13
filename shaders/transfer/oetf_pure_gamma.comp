@@ -1,0 +1,25 @@
+#version 460
+
+// In-place convert an image from linear encoding to nonlinear encoding. 
+// This is intended as the final step before presentation
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+
+vec3 to_nonlinear(const vec3 linear)
+{
+    return pow(linear, vec3(1/2.2));
+}
+
+void main()
+{
+	vec2 size = imageSize(image);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+	if (texelCoord.x < size.x && texelCoord.y < size.y)
+	{
+        const vec4 linear = imageLoad(image, texelCoord);
+        const vec3 nonlinear = to_nonlinear(linear.rgb);
+		imageStore(image, texelCoord, vec4(nonlinear, linear.a));
+	}
+}

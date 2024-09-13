@@ -2,14 +2,12 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/ringbuffer.hpp"
+#include "syzygy/editor/editorconfig.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
-#include "syzygy/renderer/image.hpp"
-#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/scene.hpp"
-#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
 #include "syzygy/ui/uiwindow.hpp"
@@ -18,13 +16,81 @@
 #include <functional>
 #include <glm/gtc/constants.hpp>
 #include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
 #include <implot.h>
 #include <memory>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
 #include <vector>
+
+namespace
+{
+auto constexpr to_string(syzygy::GammaTransferFunction const transferFunction)
+    -> char const*
+{
+    switch (transferFunction)
+    {
+    case syzygy::GammaTransferFunction::PureGamma:
+        return "Pure Gamma 2.2";
+    case syzygy::GammaTransferFunction::sRGB:
+        return "sRGB (piecewise)";
+    case syzygy::GammaTransferFunction::MAX:
+        return "Invalid Transfer Function";
+    default:
+        return "Unknown Transfer Function";
+    }
+}
+} // namespace
+
+namespace syzygy
+{
+void editorConfigurationWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    EditorConfiguration& value,
+    EditorConfiguration const& defaults
+)
+{
+    UIWindow const window{UIWindow::beginDockable(
+        fmt::format("{}##editorConfiguration", title), dockNode
+    )};
+    if (!window.isOpen())
+    {
+        return;
+    }
+
+    syzygy::PropertyTable::begin()
+        .rowCustom(
+            "Gamma Transfer Function",
+            [&]()
+    {
+        GammaTransferFunction& selectedFunction{value.transferFunction};
+        if (ImGui::BeginCombo(
+                "##gammeTransferFunction", to_string(selectedFunction)
+            ))
+        {
+            for (size_t functionIndex{0};
+                 functionIndex
+                 < static_cast<size_t>(GammaTransferFunction::MAX);
+                 functionIndex++)
+            {
+                auto const function{
+                    static_cast<GammaTransferFunction>(functionIndex)
+                };
+                if (ImGui::Selectable(
+                        to_string(function), selectedFunction == function
+                    ))
+                {
+                    selectedFunction = function;
+                }
+            }
+            ImGui::EndCombo();
+        }
+    }
+        )
+        .end();
+}
+} // namespace syzygy
 
 void syzygy::performanceWindow(
     std::string const& title,

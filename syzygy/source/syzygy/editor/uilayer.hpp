@@ -5,6 +5,7 @@
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
 #include <functional>
+#include <imgui.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,7 +13,6 @@
 namespace syzygy
 {
 class DescriptorAllocator;
-struct ImageView;
 struct PlatformWindow;
 struct SceneTexture;
 } // namespace syzygy
@@ -28,7 +28,7 @@ struct SceneViewport
 
 struct UIOutputImage
 {
-    std::reference_wrapper<syzygy::ImageView> texture;
+    std::reference_wrapper<syzygy::SceneTexture> texture;
     VkRect2D renderedSubregion;
 };
 
@@ -95,10 +95,10 @@ private:
     DockingLayout m_currentDockingLayout{};
 
     // A sub-texture used by the UI backend to render a scene viewport.
-    std::unique_ptr<syzygy::SceneTexture> m_sceneTexture;
+    std::unique_ptr<SceneTexture> m_sceneTexture;
     // An opaque handle from the Vulkan backend that contains the scene texture
     ImTextureID m_imguiSceneTextureHandle{nullptr};
 
-    std::unique_ptr<syzygy::ImageView> m_outputTexture;
+    std::unique_ptr<SceneTexture> m_outputTexture;
 };
 } // namespace syzygy

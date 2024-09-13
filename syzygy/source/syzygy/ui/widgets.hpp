@@ -12,7 +12,7 @@
 namespace syzygy
 {
 struct Scene;
-struct SceneTexture;
+struct EditorConfiguration;
 struct RingBuffer;
 struct MeshAsset;
 } // namespace syzygy
@@ -21,6 +21,13 @@ struct MeshAsset;
 
 namespace syzygy
 {
+void editorConfigurationWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    EditorConfiguration& value,
+    EditorConfiguration const& defaults
+);
+
 void performanceWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
@@ -46,8 +53,8 @@ auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    ImTextureID const sceneTexture,
-    ImVec2 const sceneTextureMax,
+    ImTextureID sceneTexture,
+    ImVec2 sceneTextureMax,
     bool focused
 ) -> WindowResult<std::optional<VkRect2D>>;
 } // namespace syzygy

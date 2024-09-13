@@ -11,7 +11,6 @@
 #include <array>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_relational.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
@@ -22,13 +21,13 @@
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
-#include <glm/gtx/transform.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <limits>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
@@ -579,7 +578,7 @@ auto createSunlight(
     glm::vec3 const sunlightRGB
 ) -> DirectionalLightPacked
 {
-    float constexpr SUNLIGHT_STRENGTH{3.0F};
+    float constexpr SUNLIGHT_STRENGTH{4.0F};
 
     return makeDirectional(
         glm::vec4(sunlightRGB, 1.0),
@@ -595,7 +594,7 @@ auto createMoonlight(
     float constexpr MOONRISE_LENGTH{0.08};
 
     float const moonlightStrength{
-        0.5F
+        0.02F
         * glm::clamp(
             0.0F, 1.0F, glm::abs(sunCosine - sunsetCosine) / MOONRISE_LENGTH
         )
@@ -685,7 +684,7 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
         .scatteringCoefficientMie = scatteringCoefficientMie,
         .altitudeDecayMie = altitudeDecayMie,
         .ambientColor = glm::vec3(sunlight) * groundColor
-                      * glm::dot(sunDirection, glm::vec3(0.0, -1.0, 0.0)),
+                      * glm::dot(sunDirection, WORLD_UP) / glm::pi<float>(),
         .atmosphereRadiusMeters = atmosphereRadiusMeters,
         .sunlightColor = glm::vec3(sunlight),
         .groundColor = groundColor,
