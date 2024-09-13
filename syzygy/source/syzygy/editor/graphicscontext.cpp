@@ -209,11 +209,13 @@ auto GraphicsContext::create(PlatformWindow const& window)
     }
 
     std::vector<syzygy::DescriptorAllocator::PoolSizeRatio> const poolSizes{
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0.5F},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5F}
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0F},
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1.0F},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1.0F},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0F}
     };
 
-    uint32_t constexpr MAX_SETS{10U};
+    uint32_t constexpr MAX_SETS{100U};
 
     if (std::optional<syzygy::DescriptorAllocator> descriptorAllocatorResult{
             syzygy::DescriptorAllocator::create(
