@@ -58,9 +58,8 @@ auto uploadImageToGPU(
             allocator,
             syzygy::ImageAllocationParameters{
                 .extent = imageExtent,
-                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                            | VK_IMAGE_USAGE_STORAGE_BIT,
+                .format = format,
+                .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 .initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED,
                 .tiling = VK_IMAGE_TILING_LINEAR,
                 .vmaUsage = VMA_MEMORY_USAGE_CPU_ONLY,
@@ -321,23 +320,16 @@ auto loadGLTFAsset(std::filesystem::path const& path)
     return parser.loadGltfBinary(&data, assetPath.parent_path(), GLTF_OPTIONS);
 }
 
-// Preserves gltf indexing, with nullptr on any positions where loading
-// failed.
-auto loadImagesOntoDevice(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const universalQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
-    std::span<fastgltf::Image const> const gltfImages
-) -> std::vector<std::shared_ptr<syzygy::ImageView>>
+// Preserves gltf indexing
+auto loadRGBA(std::span<fastgltf::Image const> const gltfImages)
+    -> std::vector<std::optional<ImageRGBA>>
 {
-    std::vector<std::shared_ptr<syzygy::ImageView>> imagesByGLTFIndex{};
-    imagesByGLTFIndex.reserve(gltfImages.size());
+    std::vector<std::optional<ImageRGBA>> rawImagesByGLTFIndex{};
+    rawImagesByGLTFIndex.reserve(gltfImages.size());
     for (fastgltf::Image const& image : gltfImages)
     {
-        imagesByGLTFIndex.push_back(nullptr);
-        std::shared_ptr<syzygy::ImageView>& currentImage{imagesByGLTFIndex.back(
-        )};
+        rawImagesByGLTFIndex.push_back(std::nullopt);
+        std::optional<ImageRGBA>& currentImage{rawImagesByGLTFIndex.back()};
 
         if (!std::holds_alternative<fastgltf::sources::Array>(image.data))
         {
@@ -358,51 +350,86 @@ auto loadImagesOntoDevice(
             continue;
         }
 
-        std::optional<std::unique_ptr<syzygy::Image>> imageUploadResult{
-            uploadImageToGPU(
-                device,
-                allocator,
-                universalQueue,
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                imageConvertResult.value()
-            )
-        };
-        if (!imageUploadResult.has_value()
-            || imageUploadResult.value() == nullptr)
-        {
-            SZG_ERROR("Failed to upload glTF image to GPU.");
-            continue;
-        }
-
-        std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
-            syzygy::ImageView::allocate(
-                device,
-                allocator,
-                std::move(*imageUploadResult.value()),
-                syzygy::ImageViewAllocationParameters{}
-            )
-        };
-        if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
-        {
-            SZG_ERROR("Failed to convert image into imageview.");
-            continue;
-        }
-
-        currentImage = std::move(imageViewResult).value();
+        currentImage = std::move(imageConvertResult);
     }
 
-    return imagesByGLTFIndex;
+    return rawImagesByGLTFIndex;
+}
+
+auto uploadTexture(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const universalQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    std::span<std::optional<std::reference_wrapper<ImageRGBA const>>> const
+        texturesByGLTFIndex,
+    VkFormat const textureFormat,
+    size_t const textureIndex
+) -> std::optional<std::unique_ptr<syzygy::ImageView>>
+{
+    if (textureIndex >= texturesByGLTFIndex.size())
+    {
+        SZG_ERROR(
+            "Out of bounds texture index {}, have {} textures.",
+            textureIndex,
+            texturesByGLTFIndex.size()
+        );
+        return std::nullopt;
+    }
+
+    std::optional<std::reference_wrapper<ImageRGBA const>> const textureRef{
+        texturesByGLTFIndex[textureIndex]
+    };
+    if (!textureRef.has_value())
+    {
+        SZG_ERROR("Texture at gltf index {} was not loaded.", textureIndex);
+        return std::nullopt;
+    }
+
+    std::optional<std::unique_ptr<syzygy::Image>> imageUploadResult{
+        uploadImageToGPU(
+            device,
+            allocator,
+            universalQueue,
+            submissionQueue,
+            textureFormat,
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            textureRef.value()
+        )
+    };
+
+    if (!imageUploadResult.has_value() || imageUploadResult.value() == nullptr)
+    {
+        SZG_ERROR("Failed to upload glTF image to GPU.");
+        return std::nullopt;
+    }
+
+    std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
+        syzygy::ImageView::allocate(
+            device,
+            allocator,
+            std::move(*imageUploadResult.value()),
+            syzygy::ImageViewAllocationParameters{}
+        )
+    };
+    if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
+    {
+        SZG_ERROR("Failed to convert image into imageview.");
+        return std::nullopt;
+    }
+
+    return std::move(imageViewResult).value();
 }
 
 // Preserves gltf indexing.
 auto loadMaterialData(
-    std::span<std::shared_ptr<syzygy::ImageView> const> const
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const universalQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    std::span<std::optional<std::reference_wrapper<ImageRGBA const>>> const
         texturesByGLTFIndex,
-    std::shared_ptr<syzygy::ImageView> const& defaultColor,
-    std::shared_ptr<syzygy::ImageView> const& defaultNormal,
-    std::shared_ptr<syzygy::ImageView> const& defaultORM,
+    syzygy::MaterialData const& defaultMaterialData,
     std::span<fastgltf::Material const> const gltfMaterials
 ) -> std::vector<syzygy::MaterialData>
 {
@@ -410,9 +437,7 @@ auto loadMaterialData(
     materialDataByGLTFIndex.reserve(gltfMaterials.size());
     for (fastgltf::Material const& material : gltfMaterials)
     {
-        materialDataByGLTFIndex.push_back(syzygy::MaterialData{
-            .ORM = defaultORM, .normal = defaultNormal, .color = defaultColor
-        });
+        materialDataByGLTFIndex.push_back(defaultMaterialData);
         syzygy::MaterialData& materialData{materialDataByGLTFIndex.back()};
 
         std::optional<fastgltf::TextureInfo> const& metallicRoughness{
@@ -421,88 +446,129 @@ auto loadMaterialData(
         std::optional<fastgltf::OcclusionTextureInfo> const& occlusion{
             material.occlusionTexture
         };
-        std::optional<fastgltf::TextureInfo> const& color{
-            material.pbrData.baseColorTexture
-        };
-        std::optional<fastgltf::NormalTextureInfo> const& normal{
-            material.normalTexture
-        };
-
         if (!metallicRoughness.has_value() && !occlusion.has_value())
         {
             SZG_WARNING(
-                "Material {} is missing both MetallicRoughness and "
-                "Occlusion "
-                "textures",
+                "Material {}: Missing MetallicRoughness and Occlusion "
+                "textures.",
                 material.name
             );
         }
         else
         {
-            if (metallicRoughness.has_value() && occlusion.has_value()
-                && metallicRoughness.value().textureIndex
+            if ((!metallicRoughness.has_value() || !occlusion.has_value())
+                || metallicRoughness.value().textureIndex
                        != occlusion.value().textureIndex)
             {
                 SZG_WARNING(
-                    "Material {} had both Occlusion and MetallicRoughness "
-                    "defined, but they are different. MetallicRoughness "
-                    "will "
-                    "be loaded with priority, and whatever the blue "
-                    "channel is "
-                    "will be used as Occlusion.",
-                    material.name
+                    "Material {}: Occlusion and MetallicRoughness differ. "
+                    "Loading {} and using its textures' RGB channels for the "
+                    "ORM map.",
+                    material.name,
+                    metallicRoughness.has_value() ? "MetallicRoughness"
+                                                  : "Occlusion"
                 );
             }
 
-            if (size_t const textureIndex{
-                    metallicRoughness.has_value()
-                        ? metallicRoughness.value().textureIndex
-                        : occlusion.value().textureIndex
-                };
-                textureIndex >= texturesByGLTFIndex.size())
+            size_t const ormTextureIndex{
+                metallicRoughness.has_value()
+                    ? metallicRoughness.value().textureIndex
+                    : occlusion.value().textureIndex
+            };
+
+            if (std::optional<std::unique_ptr<syzygy::ImageView>>
+                    ormTextureUploadResult{uploadTexture(
+                        device,
+                        allocator,
+                        universalQueue,
+                        submissionQueue,
+                        texturesByGLTFIndex,
+                        VK_FORMAT_R8G8B8A8_UNORM,
+                        ormTextureIndex
+                    )};
+                !ormTextureUploadResult.has_value()
+                || ormTextureUploadResult.value() == nullptr)
             {
                 SZG_WARNING(
-                    "Material {} has out of bounds ORM index", material.name
+                    "Material {}: Failed to upload ORM texture.", material.name
                 );
             }
             else
             {
-                materialData.ORM = texturesByGLTFIndex[textureIndex];
+                materialData.ORM = std::move(ormTextureUploadResult).value();
             }
         }
 
+        std::optional<fastgltf::TextureInfo> const& color{
+            material.pbrData.baseColorTexture
+        };
         if (!color.has_value())
         {
-            SZG_WARNING("Material {} is missing color texture", material.name);
-        }
-        else if (size_t const textureIndex{color.value().textureIndex};
-                 textureIndex >= texturesByGLTFIndex.size())
-        {
-            SZG_WARNING(
-                "Material {} has out of bounds color texture index",
-                material.name
-            );
+            SZG_WARNING("Material {}: Missing color texture.", material.name);
         }
         else
         {
-            materialData.color = texturesByGLTFIndex[textureIndex];
+            size_t const colorTextureIndex{color.value().textureIndex};
+
+            if (std::optional<std::unique_ptr<syzygy::ImageView>>
+                    colorTextureUploadResult{uploadTexture(
+                        device,
+                        allocator,
+                        universalQueue,
+                        submissionQueue,
+                        texturesByGLTFIndex,
+                        VK_FORMAT_R8G8B8A8_SRGB,
+                        colorTextureIndex
+                    )};
+                !colorTextureUploadResult.has_value()
+                || colorTextureUploadResult.value() == nullptr)
+            {
+                SZG_WARNING(
+                    "Material {}: Failed to upload color texture.",
+                    material.name
+                );
+            }
+            else
+            {
+                materialData.color =
+                    std::move(colorTextureUploadResult).value();
+            }
         }
 
+        std::optional<fastgltf::NormalTextureInfo> const& normal{
+            material.normalTexture
+        };
         if (!normal.has_value())
         {
-            SZG_WARNING("Material {} is missing normal texture", material.name);
-        }
-        else if (size_t const textureIndex{normal.value().textureIndex};
-                 textureIndex >= texturesByGLTFIndex.size())
-        {
-            SZG_WARNING(
-                "Material {} has out of bounds normal texture index",
-                material.name
-            );
+            SZG_WARNING("Material {}: Missing normal texture.", material.name);
         }
         else
         {
-            materialData.normal = texturesByGLTFIndex[textureIndex];
+            size_t const normalTextureIndex{normal.value().textureIndex};
+
+            if (std::optional<std::unique_ptr<syzygy::ImageView>>
+                    normalTextureUploadResult{uploadTexture(
+                        device,
+                        allocator,
+                        universalQueue,
+                        submissionQueue,
+                        texturesByGLTFIndex,
+                        VK_FORMAT_R8G8B8A8_UNORM,
+                        normalTextureIndex
+                    )};
+                !normalTextureUploadResult.has_value()
+                || normalTextureUploadResult.value() == nullptr)
+            {
+                SZG_WARNING(
+                    "Material {}: Failed to upload normal texture.",
+                    material.name
+                );
+            }
+            else
+            {
+                materialData.normal =
+                    std::move(normalTextureUploadResult).value();
+            }
         }
     }
 
@@ -801,7 +867,7 @@ auto AssetLibrary::loadTextureFromPath(
         allocator,
         transferQueue,
         submissionQueue,
-        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_FORMAT_R8G8B8A8_SRGB,
         additionalFlags,
         imageResult.value()
     )};
@@ -884,62 +950,21 @@ void AssetLibrary::loadGLTFFromPath(
     }
     fastgltf::Asset const& gltf{gltfLoadResult.get()};
 
-    std::vector<std::shared_ptr<ImageView>> const imagesByGLTFIndex{
-        detail_fastgltf::loadImagesOntoDevice(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            gltf.images
-        )
+    // We load the images as raw bytes, then defer decoding/upload to GPU until
+    // we know how each image is used. E.g., albedo is nonlinear encoded and
+    // normal maps are linearly encoded.
+    std::vector<std::optional<ImageRGBA>> const imagesByGLTFIndex{
+        detail_fastgltf::loadRGBA(gltf.images)
     };
-    for (size_t index{0}; index < imagesByGLTFIndex.size(); index++)
-    {
-        std::shared_ptr<ImageView> const& image{imagesByGLTFIndex[index]};
-        if (image == nullptr)
-        {
-            continue;
-        }
 
-        fastgltf::Image const& gltfImage{gltf.images[index]};
-
-        m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
-            .metadata =
-                AssetMetadata{
-                    .displayName = std::string{gltfImage.name},
-                    .fileLocalPath = filePath.string(),
-                    .id = UUID::createNew()
-                },
-            .data = image,
-        });
-    }
-    SZG_INFO("Loaded {} images from glTF", imagesByGLTFIndex.size());
-
-    submissionQueue.immediateSubmit(
-        graphicsContext.universalQueue(),
-        [&](VkCommandBuffer cmd)
-    {
-        for (std::shared_ptr<syzygy::ImageView> const& image :
-             imagesByGLTFIndex)
-        {
-            if (image == nullptr)
-            {
-                continue;
-            }
-            image->recordTransitionBarriered(
-                cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-            );
-        }
-    }
-    );
-
-    // Skip samplers for now, we just load what image each texture uses
-    std::vector<std::shared_ptr<syzygy::ImageView>> texturesByGLTFIndex{};
+    // Don't load samplers, just load the image data.
+    std::vector<std::optional<std::reference_wrapper<ImageRGBA const>>>
+        texturesByGLTFIndex{};
     texturesByGLTFIndex.reserve(gltf.textures.size());
     for (fastgltf::Texture const& texture : gltf.textures)
     {
-        texturesByGLTFIndex.push_back(nullptr);
-        std::shared_ptr<syzygy::ImageView>& currentTexture{
+        texturesByGLTFIndex.push_back(std::nullopt);
+        std::optional<std::reference_wrapper<ImageRGBA const>>& currentTexture{
             texturesByGLTFIndex.back()
         };
 
@@ -960,15 +985,32 @@ void AssetLibrary::loadGLTFFromPath(
             continue;
         }
 
-        currentTexture = imagesByGLTFIndex[loadedIndex];
+        if (!imagesByGLTFIndex[loadedIndex].has_value())
+        {
+            SZG_WARNING(
+                "Texture {} referred to image that could not be loaded.",
+                texture.name
+            );
+            continue;
+        }
+
+        currentTexture = imagesByGLTFIndex[loadedIndex].value();
     }
+
+    MaterialData const defaultMaterialData{
+        .color = m_imageViews[m_defaultColorIndex].data,
+        .normal = m_imageViews[m_defaultNormalIndex].data,
+        .ORM = m_imageViews[m_defaultORMIndex].data,
+    };
 
     std::vector<MaterialData> materialDataByGLTFIndex{
         detail_fastgltf::loadMaterialData(
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.universalQueue(),
+            submissionQueue,
             texturesByGLTFIndex,
-            m_imageViews[m_defaultColorIndex].data,
-            m_imageViews[m_defaultNormalIndex].data,
-            m_imageViews[m_defaultORMIndex].data,
+            defaultMaterialData,
             gltf.materials
         )
     };
