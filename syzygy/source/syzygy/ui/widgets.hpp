@@ -14,7 +14,7 @@ namespace syzygy
 struct Scene;
 struct EditorConfiguration;
 struct RingBuffer;
-struct MeshAsset;
+struct Mesh;
 } // namespace syzygy
 
 // A collection of syzygy widgets that are free standing functions.
@@ -38,7 +38,7 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,
-    std::span<AssetRef<MeshAsset> const> meshes
+    std::span<AssetRef<Mesh> const> meshes
 );
 
 template <typename T> struct WindowResult

@@ -32,9 +32,8 @@ struct GeometrySurface
     MaterialData material{};
 };
 
-struct MeshAsset
+struct Mesh
 {
-    std::string name{};
     std::vector<GeometrySurface> surfaces{};
     AABB vertexBounds{};
     std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
@@ -80,7 +79,7 @@ public:
                 assets.emplace_back(texture);
             }
         }
-        else if constexpr (std::is_same_v<T, MeshAsset>)
+        else if constexpr (std::is_same_v<T, Mesh>)
         {
             assets.reserve(m_meshes.size());
             for (auto& texture : m_meshes)
@@ -98,7 +97,7 @@ public:
         {
             return m_textures.empty();
         }
-        else if constexpr (std::is_same_v<T, MeshAsset>)
+        else if constexpr (std::is_same_v<T, Mesh>)
         {
             return m_meshes.empty();
         }
@@ -148,6 +147,6 @@ private:
     size_t m_defaultORMIndex{0};
     std::vector<Asset<ImageView>> m_imageViews{};
 
-    std::vector<Asset<MeshAsset>> m_meshes{};
+    std::vector<Asset<Mesh>> m_meshes{};
 };
 } // namespace syzygy

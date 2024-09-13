@@ -510,10 +510,10 @@ auto run() -> EditorResult
     bool inputCapturedByScene{false};
     Scene scene{};
     {
-        auto const loadedMeshes{assetLibrary.fetchAssets<MeshAsset>()};
+        auto const loadedMeshes{assetLibrary.fetchAssets<Mesh>()};
 
-        std::optional<AssetRef<MeshAsset>> floatingMesh{};
-        std::optional<AssetRef<MeshAsset>> floorMesh{};
+        std::optional<AssetRef<Mesh>> floatingMesh{};
+        std::optional<AssetRef<Mesh>> floorMesh{};
         if (!loadedMeshes.empty())
         {
             // Assume we loaded vkguide's mesh with a cube, sphere, and suzanne
@@ -711,7 +711,7 @@ auto run() -> EditorResult
             "Default Scene",
             dockingLayout.left,
             scene,
-            assetLibrary.fetchAssets<MeshAsset>()
+            assetLibrary.fetchAssets<Mesh>()
         );
 
         uiLayer.end();

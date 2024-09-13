@@ -97,16 +97,14 @@ void Scene::calculateShadowBounds()
             continue;
         }
 
-        std::optional<std::reference_wrapper<MeshAsset>> meshRef{
-            instance.getMesh()
-        };
+        std::optional<syzygy::AssetRef<Mesh>> meshRef{instance.getMesh()};
 
-        if (!meshRef.has_value())
+        if (!meshRef.has_value() || meshRef.value().get().data == nullptr)
         {
             continue;
         }
 
-        MeshAsset const& mesh{meshRef.value().get()};
+        Mesh const& mesh{*meshRef.value().get().data};
 
         AABB::Vertices const vertices{mesh.vertexBounds.collectVertices()};
 
@@ -147,7 +145,7 @@ void Scene::addMeshInstance(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<MeshAsset>> const mesh,
+    std::optional<AssetRef<Mesh>> const mesh,
     InstanceAnimation const animation,
     std::string const& name,
     std::span<Transform const> const transforms,
@@ -159,7 +157,12 @@ void Scene::addMeshInstance(
     instance.castsShadow = castsShadow;
     // TODO: name deduplication
     instance.name = fmt::format("meshInstanced_{}", name);
-    instance.setMesh(mesh.has_value() ? mesh.value().get().data : nullptr);
+
+    if (mesh.has_value())
+    {
+        instance.setMesh(mesh.value());
+    }
+
     instance.prepareDescriptors(device, descriptorAllocator);
     instance.animation = animation;
 
@@ -221,12 +224,12 @@ auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<MeshAsset>> const initialMesh
+    std::optional<AssetRef<Mesh>> const initialMesh
 ) -> Scene
 {
     Scene scene{};
 
-    std::shared_ptr<MeshAsset> const pMesh{
+    std::shared_ptr<Mesh> const pMesh{
         initialMesh.has_value() ? initialMesh.value().get().data : nullptr
     };
 
@@ -324,7 +327,7 @@ auto Scene::diagonalWaveScene(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<MeshAsset>> const initialMesh
+    std::optional<AssetRef<Mesh>> const initialMesh
 ) -> Scene
 {
     Scene scene{};
@@ -332,7 +335,7 @@ auto Scene::diagonalWaveScene(
     int32_t constexpr COORDINATE_MIN{-40};
     int32_t constexpr COORDINATE_MAX{40};
 
-    std::shared_ptr<MeshAsset> const pMesh{
+    std::shared_ptr<Mesh> const pMesh{
         initialMesh.has_value() ? initialMesh.value().get().data : nullptr
     };
 
@@ -777,14 +780,15 @@ auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
     });
 }
 
-void MeshInstanced::setMesh(std::shared_ptr<MeshAsset> mesh)
+void MeshInstanced::setMesh(AssetRef<Mesh> meshAsset)
 {
-    m_mesh = std::move(mesh);
+    m_mesh = meshAsset.get();
     m_surfaceDescriptorsDirty = true;
 
-    if (m_mesh != nullptr)
+    if (m_mesh.data != nullptr)
     {
-        AABB const meshBounds{m_mesh->vertexBounds};
+        Mesh const& mesh{*m_mesh.data};
+        AABB const meshBounds{mesh.vertexBounds};
 
         float const smallestDimension{glm::compMin(meshBounds.halfExtent)};
         float constexpr MINIMUM_DIMENSION{0.01F};
@@ -805,14 +809,16 @@ void MeshInstanced::prepareDescriptors(
     VkDevice const device, DescriptorAllocator& descriptorAllocator
 )
 {
-    if (!m_surfaceDescriptorsDirty)
+    if (!m_surfaceDescriptorsDirty || m_mesh.data == nullptr)
     {
         return;
     }
 
+    Mesh const& mesh{*m_mesh.data};
+
     m_surfaceDescriptorsDirty = false;
 
-    while (m_surfaceDescriptors.size() < m_mesh->surfaces.size())
+    while (m_surfaceDescriptors.size() < mesh.surfaces.size())
     {
         std::optional<MaterialDescriptors> descriptorsResult{
             MaterialDescriptors::create(device, descriptorAllocator)
@@ -822,31 +828,30 @@ void MeshInstanced::prepareDescriptors(
             SZG_ERROR(
                 "Failed to allocate MaterialDescriptors while setting mesh."
             );
-            m_mesh = nullptr;
+            m_mesh = {};
             return;
         }
 
         m_surfaceDescriptors.push_back(std::move(descriptorsResult).value());
     }
 
-    for (size_t index{0}; index < m_mesh->surfaces.size(); index++)
+    for (size_t index{0}; index < mesh.surfaces.size(); index++)
     {
-        GeometrySurface const& surface{m_mesh->surfaces[index]};
+        GeometrySurface const& surface{mesh.surfaces[index]};
         MaterialDescriptors const& descriptors{m_surfaceDescriptors[index]};
 
         descriptors.write(surface.material);
     }
 }
 
-auto MeshInstanced::getMesh() const
-    -> std::optional<std::reference_wrapper<MeshAsset>>
+auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
 {
-    if (m_mesh == nullptr)
+    if (m_mesh.data == nullptr)
     {
         return std::nullopt;
     }
 
-    return *m_mesh;
+    return m_mesh;
 }
 
 auto MeshInstanced::getMeshDescriptors() const

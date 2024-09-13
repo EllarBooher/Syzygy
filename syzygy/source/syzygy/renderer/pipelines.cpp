@@ -752,13 +752,12 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
             render = renderOverride.render;
         }
 
-        std::optional<std::reference_wrapper<MeshAsset>> const&
-            meshAssetOptional{instance.getMesh()};
-        if (!render || !meshAssetOptional.has_value())
+        if (!render || !instance.getMesh().has_value())
         {
             continue;
         }
-        MeshAsset const& meshAsset{meshAssetOptional.value().get()};
+
+        Mesh const& meshAsset{*instance.getMesh().value().get().data};
         TStagedBuffer<glm::mat4x4> const& models{*instance.models};
 
         GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};

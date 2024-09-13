@@ -400,38 +400,39 @@ void uiInstanceAnimation(syzygy::InstanceAnimation& animation)
     }
 }
 auto uiMeshSelection(
-    std::optional<std::reference_wrapper<syzygy::MeshAsset>> const currentMesh,
-    std::span<syzygy::AssetRef<syzygy::MeshAsset> const> const meshes
-) -> std::optional<std::shared_ptr<syzygy::MeshAsset>>
+    std::optional<syzygy::AssetRef<syzygy::Mesh>> const currentMesh,
+    std::span<syzygy::AssetRef<syzygy::Mesh> const> const meshes
+) -> std::optional<syzygy::AssetRef<syzygy::Mesh>>
 {
     ImGui::BeginDisabled(meshes.empty());
 
-    std::optional<std::shared_ptr<syzygy::MeshAsset>> newMesh{std::nullopt};
+    std::optional<syzygy::AssetRef<syzygy::Mesh>> newMesh{std::nullopt};
 
     std::string const previewLabel{
-        currentMesh.has_value() ? currentMesh.value().get().name : "None"
+        currentMesh.has_value() ? currentMesh.value().get().metadata.displayName
+                                : "None"
     };
     if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
     {
         size_t const index{0};
         for (auto const& assetRef : meshes)
         {
-            syzygy::Asset<syzygy::MeshAsset> const& asset{assetRef.get()};
+            syzygy::Asset<syzygy::Mesh> const& asset{assetRef.get()};
 
             if (asset.data == nullptr)
             {
                 continue;
             }
 
-            syzygy::MeshAsset const& mesh{*asset.data};
+            syzygy::Mesh const& mesh{*asset.data};
             bool const selected{
                 currentMesh.has_value()
-                && asset.data.get() == &currentMesh.value().get()
+                && asset.metadata.id == currentMesh.value().get().metadata.id
             };
 
-            if (ImGui::Selectable(mesh.name.c_str(), selected))
+            if (ImGui::Selectable(asset.metadata.displayName.c_str(), selected))
             {
-                newMesh = asset.data;
+                newMesh = asset;
             }
         }
         ImGui::EndCombo();
@@ -445,7 +446,7 @@ auto uiMeshSelection(
 void uiSceneGeometry(
     syzygy::AABB& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
-    std::span<syzygy::AssetRef<syzygy::MeshAsset> const> const meshes
+    std::span<syzygy::AssetRef<syzygy::Mesh> const> const meshes
 )
 {
     syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
@@ -508,7 +509,8 @@ void uiSceneGeometry(
 
         syzygy::AABB const meshBounds{
             instance.getMesh().has_value()
-                ? instance.getMesh().value().get().vertexBounds
+                    && instance.getMesh().value().get().data != nullptr
+                ? instance.getMesh().value().get().data->vertexBounds
                 : syzygy::AABB{}
         };
         table.rowChildPropertyBegin("Mesh AABB");
@@ -529,7 +531,7 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     Scene& scene,
-    std::span<AssetRef<MeshAsset> const> const meshes
+    std::span<AssetRef<Mesh> const> const meshes
 )
 {
     UIWindow const window{

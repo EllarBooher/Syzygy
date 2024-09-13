@@ -522,15 +522,13 @@ auto collectGeometryCullFlags(
 
     for (syzygy::MeshInstanced const& instance : meshes)
     {
-        std::optional<std::reference_wrapper<syzygy::MeshAsset>> mesh{
-            instance.getMesh()
-        };
-
         syzygy::RenderOverride const override{
-            .render = instance.render && mesh.has_value()
-                   && mesh.value().get().meshBuffers != nullptr
-                   && instance.models != nullptr
-                   && instance.modelInverseTransposes != nullptr
+            .render =
+                instance.render && instance.getMesh().has_value()
+                && instance.getMesh().value().get().data != nullptr
+                && instance.getMesh().value().get().data->meshBuffers != nullptr
+                && instance.models != nullptr
+                && instance.modelInverseTransposes != nullptr
         };
 
         renderOverrides.push_back(override);
@@ -773,13 +771,11 @@ void DeferredShadingPipeline::recordDrawCommands(
                 render = renderOverride.render;
             }
 
-            std::optional<std::reference_wrapper<MeshAsset>> const&
-                meshAssetOptional{instance.getMesh()};
-            if (!render || !meshAssetOptional.has_value())
+            if (!render || !instance.getMesh().has_value())
             {
                 continue;
             }
-            MeshAsset const& meshAsset{meshAssetOptional.value().get()};
+            Mesh const& meshAsset{*instance.getMesh().value().get().data};
 
             TStagedBuffer<glm::mat4x4> const& models{*instance.models};
             TStagedBuffer<glm::mat4x4> const& modelInverseTransposes{

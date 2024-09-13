@@ -589,14 +589,14 @@ auto loadMeshes(
     std::span<syzygy::MaterialData const> const materialsByGLTFIndex,
     syzygy::MaterialData const& defaultMaterial,
     fastgltf::Asset const& gltf
-) -> std::vector<std::unique_ptr<syzygy::MeshAsset>>
+) -> std::vector<std::unique_ptr<syzygy::Mesh>>
 {
-    std::vector<std::unique_ptr<syzygy::MeshAsset>> newMeshes{};
+    std::vector<std::unique_ptr<syzygy::Mesh>> newMeshes{};
     newMeshes.reserve(gltf.meshes.size());
     for (fastgltf::Mesh const& mesh : gltf.meshes)
     {
         newMeshes.push_back(nullptr);
-        std::unique_ptr<syzygy::MeshAsset>& newMesh{newMeshes.back()};
+        std::unique_ptr<syzygy::Mesh>& newMesh{newMeshes.back()};
 
         std::vector<uint32_t> indices{};
         std::vector<syzygy::VertexPacked> vertices{};
@@ -770,8 +770,7 @@ auto loadMeshes(
             vertexMaximum = glm::max(vertex.position, vertexMaximum);
         }
 
-        newMesh = std::make_unique<syzygy::MeshAsset>(syzygy::MeshAsset{
-            .name = std::string{mesh.name},
+        newMesh = std::make_unique<syzygy::Mesh>(syzygy::Mesh{
             .surfaces = std::move(surfaces),
             .vertexBounds = syzygy::AABB::create(vertexMinimum, vertexMaximum),
             .meshBuffers = uploadMeshToGPU(
@@ -998,9 +997,9 @@ void AssetLibrary::loadGLTFFromPath(
     }
 
     MaterialData const defaultMaterialData{
-        .color = m_imageViews[m_defaultColorIndex].data,
-        .normal = m_imageViews[m_defaultNormalIndex].data,
         .ORM = m_imageViews[m_defaultORMIndex].data,
+        .normal = m_imageViews[m_defaultNormalIndex].data,
+        .color = m_imageViews[m_defaultColorIndex].data,
     };
 
     std::vector<MaterialData> materialDataByGLTFIndex{
@@ -1021,7 +1020,7 @@ void AssetLibrary::loadGLTFFromPath(
         .color = m_imageViews[m_defaultColorIndex].data
     };
 
-    std::vector<std::unique_ptr<syzygy::MeshAsset>> newMeshes{
+    std::vector<std::unique_ptr<syzygy::Mesh>> newMeshes{
         detail_fastgltf::loadMeshes(
             graphicsContext.device(),
             graphicsContext.allocator(),
@@ -1034,17 +1033,21 @@ void AssetLibrary::loadGLTFFromPath(
     };
     SZG_INFO("Loaded {} meshes from glTF", newMeshes.size());
 
-    for (auto& pMesh : newMeshes)
+    for (size_t gltfMeshIndex{0}; gltfMeshIndex < newMeshes.size();
+         gltfMeshIndex++)
     {
+        std::unique_ptr<Mesh>& pMesh{newMeshes[gltfMeshIndex]};
+
         if (pMesh == nullptr)
         {
             continue;
         }
 
-        m_meshes.push_back(Asset<MeshAsset>{
+        m_meshes.push_back(Asset<Mesh>{
             .metadata =
                 AssetMetadata{
-                    .displayName = pMesh->name,
+                    .displayName =
+                        std::format("mesh_{}", gltf.meshes[gltfMeshIndex].name),
                     .fileLocalPath = filePath.string(),
                     .id = UUID::createNew()
                 },

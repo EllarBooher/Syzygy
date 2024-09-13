@@ -316,9 +316,10 @@ void Renderer::recordDraw(
         }
 
         if (auto const instanceMeshAsset{instance.getMesh()};
-            instanceMeshAsset.has_value())
+            instanceMeshAsset.has_value()
+            && instanceMeshAsset.value().get().data != nullptr)
         {
-            MeshAsset const& meshAsset{instanceMeshAsset.value().get()};
+            Mesh const& meshAsset{*instanceMeshAsset.value().get().data};
 
             for (Transform const& transform : instance.transforms)
             {

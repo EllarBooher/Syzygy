@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/assets/assets.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -15,13 +16,10 @@
 #include <string>
 #include <vector>
 
-#include "syzygy/assets/assetsfwd.hpp"
-
 namespace syzygy
 {
 struct InputSnapshot;
 struct TickTiming;
-struct MeshAsset;
 class DescriptorAllocator;
 } // namespace syzygy
 
@@ -115,18 +113,17 @@ struct MeshInstanced
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 
-    void setMesh(std::shared_ptr<MeshAsset>);
+    void setMesh(AssetRef<Mesh>);
     void prepareDescriptors(VkDevice, DescriptorAllocator&);
 
-    [[nodiscard]] auto getMesh() const
-        -> std::optional<std::reference_wrapper<MeshAsset>>;
+    [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
     [[nodiscard]] auto getMeshDescriptors() const
         -> std::span<MaterialDescriptors const>;
 
 private:
     bool m_surfaceDescriptorsDirty{false};
 
-    std::shared_ptr<MeshAsset> m_mesh{};
+    Asset<Mesh> m_mesh{};
     std::vector<MaterialDescriptors> m_surfaceDescriptors{};
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
@@ -170,7 +167,7 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<MeshAsset>>,
+        std::optional<AssetRef<Mesh>>,
         InstanceAnimation,
         std::string const& name,
         std::span<Transform const> transforms,
@@ -182,13 +179,13 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<MeshAsset>> initialMesh
+        std::optional<AssetRef<Mesh>> initialMesh
     ) -> Scene;
     static auto diagonalWaveScene(
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<MeshAsset>> initialMesh
+        std::optional<AssetRef<Mesh>> initialMesh
     ) -> Scene;
 
     void handleInput(TickTiming, InputSnapshot const&);
