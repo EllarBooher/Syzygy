@@ -545,7 +545,8 @@ auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    SceneTexture const& texture,
+    ImTextureID const sceneTexture,
+    ImVec2 const sceneTextureMax,
     bool const focused
 ) -> WindowResult<std::optional<VkRect2D>>
 {
@@ -575,12 +576,7 @@ auto sceneViewportWindow(
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle().size()};
 
-    VkExtent2D const textureMax{texture.texture().image().extent2D()};
-
-    ImVec2 const uvMax{
-        contentExtent.x / static_cast<float>(textureMax.width),
-        contentExtent.y / static_cast<float>(textureMax.height)
-    };
+    ImVec2 const uvMax{contentExtent / glm::vec2{sceneTextureMax}};
 
     float const textHeight{
         ImGui::CalcTextSize("").y + ImGui::GetStyle().ItemSpacing.y
@@ -589,7 +585,7 @@ auto sceneViewportWindow(
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{});
     bool const clicked = ImGui::ImageButton(
         "##viewport",
-        reinterpret_cast<ImTextureID>(texture.imguiDescriptor()),
+        sceneTexture,
         contentExtent - glm::vec2{0.0F, textHeight},
         ImVec2{0.0, 0.0},
         uvMax,

@@ -46,7 +46,8 @@ auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     std::optional<UIRectangle> maximizeArea,
-    syzygy::SceneTexture const& texture,
+    ImTextureID const sceneTexture,
+    ImVec2 const sceneTextureMax,
     bool focused
 ) -> WindowResult<std::optional<VkRect2D>>;
 } // namespace syzygy

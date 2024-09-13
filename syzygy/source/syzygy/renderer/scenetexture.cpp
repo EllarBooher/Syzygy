@@ -33,8 +33,6 @@ auto SceneTexture::operator=(SceneTexture&& other) noexcept -> SceneTexture&
     m_singletonDescriptor =
         std::exchange(other.m_singletonDescriptor, VK_NULL_HANDLE);
 
-    m_imguiDescriptor = std::exchange(other.m_imguiDescriptor, VK_NULL_HANDLE);
-
     return *this;
 }
 
@@ -99,10 +97,6 @@ auto SceneTexture::create(
     cleanupCallbacks.pushFunction([&]()
     { vkDestroySampler(device, sampler, nullptr); });
 
-    VkDescriptorSet const imguiDescriptor = ImGui_ImplVulkan_AddTexture(
-        sampler, texture.view(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
-
     VkDescriptorSetLayout singletonLayout;
     if (auto const layoutResult{
             DescriptorLayoutBuilder{}
@@ -165,7 +159,6 @@ auto SceneTexture::create(
         device,
         sampler,
         std::move(textureResult).value(),
-        imguiDescriptor,
         singletonLayout,
         singletonSet,
     };
@@ -187,11 +180,6 @@ auto SceneTexture::singletonLayout() const -> VkDescriptorSetLayout
     return m_singletonDescriptorLayout;
 }
 
-auto SceneTexture::imguiDescriptor() const -> VkDescriptorSet
-{
-    return m_imguiDescriptor;
-}
-
 void SceneTexture::destroy() noexcept
 {
     if (m_device != VK_NULL_HANDLE)
@@ -204,8 +192,6 @@ void SceneTexture::destroy() noexcept
 
     m_singletonDescriptorLayout = VK_NULL_HANDLE;
     m_singletonDescriptor = VK_NULL_HANDLE;
-
-    m_imguiDescriptor = VK_NULL_HANDLE;
 
     m_texture.reset();
 

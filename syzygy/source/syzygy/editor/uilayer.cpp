@@ -68,6 +68,8 @@ auto UILayer::operator=(UILayer&& other) noexcept -> UILayer&
         std::exchange(other.m_currentDockingLayout, DockingLayout{});
 
     m_sceneTexture = std::move(other.m_sceneTexture);
+    m_imguiSceneTextureHandle =
+        std::exchange(other.m_imguiSceneTextureHandle, nullptr);
     m_outputTexture = std::move(other.m_outputTexture);
 
     return *this;
@@ -91,6 +93,7 @@ void UILayer::destroy()
     if (m_device != VK_NULL_HANDLE)
     {
         vkDestroyDescriptorPool(m_device, m_imguiPool, nullptr);
+        // m_imguiSceneTextureHandle is freed here
     }
     else if (m_imguiPool != VK_NULL_HANDLE)
     {
@@ -279,6 +282,14 @@ auto syzygy::UILayer::create(
         layer.m_sceneTexture =
             std::make_unique<SceneTexture>(std::move(sceneTextureResult).value()
             );
+
+        SceneTexture& sceneTexture{*layer.m_sceneTexture};
+
+        layer.m_imguiSceneTextureHandle = ImGui_ImplVulkan_AddTexture(
+            sceneTexture.sampler(),
+            sceneTexture.texture().view(),
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
     }
     else
     {
@@ -377,12 +388,18 @@ auto UILayer::sceneViewport(bool const forceFocus)
         return std::nullopt;
     }
 
+    VkExtent2D const sceneTextureMax{m_sceneTexture->texture().image().extent2D(
+    )};
     WindowResult<std::optional<VkRect2D>> widgetResult{sceneViewportWindow(
         "Scene Viewport",
         m_currentDockingLayout.centerTop,
         m_currentHUD.maximizeSceneViewport ? m_currentHUD.workArea
                                            : std::optional<UIRectangle>{},
-        *m_sceneTexture,
+        m_imguiSceneTextureHandle,
+        ImVec2{
+            static_cast<float>(sceneTextureMax.width),
+            static_cast<float>(sceneTextureMax.height)
+        },
         forceFocus
     )};
 

@@ -96,6 +96,8 @@ private:
 
     // A sub-texture used by the UI backend to render a scene viewport.
     std::unique_ptr<syzygy::SceneTexture> m_sceneTexture;
+    // An opaque handle from the Vulkan backend that contains the scene texture
+    ImTextureID m_imguiSceneTextureHandle{nullptr};
 
     std::unique_ptr<syzygy::ImageView> m_outputTexture;
 };

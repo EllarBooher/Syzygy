@@ -47,22 +47,17 @@ struct SceneTexture
     [[nodiscard]] auto singletonDescriptor() const -> VkDescriptorSet;
     [[nodiscard]] auto singletonLayout() const -> VkDescriptorSetLayout;
 
-    // The descriptor set that ImGui's backend allocates, the layout is opaque.
-    [[nodiscard]] auto imguiDescriptor() const -> VkDescriptorSet;
-
 private:
     SceneTexture(
         VkDevice device,
         VkSampler sampler,
         std::unique_ptr<ImageView> texture,
-        VkDescriptorSet imguiDescriptor,
         VkDescriptorSetLayout singletonLayout,
         VkDescriptorSet singletonSet
     )
         : m_device{device}
         , m_sampler{sampler}
         , m_texture{std::move(texture)}
-        , m_imguiDescriptor{imguiDescriptor}
         , m_singletonDescriptorLayout{singletonLayout}
         , m_singletonDescriptor{singletonSet}
     {
@@ -75,8 +70,6 @@ private:
 
     VkSampler m_sampler{VK_NULL_HANDLE};
     std::unique_ptr<syzygy::ImageView> m_texture{};
-
-    VkDescriptorSet m_imguiDescriptor{VK_NULL_HANDLE};
 
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};
