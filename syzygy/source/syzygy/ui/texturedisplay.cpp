@@ -120,7 +120,7 @@ auto TextureDisplay::uiRender(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     VkCommandBuffer const cmd,
-    std::span<AssetRef<Image> const> const textures
+    std::span<AssetRef<ImageView> const> const textures
 ) -> TextureDisplay::UIResult
 {
     UIWindow const sceneViewport{UIWindow::beginDockable(title, dockNode)};
@@ -151,7 +151,7 @@ auto TextureDisplay::uiRender(
         );
     };
 
-    auto copyIntoImageCallback = [&](Image& other)
+    auto copyIntoImageCallback = [&](ImageView& other)
     {
         if (m_displayImage == nullptr)
         {
@@ -164,11 +164,19 @@ auto TextureDisplay::uiRender(
         );
 
         other.recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
         );
 
         Image::recordCopyEntire(
-            cmd, other, displayImage.image(), VK_IMAGE_ASPECT_COLOR_BIT
+            cmd, other.image(), displayImage.image(), VK_IMAGE_ASPECT_COLOR_BIT
+        );
+
+        // TODO: There is no robust system handling layout transitions for
+        // predicted necessary resources, so we just put this texture in the
+        // typical use case layout for reading in shader descriptors once
+        // rendering comes.
+        other.recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
 
         displayImage.recordTransitionBarriered(
@@ -209,7 +217,7 @@ auto TextureDisplay::uiRender(
                     m_cachedMetadata = std::nullopt;
                 }
 
-                for (Asset<Image> const& texture : textures)
+                for (Asset<ImageView> const& texture : textures)
                 {
                     AssetMetadata const& metaData{texture.metadata};
 

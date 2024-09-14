@@ -51,7 +51,7 @@ public:
         std::string const& title,
         std::optional<ImGuiID> dockNode,
         VkCommandBuffer,
-        std::span<syzygy::AssetRef<syzygy::Image> const> textures
+        std::span<AssetRef<ImageView> const> textures
     ) -> UIResult;
 
 private:

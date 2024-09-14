@@ -697,7 +697,7 @@ auto run() -> EditorResult
                     "Texture Viewer",
                     dockingLayout.right,
                     currentFrame.mainCommandBuffer,
-                    assetLibrary.fetchAssets<Image>()
+                    assetLibrary.fetchAssets<ImageView>()
                 )
             };
             textureDisplayResult.loadTexturesRequested)

@@ -830,10 +830,10 @@ auto AssetLibrary::loadTextureFromPath(
     VkDevice const device,
     VmaAllocator const allocator,
     VkQueue const transferQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    ImmediateSubmissionQueue const& submissionQueue,
     std::filesystem::path const& filePath,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<syzygy::Asset<syzygy::Image>>
+) -> std::optional<Asset<ImageView>>
 {
     SZG_INFO("Loading Texture from '{}'", filePath.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(filePath)};
@@ -876,17 +876,22 @@ auto AssetLibrary::loadTextureFromPath(
         return std::nullopt;
     }
 
-    return std::optional<syzygy::Asset<syzygy::Image>>{
-        syzygy::Asset<syzygy::Image>{
-            .metadata =
-                syzygy::AssetMetadata{
-                    .displayName = file.path.filename().string(),
-                    .fileLocalPath = file.path.string(),
-                    .id = syzygy::UUID::createNew(),
-                },
-            .data = std::move(uploadResult).value(),
-        }
-    };
+    std::optional<std::unique_ptr<ImageView>> textureResult{ImageView::allocate(
+        device,
+        allocator,
+        std::move(*uploadResult.value()),
+        ImageViewAllocationParameters{}
+    )};
+
+    return std::optional<Asset<ImageView>>{Asset<ImageView>{
+        .metadata =
+            syzygy::AssetMetadata{
+                .displayName = file.path.filename().string(),
+                .fileLocalPath = file.path.string(),
+                .id = syzygy::UUID::createNew(),
+            },
+        .data = std::move(textureResult).value(),
+    }};
 }
 
 void AssetLibrary::loadTexturesDialog(
@@ -997,9 +1002,9 @@ void AssetLibrary::loadGLTFFromPath(
     }
 
     MaterialData const defaultMaterialData{
-        .ORM = m_imageViews[m_defaultORMIndex].data,
-        .normal = m_imageViews[m_defaultNormalIndex].data,
-        .color = m_imageViews[m_defaultColorIndex].data,
+        .ORM = m_textures[m_defaultORMIndex].data,
+        .normal = m_textures[m_defaultNormalIndex].data,
+        .color = m_textures[m_defaultColorIndex].data,
     };
 
     std::vector<MaterialData> materialDataByGLTFIndex{
@@ -1015,9 +1020,9 @@ void AssetLibrary::loadGLTFFromPath(
     };
 
     MaterialData const defaultMaterial{
-        .ORM = m_imageViews[m_defaultORMIndex].data,
-        .normal = m_imageViews[m_defaultNormalIndex].data,
-        .color = m_imageViews[m_defaultColorIndex].data
+        .ORM = m_textures[m_defaultORMIndex].data,
+        .normal = m_textures[m_defaultNormalIndex].data,
+        .color = m_textures[m_defaultColorIndex].data
     };
 
     std::vector<std::unique_ptr<syzygy::Mesh>> newMeshes{
@@ -1160,8 +1165,8 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultColorIndex = library.m_imageViews.size();
-        library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
+        library.m_defaultColorIndex = library.m_textures.size();
+        library.m_textures.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
                     .displayName =
@@ -1220,8 +1225,8 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultNormalIndex = library.m_imageViews.size();
-        library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
+        library.m_defaultNormalIndex = library.m_textures.size();
+        library.m_textures.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
                     .displayName =
@@ -1290,8 +1295,8 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultORMIndex = library.m_imageViews.size();
-        library.m_imageViews.push_back(syzygy::Asset<syzygy::ImageView>{
+        library.m_defaultORMIndex = library.m_textures.size();
+        library.m_textures.push_back(syzygy::Asset<syzygy::ImageView>{
             .metadata =
                 syzygy::AssetMetadata{
                     .displayName =

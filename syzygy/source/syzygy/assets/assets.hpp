@@ -74,7 +74,7 @@ public:
     {
         std::vector<AssetRef<T>> assets{};
 
-        if constexpr (std::is_same_v<T, Image>)
+        if constexpr (std::is_same_v<T, ImageView>)
         {
             assets.reserve(m_textures.size());
             for (auto& texture : m_textures)
@@ -116,7 +116,7 @@ public:
         ImmediateSubmissionQueue const&,
         std::filesystem::path const& filePath,
         VkImageUsageFlags additionalFlags
-    ) -> std::optional<syzygy::Asset<syzygy::Image>>;
+    ) -> std::optional<Asset<ImageView>>;
 
     void loadTexturesDialog(
         PlatformWindow const&,
@@ -150,12 +150,10 @@ private:
 
     std::unordered_map<std::string, size_t> m_nameDuplicationCounters{};
 
-    std::vector<Asset<Image>> m_textures{};
-
     size_t m_defaultColorIndex{0};
     size_t m_defaultNormalIndex{0};
     size_t m_defaultORMIndex{0};
-    std::vector<Asset<ImageView>> m_imageViews{};
+    std::vector<Asset<ImageView>> m_textures{};
 
     std::vector<Asset<Mesh>> m_meshes{};
 };
