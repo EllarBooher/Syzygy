@@ -32,6 +32,7 @@ struct CameraPacked
 
     glm::vec4 position;
 };
+static_assert(sizeof(CameraPacked) == 416ULL);
 
 struct AtmospherePacked
 {
@@ -59,6 +60,7 @@ struct AtmospherePacked
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding1[4]{};
 };
+static_assert(sizeof(AtmospherePacked) == 96ULL);
 
 struct DirectionalLightPacked
 {
@@ -75,6 +77,7 @@ struct DirectionalLightPacked
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding0[12]{};
 };
+static_assert(sizeof(DirectionalLightPacked) == 176ULL);
 
 struct SpotLightPacked
 {
@@ -98,6 +101,7 @@ struct SpotLightPacked
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding0[4]{};
 };
+static_assert(sizeof(SpotLightPacked) == 192ULL);
 
 struct VertexPacked
 {
@@ -107,4 +111,5 @@ struct VertexPacked
     float uv_y;
     glm::vec4 color;
 };
+static_assert(sizeof(VertexPacked) == 48ULL);
 } // namespace syzygy
