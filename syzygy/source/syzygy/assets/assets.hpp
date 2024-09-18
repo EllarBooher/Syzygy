@@ -94,9 +94,42 @@ public:
         return assets;
     }
 
+    // WARNING! This may invalidate existing references/pointers to assets (but
+    // not the data they represent).
+    template <typename T>
+    auto registerAsset(
+        std::shared_ptr<T> data,
+        std::string const& name,
+        std::filesystem::path const& sourcePath
+    ) -> std::optional<AssetRef<T>>
+    {
+        Asset<T> asset{
+            .metadata =
+                AssetMetadata{
+                    .displayName = deduplicateAssetName(name),
+                    .fileLocalPath = sourcePath.string(),
+                    .id = UUID::createNew(),
+                },
+            .data = std::move(data),
+        };
+
+        if constexpr (std::is_same_v<T, ImageView>)
+        {
+            m_textures.push_back(std::move(asset));
+            return m_textures.back();
+        }
+        else if constexpr (std::is_same_v<T, Mesh>)
+        {
+            m_meshes.push_back(std::move(asset));
+            return m_meshes.back();
+        }
+
+        return std::nullopt;
+    }
+
     template <typename T> [[nodiscard]] auto empty() -> bool
     {
-        if constexpr (std::is_same_v<T, Image>)
+        if constexpr (std::is_same_v<T, ImageView>)
         {
             return m_textures.empty();
         }
@@ -108,15 +141,15 @@ public:
         return true;
     }
 
-    // TODO: make this a member that adds the texture to the library
-    static auto loadTextureFromPath(
+    auto loadTextureFromPath(
         VkDevice,
         VmaAllocator,
         VkQueue,
         ImmediateSubmissionQueue const&,
+        VkFormat fileFormat,
         std::filesystem::path const& filePath,
         VkImageUsageFlags additionalFlags
-    ) -> std::optional<Asset<ImageView>>;
+    ) -> std::optional<AssetRef<ImageView>>;
 
     void loadTexturesDialog(
         PlatformWindow const&,

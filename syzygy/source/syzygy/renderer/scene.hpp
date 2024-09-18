@@ -138,6 +138,7 @@ struct SunAnimation
     bool skipNight{false};
 };
 
+// NOLINTBEGIN(misc-non-private-member-variables-in-classes)
 struct Scene
 {
 public:
@@ -195,4 +196,5 @@ private:
     AABB m_shadowBounds{};
     std::vector<MeshInstanced> m_geometry;
 };
+// NOLINTEND(misc-non-private-member-variables-in-classes)
 } // namespace syzygy
