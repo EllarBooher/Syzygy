@@ -20,7 +20,7 @@ namespace syzygy
 {
 struct InputSnapshot;
 struct TickTiming;
-class DescriptorAllocator;
+struct DescriptorAllocator;
 } // namespace syzygy
 
 namespace syzygy

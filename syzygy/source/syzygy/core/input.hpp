@@ -9,6 +9,11 @@
 
 namespace syzygy
 {
+struct PlatformWindow;
+} // namespace syzygy
+
+namespace syzygy
+{
 struct KeyStatus
 {
     bool down;
@@ -54,9 +59,7 @@ struct InputSnapshot
     [[nodiscard]] auto format() const -> std::string;
 };
 
-struct PlatformWindow;
-
-class InputHandler
+struct InputHandler
 {
 public:
     InputHandler(InputHandler const&) = delete;

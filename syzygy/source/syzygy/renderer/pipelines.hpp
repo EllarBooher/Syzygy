@@ -43,7 +43,7 @@ struct DrawResultsGraphics
     size_t indicesDrawn{0};
 };
 
-class PipelineBuilder
+struct PipelineBuilder
 {
 public:
     PipelineBuilder() = default;
@@ -113,7 +113,7 @@ private:
 
 // This pipeline does an offscreen pass of some geometry
 // to write depth information
-class OffscreenPassGraphicsPipeline
+struct OffscreenPassGraphicsPipeline
 {
 public:
     OffscreenPassGraphicsPipeline(
@@ -166,7 +166,7 @@ public:
 // A generic compute pipeline driven entirely by a push constant.
 // Supports multiple shader objects, swapping between them and only using
 // one of them during dispatch.
-class ComputeCollectionPipeline
+struct ComputeCollectionPipeline
 {
 public:
     ComputeCollectionPipeline(
@@ -236,7 +236,7 @@ private:
 
 // A pipeline that draws debug geometry such as lines and points in a compute
 // pass
-class DebugLineGraphicsPipeline
+struct DebugLineGraphicsPipeline
 {
 public:
     struct ImageFormats

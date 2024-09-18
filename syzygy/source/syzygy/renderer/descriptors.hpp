@@ -46,7 +46,7 @@ private:
 };
 
 // Holds a descriptor pool and allows allocating from it.
-class DescriptorAllocator
+struct DescriptorAllocator
 {
 public:
     struct PoolSizeRatio

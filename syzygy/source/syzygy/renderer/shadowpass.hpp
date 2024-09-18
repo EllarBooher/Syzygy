@@ -13,7 +13,7 @@
 
 namespace syzygy
 {
-class DescriptorAllocator;
+struct DescriptorAllocator;
 struct DirectionalLightPacked;
 struct SpotLightPacked;
 struct MeshInstanced;

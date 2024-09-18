@@ -12,7 +12,7 @@
 
 namespace syzygy
 {
-class DescriptorAllocator;
+struct DescriptorAllocator;
 struct PlatformWindow;
 struct SceneTexture;
 } // namespace syzygy

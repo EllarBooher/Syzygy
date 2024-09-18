@@ -16,12 +16,12 @@ namespace syzygy
 {
 struct Image;
 struct MeshInstanced;
-class DescriptorAllocator;
+struct DescriptorAllocator;
 } // namespace syzygy
 
 namespace syzygy
 {
-class DeferredShadingPipeline
+struct DeferredShadingPipeline
 {
 public:
     DeferredShadingPipeline(

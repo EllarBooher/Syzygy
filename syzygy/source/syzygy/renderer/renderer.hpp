@@ -12,7 +12,7 @@
 
 namespace syzygy
 {
-class DescriptorAllocator;
+struct DescriptorAllocator;
 struct AtmospherePacked;
 struct CameraPacked;
 struct Scene;
@@ -22,7 +22,7 @@ struct SceneTexture;
 
 namespace syzygy
 {
-class Renderer
+struct Renderer
 {
 public:
     auto operator=(Renderer&&) -> Renderer& = delete;

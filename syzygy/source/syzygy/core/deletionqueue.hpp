@@ -6,7 +6,7 @@
 
 namespace syzygy
 {
-class DeletionQueue
+struct DeletionQueue
 {
 public:
     void pushFunction(std::function<void()>&& function)

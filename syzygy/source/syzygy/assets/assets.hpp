@@ -66,7 +66,7 @@ template <typename T> struct Asset
 
 template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
 
-class AssetLibrary
+struct AssetLibrary
 {
 public:
     template <typename T>

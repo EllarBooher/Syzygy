@@ -25,7 +25,7 @@ struct Frame
     void destroy(VkDevice);
 };
 
-class FrameBuffer
+struct FrameBuffer
 {
 public:
     auto operator=(FrameBuffer&&) -> FrameBuffer& = delete;

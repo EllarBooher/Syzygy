@@ -7,10 +7,13 @@
 
 namespace syzygy
 {
-class DescriptorAllocator;
+struct DescriptorAllocator;
 struct MaterialData;
 struct ImageView;
+} // namespace syzygy
 
+namespace syzygy
+{
 struct MaterialDescriptors
 {
 public:

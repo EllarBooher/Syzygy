@@ -15,7 +15,7 @@
 
 namespace syzygy
 {
-class Logger
+struct Logger
 {
 public:
     static auto getLogger() -> spdlog::logger&;
