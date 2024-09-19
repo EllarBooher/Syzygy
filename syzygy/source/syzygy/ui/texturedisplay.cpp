@@ -12,7 +12,7 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
-#include "syzygy/ui/uiwindow.hpp"
+#include "syzygy/ui/uiwindowscope.hpp"
 #include <functional>
 #include <glm/vec2.hpp>
 #include <imgui.h>
@@ -123,7 +123,9 @@ auto TextureDisplay::uiRender(
     std::span<AssetRef<ImageView> const> const textures
 ) -> TextureDisplay::UIResult
 {
-    UIWindow const sceneViewport{UIWindow::beginDockable(title, dockNode)};
+    UIWindowScope const sceneViewport{
+        UIWindowScope::beginDockable(title, dockNode)
+    };
 
     TextureDisplay::UIResult result{};
 

@@ -8,32 +8,36 @@
 
 namespace syzygy
 {
-// Opens the context for a Dear ImGui window. ImGui:: calls during the lifetime
-// of the UIWindow object will occur within the context of the window.
-struct UIWindow
+// Opens a window on the ImGui stack. Further ImGui backend calls until ::end()
+// or this object is destructed will render to that window.
+struct UIWindowScope
 {
     static auto
     beginMaximized(std::string const& name, syzygy::UIRectangle workArea)
-        -> UIWindow;
+        -> UIWindowScope;
 
     static auto
     beginDockable(std::string const& name, std::optional<ImGuiID> dockspace)
-        -> UIWindow;
+        -> UIWindowScope;
 
-    auto operator=(UIWindow const& other) -> UIWindow& = delete;
-    auto operator=(UIWindow&& other) -> UIWindow& = delete;
-    UIWindow(UIWindow&& other) noexcept;
+    static auto beginDockable(
+        std::string const& name, bool& open, std::optional<ImGuiID> dockspace
+    ) -> UIWindowScope;
 
-    ~UIWindow();
+    auto operator=(UIWindowScope const& other) -> UIWindowScope& = delete;
+    auto operator=(UIWindowScope&& other) -> UIWindowScope& = delete;
+    UIWindowScope(UIWindowScope&& other) noexcept;
+
+    ~UIWindowScope();
     void end();
 
-    // Returns whether this window is open, as in active in the ImGui stack
+    // Returns whether this window is open, i.e. active in the ImGui stack
     [[nodiscard]] auto isOpen() const -> bool;
     // Gives the rectangle this window occupies on the screen, in pixel units
     [[nodiscard]] auto screenRectangle() const -> UIRectangle const&;
 
 private:
-    UIWindow(
+    UIWindowScope(
         syzygy::UIRectangle screenRectangle, bool open, uint16_t styleVariables
     )
         : m_screenRectangle{screenRectangle}

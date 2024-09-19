@@ -10,7 +10,7 @@
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
-#include "syzygy/ui/uiwindow.hpp"
+#include "syzygy/ui/uiwindowscope.hpp"
 #include <array>
 #include <format>
 #include <functional>
@@ -51,7 +51,7 @@ void editorConfigurationWindow(
     EditorConfiguration const& defaults
 )
 {
-    UIWindow const window{UIWindow::beginDockable(
+    UIWindowScope const window{UIWindowScope::beginDockable(
         fmt::format("{}##editorConfiguration", title), dockNode
     )};
     if (!window.isOpen())
@@ -99,7 +99,7 @@ void syzygy::performanceWindow(
     float& targetFPS
 )
 {
-    syzygy::UIWindow const window{syzygy::UIWindow::beginDockable(
+    syzygy::UIWindowScope const window{syzygy::UIWindowScope::beginDockable(
         std::format("{}##performance", title), dockNode
     )};
     if (!window.isOpen())
@@ -538,8 +538,8 @@ void sceneControlsWindow(
     std::span<AssetRef<Mesh> const> const meshes
 )
 {
-    UIWindow const window{
-        UIWindow::beginDockable(std::format("{}##scene", title), dockNode)
+    UIWindowScope const window{
+        UIWindowScope::beginDockable(std::format("{}##scene", title), dockNode)
     };
     if (!window.isOpen())
     {
@@ -632,10 +632,10 @@ auto sceneViewportWindow(
         pushedStyleColors += 1;
     }
 
-    UIWindow sceneViewport{
+    UIWindowScope sceneViewport{
         maximizeArea.has_value()
-            ? UIWindow::beginMaximized(title, maximizeArea.value())
-            : UIWindow::beginDockable(title, dockNode)
+            ? UIWindowScope::beginMaximized(title, maximizeArea.value())
+            : UIWindowScope::beginDockable(title, dockNode)
     };
 
     if (!sceneViewport.isOpen())

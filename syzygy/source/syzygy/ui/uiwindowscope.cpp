@@ -1,4 +1,4 @@
-#include "uiwindow.hpp"
+#include "uiwindowscope.hpp"
 
 #include <utility>
 
@@ -15,9 +15,9 @@ auto getWindowContent_imgui() -> syzygy::UIRectangle
 
 namespace syzygy
 {
-auto UIWindow::beginMaximized(
+auto UIWindowScope::beginMaximized(
     std::string const& name, UIRectangle const workArea
-) -> UIWindow
+) -> UIWindowScope
 {
     ImGui::SetNextWindowPos(workArea.pos());
     ImGui::SetNextWindowSize(workArea.size());
@@ -36,9 +36,9 @@ auto UIWindow::beginMaximized(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-auto UIWindow::beginDockable(
+auto UIWindowScope::beginDockable(
     std::string const& name, std::optional<ImGuiID> const dockspace
-) -> UIWindow
+) -> UIWindowScope
 {
     if (dockspace.has_value())
     {
@@ -55,7 +55,7 @@ auto UIWindow::beginDockable(
     return {getWindowContent_imgui(), open, styleVariables};
 }
 
-UIWindow::UIWindow(UIWindow&& other) noexcept
+UIWindowScope::UIWindowScope(UIWindowScope&& other) noexcept
 {
     m_screenRectangle = std::exchange(other.m_screenRectangle, UIRectangle{});
     m_open = std::exchange(other.m_open, false);
@@ -64,9 +64,9 @@ UIWindow::UIWindow(UIWindow&& other) noexcept
     m_initialized = std::exchange(other.m_initialized, false);
 }
 
-UIWindow::~UIWindow() { end(); }
+UIWindowScope::~UIWindowScope() { end(); }
 
-void UIWindow::end()
+void UIWindowScope::end()
 {
     if (!m_initialized)
     {
@@ -77,8 +77,8 @@ void UIWindow::end()
     m_initialized = false;
     m_styleVariables = 0;
 }
-auto UIWindow::isOpen() const -> bool { return m_open; }
-auto UIWindow::screenRectangle() const -> UIRectangle const&
+auto UIWindowScope::isOpen() const -> bool { return m_open; }
+auto UIWindowScope::screenRectangle() const -> UIRectangle const&
 {
     return m_screenRectangle;
 }

@@ -34,7 +34,7 @@ add_library(
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"
 	"source/syzygy/ui/hud.cpp"
-    "source/syzygy/ui/uiwindow.cpp"
+    "source/syzygy/ui/uiwindowscope.cpp"
 	"source/syzygy/ui/propertytable.cpp"
 	"source/syzygy/ui/widgets.cpp"
 	"source/syzygy/ui/dockinglayout.cpp"

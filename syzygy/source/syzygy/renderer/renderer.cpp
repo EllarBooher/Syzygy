@@ -17,7 +17,7 @@
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/pipelineui.hpp"
-#include "syzygy/ui/uiwindow.hpp"
+#include "syzygy/ui/uiwindowscope.hpp"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
@@ -225,8 +225,8 @@ void Renderer::initGenericComputePipelines(
 
 void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
 {
-    if (UIWindow const engineControls{
-            UIWindow::beginDockable("Engine Controls", dockingLayout.right)
+    if (UIWindowScope const engineControls{
+            UIWindowScope::beginDockable("Engine Controls", dockingLayout.right)
         };
         engineControls.isOpen())
     {
