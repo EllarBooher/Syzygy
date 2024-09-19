@@ -42,7 +42,7 @@ auto UIWindowScope::beginDockable(
 {
     if (dockspace.has_value())
     {
-        ImGui::SetNextWindowDockID(dockspace.value());
+        ImGui::SetNextWindowDockID(dockspace.value(), ImGuiCond_Appearing);
     }
 
     ImGuiWindowFlags constexpr DOCKABLE_WINDOW_FLAGS{

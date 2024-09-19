@@ -15,6 +15,7 @@ namespace syzygy
 struct DescriptorAllocator;
 struct PlatformWindow;
 struct SceneTexture;
+struct UIWidget;
 } // namespace syzygy
 
 namespace syzygy
@@ -43,7 +44,7 @@ public:
     ~UILayer();
 
 private:
-    UILayer() = default;
+    UILayer();
     void destroy();
 
 public:
@@ -75,6 +76,9 @@ public:
 
     void setCursorEnabled(bool enabled, bool breakWindowFocus = true);
 
+    void addWidget(std::unique_ptr<UIWidget>);
+    void renderWidgets();
+
     void end();
 
     auto recordDraw(VkCommandBuffer) -> std::optional<UIOutputImage>;
@@ -100,5 +104,7 @@ private:
     ImTextureID m_imguiSceneTextureHandle{nullptr};
 
     std::unique_ptr<SceneTexture> m_outputTexture;
+
+    std::vector<std::unique_ptr<UIWidget>> m_activeWidgets{};
 };
 } // namespace syzygy

@@ -7,6 +7,7 @@
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/material.hpp"
+#include "syzygy/ui/uiwidgets.hpp"
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -18,6 +19,7 @@
 namespace syzygy
 {
 struct PlatformWindow;
+struct UILayer;
 struct GraphicsContext;
 struct ImmediateSubmissionQueue;
 struct ImageView;
@@ -151,11 +153,7 @@ public:
         VkImageUsageFlags additionalFlags
     ) -> std::optional<AssetRef<ImageView>>;
 
-    void loadTexturesDialog(
-        PlatformWindow const&,
-        GraphicsContext&,
-        ImmediateSubmissionQueue const& submissionQueue
-    );
+    void loadTexturesDialog(PlatformWindow const&, UILayer&);
 
     void loadGLTFFromPath(
         GraphicsContext&,
@@ -173,6 +171,10 @@ public:
         GraphicsContext&, ImmediateSubmissionQueue const& submissionQueue
     ) -> std::optional<AssetLibrary>;
 
+    void processTasks(
+        GraphicsContext&, ImmediateSubmissionQueue const& submissionQueue
+    );
+
 private:
     AssetLibrary() = default;
 
@@ -189,5 +191,7 @@ private:
     std::vector<Asset<ImageView>> m_textures{};
 
     std::vector<Asset<Mesh>> m_meshes{};
+
+    std::vector<std::shared_ptr<ImageLoadingTask>> m_tasks{};
 };
 } // namespace syzygy

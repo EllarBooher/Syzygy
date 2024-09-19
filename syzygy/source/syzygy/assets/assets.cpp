@@ -1026,9 +1026,7 @@ auto AssetLibrary::loadTextureFromPath(
 }
 
 void AssetLibrary::loadTexturesDialog(
-    PlatformWindow const& window,
-    GraphicsContext& graphicsContext,
-    ImmediateSubmissionQueue const& submissionQueue
+    PlatformWindow const& window, UILayer& uiLayer
 )
 {
     auto const paths{openFiles(window)};
@@ -1037,30 +1035,16 @@ void AssetLibrary::loadTexturesDialog(
         return;
     }
 
-    size_t loaded{0};
-    for (auto const& path : paths)
-    {
-        // TODO: more usage flags necessary here, such as sampled
-        // TODO: Allow choosing, per asset, what format to load it as. This
-        // implementation right now is an issue since color maps are likely
-        // nonlinear encoded. UNORM is better for now since normal maps etc
-        // require being loaded correctly for lighting to be correct.
-        if (loadTextureFromPath(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                path,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-            )
-                .has_value())
-        {
-            loaded++;
-        }
-    }
+    std::shared_ptr<ImageLoadingTask> loadingTask{
+        ImageLoaderWidget::create(uiLayer, paths)
+    };
 
-    SZG_INFO("Loaded {} textures.", loaded);
+    if (loadingTask == nullptr)
+    {
+        SZG_ERROR("Failed to create image loading task.");
+        return;
+    }
+    m_tasks.push_back(std::move(loadingTask));
 }
 
 void AssetLibrary::loadGLTFFromPath(
@@ -1388,6 +1372,60 @@ auto AssetLibrary::loadDefaultAssets(
     }
 
     return libraryResult;
+}
+void AssetLibrary::processTasks(
+    GraphicsContext& graphicsContext,
+    ImmediateSubmissionQueue const& submissionQueue
+)
+{
+    for (std::shared_ptr<ImageLoadingTask const> const& task : m_tasks)
+    {
+        if (task->status != TaskStatus::Success)
+        {
+            continue;
+        }
+
+        size_t loaded{0};
+        for (ImageDiskSource const& source : task->loadees)
+        {
+            VkFormat const fileFormat{
+                source.nonlinearEncoding ? VK_FORMAT_R8G8B8A8_SRGB
+                                         : VK_FORMAT_R8G8B8A8_UNORM
+            };
+
+            // TODO: more usage flags necessary here, such as sampled
+            if (loadTextureFromPath(
+                    graphicsContext.device(),
+                    graphicsContext.allocator(),
+                    graphicsContext.universalQueue(),
+                    submissionQueue,
+                    fileFormat,
+                    source.path,
+                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                )
+                    .has_value())
+            {
+                loaded++;
+            }
+        }
+
+        SZG_INFO("Finished Task: Loaded {} textures.", loaded);
+    }
+
+    size_t const taskCount{m_tasks.size()};
+    m_tasks.erase(
+        std::remove_if(
+            m_tasks.begin(),
+            m_tasks.end(),
+            [](std::shared_ptr<ImageLoadingTask> const& task)
+    { return task == nullptr || task->status != TaskStatus::Waiting; }
+        ),
+        m_tasks.end()
+    );
+    if (m_tasks.size() < taskCount)
+    {
+        SZG_INFO("AssetLibrary: Culled {} tasks.", taskCount - m_tasks.size());
+    }
 }
 auto AssetLibrary::deduplicateAssetName(std::string const& name) -> std::string
 {

@@ -27,10 +27,8 @@ struct PropertySliderBehavior
 
 struct PropertyTable
 {
-public:
-    PropertyTable() = delete;
-
 private:
+    PropertyTable();
     using Self = PropertyTable;
 
     // We use 16 bit unsized integers that fit inside ImGui's expected
@@ -107,17 +105,21 @@ public:
     static auto begin(std::string const& name = "PropertyTable")
         -> PropertyTable;
 
+    [[nodiscard]] auto open() const -> bool;
+
     void end();
 
     // Adds an arrow button to the previous row, and enters a collapsible
     // section. Further calls to row drawing methods will be skipped until
     // childPropertyEnd is called, depending on if this rows button is
     // collapsed or not. This is tracked internally.
-    auto childPropertyBegin() -> PropertyTable&;
+    auto childPropertyBegin(bool startCollapsed = true) -> PropertyTable&;
 
     // This adds a new row for the collapsing button.
     // See PropertyTable::childPropertyBegin.
-    auto rowChildPropertyBegin(std::string const& name) -> PropertyTable&;
+    auto
+    rowChildPropertyBegin(std::string const& name, bool startCollapsed = true)
+        -> PropertyTable&;
 
     // A corresponding PropertyTable::rowChildPropertyBegin
     // or PropertyTable::childPropertyBegin must have been called.

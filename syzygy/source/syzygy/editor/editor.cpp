@@ -649,6 +649,8 @@ auto run() -> EditorResult
             return EditorResult::ERROR;
         }
 
+        assetLibrary.processTasks(graphicsContext, submissionQueue);
+
         DockingLayout const& dockingLayout{uiLayer.begin()};
         if (uiLayer.HUDMenuItem("Tools", "Load Mesh (.glTF / .glb / .bin)"))
         {
@@ -702,10 +704,10 @@ auto run() -> EditorResult
             };
             textureDisplayResult.loadTexturesRequested)
         {
-            assetLibrary.loadTexturesDialog(
-                mainWindow, graphicsContext, submissionQueue
-            );
+            assetLibrary.loadTexturesDialog(mainWindow, uiLayer);
         }
+
+        uiLayer.renderWidgets();
 
         sceneControlsWindow(
             "Default Scene",

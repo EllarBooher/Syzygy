@@ -39,6 +39,7 @@ add_library(
 	"source/syzygy/ui/statelesswidgets.cpp"
 	"source/syzygy/ui/dockinglayout.cpp"
 	"source/syzygy/ui/texturedisplay.cpp"
+	"source/syzygy/ui/uiwidgets.cpp"
 
 	"source/syzygy/editor/editor.cpp"
 	"source/syzygy/editor/window.cpp" 

@@ -9,6 +9,7 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/statelesswidgets.hpp"
 #include "syzygy/ui/uirectangle.hpp"
+#include "syzygy/ui/uiwidgets.hpp"
 #include <algorithm>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
@@ -87,6 +88,7 @@ auto UILayer::operator=(UILayer&& other) noexcept -> UILayer&
 }
 
 UILayer::~UILayer() { destroy(); }
+UILayer::UILayer() = default;
 
 void UILayer::destroy()
 {
@@ -199,6 +201,10 @@ auto syzygy::UILayer::create(
         styleColor.y = converted.y;
         styleColor.z = converted.z;
     }
+
+    ImVec4 constexpr MODAL_BACKGROUND_DIM{0.0F, 0.0F, 0.0F, 0.8F};
+    ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = MODAL_BACKGROUND_DIM;
+
     ImGui_ImplGlfw_InitForVulkan(mainWindow.handle(), true);
 
     // Load functions since we are using volk,
@@ -457,6 +463,37 @@ void UILayer::setCursorEnabled(bool const enabled, bool const breakWindowFocus)
     if (breakWindowFocus)
     {
         ImGui::SetWindowFocus(nullptr);
+    }
+}
+
+void UILayer::addWidget(std::unique_ptr<UIWidget> widget)
+{
+    m_activeWidgets.push_back(std::move(widget));
+}
+
+void UILayer::renderWidgets()
+{
+    m_activeWidgets.erase(
+        std::remove_if(
+            m_activeWidgets.begin(),
+            m_activeWidgets.end(),
+            [](std::unique_ptr<UIWidget> const& widget)
+    { return widget == nullptr; }
+        ),
+        m_activeWidgets.end()
+    );
+
+    for (std::unique_ptr<UIWidget>& widget : m_activeWidgets)
+    {
+        if (widget->shouldClose())
+        {
+            widget->close();
+            widget.reset();
+        }
+        else
+        {
+            widget->draw();
+        }
     }
 }
 

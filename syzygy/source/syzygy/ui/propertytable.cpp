@@ -10,6 +10,8 @@
 
 namespace syzygy
 {
+PropertyTable::PropertyTable() {}
+
 void PropertyTable::nameColumn(std::string const& name)
 {
     ImGui::TableSetColumnIndex(PROPERTY_INDEX);
@@ -38,12 +40,15 @@ auto PropertyTable::resetColumn(std::string const& name, bool const visible)
 
 auto PropertyTable::begin(std::string const& name) -> PropertyTable
 {
-    ImGui::BeginTable(
-        name.c_str(),
-        3,
-        ImGuiTableFlags_None | ImGuiTableFlags_BordersInner
-            | ImGuiTableFlags_Resizable
-    );
+    if (!ImGui::BeginTable(
+            name.c_str(),
+            3,
+            ImGuiTableFlags_None | ImGuiTableFlags_BordersInner
+                | ImGuiTableFlags_Resizable
+        ))
+    {
+        return PropertyTable{};
+    }
 
     ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
     ImGui::TableSetupColumn(
@@ -67,6 +72,8 @@ auto PropertyTable::begin(std::string const& name) -> PropertyTable
     return PropertyTable(styleVariableCount);
 }
 
+auto PropertyTable::open() const -> bool { return m_open; }
+
 void PropertyTable::end()
 {
     assert(!m_rowOpen && "end() called on PropertyTable with an open row.");
@@ -85,11 +92,10 @@ void PropertyTable::end()
     ImGui::EndTable();
 }
 
-auto PropertyTable::childPropertyBegin() -> PropertyTable&
+auto PropertyTable::childPropertyBegin(bool const startCollapsed)
+    -> PropertyTable&
 {
     static std::unordered_map<ImGuiID, bool> collapseStatus{};
-    bool constexpr COLLAPSED_DEFAULT{true};
-
     checkInvariant();
 
     bool const hideRow{hideNextRow()};
@@ -104,7 +110,7 @@ auto PropertyTable::childPropertyBegin() -> PropertyTable&
 
         if (!collapseStatus.contains(arrowButtonID))
         {
-            collapseStatus.insert({arrowButtonID, COLLAPSED_DEFAULT});
+            collapseStatus.insert({arrowButtonID, startCollapsed});
         }
 
         bool& collapsed{collapseStatus.at(arrowButtonID)};
@@ -144,15 +150,16 @@ auto PropertyTable::childPropertyBegin() -> PropertyTable&
     return *this;
 }
 
-auto PropertyTable::rowChildPropertyBegin(std::string const& name)
-    -> PropertyTable&
+auto PropertyTable::rowChildPropertyBegin(
+    std::string const& name, bool const startCollapsed
+) -> PropertyTable&
 {
     if (Self::rowBegin(name))
     {
         Self::rowEnd();
     }
 
-    return childPropertyBegin();
+    return childPropertyBegin(startCollapsed);
 }
 
 auto PropertyTable::childPropertyEnd() -> PropertyTable&
@@ -326,12 +333,13 @@ auto PropertyTable::rowReadOnlyTextInput(
     ImGui::TableSetColumnIndex(VALUE_INDEX);
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
 
-    ImGuiInputTextFlags const flags{
-        ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_NoHorizontalScroll
-    };
+    ImGuiInputTextFlags const flags{ImGuiInputTextFlags_ReadOnly};
 
     std::string local{value};
     std::string const label{fmt::format("##{}{}", name, m_propertyCount)};
+
+    ImGuiStyle const& style{ImGui::GetStyle()};
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, style.Alpha * style.DisabledAlpha);
     if (multiline)
     {
         ImGui::InputTextMultiline(label.c_str(), &local, {}, flags);
@@ -340,6 +348,7 @@ auto PropertyTable::rowReadOnlyTextInput(
     {
         ImGui::InputText(label.c_str(), &local, flags);
     }
+    ImGui::PopStyleVar();
 
     Self::rowEnd();
 
