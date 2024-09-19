@@ -17,10 +17,11 @@ struct RingBuffer;
 struct Mesh;
 } // namespace syzygy
 
-// A collection of syzygy widgets that are free standing functions.
-
 namespace syzygy
 {
+// "Pure" widgets that require the function to be called every time it needs to
+// be rendered
+
 void editorConfigurationWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,

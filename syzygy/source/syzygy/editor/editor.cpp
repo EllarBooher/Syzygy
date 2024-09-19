@@ -29,7 +29,7 @@
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
 #include "syzygy/ui/texturedisplay.hpp"
-#include "syzygy/ui/widgets.hpp"
+#include "syzygy/ui/statelesswidgets.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
 #include <chrono>

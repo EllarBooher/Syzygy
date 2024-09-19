@@ -7,8 +7,8 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
+#include "syzygy/ui/statelesswidgets.hpp"
 #include "syzygy/ui/uirectangle.hpp"
-#include "syzygy/ui/widgets.hpp"
 #include <algorithm>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>

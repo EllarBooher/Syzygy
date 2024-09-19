@@ -36,7 +36,7 @@ add_library(
 	"source/syzygy/ui/hud.cpp"
     "source/syzygy/ui/uiwindowscope.cpp"
 	"source/syzygy/ui/propertytable.cpp"
-	"source/syzygy/ui/widgets.cpp"
+	"source/syzygy/ui/statelesswidgets.cpp"
 	"source/syzygy/ui/dockinglayout.cpp"
 	"source/syzygy/ui/texturedisplay.cpp"
 
