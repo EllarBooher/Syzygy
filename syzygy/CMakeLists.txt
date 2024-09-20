@@ -210,7 +210,6 @@ target_include_directories(
 target_compile_definitions(
 	syzygy
 	PRIVATE
-		STBI_ONLY_JPEG
 		STBI_MAX_DIMENSIONS=2048
 )
 

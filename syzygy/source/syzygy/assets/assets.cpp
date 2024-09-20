@@ -245,8 +245,7 @@ auto uploadMeshToGPU(
 
 namespace detail_stbi
 {
-auto RGBAfromJPEG(std::span<uint8_t const> const jpegBytes)
-    -> std::optional<ImageRGBA>
+auto loadRGBA(std::span<uint8_t const> const bytes) -> std::optional<ImageRGBA>
 {
     int32_t x{0};
     int32_t y{0};
@@ -255,8 +254,8 @@ auto RGBAfromJPEG(std::span<uint8_t const> const jpegBytes)
     uint16_t constexpr RGBA_COMPONENT_COUNT{4};
 
     stbi_uc* const parsedImage{stbi_load_from_memory(
-        jpegBytes.data(),
-        static_cast<int32_t>(jpegBytes.size()),
+        bytes.data(),
+        static_cast<int32_t>(bytes.size()),
         &x,
         &y,
         &components,
@@ -265,15 +264,15 @@ auto RGBAfromJPEG(std::span<uint8_t const> const jpegBytes)
 
     if (parsedImage == nullptr)
     {
-        SZG_ERROR("Parsed image is null.");
+        SZG_ERROR("stbi: Failed to convert image.");
         return std::nullopt;
     }
 
     if (x < 1 || y < 1)
     {
-        SZG_ERROR(
-            fmt::format("Parsed JPEG had invalid dimensions: ({},{})", x, y)
-        );
+        SZG_ERROR(fmt::format(
+            "stbi: Parsed image had invalid dimensions: ({},{})", x, y
+        ));
         return std::nullopt;
     }
 
@@ -293,7 +292,6 @@ auto RGBAfromJPEG(std::span<uint8_t const> const jpegBytes)
 
     return ImageRGBA{.x = widthPixels, .y = heightPixels, .bytes = rgba};
 }
-
 } // namespace detail_stbi
 
 namespace detail_fastgltf
@@ -380,7 +378,7 @@ auto uploadTextureFromImage(
         std::span<uint8_t const> const data =
             std::get<fastgltf::sources::Array>(image.data).bytes;
 
-        imageConvertResult = detail_stbi::RGBAfromJPEG(data);
+        imageConvertResult = detail_stbi::loadRGBA(data);
     }
     else if (std::holds_alternative<fastgltf::sources::URI>(image.data))
     {
@@ -388,15 +386,26 @@ auto uploadTextureFromImage(
             std::get<fastgltf::sources::URI>(image.data)
         };
 
+        // These asserts should be loosened as we support a larger subset of
+        // glTF.
         assert(uri.fileByteOffset == 0);
-        assert(uri.mimeType == fastgltf::MimeType::JPEG);
         assert(uri.uri.isLocalPath());
 
         std::filesystem::path const path{assetRoot / uri.uri.fspath()};
 
         std::ifstream file(path, std::ios::binary);
 
-        assert(std::filesystem::exists(path));
+        if (!std::filesystem::is_regular_file(path))
+        {
+            SZG_WARNING(
+                "glTF image source URI does not result in a valid file path. "
+                "URI was: {}. Full path is: {}",
+                uri.uri.string(),
+                path.string()
+            );
+            return std::nullopt;
+        }
+
         size_t const lengthBytes{std::filesystem::file_size(path)};
 
         std::vector<uint8_t> data(lengthBytes);
@@ -405,8 +414,10 @@ auto uploadTextureFromImage(
             static_cast<std::streamsize>(lengthBytes)
         );
 
-        imageConvertResult = detail_stbi::RGBAfromJPEG(data);
+        // Throw the file to stbi and hope for the best, it should detect the
+        // file headers properly
 
+        imageConvertResult = detail_stbi::loadRGBA(data);
         sourcePath = path;
     }
     else
@@ -417,7 +428,7 @@ auto uploadTextureFromImage(
 
     if (!imageConvertResult.has_value())
     {
-        SZG_WARNING("Failed to convert glTF image from JPEG.");
+        SZG_WARNING("Failed to load image from glTF.");
         return std::nullopt;
     }
 
@@ -914,6 +925,67 @@ auto loadMeshes(
 }
 } // namespace detail_fastgltf
 
+namespace
+{
+auto registerTextureFromRGBA(
+    syzygy::AssetLibrary& library,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    VkFormat const format,
+    std::string const& name,
+    ImageRGBA const& image
+) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
+{
+    // TODO: add more formats and a way to generally check if a format is
+    // reasonable. Also support copying 32 bit -> any image format.
+    if (format != VK_FORMAT_R8G8B8A8_UNORM && format != VK_FORMAT_R8G8B8A8_SRGB)
+    {
+        SZG_WARNING(
+            "Uploading texture to device as possibly unsupported format '{}'- "
+            "images are loaded onto the CPU as 32 bit RGBA.",
+            string_VkFormat(format)
+        );
+    }
+
+    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
+        device,
+        allocator,
+        transferQueue,
+        submissionQueue,
+        format,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        image
+    )};
+    if (!uploadResult.has_value())
+    {
+        SZG_ERROR("Failed to upload default normal texture to GPU.");
+        return std::nullopt;
+    }
+    std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
+        syzygy::ImageView::allocate(
+            device,
+            allocator,
+            std::move(*uploadResult.value()),
+            syzygy::ImageViewAllocationParameters{}
+        )
+    };
+    if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
+    {
+        SZG_ERROR(
+            "Failed to convert default normal texture image into imageview."
+        );
+        return std::nullopt;
+    }
+
+    return library.registerAsset<syzygy::ImageView>(
+        std::move(imageViewResult).value(), fmt::format("texture_{}", name), {}
+    );
+}
+
+} // namespace
+
 namespace syzygy
 {
 auto loadAssetFile(std::filesystem::path const& path)
@@ -965,66 +1037,28 @@ auto AssetLibrary::loadTextureFromPath(
     std::optional<AssetFile> const fileResult{loadAssetFile(filePath)};
     if (!fileResult.has_value())
     {
-        SZG_ERROR("Failed to load file for texture at '{}'", filePath.string());
+        SZG_ERROR("Failed to open file for texture.");
         return std::nullopt;
     }
 
     AssetFile const& file{fileResult.value()};
 
-    if (std::filesystem::path const extension{file.path.extension()};
-        extension != ".jpg" && extension != ".jpeg")
-    {
-        SZG_ERROR("Only JPEGs are supported for loading textures.");
-        return std::nullopt;
-    }
-
-    std::optional<ImageRGBA> imageResult{
-        detail_stbi::RGBAfromJPEG(file.fileBytes)
-    };
+    std::optional<ImageRGBA> imageResult{detail_stbi::loadRGBA(file.fileBytes)};
     if (!imageResult.has_value())
     {
-        SZG_ERROR("Failed to convert file from JPEG.");
+        SZG_ERROR("Failed to convert file to 32 bit RGBA image.");
         return std::nullopt;
     }
 
-    // TODO: add more formats and a way to generally check if a format is
-    // reasonable. Also support copying 32 bit -> any image format.
-    if (fileFormat != VK_FORMAT_R8G8B8A8_UNORM
-        && fileFormat != VK_FORMAT_R8G8B8A8_SRGB)
-    {
-        SZG_WARNING(
-            "Uploading texture to device as possibly unsupported format '{}'- "
-            "images are loaded from disk as 32 bit RGBA.",
-            string_VkFormat(fileFormat)
-        );
-    }
-
-    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
+    return registerTextureFromRGBA(
+        *this,
         device,
         allocator,
         transferQueue,
         submissionQueue,
         fileFormat,
-        additionalFlags,
+        file.path.stem().string(),
         imageResult.value()
-    )};
-    if (!uploadResult.has_value())
-    {
-        SZG_ERROR("Failed to upload image to GPU.");
-        return std::nullopt;
-    }
-
-    std::optional<std::unique_ptr<ImageView>> textureResult{ImageView::allocate(
-        device,
-        allocator,
-        std::move(*uploadResult.value()),
-        ImageViewAllocationParameters{}
-    )};
-
-    return registerAsset<ImageView>(
-        std::move(textureResult).value(),
-        fmt::format("texture_{}", file.path.stem().string()),
-        file.path
     );
 }
 
@@ -1172,6 +1206,30 @@ auto AssetLibrary::loadDefaultAssets(
         * static_cast<size_t>(defaultImage.y) * sizeof(RGBATexel)
     );
     {
+        for (RGBATexel& texel : std::span<RGBATexel>{
+                 reinterpret_cast<RGBATexel*>(defaultImage.bytes.data()),
+                 defaultImage.bytes.size() / sizeof(RGBATexel)
+             })
+        {
+            RGBATexel constexpr NON_OCCLUDED_DIALECTRIC{
+                .r = 255U, .g = 0U, .b = 0U, .a = 0U
+            };
+
+            texel = NON_OCCLUDED_DIALECTRIC;
+        }
+
+        registerTextureFromRGBA(
+            library,
+            graphicsContext.device(),
+            graphicsContext.allocator(),
+            graphicsContext.universalQueue(),
+            submissionQueue,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            "NonOccludedDialectric",
+            defaultImage
+        );
+    }
+    {
         // Default color texture is a grey checkerboard
 
         size_t index{0};
@@ -1197,44 +1255,16 @@ auto AssetLibrary::loadDefaultAssets(
             index++;
         }
 
-        std::optional<std::unique_ptr<syzygy::Image>> uploadResult{
-            uploadImageToGPU(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                defaultImage
-            )
-        };
-        if (!uploadResult.has_value())
-        {
-            SZG_ERROR("Failed to upload default color texture to GPU.");
-            return std::nullopt;
-        }
-        std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
-            syzygy::ImageView::allocate(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                std::move(*uploadResult.value()),
-                syzygy::ImageViewAllocationParameters{}
-            )
-        };
-        if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
-        {
-            SZG_ERROR(
-                "Failed to convert default color texture image into imageview."
-            );
-            return std::nullopt;
-        }
-
-        library.m_defaultColorMap = library
-                                        .registerAsset<ImageView>(
-                                            std::move(imageViewResult).value(),
-                                            "texture_DefaultColor",
-                                            {}
-                                        )
+        library.m_defaultColorMap = registerTextureFromRGBA(
+                                        library,
+                                        graphicsContext.device(),
+                                        graphicsContext.allocator(),
+                                        graphicsContext.universalQueue(),
+                                        submissionQueue,
+                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                        "defaultColor",
+                                        defaultImage
+        )
                                         .value();
     }
     {
@@ -1253,44 +1283,16 @@ auto AssetLibrary::loadDefaultAssets(
             texel = DEFAULT_NORMAL;
         }
 
-        std::optional<std::unique_ptr<syzygy::Image>> uploadResult{
-            uploadImageToGPU(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                defaultImage
-            )
-        };
-        if (!uploadResult.has_value())
-        {
-            SZG_ERROR("Failed to upload default normal texture to GPU.");
-            return std::nullopt;
-        }
-        std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
-            syzygy::ImageView::allocate(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                std::move(*uploadResult.value()),
-                syzygy::ImageViewAllocationParameters{}
-            )
-        };
-        if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
-        {
-            SZG_ERROR(
-                "Failed to convert default normal texture image into imageview."
-            );
-            return std::nullopt;
-        }
-
-        library.m_defaultNormalMap = library
-                                         .registerAsset<ImageView>(
-                                             std::move(imageViewResult).value(),
-                                             "texture_DefaultNormal",
-                                             {}
-                                         )
+        library.m_defaultNormalMap = registerTextureFromRGBA(
+                                         library,
+                                         graphicsContext.device(),
+                                         graphicsContext.allocator(),
+                                         graphicsContext.universalQueue(),
+                                         submissionQueue,
+                                         VK_FORMAT_R8G8B8A8_UNORM,
+                                         "defaultNormal",
+                                         defaultImage
+        )
                                          .value();
     }
     {
@@ -1319,44 +1321,17 @@ auto AssetLibrary::loadDefaultAssets(
             index++;
         }
 
-        std::optional<std::unique_ptr<syzygy::Image>> uploadResult{
-            uploadImageToGPU(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                graphicsContext.universalQueue(),
-                submissionQueue,
-                VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                defaultImage
-            )
-        };
-        if (!uploadResult.has_value())
-        {
-            SZG_ERROR("Failed to upload default ORM texture to GPU.");
-            return std::nullopt;
-        }
-        std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
-            syzygy::ImageView::allocate(
-                graphicsContext.device(),
-                graphicsContext.allocator(),
-                std::move(*uploadResult.value()),
-                syzygy::ImageViewAllocationParameters{}
-            )
-        };
-        if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
-        {
-            SZG_ERROR(
-                "Failed to convert default ORM texture image into imageview."
-            );
-            return std::nullopt;
-        }
-
-        library.m_defaultORMMap =
-            library
-                .registerAsset<ImageView>(
-                    std::move(imageViewResult).value(), "texture_DefaultORM", {}
-                )
-                .value();
+        library.m_defaultORMMap = registerTextureFromRGBA(
+                                      library,
+                                      graphicsContext.device(),
+                                      graphicsContext.allocator(),
+                                      graphicsContext.universalQueue(),
+                                      submissionQueue,
+                                      VK_FORMAT_R8G8B8A8_UNORM,
+                                      "defaultORM",
+                                      defaultImage
+        )
+                                      .value();
     }
 
     std::filesystem::path const assetsRoot{ensureAbsolutePath("assets")};
