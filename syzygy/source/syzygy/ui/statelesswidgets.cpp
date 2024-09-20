@@ -48,7 +48,7 @@ void editorConfigurationWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     EditorConfiguration& value,
-    EditorConfiguration const& defaults
+    EditorConfiguration const& /*defaults*/
 )
 {
     UIWindowScope const window{UIWindowScope::beginDockable(

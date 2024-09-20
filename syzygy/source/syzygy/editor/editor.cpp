@@ -523,6 +523,8 @@ auto run() -> EditorResult
         }
 
         glm::vec3 const floatingPosition{glm::vec3{0.0F, -4.0F, 0.0F}};
+        glm::vec3 constexpr MESH_SCALE{5.0F};
+        glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
 
         scene.addMeshInstance(
             graphicsContext.device(),
@@ -532,9 +534,9 @@ auto run() -> EditorResult
             InstanceAnimation::None,
             "Floating1",
             std::array<Transform, 1>{Transform{
-                .translation = floatingPosition + glm::vec3{0.0F, 0.0F, 6.0F},
+                .translation = floatingPosition + MESH_OFFSET,
                 .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = glm::vec3{5.0F}
+                .scale = MESH_SCALE
             }}
         );
         scene.addMeshInstance(
@@ -545,9 +547,9 @@ auto run() -> EditorResult
             InstanceAnimation::None,
             "Floating2",
             std::array<Transform, 1>{Transform{
-                .translation = floatingPosition - glm::vec3{0.0F, 0.0F, 6.0F},
+                .translation = floatingPosition - MESH_OFFSET,
                 .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = glm::vec3{5.0F}
+                .scale = MESH_SCALE
             }}
         );
 

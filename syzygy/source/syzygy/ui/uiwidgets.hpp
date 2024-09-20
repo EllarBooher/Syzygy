@@ -31,18 +31,20 @@ public:
     auto operator=(UIWidget const&) -> UIWidget& = delete;
 
     void draw();
-    auto shouldClose() const -> bool;
+    [[nodiscard]] auto shouldClose() const -> bool;
     void close();
 
-    virtual ~UIWidget(){};
+    virtual ~UIWidget() = default;
 
 protected:
     UIWidget() = default;
     void moveNonVirtualMembers(UIWidget&& other);
 
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     bool m_open{};
 
     // TODO: Determine what should be stored in UIWindowScope instead
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     UIWindowSpecification m_specification;
 
 private:
@@ -75,13 +77,13 @@ struct ImageLoadingTask
 
 struct ImageLoaderWidget : UIWidget
 {
-    ImageLoaderWidget(ImageLoaderWidget&&);
-    auto operator=(ImageLoaderWidget&&) -> ImageLoaderWidget&;
+    ImageLoaderWidget(ImageLoaderWidget&&) noexcept;
+    auto operator=(ImageLoaderWidget&&) noexcept -> ImageLoaderWidget&;
 
     static auto create(UILayer&, std::span<std::filesystem::path const> paths)
         -> std::shared_ptr<ImageLoadingTask>;
 
-    ~ImageLoaderWidget() = default;
+    ~ImageLoaderWidget() override = default;
 
 private:
     ImageLoaderWidget() = default;

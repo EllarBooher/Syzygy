@@ -1382,7 +1382,7 @@ void AssetLibrary::processTasks(
     ImmediateSubmissionQueue const& submissionQueue
 )
 {
-    for (std::shared_ptr<ImageLoadingTask const> const& task : m_tasks)
+    for (std::shared_ptr<ImageLoadingTask> const& task : m_tasks)
     {
         if (task->status != TaskStatus::Success)
         {

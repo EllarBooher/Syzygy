@@ -10,7 +10,7 @@
 
 namespace syzygy
 {
-PropertyTable::PropertyTable() {}
+PropertyTable::PropertyTable() = default;
 
 void PropertyTable::nameColumn(std::string const& name)
 {

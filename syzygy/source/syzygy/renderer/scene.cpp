@@ -114,7 +114,7 @@ void Scene::calculateShadowBounds()
 
             for (glm::vec3 const vertex : vertices)
             {
-                glm::vec3 worldPosition{
+                glm::vec3 const worldPosition{
                     transformation * glm::vec4{vertex, 1.0F}
                 };
 
@@ -493,7 +493,8 @@ void tickMeshInstance(
         {
             syzygy::Transform& current{instance.transforms[index]};
 
-            current.eulerAnglesRadians.z += lastFrame.deltaTimeSeconds;
+            current.eulerAnglesRadians.z +=
+                static_cast<float>(lastFrame.deltaTimeSeconds);
         }
         break;
     default:
@@ -504,7 +505,7 @@ void tickMeshInstance(
     // rendering data for a scene
     for (size_t index{0}; index < instance.transforms.size(); index++)
     {
-        syzygy::Transform& transform{instance.transforms[index]};
+        syzygy::Transform const& transform{instance.transforms[index]};
 
         glm::mat4x4 const model{transform.toMatrix()};
         models[index] = model;

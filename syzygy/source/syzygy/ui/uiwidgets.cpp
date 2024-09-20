@@ -52,11 +52,11 @@ void UIWidget::moveNonVirtualMembers(UIWidget&& other)
 
 namespace syzygy
 {
-ImageLoaderWidget::ImageLoaderWidget(ImageLoaderWidget&& other)
+ImageLoaderWidget::ImageLoaderWidget(ImageLoaderWidget&& other) noexcept
 {
     *this = std::move(other);
 }
-auto ImageLoaderWidget::operator=(ImageLoaderWidget&& other)
+auto ImageLoaderWidget::operator=(ImageLoaderWidget&& other) noexcept
     -> ImageLoaderWidget&
 {
     moveNonVirtualMembers(std::move(static_cast<UIWidget&>(other)));
