@@ -368,7 +368,7 @@ auto uploadTextureFromImage(
     fastgltf::Image const& image,
     std::filesystem::path const& assetRoot,
     VkFormat const fileFormat
-) -> std::optional<syzygy::AssetRef<syzygy::ImageView>>
+) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
 {
     std::filesystem::path sourcePath{assetRoot};
     std::optional<ImageRGBA> imageConvertResult{std::nullopt};
@@ -557,7 +557,7 @@ auto uploadTextureFromIndex(
     size_t const textureIndex,
     std::filesystem::path const& assetRoot,
     VkFormat const fileFormat
-) -> std::optional<syzygy::AssetRef<syzygy::ImageView>>
+) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
 {
     if (textureIndex >= textureSourcesByGLTFIndex.size())
     {
@@ -613,7 +613,7 @@ auto uploadMaterialDataAsAssets(
 
         if (materialTextures.ORM.has_value())
         {
-            if (std::optional<syzygy::AssetRef<syzygy::ImageView>>
+            if (std::optional<syzygy::AssetShared<syzygy::ImageView>>
                     textureLoadResult{uploadTextureFromIndex(
                         destinationLibrary,
                         device,
@@ -626,7 +626,7 @@ auto uploadMaterialDataAsAssets(
                         VK_FORMAT_R8G8B8A8_UNORM
                     )};
                 !textureLoadResult.has_value()
-                || textureLoadResult.value().get().data == nullptr)
+                || textureLoadResult.value() == nullptr)
             {
                 SZG_WARNING(
                     "Material {}: Failed to upload ORM texture.", material.name
@@ -634,13 +634,13 @@ auto uploadMaterialDataAsAssets(
             }
             else
             {
-                materialData.ORM = textureLoadResult.value().get().data;
+                materialData.ORM = textureLoadResult.value();
             }
         }
 
         if (materialTextures.color.has_value())
         {
-            if (std::optional<syzygy::AssetRef<syzygy::ImageView>>
+            if (std::optional<syzygy::AssetShared<syzygy::ImageView>>
                     textureLoadResult{uploadTextureFromIndex(
                         destinationLibrary,
                         device,
@@ -653,7 +653,7 @@ auto uploadMaterialDataAsAssets(
                         VK_FORMAT_R8G8B8A8_SRGB
                     )};
                 !textureLoadResult.has_value()
-                || textureLoadResult.value().get().data == nullptr)
+                || textureLoadResult.value() == nullptr)
             {
                 SZG_WARNING(
                     "Material {}: Failed to upload color texture.",
@@ -662,13 +662,13 @@ auto uploadMaterialDataAsAssets(
             }
             else
             {
-                materialData.color = textureLoadResult.value().get().data;
+                materialData.color = textureLoadResult.value();
             }
         }
 
         if (materialTextures.normal.has_value())
         {
-            if (std::optional<syzygy::AssetRef<syzygy::ImageView>>
+            if (std::optional<syzygy::AssetShared<syzygy::ImageView>>
                     textureLoadResult{uploadTextureFromIndex(
                         destinationLibrary,
                         device,
@@ -681,7 +681,7 @@ auto uploadMaterialDataAsAssets(
                         VK_FORMAT_R8G8B8A8_UNORM
                     )};
                 !textureLoadResult.has_value()
-                || textureLoadResult.value().get().data == nullptr)
+                || textureLoadResult.value() == nullptr)
             {
                 SZG_WARNING(
                     "Material {}: Failed to upload normal texture.",
@@ -690,7 +690,7 @@ auto uploadMaterialDataAsAssets(
             }
             else
             {
-                materialData.normal = textureLoadResult.value().get().data;
+                materialData.normal = textureLoadResult.value();
             }
         }
     }
@@ -956,7 +956,7 @@ auto AssetLibrary::loadTextureFromPath(
     VkFormat const fileFormat,
     std::filesystem::path const& filePath,
     VkImageUsageFlags const additionalFlags
-) -> std::optional<AssetRef<ImageView>>
+) -> std::optional<AssetShared<ImageView>>
 {
     SZG_INFO("Loading Texture from '{}'", filePath.string());
     std::optional<AssetFile> const fileResult{loadAssetFile(filePath)};
@@ -1070,9 +1070,9 @@ void AssetLibrary::loadGLTFFromPath(
     fastgltf::Asset const& gltf{gltfLoadResult.get()};
 
     MaterialData const defaultMaterialData{
-        .ORM = m_textures[m_defaultORMIndex].data,
-        .normal = m_textures[m_defaultNormalIndex].data,
-        .color = m_textures[m_defaultColorIndex].data,
+        .ORM = m_defaultORMMap,
+        .normal = m_defaultNormalMap,
+        .color = m_defaultColorMap,
     };
 
     std::vector<MaterialData> const materialDataByGLTFIndex{
@@ -1226,10 +1226,13 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultColorIndex = library.m_textures.size();
-        assert(library.registerAsset<ImageView>(
-            std::move(imageViewResult).value(), "texture_DefaultColor", {}
-        ));
+        library.m_defaultColorMap = library
+                                        .registerAsset<ImageView>(
+                                            std::move(imageViewResult).value(),
+                                            "texture_DefaultColor",
+                                            {}
+                                        )
+                                        .value();
     }
     {
         // Default normal texture
@@ -1279,10 +1282,13 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultNormalIndex = library.m_textures.size();
-        assert(library.registerAsset<ImageView>(
-            std::move(imageViewResult).value(), "texture_DefaultNormal", {}
-        ));
+        library.m_defaultNormalMap = library
+                                         .registerAsset<ImageView>(
+                                             std::move(imageViewResult).value(),
+                                             "texture_DefaultNormal",
+                                             {}
+                                         )
+                                         .value();
     }
     {
         // Default ORM texture
@@ -1342,14 +1348,12 @@ auto AssetLibrary::loadDefaultAssets(
             return std::nullopt;
         }
 
-        library.m_defaultORMIndex = library.m_textures.size();
-        assert(
+        library.m_defaultORMMap =
             library
                 .registerAsset<ImageView>(
                     std::move(imageViewResult).value(), "texture_DefaultORM", {}
                 )
-                .has_value()
-        );
+                .value();
     }
 
     std::filesystem::path const assetsRoot{ensureAbsolutePath("assets")};

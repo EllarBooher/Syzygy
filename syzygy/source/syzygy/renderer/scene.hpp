@@ -113,7 +113,7 @@ struct MeshInstanced
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
     std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
 
-    void setMesh(AssetRef<Mesh>);
+    void setMesh(AssetPtr<Mesh>);
     void prepareDescriptors(VkDevice, DescriptorAllocator&);
 
     [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
@@ -123,7 +123,7 @@ struct MeshInstanced
 private:
     bool m_surfaceDescriptorsDirty{false};
 
-    Asset<Mesh> m_mesh{};
+    AssetPtr<Mesh> m_mesh{};
     std::vector<MaterialDescriptors> m_surfaceDescriptors{};
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
@@ -168,7 +168,7 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<Mesh>>,
+        std::optional<AssetPtr<Mesh>> const&,
         InstanceAnimation,
         std::string const& name,
         std::span<Transform const> transforms,
@@ -180,13 +180,13 @@ public:
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<Mesh>> initialMesh
+        std::optional<AssetPtr<Mesh>> const& initialMesh
     ) -> Scene;
     static auto diagonalWaveScene(
         VkDevice,
         VmaAllocator,
         DescriptorAllocator&,
-        std::optional<AssetRef<Mesh>> initialMesh
+        std::optional<AssetPtr<Mesh>> const& initialMesh
     ) -> Scene;
 
     void handleInput(TickTiming, InputSnapshot const&);

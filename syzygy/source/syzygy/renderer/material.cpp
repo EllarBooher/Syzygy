@@ -135,42 +135,46 @@ auto syzygy::MaterialDescriptors::create(
 
 void syzygy::MaterialDescriptors::write(MaterialData const& material) const
 {
-    if (material.color != nullptr)
-    {
-        VkDescriptorImageInfo const colorImageInfo{
-            .sampler = m_sampler,
-            .imageView = material.color->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
-        VkDescriptorImageInfo const normalMapInfo{
-            .sampler = m_sampler,
-            .imageView = material.normal->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
-        VkDescriptorImageInfo const ormMapInfo{
-            .sampler = m_sampler,
-            .imageView = material.ORM->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
-        std::array<VkDescriptorImageInfo, 3> imageInfos{
-            colorImageInfo, normalMapInfo, ormMapInfo
-        };
+    // TODO: Figure out better fallbacks/defaults for when assets are
+    // unexpectadly deleted.
+    assert(
+        !material.color.expired() && !material.normal.expired()
+        && !material.ORM.expired()
+    );
 
-        VkWriteDescriptorSet const writeInfo{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = m_colorSet,
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = imageInfos.size(),
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = imageInfos.data(),
-            .pBufferInfo = nullptr,
-            .pTexelBufferView = nullptr,
-        };
+    VkDescriptorImageInfo const colorImageInfo{
+        .sampler = m_sampler,
+        .imageView = material.color.lock()->data->view(),
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    };
+    VkDescriptorImageInfo const normalMapInfo{
+        .sampler = m_sampler,
+        .imageView = material.normal.lock()->data->view(),
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    };
+    VkDescriptorImageInfo const ormMapInfo{
+        .sampler = m_sampler,
+        .imageView = material.ORM.lock()->data->view(),
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    };
+    std::array<VkDescriptorImageInfo, 3> imageInfos{
+        colorImageInfo, normalMapInfo, ormMapInfo
+    };
 
-        vkUpdateDescriptorSets(m_device, 1, &writeInfo, 0, nullptr);
-    }
+    VkWriteDescriptorSet const writeInfo{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_colorSet,
+        .dstBinding = 0,
+        .dstArrayElement = 0,
+        .descriptorCount = imageInfos.size(),
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = imageInfos.data(),
+        .pBufferInfo = nullptr,
+        .pTexelBufferView = nullptr,
+    };
+
+    vkUpdateDescriptorSets(m_device, 1, &writeInfo, 0, nullptr);
 }
 
 void syzygy::MaterialDescriptors::bind(

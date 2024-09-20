@@ -145,7 +145,7 @@ void Scene::addMeshInstance(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<Mesh>> const mesh,
+    std::optional<AssetPtr<Mesh>> const& mesh,
     InstanceAnimation const animation,
     std::string const& name,
     std::span<Transform const> const transforms,
@@ -224,14 +224,10 @@ auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<Mesh>> const initialMesh
+    std::optional<AssetPtr<Mesh>> const& initialMesh
 ) -> Scene
 {
     Scene scene{};
-
-    std::shared_ptr<Mesh> const pMesh{
-        initialMesh.has_value() ? initialMesh.value().get().data : nullptr
-    };
 
     { // Floor
         std::array<Transform, 1> const transform{Transform{
@@ -327,17 +323,13 @@ auto Scene::diagonalWaveScene(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetRef<Mesh>> const initialMesh
+    std::optional<AssetPtr<Mesh>> const& initialMesh
 ) -> Scene
 {
     Scene scene{};
 
     int32_t constexpr COORDINATE_MIN{-40};
     int32_t constexpr COORDINATE_MAX{40};
-
-    std::shared_ptr<Mesh> const pMesh{
-        initialMesh.has_value() ? initialMesh.value().get().data : nullptr
-    };
 
     { // Floor
         std::array<Transform, 1> const transform{Transform{
@@ -780,14 +772,15 @@ auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
     });
 }
 
-void MeshInstanced::setMesh(AssetRef<Mesh> meshAsset)
+void MeshInstanced::setMesh(AssetPtr<Mesh> meshAsset)
 {
-    m_mesh = meshAsset.get();
+    m_mesh = std::move(meshAsset);
     m_surfaceDescriptorsDirty = true;
 
-    if (m_mesh.data != nullptr)
+    if (AssetShared<Mesh> const pMesh{m_mesh.lock()};
+        pMesh != nullptr && pMesh->data != nullptr)
     {
-        Mesh const& mesh{*m_mesh.data};
+        Mesh const& mesh{*pMesh->data};
         AABB const meshBounds{mesh.vertexBounds};
 
         float const smallestDimension{glm::compMin(meshBounds.halfExtent)};
@@ -809,12 +802,13 @@ void MeshInstanced::prepareDescriptors(
     VkDevice const device, DescriptorAllocator& descriptorAllocator
 )
 {
-    if (!m_surfaceDescriptorsDirty || m_mesh.data == nullptr)
+    if (!m_surfaceDescriptorsDirty || m_mesh.lock() == nullptr
+        || m_mesh.lock()->data == nullptr)
     {
         return;
     }
 
-    Mesh const& mesh{*m_mesh.data};
+    Mesh const& mesh{*m_mesh.lock()->data};
 
     m_surfaceDescriptorsDirty = false;
 
@@ -846,12 +840,12 @@ void MeshInstanced::prepareDescriptors(
 
 auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
 {
-    if (m_mesh.data == nullptr)
+    if (m_mesh.lock() == nullptr)
     {
         return std::nullopt;
     }
 
-    return m_mesh;
+    return *m_mesh.lock();
 }
 
 auto MeshInstanced::getMeshDescriptors() const

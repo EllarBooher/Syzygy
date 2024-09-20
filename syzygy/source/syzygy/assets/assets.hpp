@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
@@ -51,30 +52,13 @@ struct AssetFile
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>;
 
-// TODO: ID should act as a unique key into a table of metadatas, instead of
-// duplicating this data everywhere AssetMetadata is passed
-struct AssetMetadata
-{
-    std::string displayName{};
-    std::string fileLocalPath{};
-    syzygy::UUID id{};
-};
-
-template <typename T> struct Asset
-{
-    AssetMetadata metadata{};
-    std::shared_ptr<T> data{};
-};
-
-template <typename T> using AssetRef = std::reference_wrapper<Asset<T> const>;
-
 struct AssetLibrary
 {
 public:
     template <typename T>
-    [[nodiscard]] auto fetchAssets() -> std::vector<AssetRef<T>>
+    [[nodiscard]] auto fetchAssets() -> std::vector<AssetPtr<T>>
     {
-        std::vector<AssetRef<T>> assets{};
+        std::vector<AssetPtr<T>> assets{};
 
         if constexpr (std::is_same_v<T, ImageView>)
         {
@@ -96,14 +80,46 @@ public:
         return assets;
     }
 
-    // WARNING! This may invalidate existing references/pointers to assets (but
-    // not the data they represent).
+    template <typename T>
+    [[nodiscard]] auto fetchAssetRefs() -> std::vector<AssetRef<T>>
+    {
+        std::vector<AssetRef<T>> assets{};
+
+        if constexpr (std::is_same_v<T, ImageView>)
+        {
+            assets.reserve(m_textures.size());
+            for (auto& texture : m_textures)
+            {
+                if (texture == nullptr)
+                {
+                    continue;
+                }
+                assets.emplace_back(*texture);
+            }
+        }
+        else if constexpr (std::is_same_v<T, Mesh>)
+        {
+            assets.reserve(m_meshes.size());
+            for (auto& mesh : m_meshes)
+            {
+                if (mesh == nullptr)
+                {
+                    continue;
+                }
+                assets.emplace_back(*mesh);
+            }
+        }
+
+        return assets;
+    }
+
+    // WARNING! This may invalidate existing references/pointers to assets
     template <typename T>
     auto registerAsset(
         std::shared_ptr<T> data,
         std::string const& name,
         std::filesystem::path const& sourcePath
-    ) -> std::optional<AssetRef<T>>
+    ) -> std::optional<AssetShared<T>>
     {
         Asset<T> asset{
             .metadata =
@@ -117,12 +133,12 @@ public:
 
         if constexpr (std::is_same_v<T, ImageView>)
         {
-            m_textures.push_back(std::move(asset));
+            m_textures.push_back(std::make_shared<Asset<T>>(std::move(asset)));
             return m_textures.back();
         }
         else if constexpr (std::is_same_v<T, Mesh>)
         {
-            m_meshes.push_back(std::move(asset));
+            m_meshes.push_back(std::make_shared<Asset<T>>(std::move(asset)));
             return m_meshes.back();
         }
 
@@ -151,7 +167,7 @@ public:
         VkFormat fileFormat,
         std::filesystem::path const& filePath,
         VkImageUsageFlags additionalFlags
-    ) -> std::optional<AssetRef<ImageView>>;
+    ) -> std::optional<AssetShared<ImageView>>;
 
     void loadTexturesDialog(PlatformWindow const&, UILayer&);
 
@@ -185,12 +201,18 @@ private:
 
     std::unordered_map<std::string, size_t> m_nameDuplicationCounters{};
 
-    size_t m_defaultColorIndex{0};
-    size_t m_defaultNormalIndex{0};
-    size_t m_defaultORMIndex{0};
-    std::vector<Asset<ImageView>> m_textures{};
+    // The asset library stores pointers to all loaded/active assets, to keep
+    // them alive for the lifetime of the library.
+    // Asset library keeps shared_ptr<Asset<T>>, while the rest of the
+    // application gets shared_ptr<Asset<T> const>. This allows interior
+    // mutability of the asset data, but not metadata/pointers to data/metadata.
 
-    std::vector<Asset<Mesh>> m_meshes{};
+    AssetShared<ImageView> m_defaultColorMap{};
+    AssetShared<ImageView> m_defaultNormalMap{};
+    AssetShared<ImageView> m_defaultORMMap{};
+    std::vector<std::shared_ptr<Asset<ImageView>>> m_textures{};
+
+    std::vector<std::shared_ptr<Asset<Mesh>>> m_meshes{};
 
     std::vector<std::shared_ptr<ImageLoadingTask>> m_tasks{};
 };

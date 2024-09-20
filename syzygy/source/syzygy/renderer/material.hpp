@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include <memory>
@@ -8,12 +9,19 @@
 namespace syzygy
 {
 struct DescriptorAllocator;
-struct MaterialData;
 struct ImageView;
 } // namespace syzygy
 
 namespace syzygy
 {
+struct MaterialData
+{
+    // Occlusion Roughness Metallic texture, stored RGB in that respective order
+    AssetPtr<ImageView> ORM{};
+    AssetPtr<ImageView> normal{};
+    AssetPtr<ImageView> color{};
+};
+
 struct MaterialDescriptors
 {
 public:
@@ -48,13 +56,4 @@ private:
     VkDescriptorSetLayout m_colorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_colorSet{VK_NULL_HANDLE};
 };
-
-struct MaterialData
-{
-    // Occlusion Roughness Metallic texture, stored RGB in that respective order
-    std::shared_ptr<ImageView> ORM{};
-    std::shared_ptr<ImageView> normal{};
-    std::shared_ptr<ImageView> color{};
-};
-
 } // namespace syzygy

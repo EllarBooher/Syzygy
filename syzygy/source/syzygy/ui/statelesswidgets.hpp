@@ -39,7 +39,7 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,
-    std::span<AssetRef<Mesh> const> meshes
+    std::span<AssetPtr<Mesh> const> meshes
 );
 
 template <typename T> struct WindowResult

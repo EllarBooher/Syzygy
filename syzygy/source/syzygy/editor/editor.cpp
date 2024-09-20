@@ -28,8 +28,8 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
-#include "syzygy/ui/texturedisplay.hpp"
 #include "syzygy/ui/statelesswidgets.hpp"
+#include "syzygy/ui/texturedisplay.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
 #include <chrono>
@@ -512,8 +512,8 @@ auto run() -> EditorResult
     {
         auto const loadedMeshes{assetLibrary.fetchAssets<Mesh>()};
 
-        std::optional<AssetRef<Mesh>> floatingMesh{};
-        std::optional<AssetRef<Mesh>> floorMesh{};
+        std::optional<AssetPtr<Mesh>> floatingMesh{};
+        std::optional<AssetPtr<Mesh>> floorMesh{};
         if (!loadedMeshes.empty())
         {
             // Assume we loaded vkguide's mesh with a cube, sphere, and suzanne
@@ -699,7 +699,7 @@ auto run() -> EditorResult
                     "Texture Viewer",
                     dockingLayout.right,
                     currentFrame.mainCommandBuffer,
-                    assetLibrary.fetchAssets<ImageView>()
+                    assetLibrary.fetchAssetRefs<ImageView>()
                 )
             };
             textureDisplayResult.loadTexturesRequested)
