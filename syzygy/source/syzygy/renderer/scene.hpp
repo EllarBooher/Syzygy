@@ -1,13 +1,13 @@
 #pragma once
 
 #include "syzygy/assets/assets.hpp"
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/material.hpp"
-#include <functional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <memory>
@@ -117,12 +117,22 @@ struct MeshInstanced
     void prepareDescriptors(VkDevice, DescriptorAllocator&);
 
     [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
+
+    // Returns only as many overrides as there are surfaces in the current mesh
+    // May return empty if no overrides are initialized.
+    [[nodiscard]] auto getMaterialOverrides() const
+        -> std::span<MaterialData const>;
+    void setMaterialOverrides(size_t surface, MaterialData const&);
+
     [[nodiscard]] auto getMeshDescriptors() const
         -> std::span<MaterialDescriptors const>;
 
 private:
     bool m_surfaceDescriptorsDirty{false};
 
+    // The mesh will use the materials in this structure first, then defer to
+    // the base asset's materials.
+    std::vector<MaterialData> m_surfaceMaterialOverrides{};
     AssetPtr<Mesh> m_mesh{};
     std::vector<MaterialDescriptors> m_surfaceDescriptors{};
 };

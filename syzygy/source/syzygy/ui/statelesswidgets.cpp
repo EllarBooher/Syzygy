@@ -1,12 +1,15 @@
 #include "statelesswidgets.hpp"
 
 #include "syzygy/assets/assets.hpp"
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/core/ringbuffer.hpp"
+#include "syzygy/core/uuid.hpp"
 #include "syzygy/editor/editorconfig.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/material.hpp"
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include "syzygy/ui/uirectangle.hpp"
@@ -399,35 +402,43 @@ void uiInstanceAnimation(syzygy::InstanceAnimation& animation)
         ImGui::EndCombo();
     }
 }
-auto uiMeshSelection(
-    std::optional<syzygy::AssetRef<syzygy::Mesh>> const currentMesh,
-    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes
-) -> std::optional<syzygy::AssetPtr<syzygy::Mesh>>
+template <typename T>
+auto uiAssetSelection(
+    std::optional<syzygy::AssetRef<T>> const& currentAsset,
+    std::span<syzygy::AssetPtr<T> const> const possibleAssets
+) -> std::optional<syzygy::AssetPtr<T>>
 {
-    ImGui::BeginDisabled(meshes.empty());
+    ImGui::BeginDisabled(possibleAssets.empty());
 
-    std::optional<syzygy::AssetPtr<syzygy::Mesh>> newMesh{std::nullopt};
+    std::optional<syzygy::AssetPtr<T>> newAsset{std::nullopt};
 
-    bool const currentMeshIsValid{currentMesh.has_value()};
+    bool const currentAssetIsValid{currentAsset.has_value()};
     std::string const previewLabel{
-        currentMeshIsValid ? currentMesh.value().get().metadata.displayName
-                           : "None"
+        currentAssetIsValid ? currentAsset.value().get().metadata.displayName
+                            : "None"
     };
     if (ImGui::BeginCombo("##meshSelection", previewLabel.c_str()))
     {
         size_t const index{0};
-        for (auto const& pAsset : meshes)
+        {
+            bool const noneSelected{!currentAssetIsValid};
+
+            if (ImGui::Selectable("None", !currentAssetIsValid))
+            {
+                newAsset = syzygy::AssetPtr<T>{};
+            }
+        }
+        for (auto const& pAsset : possibleAssets)
         {
             if (pAsset.lock() == nullptr)
             {
                 continue;
             }
-            syzygy::Asset<syzygy::Mesh> const& asset{*pAsset.lock()};
+            syzygy::Asset<T> const& asset{*pAsset.lock()};
 
-            syzygy::Mesh const& mesh{*asset.data};
             bool const selected{
-                currentMeshIsValid
-                && asset.metadata.id == currentMesh.value().get().metadata.id
+                currentAssetIsValid
+                && asset.metadata.id == currentAsset.value().get().metadata.id
             };
 
             if (ImGui::Selectable(
@@ -436,7 +447,7 @@ auto uiMeshSelection(
                     selected
                 ))
             {
-                newMesh = pAsset;
+                newAsset = pAsset;
             }
         }
         ImGui::EndCombo();
@@ -444,13 +455,166 @@ auto uiMeshSelection(
 
     ImGui::EndDisabled();
 
-    return newMesh;
+    return newAsset;
+}
+
+void uiAssetMetadata(
+    syzygy::PropertyTable& table, syzygy::AssetMetadata const& metadata
+)
+{
+    uint64_t const id{static_cast<uint64_t>(metadata.id)};
+
+    table.rowChildPropertyBegin("Asset Metadata");
+    table.rowReadOnlyTextInput("Display Name", metadata.displayName, false);
+    table.rowReadOnlyTextInput(
+        "Global Identifier", fmt::format("{:x}", id), false
+    );
+    table.rowReadOnlyTextInput("Path on Disk", metadata.fileLocalPath, false);
+    table.childPropertyEnd();
+}
+
+template <typename T>
+void uiAssetReadOnlyNameField(
+    syzygy::PropertyTable& table,
+    std::string const& rowName,
+    syzygy::AssetPtr<T> const& asset
+)
+{
+    table.rowReadOnlyTextInput(
+        rowName,
+        asset.lock() == nullptr ? "None" : asset.lock()->metadata.displayName,
+        false
+    );
+}
+
+void uiMesh(syzygy::PropertyTable& table, syzygy::Mesh const& mesh)
+{
+    table.rowChildPropertyBegin("Mesh AABB");
+    table.rowReadOnlyVec3("Center", mesh.vertexBounds.center);
+    table.rowReadOnlyVec3("Half-Extent", mesh.vertexBounds.halfExtent);
+    table.childPropertyEnd();
+
+    table.rowChildPropertyBegin("Mesh Surfaces");
+
+    size_t surfaceIndex{0};
+    for (syzygy::GeometrySurface const& surface : mesh.surfaces)
+    {
+        table.rowChildPropertyBegin(fmt::format("Surface {}", surfaceIndex));
+
+        table.rowReadOnlyInteger(
+            "Index Count", static_cast<int32_t>(surface.indexCount)
+        );
+
+        uiAssetReadOnlyNameField(
+            table, "Occlusion-Roughness-Metallic", surface.material.ORM
+        );
+        uiAssetReadOnlyNameField(table, "Normal", surface.material.normal);
+        uiAssetReadOnlyNameField(table, "Color", surface.material.color);
+
+        table.childPropertyEnd();
+        surfaceIndex++;
+    }
+
+    table.childPropertyEnd();
+}
+
+void uiMeshMaterialOverrides(
+    syzygy::PropertyTable& table,
+    syzygy::MeshInstanced& instance,
+    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
+)
+{
+    table.rowChildPropertyBegin("Material Overrides");
+
+    size_t surface{0};
+    for (syzygy::MaterialData const& materialOverride :
+         instance.getMaterialOverrides())
+    {
+        table.rowChildPropertyBegin(fmt::format("Surface {}", surface));
+
+        bool changed{false};
+
+        syzygy::MaterialData newOverride{materialOverride};
+
+        table.rowCustom(
+            "Occlusion-Roughness-Metallic",
+            [&]()
+        {
+            auto newORM{uiAssetSelection<syzygy::ImageView>(
+                syzygy::assetPtrToRef(newOverride.ORM), textures
+            )};
+            if (newORM.has_value())
+            {
+                newOverride.ORM = newORM.value();
+                changed = true;
+            }
+        },
+            newOverride.ORM.lock() != nullptr,
+            [&]()
+        {
+            newOverride.ORM.reset();
+            changed = true;
+        }
+        );
+        table.rowCustom(
+            "Normal",
+            [&]()
+        {
+            auto newNormal{uiAssetSelection<syzygy::ImageView>(
+                syzygy::assetPtrToRef(newOverride.normal), textures
+            )};
+            if (newNormal.has_value())
+            {
+                newOverride.normal = newNormal.value();
+                changed = true;
+            }
+        },
+            newOverride.normal.lock() != nullptr,
+            [&]()
+        {
+            newOverride.normal.reset();
+            changed = true;
+        }
+        );
+        table.rowCustom(
+            "Color",
+            [&]()
+        {
+            auto newColor{uiAssetSelection<syzygy::ImageView>(
+                syzygy::assetPtrToRef(newOverride.color), textures
+            )};
+            if (newColor.has_value())
+            {
+                newOverride.color = newColor.value();
+                changed = true;
+            }
+        },
+            newOverride.color.lock() != nullptr,
+            [&]()
+        {
+            newOverride.color.reset();
+            changed = true;
+        }
+        );
+
+        if (changed)
+        {
+            instance.setMaterialOverrides(surface, newOverride);
+        }
+
+        surface++;
+
+        table.childPropertyEnd();
+    }
+
+    table.childPropertyEnd();
 }
 
 void uiSceneGeometry(
     syzygy::AABB& bounds,
     std::span<syzygy::MeshInstanced> const geometry,
-    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes
+    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
+    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
 )
 {
     syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
@@ -481,19 +645,22 @@ void uiSceneGeometry(
         table.rowBoolean("Render", instance.render, true);
         table.rowBoolean("Casts Shadow", instance.castsShadow, true);
 
-        table.rowChildPropertyBegin("Transforms");
-        for (size_t transformIndex{0};
-             transformIndex
-             < std::min(instance.transforms.size(), instance.originals.size());
-             transformIndex++)
         {
-            uiTransform(
-                table,
-                instance.transforms[transformIndex],
-                instance.originals[transformIndex]
-            );
+            table.rowChildPropertyBegin("Transforms");
+            for (size_t transformIndex{0};
+                 transformIndex < std::min(
+                     instance.transforms.size(), instance.originals.size()
+                 );
+                 transformIndex++)
+            {
+                uiTransform(
+                    table,
+                    instance.transforms[transformIndex],
+                    instance.originals[transformIndex]
+                );
+            }
+            table.childPropertyEnd();
         }
-        table.childPropertyEnd();
 
         table.rowCustom(
             "Instance Animation",
@@ -503,24 +670,31 @@ void uiSceneGeometry(
             "Mesh Used",
             [&]()
         {
-            auto newMesh{uiMeshSelection(instance.getMesh(), meshes)};
+            auto newMesh{
+                uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
+            };
             if (newMesh.has_value())
             {
                 instance.setMesh(newMesh.value());
             }
         }
         );
+        if (auto instanceMeshRef{instance.getMesh()};
+            instanceMeshRef.has_value())
+        {
+            table.childPropertyBegin(false);
+            syzygy::Asset<syzygy::Mesh> const& meshAsset{
+                instanceMeshRef.value().get()
+            };
+            uiAssetMetadata(table, meshAsset.metadata);
+            if (meshAsset.data != nullptr)
+            {
+                uiMesh(table, *meshAsset.data);
+            }
+            uiMeshMaterialOverrides(table, instance, textures);
 
-        syzygy::AABB const meshBounds{
-            instance.getMesh().has_value()
-                    && instance.getMesh().value().get().data != nullptr
-                ? instance.getMesh().value().get().data->vertexBounds
-                : syzygy::AABB{}
-        };
-        table.rowChildPropertyBegin("Mesh AABB");
-        table.rowReadOnlyVec3("Center", meshBounds.center);
-        table.rowReadOnlyVec3("Half-Extent", meshBounds.halfExtent);
-        table.childPropertyEnd();
+            table.childPropertyEnd();
+        }
 
         table.childPropertyEnd();
     }
@@ -535,7 +709,8 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     Scene& scene,
-    std::span<AssetPtr<Mesh> const> const meshes
+    std::span<AssetPtr<Mesh> const> const meshes,
+    std::span<AssetPtr<ImageView> const> const textures
 )
 {
     UIWindowScope const window{
@@ -609,7 +784,7 @@ void sceneControlsWindow(
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
         auto sceneBounds{scene.shadowBounds()};
-        uiSceneGeometry(sceneBounds, scene.geometry(), meshes);
+        uiSceneGeometry(sceneBounds, scene.geometry(), meshes, textures);
     }
 }
 

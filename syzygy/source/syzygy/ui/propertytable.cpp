@@ -292,6 +292,32 @@ auto PropertyTable::rowCustom(
     return *this;
 }
 
+auto PropertyTable::rowCustom(
+    std::string const& name,
+    std::function<void()> const& contentCallback,
+    bool const resetVisible,
+    std::function<void()> const& resetCallback
+) -> PropertyTable&
+{
+    if (!Self::rowBegin(name))
+    {
+        return *this;
+    }
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+    contentCallback();
+
+    if (Self::resetColumn(name, resetVisible))
+    {
+        resetCallback();
+    }
+
+    Self::rowEnd();
+
+    return *this;
+}
+
 auto PropertyTable::rowTextInput(
     std::string const& name, std::string& value, std::string const& resetValue
 ) -> PropertyTable&

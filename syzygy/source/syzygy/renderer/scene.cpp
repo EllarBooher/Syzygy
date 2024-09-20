@@ -9,6 +9,8 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/lights.hpp"
 #include <array>
+#include <cassert>
+#include <functional>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
 #include <glm/ext/vector_relational.hpp>
@@ -830,12 +832,25 @@ void MeshInstanced::prepareDescriptors(
         m_surfaceDescriptors.push_back(std::move(descriptorsResult).value());
     }
 
+    m_surfaceMaterialOverrides.resize(mesh.surfaces.size());
+
     for (size_t index{0}; index < mesh.surfaces.size(); index++)
     {
         GeometrySurface const& surface{mesh.surfaces[index]};
         MaterialDescriptors const& descriptors{m_surfaceDescriptors[index]};
+        MaterialData const& overrides{m_surfaceMaterialOverrides[index]};
 
-        descriptors.write(surface.material);
+        MaterialData const activeMaterials{
+            .ORM = overrides.ORM.lock() != nullptr ? overrides.ORM
+                                                   : surface.material.ORM,
+            .normal = overrides.normal.lock() != nullptr
+                        ? overrides.normal
+                        : surface.material.normal,
+            .color = overrides.color.lock() != nullptr ? overrides.color
+                                                       : surface.material.color,
+        };
+
+        descriptors.write(activeMaterials);
     }
 }
 
@@ -847,6 +862,35 @@ auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
     }
 
     return *m_mesh.lock();
+}
+
+auto MeshInstanced::getMaterialOverrides() const
+    -> std::span<MaterialData const>
+{
+    std::shared_ptr<Asset<Mesh> const> const mesh{m_mesh.lock()};
+    if (mesh == nullptr || mesh->data == nullptr)
+    {
+        return {};
+    }
+
+    return std::span<MaterialData const>{
+        m_surfaceMaterialOverrides.begin(),
+        m_surfaceMaterialOverrides.begin()
+            + static_cast<std::int64_t>(mesh->data->surfaces.size())
+    };
+}
+
+void MeshInstanced::setMaterialOverrides(
+    size_t const surface, MaterialData const& materialOverride
+)
+{
+    m_surfaceDescriptorsDirty = true;
+    if (surface >= m_surfaceMaterialOverrides.size())
+    {
+        return;
+    }
+
+    m_surfaceMaterialOverrides[surface] = materialOverride;
 }
 
 auto MeshInstanced::getMeshDescriptors() const

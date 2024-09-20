@@ -140,6 +140,15 @@ public:
         std::string const& name, std::function<void()> const& contentCallback
     ) -> PropertyTable&;
 
+    // Adds a row that runs a callback for the content column + reset column.
+    // Useful to render custom UI.
+    auto rowCustom(
+        std::string const& name,
+        std::function<void()> const& contentCallback,
+        bool resetVisible,
+        std::function<void()> const& resetCallback
+    ) -> PropertyTable&;
+
     // Adds a row that contains an interactable text entry,
     // alongside a reset button.
     auto rowTextInput(

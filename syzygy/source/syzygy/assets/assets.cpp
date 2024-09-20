@@ -6,10 +6,12 @@
 #include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/platformutils.hpp"
+#include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/ui/uiwidgets.hpp"
 #include <algorithm>
 #include <cassert>
 #include <fastgltf/core.hpp>
@@ -19,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <glm/common.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>

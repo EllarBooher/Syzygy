@@ -6,11 +6,8 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
-#include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/material.hpp"
-#include "syzygy/ui/uiwidgets.hpp"
 #include <filesystem>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -24,6 +21,7 @@ struct UILayer;
 struct GraphicsContext;
 struct ImmediateSubmissionQueue;
 struct ImageView;
+struct ImageLoadingTask;
 } // namespace syzygy
 
 namespace syzygy
@@ -51,6 +49,17 @@ struct AssetFile
 
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>;
+
+template <typename T>
+auto assetPtrToRef(AssetPtr<T> const& asset) -> std::optional<AssetRef<T>>
+{
+    if (asset.lock() == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *asset.lock();
+}
 
 struct AssetLibrary
 {
