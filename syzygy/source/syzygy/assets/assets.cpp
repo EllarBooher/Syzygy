@@ -1574,9 +1574,9 @@ auto AssetLibrary::loadDefaultAssets(
             .indexCount = static_cast<uint32_t>(indices.size()),
             .material =
                 MaterialData{
-                    .color = library.m_defaultColorMap,
+                    .ORM = library.m_defaultORMMap,
                     .normal = library.m_defaultNormalMap,
-                    .ORM = library.m_defaultORMMap
+                    .color = library.m_defaultColorMap,
                 }
         }};
 
