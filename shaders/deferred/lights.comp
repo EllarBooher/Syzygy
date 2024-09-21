@@ -132,7 +132,7 @@ struct PBRTexel
 	vec3 subscatteringColor;
 	vec3 normalReflectance;
 	float occlusion;
-	float roughness;
+	float specularPower;
 	float metallic;
 };
 
@@ -143,7 +143,7 @@ float max3(const vec3 rgb)
 
 PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
 {
-	const float maxRoughness = 160;
+	const float specularPower = 160;
 
 	const vec3 dialectricReflectence = vec3(0.04);
 	const vec3 metallicReflectence = vec3(0.95) * gbuffer.specularColor.rgb / max3(gbuffer.specularColor.rgb); 
@@ -156,7 +156,7 @@ PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
 		/* subscatteringColor = */ gbuffer.diffuseColor.rgb,
 		/* normalReflectance = */ mix(dialectricReflectence, metallicReflectence, metallic),
 		/* occlusion = */ gbuffer.occlusionRoughnessMetallic.r,
-		/* roughness = */ pow(maxRoughness, gbuffer.occlusionRoughnessMetallic.g),
+		/* roughness = */ pow(specularPower, 1.0 - gbuffer.occlusionRoughnessMetallic.g),
 		/* metallic = */ metallic
 	);
 }
@@ -230,7 +230,7 @@ vec3 specularBRDF(const PBRTexel material, const vec3 lightDirection, const vec3
 {
 	const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
 
-	const float specularPower = material.roughness;
+	const float specularPower = material.specularPower;
 	const float microfacetDistribution = pow(clamp(dot(halfwayDirection, material.normal), 0.0,1.0), specularPower);
 
 	// Without this term, the overall brightness decreases as roughness increases
