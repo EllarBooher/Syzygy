@@ -75,6 +75,7 @@ auto ImageView::allocate(
         .image = image.image(),
         .viewType = viewParameters.viewType,
         .format = viewParameters.formatOverride.value_or(image.format()),
+        .components = viewParameters.components,
         .subresourceRange = viewParameters.subresourceRange,
     };
 

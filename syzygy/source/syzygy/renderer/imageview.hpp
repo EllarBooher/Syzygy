@@ -24,6 +24,12 @@ struct ImageViewAllocationParameters
         .baseArrayLayer = 0,
         .layerCount = VK_REMAINING_ARRAY_LAYERS,
     };
+    VkComponentMapping components{
+        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .a = VK_COMPONENT_SWIZZLE_IDENTITY
+    };
 };
 
 struct ImageViewMemory

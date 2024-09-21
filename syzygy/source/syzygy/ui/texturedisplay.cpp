@@ -68,7 +68,16 @@ auto TextureDisplay::create(
             .usageFlags = colorUsage,
         },
         ImageViewAllocationParameters{
-            .subresourceRange = imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT)
+            .subresourceRange =
+                imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT),
+            .components =
+                VkComponentMapping{
+                    .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                    .a = VK_COMPONENT_SWIZZLE_ONE, // Ignore alpha on base
+                                                   // texture
+                }
         }
     )};
 
