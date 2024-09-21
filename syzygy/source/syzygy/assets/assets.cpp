@@ -1315,17 +1315,18 @@ auto AssetLibrary::loadDefaultAssets(
             texel = NON_OCCLUDED_DIALECTRIC;
         }
 
-        detail::registerTextureFromRGBA(
-            library,
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.universalQueue(),
-            submissionQueue,
-            VK_FORMAT_R8G8B8A8_UNORM,
-            "NonOccludedDialectric",
-            defaultImage,
-            std::nullopt
-        );
+        library.m_defaultORMMap = detail::registerTextureFromRGBA(
+                                      library,
+                                      graphicsContext.device(),
+                                      graphicsContext.allocator(),
+                                      graphicsContext.universalQueue(),
+                                      submissionQueue,
+                                      VK_FORMAT_R8G8B8A8_UNORM,
+                                      "NonOccludedDialectric",
+                                      defaultImage,
+                                      std::nullopt
+        )
+                                      .value();
     }
     {
         // Default color texture is a grey checkerboard
@@ -1395,63 +1396,218 @@ auto AssetLibrary::loadDefaultAssets(
         )
                                          .value();
     }
-    {
-        // Default ORM texture
 
-        size_t index{0};
-        for (RGBATexel& texel : std::span<RGBATexel>{
-                 reinterpret_cast<RGBATexel*>(defaultImage.bytes.data()),
-                 defaultImage.bytes.size() / sizeof(RGBATexel)
-             })
+    { // Plane mesh
+        std::vector<VertexPacked> vertices{
+            VertexPacked{
+                .position = glm::vec3{-1.0F, 0.0F, 1.0F},
+                .uv_x = 0.0F,
+                .normal = glm::vec3{0.0F, -1.0F, 0.0F},
+                .uv_y = 0.0F,
+                .color = glm::vec4{1.0F}
+            },
+            VertexPacked{
+                .position = glm::vec3{1.0F, 0.0F, 1.0F},
+                .uv_x = 1.0F,
+                .normal = glm::vec3{0.0F, -1.0F, 0.0F},
+                .uv_y = 0.0F,
+                .color = glm::vec4{1.0F}
+            },
+            VertexPacked{
+                .position = glm::vec3{1.0F, 0.0F, -1.0F},
+                .uv_x = 1.0F,
+                .normal = glm::vec3{0.0F, -1.0F, 0.0F},
+                .uv_y = 1.0F,
+                .color = glm::vec4{1.0F}
+            },
+            VertexPacked{
+                .position = glm::vec3{-1.0F, 0.0F, -1.0F},
+                .uv_x = 0.0F,
+                .normal = glm::vec3{0.0F, -1.0F, 0.0F},
+                .uv_y = 1.0F,
+                .color = glm::vec4{1.0F}
+            },
+        };
+
+        std::vector<uint32_t> indices{0, 1, 3, 1, 2, 3};
+
+        std::vector<GeometrySurface> surfaces{GeometrySurface{
+            .firstIndex = 0,
+            .indexCount = 6,
+            .material =
+                MaterialData{
+                    .ORM = library.m_defaultORMMap,
+                    .normal = library.m_defaultNormalMap,
+                    .color = library.m_defaultColorMap,
+                }
+        }};
+
+        glm::vec3 vertexMinimum{std::numeric_limits<float>::max()};
+        glm::vec3 vertexMaximum{std::numeric_limits<float>::lowest()};
+
+        for (syzygy::VertexPacked const& vertex : vertices)
         {
-            size_t const x{index % defaultImage.x};
-            size_t const y{index / defaultImage.x};
-
-            RGBATexel constexpr NONMETALLIC_SQUARE{
-                .r = 255U, .g = 30U, .b = 0U, .a = 0U
-            };
-            RGBATexel constexpr METALLIC_SQUARE{
-                .r = 255U, .g = 30U, .b = 255U, .a = 0U
-            };
-
-            bool const nonmetallic{((x / 8) + (y / 8)) % 2 == 0};
-
-            texel = nonmetallic ? NONMETALLIC_SQUARE : METALLIC_SQUARE;
-
-            index++;
+            vertexMinimum = glm::min(vertex.position, vertexMinimum);
+            vertexMaximum = glm::max(vertex.position, vertexMaximum);
         }
 
-        library.m_defaultORMMap = detail::registerTextureFromRGBA(
-                                      library,
-                                      graphicsContext.device(),
-                                      graphicsContext.allocator(),
-                                      graphicsContext.universalQueue(),
-                                      submissionQueue,
-                                      VK_FORMAT_R8G8B8A8_UNORM,
-                                      "defaultORM",
-                                      defaultImage,
-                                      std::nullopt
-        )
-                                      .value();
+        auto newMesh = std::make_unique<syzygy::Mesh>(syzygy::Mesh{
+            .surfaces = std::move(surfaces),
+            .vertexBounds = syzygy::AABB::create(vertexMinimum, vertexMaximum),
+            .meshBuffers = detail::uploadMeshToGPU(
+                graphicsContext.device(),
+                graphicsContext.allocator(),
+                graphicsContext.universalQueue(),
+                submissionQueue,
+                indices,
+                vertices
+            ),
+        });
+
+        library.m_meshPlane =
+            library
+                .registerAsset<Mesh>(
+                    std::move(newMesh), "mesh_Plane", std::nullopt
+                )
+                .value();
     }
 
-    std::filesystem::path const assetsRoot{ensureAbsolutePath("assets")};
-    if (!std::filesystem::exists(assetsRoot))
-    {
-        SZG_WARNING(
-            "Default assets folder was NOT found in the working directory."
+    { // Cube mesh, all faces have same tex coords
+        auto const addCubeFace{[](std::vector<VertexPacked>& vertices,
+                                  std::vector<uint32_t>& indices,
+                                  glm::vec3 const uvOrigin,
+                                  glm::vec3 const uvX,
+                                  glm::vec3 const uvY,
+                                  glm::vec3 const normal)
+        {
+            uint32_t const startingIndex{static_cast<uint32_t>(vertices.size())
+            };
+            vertices.push_back(VertexPacked{
+                .position = uvOrigin,
+                .uv_x = 0.0F,
+                .normal = normal,
+                .uv_y = 0.0F,
+            });
+            vertices.push_back(VertexPacked{
+                .position = uvOrigin + uvX,
+                .uv_x = 1.0F,
+                .normal = normal,
+                .uv_y = 0.0F,
+            });
+            vertices.push_back(VertexPacked{
+                .position = uvOrigin + uvX + uvY,
+                .uv_x = 1.0F,
+                .normal = normal,
+                .uv_y = 1.0F,
+            });
+            vertices.push_back(VertexPacked{
+                .position = uvOrigin + uvY,
+                .uv_x = 0.0F,
+                .normal = normal,
+                .uv_y = 1.0F,
+            });
+
+            indices.push_back(startingIndex);
+            indices.push_back(startingIndex + 1);
+            indices.push_back(startingIndex + 2);
+            indices.push_back(startingIndex);
+            indices.push_back(startingIndex + 2);
+            indices.push_back(startingIndex + 3);
+        }};
+
+        std::vector<VertexPacked> vertices{};
+        vertices.reserve(6 * 4);
+        std::vector<uint32_t> indices{};
+        indices.reserve(6 * 6);
+
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{-1.0F, -1.0F, 1.0F},
+            glm::vec3{2.0F, 0.0F, 0.0F},
+            glm::vec3{0.0F, 0.0F, -2.0F},
+            glm::vec3{0.0F, -1.0F, 0.0F}
         );
-    }
-    else
-    {
-        SZG_INFO(
-            "Default assets folder found, now attempting to load default scene."
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{-1.0F, 1.0F, -1.0F},
+            glm::vec3{2.0F, 0.0F, 0.0F},
+            glm::vec3{0.0F, 0.0F, 2.0F},
+            glm::vec3{0.0F, 1.0F, 0.0F}
+        );
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{1.0F, -1.0F, -1.0F},
+            glm::vec3{0.0F, 0.0F, 2.0F},
+            glm::vec3{0.0F, 2.0F, 0.0F},
+            glm::vec3{1.0F, 0.0F, 0.0F}
+        );
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{-1.0F, -1.0F, 1.0F},
+            glm::vec3{0.0F, 0.0F, -2.0F},
+            glm::vec3{0.0F, 2.0F, 0.0F},
+            glm::vec3{-1.0F, 0.0F, 0.0F}
+        );
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{-1.0F, -1.0F, -1.0F},
+            glm::vec3{2.0F, 0.0F, 0.0F},
+            glm::vec3{0.0F, 2.0F, 0.0F},
+            glm::vec3{0.0F, 0.0F, -1.0F}
+        );
+        addCubeFace(
+            vertices,
+            indices,
+            glm::vec3{1.0F, -1.0F, 1.0F},
+            glm::vec3{-2.0F, 0.0F, 0.0F},
+            glm::vec3{0.0F, 2.0F, 0.0F},
+            glm::vec3{0.0F, 0.0F, 1.0F}
         );
 
-        std::filesystem::path const meshPath{
-            assetsRoot / "vkguide\\basicmesh.glb"
-        };
-        library.loadGLTFFromPath(graphicsContext, submissionQueue, meshPath);
+        std::vector<GeometrySurface> surfaces{GeometrySurface{
+            .firstIndex = 0,
+            .indexCount = static_cast<uint32_t>(indices.size()),
+            .material =
+                MaterialData{
+                    .color = library.m_defaultColorMap,
+                    .normal = library.m_defaultNormalMap,
+                    .ORM = library.m_defaultORMMap
+                }
+        }};
+
+        glm::vec3 vertexMinimum{std::numeric_limits<float>::max()};
+        glm::vec3 vertexMaximum{std::numeric_limits<float>::lowest()};
+
+        for (syzygy::VertexPacked const& vertex : vertices)
+        {
+            vertexMinimum = glm::min(vertex.position, vertexMinimum);
+            vertexMaximum = glm::max(vertex.position, vertexMaximum);
+        }
+
+        auto newMesh = std::make_unique<syzygy::Mesh>(syzygy::Mesh{
+            .surfaces = std::move(surfaces),
+            .vertexBounds = syzygy::AABB::create(vertexMinimum, vertexMaximum),
+            .meshBuffers = detail::uploadMeshToGPU(
+                graphicsContext.device(),
+                graphicsContext.allocator(),
+                graphicsContext.universalQueue(),
+                submissionQueue,
+                indices,
+                vertices
+            ),
+        });
+
+        library.m_meshCube =
+            library
+                .registerAsset<Mesh>(
+                    std::move(newMesh), "mesh_Cube", std::nullopt
+                )
+                .value();
     }
 
     return libraryResult;
@@ -1507,6 +1663,16 @@ void AssetLibrary::processTasks(
     if (m_tasks.size() < taskCount)
     {
         SZG_INFO("AssetLibrary: Culled {} tasks.", taskCount - m_tasks.size());
+    }
+}
+auto AssetLibrary::defaultMesh(DefaultMeshAssets const asset) -> AssetPtr<Mesh>
+{
+    switch (asset)
+    {
+    case DefaultMeshAssets::Cube:
+        return m_meshCube;
+    case DefaultMeshAssets::Plane:
+        return m_meshPlane;
     }
 }
 auto AssetLibrary::deduplicateAssetName(std::string const& name) -> std::string

@@ -510,18 +510,6 @@ auto run() -> EditorResult
     bool inputCapturedByScene{false};
     Scene scene{};
     {
-        auto const loadedMeshes{assetLibrary.fetchAssets<Mesh>()};
-
-        std::optional<AssetPtr<Mesh>> floatingMesh{};
-        std::optional<AssetPtr<Mesh>> floorMesh{};
-        if (!loadedMeshes.empty())
-        {
-            // Assume we loaded vkguide's mesh with a cube, sphere, and suzanne
-            // in that order
-            floatingMesh = loadedMeshes[1];
-            floorMesh = loadedMeshes[0];
-        }
-
         glm::vec3 const floatingPosition{glm::vec3{0.0F, -4.0F, 0.0F}};
         glm::vec3 constexpr MESH_SCALE{5.0F};
         glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
@@ -530,9 +518,9 @@ auto run() -> EditorResult
             graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.descriptorAllocator(),
-            floatingMesh,
+            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
             InstanceAnimation::None,
-            "Floating1",
+            "Model_1",
             std::array<Transform, 1>{Transform{
                 .translation = floatingPosition + MESH_OFFSET,
                 .eulerAnglesRadians = glm::vec3{0.0F},
@@ -543,9 +531,9 @@ auto run() -> EditorResult
             graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.descriptorAllocator(),
-            floatingMesh,
+            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
             InstanceAnimation::None,
-            "Floating2",
+            "Model_2",
             std::array<Transform, 1>{Transform{
                 .translation = floatingPosition - MESH_OFFSET,
                 .eulerAnglesRadians = glm::vec3{0.0F},
@@ -563,7 +551,7 @@ auto run() -> EditorResult
             graphicsContext.device(),
             graphicsContext.allocator(),
             graphicsContext.descriptorAllocator(),
-            floorMesh,
+            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
             InstanceAnimation::None,
             "Floor",
             std::array<Transform, 1>{Transform{floorTransform}},

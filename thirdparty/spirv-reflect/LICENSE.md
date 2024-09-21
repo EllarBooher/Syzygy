@@ -1,3 +1,9 @@
+# ATTRIBUTION
+
+SPIRV-Reflect downloaded from <https://github.com/KhronosGroup/SPIRV-Reflect>. The license it was provided with is copied below for convenience.
+
+## LICENSE
+
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/

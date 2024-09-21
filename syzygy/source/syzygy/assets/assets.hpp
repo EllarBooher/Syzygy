@@ -207,6 +207,14 @@ public:
         GraphicsContext&, ImmediateSubmissionQueue const& submissionQueue
     );
 
+    enum class DefaultMeshAssets
+    {
+        Cube,
+        Plane
+    };
+
+    auto defaultMesh(DefaultMeshAssets) -> AssetPtr<Mesh>;
+
 private:
     AssetLibrary() = default;
 
@@ -228,6 +236,8 @@ private:
     AssetShared<ImageView> m_defaultORMMap{};
     std::vector<std::shared_ptr<Asset<ImageView>>> m_textures{};
 
+    AssetShared<Mesh> m_meshPlane{};
+    AssetShared<Mesh> m_meshCube{};
     std::vector<std::shared_ptr<Asset<Mesh>>> m_meshes{};
 
     std::vector<std::shared_ptr<ImageLoadingTask>> m_tasks{};
