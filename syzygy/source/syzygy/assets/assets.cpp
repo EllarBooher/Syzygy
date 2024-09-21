@@ -288,7 +288,7 @@ auto registerTextureFromRGBA(
     )};
     if (!uploadResult.has_value())
     {
-        SZG_ERROR("Failed to upload default normal texture to GPU.");
+        SZG_ERROR("Failed to upload image to GPU.");
         return std::nullopt;
     }
     std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
@@ -301,9 +301,7 @@ auto registerTextureFromRGBA(
     };
     if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
     {
-        SZG_ERROR(
-            "Failed to convert default normal texture image into imageview."
-        );
+        SZG_ERROR("Failed to convert image into imageview.");
         return std::nullopt;
     }
 
