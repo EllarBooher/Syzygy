@@ -161,24 +161,6 @@ PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
 	);
 }
 
-float extractOcclusion(const GBufferTexel gbuffer)
-{
-	return gbuffer.occlusionRoughnessMetallic.r;
-}
-
-float extractRoughness(const GBufferTexel gbuffer)
-{
-	const float map = gbuffer.occlusionRoughnessMetallic.g;
-	const float maxRoughness = 160;
-
-	return pow(maxRoughness, map);
-}
-
-float extractMetallic(const GBufferTexel gbuffer)
-{
-	return gbuffer.occlusionRoughnessMetallic.b;
-}
-
 struct IncomingLight
 {
 	vec3 lightDirectionUnit;
