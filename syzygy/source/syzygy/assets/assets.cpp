@@ -37,13 +37,26 @@
 
 namespace
 {
+struct RGBATexel
+{
+    uint8_t r{0};
+    uint8_t g{0};
+    uint8_t b{0};
+    uint8_t a{std::numeric_limits<uint8_t>::max()};
+
+    static uint8_t constexpr SATURATED_COMPONENT{255U};
+};
+
 struct ImageRGBA
 {
     uint32_t x{0};
     uint32_t y{0};
     std::vector<uint8_t> bytes{};
 };
+} // namespace
 
+namespace detail
+{
 auto uploadImageToGPU(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -301,7 +314,7 @@ auto registerTextureFromRGBA(
     );
 }
 
-} // namespace
+} // namespace detail
 
 namespace detail_stbi
 {
@@ -348,7 +361,7 @@ auto loadRGBA(std::span<uint8_t const> const bytes) -> std::optional<ImageRGBA>
             + static_cast<size_t>(widthPixels * heightPixels) * BYTES_PER_PIXEL
     };
 
-    delete parsedImage;
+    stbi_image_free(parsedImage);
 
     return ImageRGBA{.x = widthPixels, .y = heightPixels, .bytes = rgba};
 }
@@ -356,6 +369,42 @@ auto loadRGBA(std::span<uint8_t const> const bytes) -> std::optional<ImageRGBA>
 
 namespace detail_fastgltf
 {
+struct ImageChannelOverrides
+{
+    std::optional<uint8_t> red{};
+    std::optional<uint8_t> green{};
+    std::optional<uint8_t> blue{};
+    std::optional<uint8_t> alpha{};
+};
+
+// glTF material texture indices oragnized into syzygy's material format
+struct MaterialTextureIndices
+{
+    std::optional<size_t> color{};
+    std::optional<size_t> normal{};
+    std::optional<size_t> occlusion{};
+    std::optional<size_t> roughnessMetallic{};
+};
+
+enum class MapTypes
+{
+    Color,
+    Normal,
+    OcclusionRoughnessMetallic
+};
+auto string_MapTypes(MapTypes const mapType)
+{
+    switch (mapType)
+    {
+    case MapTypes::Color:
+        return "color";
+    case MapTypes::Normal:
+        return "normal";
+    case MapTypes::OcclusionRoughnessMetallic:
+        return "orm";
+    }
+}
+
 auto loadGLTFAsset(std::filesystem::path const& path)
     -> fastgltf::Expected<fastgltf::Asset>
 {
@@ -420,25 +469,28 @@ auto getTextureSources(
     return textureSourcesByGLTFIndex;
 }
 
-auto uploadTextureFromImage(
-    syzygy::AssetLibrary& destinationLibrary,
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+auto convertGLTFImageToRGBAAndFullyQualifiedSource(
     fastgltf::Image const& image,
-    std::filesystem::path const& assetRoot,
-    VkFormat const fileFormat
-) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
+    ImageChannelOverrides const overrides,
+    std::filesystem::path const& assetRoot
+) -> std::optional<std::tuple<ImageRGBA, std::filesystem::path>>
 {
-    std::filesystem::path sourcePath{assetRoot};
-    std::optional<ImageRGBA> imageConvertResult{std::nullopt};
+    std::optional<std::tuple<ImageRGBA, std::filesystem::path>> result{
+        std::nullopt
+    };
+
     if (std::holds_alternative<fastgltf::sources::Array>(image.data))
     {
         std::span<uint8_t const> const data =
             std::get<fastgltf::sources::Array>(image.data).bytes;
 
-        imageConvertResult = detail_stbi::loadRGBA(data);
+        std::optional<ImageRGBA> imageConvertResult{detail_stbi::loadRGBA(data)
+        };
+
+        if (imageConvertResult.has_value())
+        {
+            result = {std::move(imageConvertResult.value()), assetRoot};
+        }
     }
     else if (std::holds_alternative<fastgltf::sources::URI>(image.data))
     {
@@ -477,8 +529,13 @@ auto uploadTextureFromImage(
         // Throw the file to stbi and hope for the best, it should detect the
         // file headers properly
 
-        imageConvertResult = detail_stbi::loadRGBA(data);
-        sourcePath = path;
+        std::optional<ImageRGBA> imageConvertResult{detail_stbi::loadRGBA(data)
+        };
+
+        if (imageConvertResult.has_value())
+        {
+            result = {std::move(imageConvertResult.value()), path};
+        }
     }
     else
     {
@@ -486,63 +543,38 @@ auto uploadTextureFromImage(
         return std::nullopt;
     }
 
-    if (!imageConvertResult.has_value())
+    if (!result.has_value())
     {
         SZG_WARNING("Failed to load image from glTF.");
         return std::nullopt;
     }
 
-    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
-        device,
-        allocator,
-        transferQueue,
-        submissionQueue,
-        fileFormat,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        imageConvertResult.value()
-    )};
-    if (!uploadResult.has_value())
+    uint64_t const redSelector{overrides.red.has_value() ? 0U : 1U};
+    uint64_t const redValue{overrides.red.value_or(0)};
+
+    uint64_t const greenSelector{overrides.green.has_value() ? 0U : 1U};
+    uint64_t const greenValue{overrides.green.value_or(0)};
+
+    uint64_t const blueSelector{overrides.blue.has_value() ? 0U : 1U};
+    uint64_t const blueValue{overrides.blue.value_or(0)};
+
+    uint64_t const alphaSelector{overrides.alpha.has_value() ? 0U : 1U};
+    uint64_t const alphaValue{overrides.alpha.value_or(0)};
+
+    auto& imageBytes{std::get<0>(result.value()).bytes};
+    for (RGBATexel& texel : std::span<RGBATexel>{
+             reinterpret_cast<RGBATexel*>(imageBytes.data()),
+             imageBytes.size() / sizeof(RGBATexel)
+         })
     {
-        SZG_ERROR("Failed to upload image to GPU.");
-        return std::nullopt;
+        texel.r = static_cast<uint8_t>(texel.r * redSelector + redValue);
+        texel.g = static_cast<uint8_t>(texel.g * greenSelector + greenValue);
+        texel.b = static_cast<uint8_t>(texel.b * blueSelector + blueValue);
+        texel.a = static_cast<uint8_t>(texel.a * alphaSelector + alphaValue);
     }
 
-    std::optional<std::unique_ptr<syzygy::ImageView>> textureResult{
-        syzygy::ImageView::allocate(
-            device,
-            allocator,
-            std::move(*uploadResult.value()),
-            syzygy::ImageViewAllocationParameters{}
-        )
-    };
-    if (!textureResult.has_value())
-    {
-        SZG_ERROR("Failed to convert image to imageView.");
-        return std::nullopt;
-    }
-
-    std::string assetName{};
-    if (image.name.empty())
-    {
-        assetName = fmt::format("texture_Unknown");
-    }
-    else
-    {
-        assetName = fmt::format("texture_{}", image.name);
-    }
-
-    return destinationLibrary.registerAsset<syzygy::ImageView>(
-        std::move(textureResult).value(), assetName, sourcePath
-    );
+    return result;
 }
-
-// glTF material texture indices oragnized into syzygy's material format
-struct MaterialTextureIndices
-{
-    std::optional<size_t> color{};
-    std::optional<size_t> normal{};
-    std::optional<size_t> ORM{};
-};
 
 // Preserves gltf indexing. Returns a vector whose size matches the count of
 // materials passed in.
@@ -550,44 +582,6 @@ auto parseMaterialIndices(fastgltf::Material const& material)
     -> MaterialTextureIndices
 {
     MaterialTextureIndices indices{};
-
-    {
-        std::optional<fastgltf::TextureInfo> const& metallicRoughness{
-            material.pbrData.metallicRoughnessTexture
-        };
-        std::optional<fastgltf::OcclusionTextureInfo> const& occlusion{
-            material.occlusionTexture
-        };
-        if (!metallicRoughness.has_value() && !occlusion.has_value())
-        {
-            SZG_WARNING(
-                "Material {}: Missing MetallicRoughness and Occlusion "
-                "textures.",
-                material.name
-            );
-        }
-        else
-        {
-            if ((!metallicRoughness.has_value() || !occlusion.has_value())
-                || metallicRoughness.value().textureIndex
-                       != occlusion.value().textureIndex)
-            {
-                SZG_WARNING(
-                    "Material {}: Occlusion and MetallicRoughness differ. "
-                    "Loading {} and using its textures' RGB channels for "
-                    "the "
-                    "ORM map.",
-                    material.name,
-                    metallicRoughness.has_value() ? "MetallicRoughness"
-                                                  : "Occlusion"
-                );
-            }
-
-            indices.ORM = metallicRoughness.has_value()
-                            ? metallicRoughness.value().textureIndex
-                            : occlusion.value().textureIndex;
-        }
-    }
 
     {
         std::optional<fastgltf::TextureInfo> const& color{
@@ -617,21 +611,46 @@ auto parseMaterialIndices(fastgltf::Material const& material)
         }
     }
 
+    {
+        std::optional<fastgltf::OcclusionTextureInfo> const& occlusion{
+            material.occlusionTexture
+        };
+        if (!occlusion.has_value())
+        {
+            SZG_WARNING(
+                "Material {}: Missing occlusion texture.", material.name
+            );
+        }
+        else
+        {
+            indices.occlusion = occlusion.value().textureIndex;
+        }
+    }
+
+    {
+        std::optional<fastgltf::TextureInfo> const& metallicRoughness{
+            material.pbrData.metallicRoughnessTexture
+        };
+        if (!metallicRoughness.has_value())
+        {
+            SZG_WARNING(
+                "Material {}: Missing metallicRoughness texture", material.name
+            );
+        }
+        else
+        {
+            indices.roughnessMetallic = metallicRoughness.value().textureIndex;
+        }
+    }
+
     return indices;
 }
 
-auto uploadTextureFromIndex(
-    syzygy::AssetLibrary& destinationLibrary,
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+auto accessTexture(
     std::span<std::optional<std::reference_wrapper<fastgltf::Image const>>>
         textureSourcesByGLTFIndex,
-    size_t const textureIndex,
-    std::filesystem::path const& assetRoot,
-    VkFormat const fileFormat
-) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
+    size_t const textureIndex
+) -> std::optional<std::reference_wrapper<fastgltf::Image const>>
 {
     if (textureIndex >= textureSourcesByGLTFIndex.size())
     {
@@ -645,18 +664,76 @@ auto uploadTextureFromIndex(
         return std::nullopt;
     }
 
-    return uploadTextureFromImage(
+    return textureSourcesByGLTFIndex[textureIndex].value().get();
+}
+
+auto uploadTextureFromIndex(
+    syzygy::AssetLibrary& destinationLibrary,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    std::span<std::optional<std::reference_wrapper<fastgltf::Image const>>>
+        textureSourcesByGLTFIndex,
+    size_t const textureIndex,
+    ImageChannelOverrides const overrides,
+    std::filesystem::path const& assetRoot,
+    std::string const& gltfAssetName,
+    MapTypes const mapType
+) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
+{
+    std::optional<std::reference_wrapper<fastgltf::Image const>> textureResult{
+        accessTexture(textureSourcesByGLTFIndex, textureIndex)
+    };
+    if (!textureResult.has_value())
+    {
+        return std::nullopt;
+    }
+
+    std::optional<std::tuple<ImageRGBA, std::filesystem::path>> convertResult{
+        convertGLTFImageToRGBAAndFullyQualifiedSource(
+            textureResult.value().get(), overrides, assetRoot
+        )
+    };
+    if (!convertResult.has_value())
+    {
+        return std::nullopt;
+    }
+
+    VkFormat fileFormat{};
+    switch (mapType)
+    {
+    case MapTypes::Color:
+        fileFormat = VK_FORMAT_R8G8B8A8_SRGB;
+        break;
+    case MapTypes::Normal:
+    case MapTypes::OcclusionRoughnessMetallic:
+        fileFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        break;
+    }
+
+    std::string assetName{textureResult.value().get().name};
+    if (assetName.empty())
+    {
+        assetName = fmt::format(
+            "{}_{}_{}", gltfAssetName, textureIndex, string_MapTypes(mapType)
+        );
+    }
+
+    return detail::registerTextureFromRGBA(
         destinationLibrary,
         device,
         allocator,
         transferQueue,
         submissionQueue,
-        textureSourcesByGLTFIndex[textureIndex].value().get(),
-        assetRoot,
-        fileFormat
+        fileFormat,
+        assetName,
+        std::get<0>(convertResult.value()),
+        std::get<1>(convertResult.value())
     );
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto uploadMaterialDataAsAssets(
     syzygy::AssetLibrary& destinationLibrary,
     VkDevice const device,
@@ -685,8 +762,33 @@ auto uploadMaterialDataAsAssets(
             parseMaterialIndices(material)
         };
 
-        if (materialTextures.ORM.has_value())
+        if (materialTextures.roughnessMetallic.has_value()
+            || materialTextures.occlusion.has_value())
         {
+            size_t ormTextureIndex{};
+            ImageChannelOverrides overrides{};
+
+            if (materialTextures.occlusion.has_value()
+                && materialTextures.occlusion
+                       != materialTextures.roughnessMetallic)
+            {
+                SZG_WARNING("Material {}: occlusion and roughnessMetallic "
+                            "textures differ. Loading roughnessMetallic and "
+                            "overriding its occlusion channel.");
+            }
+
+            if (materialTextures.roughnessMetallic.has_value())
+            {
+                ormTextureIndex = materialTextures.roughnessMetallic.value();
+                overrides.red = RGBATexel::SATURATED_COMPONENT;
+            }
+            else
+            {
+                ormTextureIndex = materialTextures.occlusion.value();
+                overrides.green = 0U;
+                overrides.blue = 0U;
+            }
+
             if (std::optional<syzygy::AssetShared<syzygy::ImageView>>
                     textureLoadResult{uploadTextureFromIndex(
                         destinationLibrary,
@@ -695,9 +797,11 @@ auto uploadMaterialDataAsAssets(
                         transferQueue,
                         submissionQueue,
                         textureSourcesByGLTFIndex,
-                        materialTextures.ORM.value(),
+                        ormTextureIndex,
+                        overrides,
                         assetRoot,
-                        VK_FORMAT_R8G8B8A8_UNORM
+                        std::string{material.name},
+                        MapTypes::OcclusionRoughnessMetallic
                     )};
                 !textureLoadResult.has_value()
                 || textureLoadResult.value() == nullptr)
@@ -723,8 +827,10 @@ auto uploadMaterialDataAsAssets(
                         submissionQueue,
                         textureSourcesByGLTFIndex,
                         materialTextures.color.value(),
+                        {},
                         assetRoot,
-                        VK_FORMAT_R8G8B8A8_SRGB
+                        std::string{material.name},
+                        MapTypes::Color
                     )};
                 !textureLoadResult.has_value()
                 || textureLoadResult.value() == nullptr)
@@ -751,8 +857,10 @@ auto uploadMaterialDataAsAssets(
                         submissionQueue,
                         textureSourcesByGLTFIndex,
                         materialTextures.normal.value(),
+                        {},
                         assetRoot,
-                        VK_FORMAT_R8G8B8A8_UNORM
+                        std::string{material.name},
+                        MapTypes::Normal
                     )};
                 !textureLoadResult.has_value()
                 || textureLoadResult.value() == nullptr)
@@ -970,7 +1078,7 @@ auto loadMeshes(
         newMesh = std::make_unique<syzygy::Mesh>(syzygy::Mesh{
             .surfaces = std::move(surfaces),
             .vertexBounds = syzygy::AABB::create(vertexMinimum, vertexMaximum),
-            .meshBuffers = uploadMeshToGPU(
+            .meshBuffers = detail::uploadMeshToGPU(
                 device,
                 allocator,
                 transferQueue,
@@ -1028,8 +1136,7 @@ auto AssetLibrary::loadTextureFromPath(
     VkQueue const transferQueue,
     ImmediateSubmissionQueue const& submissionQueue,
     VkFormat const fileFormat,
-    std::filesystem::path const& filePath,
-    VkImageUsageFlags const additionalFlags
+    std::filesystem::path const& filePath
 ) -> std::optional<AssetShared<ImageView>>
 {
     SZG_INFO("Loading Texture from '{}'", filePath.string());
@@ -1049,7 +1156,7 @@ auto AssetLibrary::loadTextureFromPath(
         return std::nullopt;
     }
 
-    return registerTextureFromRGBA(
+    return detail::registerTextureFromRGBA(
         *this,
         device,
         allocator,
@@ -1186,14 +1293,6 @@ auto AssetLibrary::loadDefaultAssets(
     std::optional<AssetLibrary> libraryResult{AssetLibrary{}};
     AssetLibrary& library{libraryResult.value()};
 
-    struct RGBATexel
-    {
-        uint8_t r{0};
-        uint8_t g{0};
-        uint8_t b{0};
-        uint8_t a{std::numeric_limits<uint8_t>::max()};
-    };
-
     size_t constexpr DEFAULT_IMAGE_DIMENSIONS{64ULL};
 
     ImageRGBA defaultImage{
@@ -1212,13 +1311,13 @@ auto AssetLibrary::loadDefaultAssets(
              })
         {
             RGBATexel constexpr NON_OCCLUDED_DIALECTRIC{
-                .r = 255U, .g = 0U, .b = 0U, .a = 0U
+                .r = 255U, .g = 60U, .b = 0U, .a = 0U
             };
 
             texel = NON_OCCLUDED_DIALECTRIC;
         }
 
-        registerTextureFromRGBA(
+        detail::registerTextureFromRGBA(
             library,
             graphicsContext.device(),
             graphicsContext.allocator(),
@@ -1256,7 +1355,7 @@ auto AssetLibrary::loadDefaultAssets(
             index++;
         }
 
-        library.m_defaultColorMap = registerTextureFromRGBA(
+        library.m_defaultColorMap = detail::registerTextureFromRGBA(
                                         library,
                                         graphicsContext.device(),
                                         graphicsContext.allocator(),
@@ -1285,7 +1384,7 @@ auto AssetLibrary::loadDefaultAssets(
             texel = DEFAULT_NORMAL;
         }
 
-        library.m_defaultNormalMap = registerTextureFromRGBA(
+        library.m_defaultNormalMap = detail::registerTextureFromRGBA(
                                          library,
                                          graphicsContext.device(),
                                          graphicsContext.allocator(),
@@ -1324,7 +1423,7 @@ auto AssetLibrary::loadDefaultAssets(
             index++;
         }
 
-        library.m_defaultORMMap = registerTextureFromRGBA(
+        library.m_defaultORMMap = detail::registerTextureFromRGBA(
                                       library,
                                       graphicsContext.device(),
                                       graphicsContext.allocator(),
@@ -1386,8 +1485,7 @@ void AssetLibrary::processTasks(
                     graphicsContext.universalQueue(),
                     submissionQueue,
                     fileFormat,
-                    source.path,
-                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                    source.path
                 )
                     .has_value())
             {

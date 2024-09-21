@@ -182,8 +182,7 @@ public:
         VkQueue,
         ImmediateSubmissionQueue const&,
         VkFormat fileFormat,
-        std::filesystem::path const& filePath,
-        VkImageUsageFlags additionalFlags
+        std::filesystem::path const& filePath
     ) -> std::optional<AssetShared<ImageView>>;
 
     void loadTexturesDialog(PlatformWindow const&, UILayer&);
