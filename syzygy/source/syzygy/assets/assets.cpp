@@ -241,6 +241,66 @@ auto uploadMeshToGPU(
     );
 }
 
+auto registerTextureFromRGBA(
+    syzygy::AssetLibrary& library,
+    VkDevice const device,
+    VmaAllocator const allocator,
+    VkQueue const transferQueue,
+    syzygy::ImmediateSubmissionQueue const& submissionQueue,
+    VkFormat const format,
+    std::string const& name,
+    ImageRGBA const& image,
+    std::optional<std::filesystem::path> const& sourcePath
+) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
+{
+    // TODO: add more formats and a way to generally check if a format is
+    // reasonable. Also support copying 32 bit -> any image format.
+    if (format != VK_FORMAT_R8G8B8A8_UNORM && format != VK_FORMAT_R8G8B8A8_SRGB)
+    {
+        SZG_WARNING(
+            "Uploading texture to device as possibly unsupported format '{}'- "
+            "images are loaded onto the CPU as 32 bit RGBA.",
+            string_VkFormat(format)
+        );
+    }
+
+    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
+        device,
+        allocator,
+        transferQueue,
+        submissionQueue,
+        format,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        image
+    )};
+    if (!uploadResult.has_value())
+    {
+        SZG_ERROR("Failed to upload default normal texture to GPU.");
+        return std::nullopt;
+    }
+    std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
+        syzygy::ImageView::allocate(
+            device,
+            allocator,
+            std::move(*uploadResult.value()),
+            syzygy::ImageViewAllocationParameters{}
+        )
+    };
+    if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
+    {
+        SZG_ERROR(
+            "Failed to convert default normal texture image into imageview."
+        );
+        return std::nullopt;
+    }
+
+    return library.registerAsset<syzygy::ImageView>(
+        std::move(imageViewResult).value(),
+        fmt::format("texture_{}", name),
+        sourcePath
+    );
+}
+
 } // namespace
 
 namespace detail_stbi
@@ -925,67 +985,6 @@ auto loadMeshes(
 }
 } // namespace detail_fastgltf
 
-namespace
-{
-auto registerTextureFromRGBA(
-    syzygy::AssetLibrary& library,
-    VkDevice const device,
-    VmaAllocator const allocator,
-    VkQueue const transferQueue,
-    syzygy::ImmediateSubmissionQueue const& submissionQueue,
-    VkFormat const format,
-    std::string const& name,
-    ImageRGBA const& image
-) -> std::optional<syzygy::AssetShared<syzygy::ImageView>>
-{
-    // TODO: add more formats and a way to generally check if a format is
-    // reasonable. Also support copying 32 bit -> any image format.
-    if (format != VK_FORMAT_R8G8B8A8_UNORM && format != VK_FORMAT_R8G8B8A8_SRGB)
-    {
-        SZG_WARNING(
-            "Uploading texture to device as possibly unsupported format '{}'- "
-            "images are loaded onto the CPU as 32 bit RGBA.",
-            string_VkFormat(format)
-        );
-    }
-
-    std::optional<std::unique_ptr<syzygy::Image>> uploadResult{uploadImageToGPU(
-        device,
-        allocator,
-        transferQueue,
-        submissionQueue,
-        format,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        image
-    )};
-    if (!uploadResult.has_value())
-    {
-        SZG_ERROR("Failed to upload default normal texture to GPU.");
-        return std::nullopt;
-    }
-    std::optional<std::unique_ptr<syzygy::ImageView>> imageViewResult{
-        syzygy::ImageView::allocate(
-            device,
-            allocator,
-            std::move(*uploadResult.value()),
-            syzygy::ImageViewAllocationParameters{}
-        )
-    };
-    if (!imageViewResult.has_value() || imageViewResult.value() == nullptr)
-    {
-        SZG_ERROR(
-            "Failed to convert default normal texture image into imageview."
-        );
-        return std::nullopt;
-    }
-
-    return library.registerAsset<syzygy::ImageView>(
-        std::move(imageViewResult).value(), fmt::format("texture_{}", name), {}
-    );
-}
-
-} // namespace
-
 namespace syzygy
 {
 auto loadAssetFile(std::filesystem::path const& path)
@@ -1058,7 +1057,8 @@ auto AssetLibrary::loadTextureFromPath(
         submissionQueue,
         fileFormat,
         file.path.stem().string(),
-        imageResult.value()
+        imageResult.value(),
+        filePath
     );
 }
 
@@ -1226,7 +1226,8 @@ auto AssetLibrary::loadDefaultAssets(
             submissionQueue,
             VK_FORMAT_R8G8B8A8_UNORM,
             "NonOccludedDialectric",
-            defaultImage
+            defaultImage,
+            std::nullopt
         );
     }
     {
@@ -1263,7 +1264,8 @@ auto AssetLibrary::loadDefaultAssets(
                                         submissionQueue,
                                         VK_FORMAT_R8G8B8A8_UNORM,
                                         "defaultColor",
-                                        defaultImage
+                                        defaultImage,
+                                        std::nullopt
         )
                                         .value();
     }
@@ -1291,7 +1293,8 @@ auto AssetLibrary::loadDefaultAssets(
                                          submissionQueue,
                                          VK_FORMAT_R8G8B8A8_UNORM,
                                          "defaultNormal",
-                                         defaultImage
+                                         defaultImage,
+                                         std::nullopt
         )
                                          .value();
     }
@@ -1329,7 +1332,8 @@ auto AssetLibrary::loadDefaultAssets(
                                       submissionQueue,
                                       VK_FORMAT_R8G8B8A8_UNORM,
                                       "defaultORM",
-                                      defaultImage
+                                      defaultImage,
+                                      std::nullopt
         )
                                       .value();
     }

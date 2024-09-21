@@ -127,18 +127,26 @@ public:
     auto registerAsset(
         std::shared_ptr<T> data,
         std::string const& name,
-        std::filesystem::path const& sourcePath
+        std::optional<std::filesystem::path> const& sourcePath
     ) -> std::optional<AssetShared<T>>
     {
         Asset<T> asset{
             .metadata =
                 AssetMetadata{
                     .displayName = deduplicateAssetName(name),
-                    .fileLocalPath = sourcePath.string(),
                     .id = UUID::createNew(),
                 },
             .data = std::move(data),
         };
+
+        if (sourcePath.has_value())
+        {
+            asset.metadata.fileLocalPath = sourcePath.value().string();
+        }
+        else
+        {
+            asset.metadata.fileLocalPath = "No source on disk.";
+        }
 
         if constexpr (std::is_same_v<T, ImageView>)
         {
