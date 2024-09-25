@@ -1,0 +1,21 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+BreakBeforeBraces: Allman
+ColumnLimit: 120
+
+AlignOperands: AlignAfterOperator
+BreakBeforeBinaryOperators: NonAssignment
+
+AllowAllArgumentsOnNextLine: true
+BinPackArguments: false
+
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackParameters: false
+
+# Get ClangFormat to see glsl type definitions as a type definition instead of code, for formatting braces properly
+# Hacky, since not all usages of uniform are on a interface block/struct definition
+# This seems to work well since variable declarations (like with descriptors) don't use curly braces anyway so ClangFormat hopefully won't mangle them
+Macros:
+- buffer=struct
+- uniform=struct

@@ -4,32 +4,35 @@
 
 #include "../types/vertex.glsl"
 
-layout(buffer_reference, std430) readonly buffer ProjViewBuffer{
-	mat4 matrices[];
-};
-
-layout(buffer_reference, std430) readonly buffer VertexBuffer{
-	Vertex vertices[];
-};
-
-layout(buffer_reference, std430) readonly buffer ModelBuffer{
-	mat4 models[];
-};
-
-layout( push_constant ) uniform PushConstant
+layout(buffer_reference, std430) readonly buffer ProjViewBuffer
 {
-	VertexBuffer vertexBuffer;
-	ModelBuffer modelBuffer;
-	ProjViewBuffer projViewBuffer;
-	uint projViewIndex;
+    mat4 matrices[];
+};
+
+layout(buffer_reference, std430) readonly buffer VertexBuffer
+{
+    Vertex vertices[];
+};
+
+layout(buffer_reference, std430) readonly buffer ModelBuffer
+{
+    mat4 models[];
+};
+
+layout(push_constant) uniform PushConstant
+{
+    VertexBuffer vertexBuffer;
+    ModelBuffer modelBuffer;
+    ProjViewBuffer projViewBuffer;
+    uint projViewIndex;
 } pushConstant;
 
 void main()
 {
-	mat4 model = pushConstant.modelBuffer.models[gl_InstanceIndex];
+    mat4 model = pushConstant.modelBuffer.models[gl_InstanceIndex];
 
-	Vertex vertex = pushConstant.vertexBuffer.vertices[gl_VertexIndex];
-	mat4 projView = pushConstant.projViewBuffer.matrices[pushConstant.projViewIndex];
+    Vertex vertex = pushConstant.vertexBuffer.vertices[gl_VertexIndex];
+    mat4 projView = pushConstant.projViewBuffer.matrices[pushConstant.projViewIndex];
 
-	gl_Position = projView * model * vec4(vertex.position, 1.0f);
+    gl_Position = projView * model * vec4(vertex.position, 1.0f);
 }

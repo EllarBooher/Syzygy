@@ -8,6 +8,7 @@ find_program(
 
 if (CLANG_FORMAT_PATH)
 	set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/syzygy")
+	set(SHADER_DIR "${CMAKE_SOURCE_DIR}/shaders")
 
 	file(
 		GLOB_RECURSE
@@ -17,16 +18,28 @@ if (CLANG_FORMAT_PATH)
 		CONFIGURE_DEPENDS
 			${SOURCE_DIR}/*.[chi]pp 
 	)
+	file(
+		GLOB_RECURSE
+			ALL_SHADER_SOURCE_FILES
+		RELATIVE
+			${CMAKE_SOURCE_DIR}
+		CONFIGURE_DEPENDS
+			${SHADER_DIR}/*.comp
+			${SHADER_DIR}/*.frag
+			${SHADER_DIR}/*.vert
+			${SHADER_DIR}/*.glsl
+	)
+	
+	set(ALL_SOURCE_FILES ${ALL_CXX_SOURCE_FILES} ${ALL_SHADER_SOURCE_FILES})
 
 	message(STATUS "clang-format - using ${CLANG_FORMAT_PATH}")
-	message(STATUS "clang-format - formatting files matching ${SOURCE_DIR}/*.[chi]pp")
 
 	add_custom_target(
 		clang-format-fix
 		COMMAND 
 			${CLANG_FORMAT_PATH} 
 			-i 
-			${ALL_CXX_SOURCE_FILES}
+			${ALL_SOURCE_FILES}
 			-style=file 
 		WORKING_DIRECTORY 
 			${CMAKE_SOURCE_DIR}
@@ -37,7 +50,7 @@ if (CLANG_FORMAT_PATH)
 		clang-format-check
 		COMMAND 
 			${CLANG_FORMAT_PATH} 
-			${ALL_CXX_SOURCE_FILES}
+			${ALL_SOURCE_FILES}
 			-style=file 
 			--dry-run
 		WORKING_DIRECTORY 

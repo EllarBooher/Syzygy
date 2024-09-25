@@ -1,80 +1,80 @@
 #version 460
 
-//size of a workgroup for compute
-layout (local_size_x = 16, local_size_y = 16) in;
-layout(rgba16f,set = 0, binding = 0) uniform image2D image;
+// size of a workgroup for compute
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(rgba16f, set = 0, binding = 0) uniform image2D image;
 
-layout( push_constant ) uniform PushConstants
+layout(push_constant) uniform PushConstants
 {
-	vec2 drawOffset;
-	vec2 drawExtent;
+    vec2 drawOffset;
+    vec2 drawExtent;
 
-	bvec4 row1;
-	bvec4 row2;
-	bvec4 row3;
-	bvec4 row4;
+    bvec4 row1;
+    bvec4 row2;
+    bvec4 row3;
+    bvec4 row4;
 } pushConstants;
 
-void main() 
+void main()
 {
-	vec2 size = imageSize(image);
+    vec2 size = imageSize(image);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy + pushConstants.drawOffset);
-	vec2 uv = (vec2(texelCoord) + vec2(0.5,0.5)) / pushConstants.drawExtent;
+    vec2 uv = (vec2(texelCoord) + vec2(0.5, 0.5)) / pushConstants.drawExtent;
 
-	ivec2 matrixCoord = ivec2(uv * 4);
+    ivec2 matrixCoord = ivec2(uv * 4);
 
-	// Red to debug
-	vec4 outColor = vec4(1.0, 0.0, 0.0, 1.0);
-	vec4 black = vec4(0.0,0.0,0.0,1.0);
-	vec4 white = vec4(1.0,1.0,1.0,1.0);
+    // Red to debug
+    vec4 outColor = vec4(1.0, 0.0, 0.0, 1.0);
+    vec4 black = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
 
-	if (matrixCoord.y == 0)
-	{
-		if (pushConstants.row1[matrixCoord.x % 4])
-		{
-			outColor = white;
-		}
-		else
-		{
-			outColor = black;
-		}
-	}
-	else if (matrixCoord.y == 1)
-	{
-		if (pushConstants.row2[matrixCoord.x % 4])
-		{
-			outColor = white;
-		}
-		else
-		{
-			outColor = black;
-		}
-	}
-	else if (matrixCoord.y == 2)
-	{
-		if (pushConstants.row3[matrixCoord.x % 4])
-		{
-			outColor = white;
-		}
-		else
-		{
-			outColor = black;
-		}
-	}
-	else if (matrixCoord.y == 3)
-	{
-		if (pushConstants.row4[matrixCoord.x % 4])
-		{
-			outColor = white;
-		}
-		else
-		{
-			outColor = black;
-		}
-	}
+    if (matrixCoord.y == 0)
+    {
+        if (pushConstants.row1[matrixCoord.x % 4])
+        {
+            outColor = white;
+        }
+        else
+        {
+            outColor = black;
+        }
+    }
+    else if (matrixCoord.y == 1)
+    {
+        if (pushConstants.row2[matrixCoord.x % 4])
+        {
+            outColor = white;
+        }
+        else
+        {
+            outColor = black;
+        }
+    }
+    else if (matrixCoord.y == 2)
+    {
+        if (pushConstants.row3[matrixCoord.x % 4])
+        {
+            outColor = white;
+        }
+        else
+        {
+            outColor = black;
+        }
+    }
+    else if (matrixCoord.y == 3)
+    {
+        if (pushConstants.row4[matrixCoord.x % 4])
+        {
+            outColor = white;
+        }
+        else
+        {
+            outColor = black;
+        }
+    }
 
-	if (texelCoord.x < size.x && texelCoord.y < size.y)
-	{
-		imageStore(image, texelCoord, outColor * vec4(uv, 0.0, 1.0));
-	}
+    if (texelCoord.x < size.x && texelCoord.y < size.y)
+    {
+        imageStore(image, texelCoord, outColor * vec4(uv, 0.0, 1.0));
+    }
 }
