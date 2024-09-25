@@ -56,10 +56,10 @@ Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
 
     .groundColor = glm::vec3{1.0, 1.0, 1.0},
 
-    .scatteringCoefficientRayleigh = glm::vec3(0.0000038, 0.0000135, 0.0000331),
+    .scatteringCoefficientRayleigh = glm::vec3(0.0000058, 0.0000135, 0.0000331),
     .altitudeDecayRayleigh = 7994.0,
 
-    .scatteringCoefficientMie = glm::vec3(0.000021),
+    .scatteringCoefficientMie = glm::vec3(0.0000210),
     .altitudeDecayMie = 1200.0,
 }};
 

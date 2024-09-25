@@ -493,7 +493,7 @@ auto PropertyTable::rowVec3(
             behavior.speed,
             behavior.bounds.min,
             behavior.bounds.max,
-            "%.6f",
+            "%.12f",
             behavior.flags
         );
         ImGui::PopItemWidth();

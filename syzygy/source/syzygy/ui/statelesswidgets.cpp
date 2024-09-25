@@ -176,7 +176,7 @@ void uiAtmosphere(
     // Scattering coefficient meaningfully exists over a very small and
     // unpredictable range. Thus finer controls are needed, and a speed of 0.1
     // or default 0.0 is too high.
-    float constexpr SCATTERING_COEFFICIENT_SPEED{0.01F};
+    float constexpr SCATTERING_COEFFICIENT_SPEED{0.00001F};
     syzygy::FloatBounds constexpr SCATTERING_COEFFICIENT_BOUNDS{0.0F, 1.0F};
 
     syzygy::FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
@@ -243,7 +243,8 @@ void uiAtmosphere(
             atmosphere.scatteringCoefficientMie,
             defaultValues.scatteringCoefficientMie,
             syzygy::PropertySliderBehavior{
-                .speed = SCATTERING_COEFFICIENT_SPEED,
+                .speed = 0.0F,
+                .flags = ImGuiSliderFlags_Logarithmic,
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
