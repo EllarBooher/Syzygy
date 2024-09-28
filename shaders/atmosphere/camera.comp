@@ -1,0 +1,74 @@
+#version 460
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_ARB_shading_language_include : require
+
+#include "../types/camera.glsl"
+#include "common.glinl"
+
+// Perpsective projection of a map parameterized by
+// u := azimuth from -pi to pi
+// v := elevation from -pi/2 to pi/2
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(rgba16, set = 0, binding = 0) uniform image2D image;
+layout(set = 0, binding = 1) uniform sampler2D azimuthElevationMap;
+
+layout(buffer_reference, std430) readonly buffer CameraBuffer
+{
+    Camera cameras[];
+};
+
+layout(push_constant) uniform PushConstant
+{
+    CameraBuffer cameraBuffer;
+
+    uint cameraIndex;
+
+    uvec2 drawExtent;
+} pushConstant;
+
+vec3 sampleMap_Direction(const vec3 direction)
+{
+    const vec3 normalized = normalize(direction);
+
+    const float elevation = asin(clamp(normalized.y, -1.0, 1.0));
+
+    float azimuth = atan(normalized.x, normalized.z);
+    if (normalized.z == 0.0)
+    {
+        azimuth = sign(normalized.x) * PI / 2.0;
+    }
+
+    const float u = (azimuth + PI) / (2.0 * PI);
+    float v = 0.5 + 0.5 * sign(elevation) * sqrt(abs(elevation) / (PI / 2.0));
+
+    // Flip vertical component, since SkyView is generated with +y up
+    // while camera uses -y up
+    v = 1.0 - v;
+
+    return texture(azimuthElevationMap, vec2(u, v)).rgb;
+}
+
+void main()
+{
+    const vec2 size = imageSize(image);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texelCoord.x >= size.x || texelCoord.y >= size.y)
+    {
+        return;
+    }
+
+    const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
+
+    const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / vec2(pushConstant.drawExtent)) - 0.5) * 2.0;
+    const float nearPlaneDepth = 1.0;
+    const vec4 directionViewSpace = camera.inverseProjection * vec4(clipSpaceUV, nearPlaneDepth, 1.0);
+
+    // World direction -> azimuth and elevation
+
+    const vec3 direction = normalize((camera.rotation * directionViewSpace).xyz);
+
+    const vec3 color = sampleMap_Direction(direction);
+
+    imageStore(image, texelCoord, vec4(color, 1.0));
+}

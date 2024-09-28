@@ -25,7 +25,8 @@ namespace syzygy
 enum class RenderingPipelines
 {
     DEFERRED = 0,
-    COMPUTE_COLLECTION = 1
+    COMPUTE_COLLECTION = 1,
+    SKY_VIEW = 2,
 };
 
 auto computeDispatchCount(uint32_t invocations, uint32_t workgroupSize)

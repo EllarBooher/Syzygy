@@ -56,6 +56,7 @@ add_library(
 	"source/syzygy/platform/vulkanusage.cpp"
 	"source/syzygy/platform/windowsplatformutils.cpp"
 	"source/syzygy/platform/filesystemutils.cpp"
+	"source/syzygy/renderer/pipelines/skyview.cpp"
 )
 
 add_dependencies(syzygy syzygy-shaders)

@@ -46,6 +46,7 @@ Renderer::Renderer(Renderer&& other) noexcept
 
     m_genericComputePipeline = std::move(other.m_genericComputePipeline);
     m_deferredShadingPipeline = std::move(other.m_deferredShadingPipeline);
+    m_skyViewComputePipeline = std::move(other.m_skyViewComputePipeline);
 
     m_camerasBuffer = std::move(other.m_camerasBuffer);
     m_atmospheresBuffer = std::move(other.m_atmospheresBuffer);
@@ -73,6 +74,8 @@ void Renderer::destroy()
     m_activeRenderingPipeline = RenderingPipelines::DEFERRED;
     m_genericComputePipeline->cleanup(m_device);
     m_deferredShadingPipeline->cleanup(m_device, m_allocator);
+
+    m_skyViewComputePipeline.reset();
 
     m_camerasBuffer.reset();
     m_atmospheresBuffer.reset();
@@ -105,6 +108,14 @@ auto Renderer::create(
     renderer.initDeferredShadingPipeline(
         device, allocator, descriptorAllocator
     );
+
+    renderer.m_skyViewComputePipeline =
+        SkyViewComputePipeline::create(device, allocator);
+    if (renderer.m_skyViewComputePipeline == nullptr)
+    {
+        SZG_ERROR("Failed to allocate SkyView pipeline.");
+        return std::nullopt;
+    }
 
     return rendererResult;
 }
@@ -241,6 +252,9 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
         case RenderingPipelines::COMPUTE_COLLECTION:
             imguiPipelineControls(*m_genericComputePipeline);
             break;
+        case RenderingPipelines::SKY_VIEW:
+            ImGui::Text("No controls for Sky View pipeline.");
+            break;
         default:
             ImGui::Text("Invalid rendering pipeline selected.");
             break;
@@ -333,13 +347,14 @@ void Renderer::recordDraw(
             cmd, VK_IMAGE_LAYOUT_GENERAL
         );
 
+        uint32_t const cameraIndex{0};
+
         switch (m_activeRenderingPipeline)
         {
         case RenderingPipelines::DEFERRED:
         {
             // TODO: create a struct that contains a ref to a struct in a
             // buffer
-            uint32_t const cameraIndex{0};
             uint32_t const atmosphereIndex{0};
 
             m_deferredShadingPipeline->recordDrawCommands(
@@ -383,6 +398,15 @@ void Renderer::recordDraw(
 
             break;
         }
+        case RenderingPipelines::SKY_VIEW:
+            m_skyViewComputePipeline->recordDrawCommands(
+                cmd,
+                sceneSubregion,
+                sceneTexture.texture().image(),
+                cameraIndex,
+                *m_camerasBuffer
+            );
+            break;
         }
     }
 

@@ -7,6 +7,7 @@
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
+#include "syzygy/renderer/pipelines/skyview.hpp"
 #include <memory>
 #include <optional>
 
@@ -101,9 +102,10 @@ private:
     static uint32_t constexpr DEBUGLINES_CAPACITY{1000};
     DebugLines m_debugLines{};
 
-    RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::DEFERRED};
+    RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::SKY_VIEW};
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
+    std::unique_ptr<SkyViewComputePipeline> m_skyViewComputePipeline{};
 
     // Scene
 

@@ -1,0 +1,249 @@
+#version 460
+
+#extension GL_ARB_shading_language_include : require
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(rgba32f, set = 0, binding = 0) uniform image2D skyview_LUT;
+layout(set = 0, binding = 1) uniform sampler2D transmittance_LUT;
+
+#include "common.glinl"
+
+// Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
+
+// All units are Mm/megameters (10^6 meters) unless marked km/kilometers (10^3 meters)
+
+// This shader builds a 2D sky-view LUT, which is a lattitude-longitude map of
+// the sky with only the planet's surface shadowing.
+// This map contains the total luminance from in-scattering due to atmospheric effects.
+//
+// TODO: Work remains to figure out how to compose this map with local lights i.e. punctual lights.
+// For now the best thing to do is to light surface geometry without scattering,
+// then compose that with the transmittance from camera to fragment position.
+// This works well for thin atmospheres and lights that are close to their geometry.
+//
+// This map only depends on altitude, and allows the camera to be freely rotated
+// without requiring recomputation. There is even an acceptable degree of movement
+// by the camera. Within a range of the provided altitude.
+//
+// Parameterized as follows:
+// u := azimuth angle
+// u varies from -pi to pi
+//
+// v := solar elevation
+// v varies from -pi/2 to pi/2
+
+void uv_to_azimuthElevation(const vec2 uv, out float azimuth, out float elevation)
+{
+    azimuth = mix(-PI, PI, uv.s);
+
+    // Undo v compression that allocates more texels to the horizon
+    // v = 0.5 + 0.5 * sign(elevation) * sqrt(|elevation| / (pi/2))
+
+    const float unnormalized_v = 2.0 * (uv.t - 0.5);
+    elevation = sign(unnormalized_v) * unnormalized_v * unnormalized_v * PI / 2.0;
+}
+
+// Input cosine is the cosine of the angle between incident and outgoing scattering directions
+float phaseRayleigh(const float cosine)
+{
+    const float scalar = 3.0 / (16.0 * PI);
+    const float numerator = (1.0 + cosine * cosine);
+
+    return scalar * numerator;
+}
+// Input cosine is the cosine of the angle between incident and outgoing scattering directions
+// Input g is a value from -1 to 1 that controls the concentration of back vs forward scattering.
+// Note: g = 0 reduces to the case of our rayleigh phase function
+float phaseMie(const float cosine, const float g)
+{
+    const float scalar = 3.0 / (8.0 * PI);
+    const float numerator = (1.0 - g * g) * (1.0 + cosine * cosine);
+    const float denominator = (2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * cosine, 1.5);
+    return scalar * numerator / denominator;
+}
+
+// Not in use for now, intended for estimating multi-scattering
+const float phaseIsotropic = 1.0 / (4.0 * PI);
+
+vec3 sampleTransmittanceLUT_Ray(const vec3 position, const vec3 direction)
+{
+    const float altitude = length(position) - PLANET_RADIUS_KM / 1000.0;
+    const float atmosphereWidth = (ATMOSPHERE_RADIUS_KM - PLANET_RADIUS_KM) / 1000.0;
+
+    const float u = clamp(altitude / atmosphereWidth, 0.0, 1.0);
+
+    const float cosine = (dot(position, direction) / (length(position) * length(direction)));
+
+    const float v = 0.5 * (cosine + 1.0);
+
+    return texture(transmittance_LUT, vec2(u, v)).rgb;
+}
+
+vec3 sampleTransmittanceLUT_Segment(const vec3 from, const vec3 to)
+{
+    // Floats do not have enough range to store the very low transmittance of a ray crossing the longest distances.
+    // Thus, a sliver of the transmittance LUT is zero when it should be a very small value.
+    // Also, rays that point at the planet return a transmittance of exactly 0 making it impossible to use such samples.
+    // Thus, we sometimes swap the rays depending on how they are oriented.
+
+    vec3 transmittance;
+    vec3 direction = normalize(to - from);
+
+    if (length(direction) < 0.99)
+    {
+        return vec3(1.0);
+    }
+
+    if (dot(direction, from) > 0.0)
+    {
+        transmittance = sampleTransmittanceLUT_Ray(from, direction) / sampleTransmittanceLUT_Ray(to, direction);
+    }
+    else
+    {
+        transmittance = sampleTransmittanceLUT_Ray(to, -direction) / sampleTransmittanceLUT_Ray(from, -direction);
+    }
+
+    return clamp(transmittance, 0.0, 1.0);
+}
+
+void raycastAtmosphere(const vec3 origin, const vec3 direction, out vec3 l_naught, out float atmosphereDistance)
+{
+    float atmosphere_t0, atmosphere_t1;
+    const bool hitAtmosphere =
+        raySphereIntersection(origin, direction, ATMOSPHERE_RADIUS_KM / 1000.0, atmosphere_t0, atmosphere_t1)
+        && atmosphere_t1 > 0.0;
+
+    atmosphereDistance = 0.0;
+    atmosphere_t0 = max(0.0, atmosphere_t0);
+
+    l_naught = vec3(0.0);
+
+    vec3 luminance = vec3(0.0);
+    vec3 transmittance = vec3(1.0);
+
+    // TODO: Figure out what to do when inside the planet
+    float planet_t0, planet_t1;
+    const bool hitPlanet =
+        raySphereIntersection(origin, direction, PLANET_RADIUS_KM / 1000.0, planet_t0, planet_t1) && planet_t0 > 0.0;
+    if (hitPlanet)
+    {
+        atmosphere_t1 = min(planet_t0, atmosphere_t1);
+
+        const vec3 surfacePosition = origin + planet_t0 * direction;
+        const vec3 surfaceNormal = normalize(surfacePosition);
+
+        const vec3 lightDirection = -INCIDENT_DIRECTION_SUN;
+        const vec3 viewDirection = -direction;
+        // Quick and dirty estimate of surface albedo
+        const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+        const float specularPower = 160.0;
+        const float microfacetAttenuation = pow(clamp(dot(halfwayDirection, surfaceNormal), 0.0, 1.0), specularPower);
+        const float normalizationTerm = (specularPower + 2) / 8.0;
+        const vec3 specular = vec3(normalizationTerm * microfacetAttenuation);
+        const vec3 diffuse = vec3(0.4) / PI;
+
+        const vec3 fresnel =
+            vec3(0.04) + (1.0 - vec3(0.04)) * pow(1.0 - clamp(dot(halfwayDirection, lightDirection), 0.0, 1.0), 5);
+        const vec3 color = mix(diffuse, specular, fresnel);
+
+        luminance = sampleTransmittanceLUT_Ray(surfacePosition, lightDirection) * SUN_INTENSITY * color
+                  * dot(surfaceNormal, lightDirection);
+        transmittance = sampleTransmittanceLUT_Segment(surfacePosition, origin);
+    }
+
+    if (hitAtmosphere)
+    {
+        atmosphereDistance = atmosphere_t1 - atmosphere_t0;
+    }
+
+    l_naught = luminance * transmittance;
+}
+
+const uint SKY_VIEW_LUT_SAMPLE_COUNT = 32;
+vec3 computeLuminanceScatteringIntegral(const vec3 origin, const vec3 direction, const float sampleDistance)
+{
+    // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
+    // For the purposes of calculating phase functions, this is the direction we want to use.
+    const vec3 scatteringDir = -normalize(direction);
+
+    vec3 luminance = vec3(0.0);
+
+    // We estimate the integral in Equation (1) of Hillaire's paper.
+
+    const float dSampleDistance = sampleDistance / SKY_VIEW_LUT_SAMPLE_COUNT;
+    for (uint i = 0; i < SKY_VIEW_LUT_SAMPLE_COUNT; i++)
+    {
+        const float t = i * dSampleDistance;
+        const vec3 begin = origin - (float(i) * dSampleDistance) * scatteringDir;
+        const vec3 end = origin - (float(i + 1) * dSampleDistance) * scatteringDir;
+
+        // TODO: Possibly accumulate transmittance instead of sampling
+
+        float t0, t1;
+        const bool shadowed =
+            raySphereIntersection(begin, -INCIDENT_DIRECTION_SUN, PLANET_RADIUS_KM / 1000.0, t0, t1) && t1 > 0.0;
+        if (!shadowed)
+        {
+            const float altitude = length(begin) - (PLANET_RADIUS_KM / 1000.0);
+
+            const vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(begin, -INCIDENT_DIRECTION_SUN);
+
+            const ExtinctionSample extinctionSample = sampleExtinction(altitude * 1000.0);
+
+            // Terms of Equation (3) we assume to not vary over the path segment
+            const vec3 transmittanceToBegin = sampleTransmittanceLUT_Segment(origin, begin);
+            const float incidentCosine = dot(INCIDENT_DIRECTION_SUN, scatteringDir);
+            const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
+                                            + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
+            // Terrain shadowing is handled by the enclosing if statement
+            const vec3 atmosphericShadowing = transmittanceToSun;
+
+            // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
+            // This is a single interval of the integral in Equation (1) from Hillaire's paper,
+            // with all constant terms factored out above
+            const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(begin, end);
+            const vec3 transmittanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
+
+            luminance += SUN_INTENSITY * phaseTimesScattering * atmosphericShadowing * transmittanceIntegral
+                       * transmittanceToBegin;
+        }
+    }
+
+    return luminance;
+}
+
+void main()
+{
+    const vec2 size = imageSize(skyview_LUT);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texelCoord.x >= size.x || texelCoord.y >= size.y)
+    {
+        return;
+    }
+
+    const vec2 offset = vec2(0.5, 0.5);
+    const vec2 uv = (vec2(texelCoord) + offset) / size;
+
+    float azimuth;
+    float elevation;
+    uv_to_azimuthElevation(uv, azimuth, elevation);
+
+    // Flip for debug purposes
+    // elevation *= -1.0;
+
+    // +x right, +y up, +z forward
+    // Note: engine has +y up, but these coordinates are separate and based on azimuth, elevation.
+    // +azimuth right, +elevation up
+
+    const vec3 origin = vec3(0.0, (PLANET_RADIUS_KM + 0.005) / 1000.0, 0.0);
+    const vec3 direction =
+        normalize(vec3(sin(azimuth) * cos(elevation), sin(elevation), cos(azimuth) * cos(elevation)));
+
+    vec3 l_naught;
+    float distanceThroughAtmosphere;
+    raycastAtmosphere(origin, direction, l_naught, distanceThroughAtmosphere);
+
+    const vec3 luminance = l_naught + computeLuminanceScatteringIntegral(origin, direction, distanceThroughAtmosphere);
+
+    imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));
+}

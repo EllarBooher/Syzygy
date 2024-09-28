@@ -19,11 +19,14 @@ namespace syzygy
 void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
 {
     auto const pipelineOrdering{std::to_array<RenderingPipelines>(
-        {RenderingPipelines::DEFERRED, RenderingPipelines::COMPUTE_COLLECTION}
+        {RenderingPipelines::DEFERRED,
+         RenderingPipelines::COMPUTE_COLLECTION,
+         RenderingPipelines::SKY_VIEW}
     )};
-    auto const labels{
-        std::to_array<std::string>({"Deferred", "Compute Collection"})
-    };
+    auto const labels{std::to_array<std::string>(
+        {"Deferred", "Compute Collection", "Sky View"}
+    )};
+    static_assert(labels.size() == pipelineOrdering.size());
 
     auto const selectedIt{std::find(
         pipelineOrdering.begin(), pipelineOrdering.end(), currentActivePipeline

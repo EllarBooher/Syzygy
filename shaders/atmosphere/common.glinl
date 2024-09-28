@@ -1,0 +1,110 @@
+// Hard coded values (temporarily)
+const float PLANET_RADIUS_KM = 6360.0;
+const float ATMOSPHERE_RADIUS_KM = 6420.0;
+const float DENSITY_SCALE_MIE_KM = 1.2;
+const float DENSITY_SCALE_RAYLEIGH_KM = 8.0;
+
+const float VIEW_ALTITUDE_KM = 0.0;
+
+const vec3 SCATTERING_COEF_RAYLEIGH_PER_MM = vec3(5.802, 13.558, 33.1);
+// const vec3 ABSORPTION_COEF_RAYLEIGH_PER_MM = vec3(0.0);
+
+const vec3 SCATTERING_COEF_MIE_PER_MM = vec3(3.996);
+const vec3 ABSORPTION_COEF_MIE_PER_MM = vec3(4.40);
+
+// const vec3 SCATTERING_COEF_OZONE_PER_MM = vec3(0.0);
+const vec3 ABSORPTION_COEF_OZONE_PER_MM = vec3(0.650, 1.881, 0.085);
+
+const float PI = 3.141592653589793;
+
+const vec3 INCIDENT_DIRECTION_SUN = normalize(vec3(0.0,-1.0, -1.0));
+const vec3 SUN_INTENSITY = vec3(40.0);
+
+// Altitude density distributions for Rayleigh, Mie, and Ozone media.
+// Suggested values for densityScale are 8 km for Rayleigh, and 1.2 km for Mie
+float altitudeDensityRayleighMie(const float altitude_km, const float densityScale_km)
+{
+    return exp(-altitude_km / densityScale_km);
+}
+
+float altitudeDensityOzone(const float altitude_km) { return max(0.0, 1.0 - abs(altitude_km - 25.0) / 15.0); }
+
+struct ExtinctionSample
+{
+    vec3 scatteringRayleigh;
+    vec3 scatteringMie;
+
+    vec3 absorptionMie;
+    vec3 absorptionOzone;
+
+    vec3 extinction;
+};
+
+// Returned units are per MM
+ExtinctionSample sampleExtinction(const float altitude_km)
+{
+    const float densityRayleigh = altitudeDensityRayleighMie(altitude_km, DENSITY_SCALE_RAYLEIGH_KM);
+    const vec3 scatteringRayleigh = SCATTERING_COEF_RAYLEIGH_PER_MM * densityRayleigh;
+    // const vec3 absorptionRayleigh = ABSORPTION_COEF_RAYLEIGH_PER_MM * densityRayleigh;
+
+    const float densityMie = altitudeDensityRayleighMie(altitude_km, DENSITY_SCALE_MIE_KM);
+    const vec3 scatteringMie = SCATTERING_COEF_MIE_PER_MM * densityMie;
+    const vec3 absorptionMie = ABSORPTION_COEF_MIE_PER_MM * densityMie;
+
+    const float densityOzone = altitudeDensityOzone(altitude_km);
+    // const vec3 scatteringOzone = SCATTERING_COEF_OZONE_PER_MM * densityOzone;
+    const vec3 absorptionOzone = ABSORPTION_COEF_OZONE_PER_MM * densityOzone;
+
+    ExtinctionSample extinctionSample;
+    extinctionSample.scatteringRayleigh = scatteringRayleigh;
+    extinctionSample.scatteringMie = scatteringMie;
+    extinctionSample.absorptionMie = absorptionMie;
+    extinctionSample.absorptionOzone = absorptionOzone;
+    extinctionSample.extinction = scatteringRayleigh + scatteringMie + absorptionMie + absorptionOzone;
+
+    return extinctionSample;
+}
+
+// t1 > t0, values can be negative. Function returns true even if the sphere is behind the ray.
+// If this returns false, t0 and t1 are unchanged.
+bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius, out float t0, out float t1)
+{
+    // Method taken from "Precision Improvements for Ray/Sphere Intersection"
+    // by Eric Haines, Johannes Günther, and Tomas Akenine-Möller
+    //
+    // The method includes tricks to reduce float point inaccuracy errors.
+
+    const vec3 f = rayOrigin;
+    const vec3 d = rayDirectionNormalized;
+    const float b = -1.0 * dot(f, d);
+    const vec3 centerToIntersectionChord = f + b * d;
+    const float discriminant = radius * radius - dot(centerToIntersectionChord, centerToIntersectionChord);
+    const float c = dot(f, f) - radius * radius;
+
+    if (discriminant < 0.0)
+    {
+        return false;
+    }
+
+    float q = b;
+    if (b < 0.0)
+    {
+        q -= sqrt(discriminant);
+    }
+    else
+    {
+        q += sqrt(discriminant);
+    }
+
+    t0 = c / q;
+    t1 = q;
+
+    if (t0 > t1)
+    {
+        const float temp = t0;
+        t0 = t1;
+        t1 = temp;
+    }
+
+    return true;
+}

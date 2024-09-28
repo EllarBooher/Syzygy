@@ -1,0 +1,89 @@
+#version 460
+
+#extension GL_ARB_shading_language_include : require
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(rgba32f, set = 0, binding = 0) uniform image2D transmittance_LUT;
+
+#include "common.glinl"
+
+// Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
+
+// This shader builds a 2D transmittance LUT, where each position stores the
+// transmittance from a point, along a ray to infinity outside the atmosphere.
+//
+// This table needs to be recomputed if the atmosphere's parameters change,
+// but is valid for any camera position.
+//
+// The crux of being able to store transmittance in a 2D map is that:
+// 1) The atmosphere is spherically symmetrical, so we need at most 3 dimensions
+// (position, angle, distance)
+// 2) Optical depth tau := -ln(T) along a path segment is the sum of optical
+// depth along each portion. So to get the optical of any given segment, we just
+// need to store the transmittance to infinity from two points on this
+// atmosphere. Thus the map needs only be 2D and we sample twice to get the
+// optical depth/transmittance along a path segment.
+//
+// For a given position x and direction v
+// u := (length(x) - planet_radius) / (atmosphere_radius - planet_radius)
+// u represents the altitude, and taking the length of x only works if the
+// center of the planet is the origin.
+//
+// v := dot(x,v) / length(x)
+// v encodes the angle of the position with the direction. The spherical symmetry
+// of the atmosphere is the crux of being able to store transmittance in a 2D
+// map.
+//
+// altitude := distance from planet surface
+// height := distance from planet center
+// height = altitude + planet_radius
+
+const int SAMPLE_COUNT = 500;
+
+void main()
+{
+    const vec2 size = imageSize(transmittance_LUT);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texelCoord.x >= size.x || texelCoord.y >= size.y)
+    {
+        return;
+    }
+
+    const vec2 offset = vec2(0.5, 0.5);
+    const vec2 uv = (vec2(texelCoord) + offset) / size;
+
+    // u and v vary from [0,1]
+
+    // Unmarked units are in megameters (10^6 meters or 1000 km)
+
+    vec3 transmittance = vec3(1.0);
+
+    const float height = mix(PLANET_RADIUS_KM, ATMOSPHERE_RADIUS_KM, uv.s) / 1000.0;
+    const float directionCosine = 2.0 * uv.t - 1.0;
+
+    const vec3 position = vec3(0.0, height, 0.0);
+    const vec3 direction = vec3(sqrt(1.0 - directionCosine * directionCosine), directionCosine, 0.0);
+
+    float t0, t1;
+    if (!raySphereIntersection(position, direction, ATMOSPHERE_RADIUS_KM / 1000.0, t0, t1))
+    {
+        imageStore(transmittance_LUT, texelCoord, vec4(1.0));
+        return;
+    }
+
+    const float distanceThroughAtmosphere = t1;
+
+    const float dt = distanceThroughAtmosphere / SAMPLE_COUNT;
+    for (int i = 0; i < SAMPLE_COUNT; i++)
+    {
+        const float t = distanceThroughAtmosphere * (float(i) + 0.5) / SAMPLE_COUNT;
+        const vec3 samplePosition = position + t * direction;
+        const float sampleAltitude = length(samplePosition) - (PLANET_RADIUS_KM / 1000.0);
+
+        const ExtinctionSample extinctionSample = sampleExtinction(sampleAltitude * 1000.0);
+
+        transmittance *= exp(-abs(dt) * extinctionSample.extinction);
+    }
+
+    imageStore(transmittance_LUT, texelCoord, vec4(transmittance, 1.0));
+}
