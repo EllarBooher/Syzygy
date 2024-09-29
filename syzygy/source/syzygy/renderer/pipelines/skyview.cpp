@@ -310,8 +310,7 @@ auto populatePerspectiveResources(
                 static_cast<VkFlags>(0),
                 VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
                 VK_FILTER_LINEAR,
-                // VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_REPEAT
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
             )
         };
 
