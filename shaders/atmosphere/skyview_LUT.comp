@@ -150,6 +150,11 @@ void raycastAtmosphere(const vec3 origin, const vec3 direction, out vec3 l_naugh
                   * dot(surfaceNormal, lightDirection);
         transmittance = sampleTransmittanceLUT_Segment(surfacePosition, origin);
     }
+    else if(dot(direction, -INCIDENT_DIRECTION_SUN) > 0.9995)
+    {
+        luminance = SUN_INTENSITY * smoothstep(0.999, 0.9999, dot(direction, -INCIDENT_DIRECTION_SUN));
+        transmittance = sampleTransmittanceLUT_Ray(origin, direction);
+    }
 
     if (hitAtmosphere)
     {
