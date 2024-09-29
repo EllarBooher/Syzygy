@@ -52,14 +52,16 @@ void main()
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
 
+    const vec2 RMu = transmittanceLUT_UV_to_RMu(uv);
+
     // u and v vary from [0,1]
 
     // Unmarked units are in megameters (10^6 meters or 1000 km)
 
     vec3 transmittance = vec3(1.0);
 
-    const float height = mix(PLANET_RADIUS_KM, ATMOSPHERE_RADIUS_KM, uv.s) / 1000.0;
-    const float directionCosine = 2.0 * uv.t - 1.0;
+    const float height = RMu.x;
+    const float directionCosine = RMu.y;
 
     const vec3 position = vec3(0.0, height, 0.0);
     const vec3 direction = vec3(sqrt(1.0 - directionCosine * directionCosine), directionCosine, 0.0);

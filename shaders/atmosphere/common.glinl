@@ -1,8 +1,12 @@
 // Hard coded values (temporarily)
 const float PLANET_RADIUS_KM = 6360.0;
 const float ATMOSPHERE_RADIUS_KM = 6420.0;
+
 const float DENSITY_SCALE_MIE_KM = 1.2;
 const float DENSITY_SCALE_RAYLEIGH_KM = 8.0;
+ 
+const int TRANSMITTANCE_LUT_WIDTH = 512;
+const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
 const float VIEW_ALTITUDE_KM = 0.0;
 
@@ -19,6 +23,91 @@ const float PI = 3.141592653589793;
 
 const vec3 INCIDENT_DIRECTION_SUN = normalize(vec3(0.0,-1.0, -1.0));
 const vec3 SUN_INTENSITY = vec3(12.0);
+
+// Transmittance LUT UV mapping based on Bruneton et al. 2017 method
+// https://ebruneton.github.io/precomputed_atmospheric_scattering/atmosphere/functions.glsl#transmittance_lookup
+
+float safeSqrt(float value)
+{
+    return sqrt(max(value, 0.0));
+}
+
+// Squeeze in UV values by half a texel, so the boundaries of our sampled function can be stored precisely at the 
+// boundary of the texture
+float textureCoordFromUnitRange(float value, int dimension)
+{
+    return 0.5 / float(dimension) + value * (1.0 - 1.0 / float(dimension));
+}
+float unitRangeFromTextureCoord(float texCoord, int dimension)
+{
+    return (texCoord - 0.5 / float(dimension)) / (1.0 - 1.0 / float(dimension));
+}
+
+// Radius is the distance in Mm from the center of the planet, aka length of position vector
+// Mu is the cosine of the angle between the position vector and the direction vector we want to sample the transmittance in
+vec2 transmittanceLUT_RMu_to_UV(const float radius, const float mu)
+{
+    const float atmospherRadiusMmSquared = (ATMOSPHERE_RADIUS_KM / 1000.0) * (ATMOSPHERE_RADIUS_KM / 1000.0);
+    const float planetRadiusMmSquared = (PLANET_RADIUS_KM / 1000.0) * (PLANET_RADIUS_KM / 1000.0);
+
+    // Ground level, horizontal ray distance to atmospheric boundary
+    const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
+
+    // Distance to horizon, which is also the exact position the previous horizontal ray starts at
+    const float rho = sqrt(radius * radius - planetRadiusMmSquared);
+
+    // rho + H = distance to atmosphere boundary when looking at the horizon
+    // It represents the distance along the biggest angle (most negative mu) that has nonzero transmittance, 
+    // since any lower and we intersect the planet
+    // This angle changes as the radius does, so this mapping seeks to compress a different range of mu values
+    // at any given radius value
+
+    // Distance to edge of atmosphere, with both its min and max values at this given radius. 
+    const float d = max(-radius * mu + safeSqrt(radius * radius * (mu * mu - 1.0) + atmospherRadiusMmSquared), 0.0);
+    const float d_min = ATMOSPHERE_RADIUS_KM / 1000.0 - radius;
+    const float d_max = rho + H;
+
+    const float x_mu = (d - d_min) / (d_max - d_min);
+    const float x_radius = rho / H;
+
+    return vec2(textureCoordFromUnitRange(x_mu, TRANSMITTANCE_LUT_WIDTH), textureCoordFromUnitRange(x_radius, TRANSMITTANCE_LUT_HEIGHT));
+}
+
+// Inverse of transmittanceLUT_RMu_to_UV
+vec2 transmittanceLUT_UV_to_RMu(const vec2 uv)
+{
+    const float x_mu = unitRangeFromTextureCoord(uv.s, TRANSMITTANCE_LUT_WIDTH);
+    const float x_radius = unitRangeFromTextureCoord(uv.t, TRANSMITTANCE_LUT_HEIGHT);
+
+    const float atmospherRadiusMmSquared = (ATMOSPHERE_RADIUS_KM / 1000.0) * (ATMOSPHERE_RADIUS_KM / 1000.0);
+    const float planetRadiusMmSquared = (PLANET_RADIUS_KM / 1000.0) * (PLANET_RADIUS_KM / 1000.0);
+
+    // Ground level, horizontal ray distance to atmospheric boundary
+    const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
+
+    const float rho = H * x_radius;
+
+    const float radius = sqrt(rho * rho + planetRadiusMmSquared);
+
+    const float d_min = ATMOSPHERE_RADIUS_KM / 1000.0 - radius;
+    const float d_max = rho + H;
+
+    const float d = (d_max - d_min) * x_mu + d_min;
+
+    if (d == 0.0)
+    {
+        // mu is ambiguous since we are at the very edge of the atmosphere, where no angle produces valid transmittance values
+        return vec2(radius, 1.0);
+    }
+
+    const float mu = (H * H - rho * rho - d * d) / (2.0 * radius * d);
+    // Equivalenty, mu = (atmospherRadiusMmSquared - radius * radius - d*d) / (2.0 * radius * d)
+    // But atmospherRadiusMmSquared and radius * radius are large, so this avoids floating point errors from adding 
+    // these to the much smaller d * d
+
+    // This clamp is very important
+    return vec2(radius, clamp(mu, -1.0, 1.0));
+}
 
 // Altitude density distributions for Rayleigh, Mie, and Ozone media.
 // Suggested values for densityScale are 8 km for Rayleigh, and 1.2 km for Mie

@@ -67,16 +67,12 @@ const float phaseIsotropic = 1.0 / (4.0 * PI);
 
 vec3 sampleTransmittanceLUT_Ray(const vec3 position, const vec3 direction)
 {
-    const float altitude = length(position) - PLANET_RADIUS_KM / 1000.0;
-    const float atmosphereWidth = (ATMOSPHERE_RADIUS_KM - PLANET_RADIUS_KM) / 1000.0;
+    const float radius = length(position);
+    const float mu = (dot(position, direction) / (length(position) * length(direction)));
 
-    const float u = clamp(altitude / atmosphereWidth, 0.0, 1.0);
+    const vec2 uv = transmittanceLUT_RMu_to_UV(radius, mu);
 
-    const float cosine = (dot(position, direction) / (length(position) * length(direction)));
-
-    const float v = 0.5 * (cosine + 1.0);
-
-    return texture(transmittance_LUT, vec2(u, v)).rgb;
+    return texture(transmittance_LUT, uv).rgb;
 }
 
 vec3 sampleTransmittanceLUT_Segment(const vec3 from, const vec3 to)

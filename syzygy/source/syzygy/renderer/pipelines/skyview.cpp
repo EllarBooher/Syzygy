@@ -72,7 +72,7 @@ auto populateTransmittanceResources(
     syzygy::SkyViewComputePipeline::TransmittanceLUTResources& resources
 ) -> bool
 {
-    VkExtent2D constexpr EXTENT_LUT{1024U, 256U};
+    VkExtent2D constexpr EXTENT_LUT{512U, 128U};
 
     if (auto mapResult{syzygy::ImageView::allocate(
             device,
