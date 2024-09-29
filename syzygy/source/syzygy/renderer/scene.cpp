@@ -51,7 +51,7 @@ namespace syzygy
 Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
     .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
-    .earthRadiusMeters = 6378000,
+    .earthRadiusMeters = 6360000,
     .atmosphereRadiusMeters = 6420000,
 
     .groundColor = glm::vec3{1.0, 1.0, 1.0},
@@ -59,7 +59,7 @@ Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
     .scatteringCoefficientRayleigh = glm::vec3(0.0000058, 0.0000135, 0.0000331),
     .altitudeDecayRayleigh = 7994.0,
 
-    .scatteringCoefficientMie = glm::vec3(0.0000210),
+    .scatteringCoefficientMie = glm::vec3(0.000003996),
     .altitudeDecayMie = 1200.0,
 }};
 
