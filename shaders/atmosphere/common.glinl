@@ -18,7 +18,7 @@ const vec3 ABSORPTION_COEF_OZONE_PER_MM = vec3(0.650, 1.881, 0.085);
 const float PI = 3.141592653589793;
 
 const vec3 INCIDENT_DIRECTION_SUN = normalize(vec3(0.0,-1.0, -1.0));
-const vec3 SUN_INTENSITY = vec3(40.0);
+const vec3 SUN_INTENSITY = vec3(12.0);
 
 // Altitude density distributions for Rayleigh, Mie, and Ozone media.
 // Suggested values for densityScale are 8 km for Rayleigh, and 1.2 km for Mie

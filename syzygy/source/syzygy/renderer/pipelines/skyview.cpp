@@ -191,7 +191,7 @@ auto populateSkyViewResources(
                 VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
                 VK_FILTER_LINEAR,
                 // VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
             )
         };
 

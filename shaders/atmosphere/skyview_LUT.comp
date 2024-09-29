@@ -82,7 +82,7 @@ vec3 sampleTransmittanceLUT_Ray(const vec3 position, const vec3 direction)
 vec3 sampleTransmittanceLUT_Segment(const vec3 from, const vec3 to)
 {
     // Floats do not have enough range to store the very low transmittance of a ray crossing the longest distances.
-    // Thus, a sliver of the transmittance LUT is zero when it should be a very small value.
+    // Thus, a sliver of the transmittance LUT near the horizon is zero when it should be a very small value.
     // Also, rays that point at the planet return a transmittance of exactly 0 making it impossible to use such samples.
     // Thus, we sometimes swap the rays depending on how they are oriented.
 
