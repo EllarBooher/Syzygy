@@ -20,7 +20,7 @@ struct InputState
     };
     struct CursorState
     {
-        glm::u16vec2 position;
+        glm::i64vec2 position;
     };
 
     bool skipNextCursorDelta{};
@@ -112,7 +112,7 @@ void callbackCursorPos(
     InputState& state{s_GLFWstates.at(window)};
 
     state.cursorNew.position =
-        glm::u16vec2{static_cast<uint16_t>(xpos), static_cast<uint16_t>(ypos)};
+        glm::i64vec2{static_cast<int64_t>(xpos), static_cast<int64_t>(ypos)};
     if (state.skipNextCursorDelta)
     {
         state.cursorOld.position = state.cursorNew.position;
@@ -377,9 +377,9 @@ auto KeyStatus::operator==(KeyStatus const& other) const -> bool
     return other.down == down && other.edge == edge;
 }
 
-auto CursorSnapshot::delta() const -> glm::i32vec2
+auto CursorSnapshot::delta() const -> glm::i64vec2
 {
-    return glm::i32vec2{currentPosition} - glm::i32vec2{lastPosition};
+    return glm::i64vec2{currentPosition} - glm::i64vec2{lastPosition};
 }
 
 auto InputSnapshot::format() const -> std::string

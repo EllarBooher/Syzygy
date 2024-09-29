@@ -45,10 +45,10 @@ struct KeySnapshot
 };
 struct CursorSnapshot
 {
-    glm::u16vec2 lastPosition{};
-    glm::u16vec2 currentPosition{};
+    glm::i64vec2 lastPosition{};
+    glm::i64vec2 currentPosition{};
 
-    [[nodiscard]] auto delta() const -> glm::i32vec2;
+    [[nodiscard]] auto delta() const -> glm::i64vec2;
 };
 
 struct InputSnapshot
