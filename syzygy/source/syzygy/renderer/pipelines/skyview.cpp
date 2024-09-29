@@ -123,17 +123,6 @@ auto populateTransmittanceResources(
     resources.set = descriptorAllocator.allocate(device, resources.setLayout);
 
     std::array<VkDescriptorSetLayout, 1> const setLayouts{resources.setLayout};
-    if (auto const& layoutResult{detail::createLayout(device, setLayouts, {})};
-        layoutResult != VK_NULL_HANDLE)
-    {
-        resources.layout = layoutResult;
-    }
-    else
-    {
-        SZG_ERROR("Failed to allocate transmittance LUT pipeline layout.");
-        return false;
-    }
-
     if (auto shaderResult{syzygy::loadShaderObject(
             device,
             "shaders/atmosphere/transmittance_LUT.comp.spv",
@@ -149,6 +138,25 @@ auto populateTransmittanceResources(
     else
     {
         SZG_ERROR("Failed to allocate transmittance LUT shader object.");
+        return false;
+    }
+
+    std::array<VkPushConstantRange, 1> const pushConstants{
+        resources.shader.reflectionData().defaultPushConstant().totalRange(
+            VK_SHADER_STAGE_COMPUTE_BIT
+        )
+    };
+
+    if (auto const& layoutResult{
+            detail::createLayout(device, setLayouts, pushConstants)
+        };
+        layoutResult != VK_NULL_HANDLE)
+    {
+        resources.layout = layoutResult;
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate transmittance LUT pipeline layout.");
         return false;
     }
 
@@ -242,16 +250,6 @@ auto populateSkyViewResources(
     resources.set = descriptorAllocator.allocate(device, resources.setLayout);
 
     std::array<VkDescriptorSetLayout, 1> const setLayouts{resources.setLayout};
-    if (auto const& layoutResult{detail::createLayout(device, setLayouts, {})};
-        layoutResult != VK_NULL_HANDLE)
-    {
-        resources.layout = layoutResult;
-    }
-    else
-    {
-        SZG_ERROR("Failed to allocate skyview LUT pipeline layout.");
-        return false;
-    }
 
     if (auto shaderResult{syzygy::loadShaderObject(
             device,
@@ -268,6 +266,25 @@ auto populateSkyViewResources(
     else
     {
         SZG_ERROR("Failed to allocate skyview LUT shader object.");
+        return false;
+    }
+
+    std::array<VkPushConstantRange, 1> const pushConstants{
+        resources.shader.reflectionData().defaultPushConstant().totalRange(
+            VK_SHADER_STAGE_COMPUTE_BIT
+        )
+    };
+
+    if (auto const& layoutResult{
+            detail::createLayout(device, setLayouts, pushConstants)
+        };
+        layoutResult != VK_NULL_HANDLE)
+    {
+        resources.layout = layoutResult;
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate skyview LUT pipeline layout.");
         return false;
     }
 
@@ -655,19 +672,33 @@ void SkyViewComputePipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
     syzygy::Image& color,
+    uint32_t atmosphereIndex,
+    TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t viewCameraIndex,
     TStagedBuffer<syzygy::CameraPacked> const& cameras
 )
 {
+    atmospheres.recordTotalCopyBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+    cameras.recordTotalCopyBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+
     // 1) Generate Transmittance LUT, a map of transmittance values in all
     // directions
     //
     // 2) Generate SkyView LUT, an azimuth-elevation map of what the
-    // sky looks like (no tonemapping for now), consuming the transmittance LUT
+    // sky looks like (no tonemapping for now), consuming the transmittance
+    // LUT
     //
-    // 3) PerspectiveMap performs the perspective transform of the SkyView LUT.
-    // It consumes a camera + the SkyView LUT as a generic azimuth-elevation
-    // map.
+    // 3) PerspectiveMap performs the perspective transform of the SkyView
+    // LUT. It consumes a camera + the SkyView LUT as a generic
+    // azimuth-elevation map.
 
     VkShaderStageFlagBits const stage{VK_SHADER_STAGE_COMPUTE_BIT};
     uint32_t constexpr WORKGROUP_SIZE{16};
@@ -697,6 +728,21 @@ void SkyViewComputePipeline::recordDrawCommands(
         VkExtent2D const transmittanceExtent{
             m_transmittanceLUT.map->image().extent2D()
         };
+
+        TransmittanceLUTResources::PushConstant const pushConstant{
+            .atmosphereBuffer = atmospheres.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex
+        };
+
+        vkCmdPushConstants(
+            cmd,
+            m_transmittanceLUT.layout,
+            VK_SHADER_STAGE_COMPUTE_BIT,
+            0,
+            sizeof(pushConstant),
+            &pushConstant
+        );
+
         vkCmdDispatch(
             cmd,
             detail::computeDispatchCount(
@@ -729,6 +775,20 @@ void SkyViewComputePipeline::recordDrawCommands(
             &m_skyViewLUT.set,
             0,
             nullptr
+        );
+
+        SkyViewLUTResources::PushConstant const pushConstant{
+            .atmosphereBuffer = atmospheres.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex
+        };
+
+        vkCmdPushConstants(
+            cmd,
+            m_skyViewLUT.layout,
+            VK_SHADER_STAGE_COMPUTE_BIT,
+            0,
+            sizeof(pushConstant),
+            &pushConstant
         );
 
         VkExtent2D const skyViewExtent{m_skyViewLUT.map->image().extent2D()};

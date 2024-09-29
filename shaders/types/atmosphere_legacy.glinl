@@ -1,6 +1,6 @@
 // See gputypes.hpp for documentation
 
-struct Atmosphere
+struct AtmosphereLegacy
 {
     vec3 directionToSun;
     float earthRadiusMeters;

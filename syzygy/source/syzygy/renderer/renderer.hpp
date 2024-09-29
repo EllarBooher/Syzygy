@@ -14,6 +14,7 @@
 namespace syzygy
 {
 struct DescriptorAllocator;
+struct AtmosphereLegacyPacked;
 struct AtmospherePacked;
 struct CameraPacked;
 struct Scene;
@@ -113,6 +114,9 @@ private:
     std::unique_ptr<TStagedBuffer<syzygy::CameraPacked>> m_camerasBuffer{};
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
+    std::unique_ptr<TStagedBuffer<syzygy::AtmosphereLegacyPacked>>
+        m_atmospheresLegacyBuffer{};
+
     std::unique_ptr<TStagedBuffer<syzygy::AtmospherePacked>>
         m_atmospheresBuffer{};
 

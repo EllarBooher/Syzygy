@@ -49,6 +49,7 @@ Renderer::Renderer(Renderer&& other) noexcept
     m_skyViewComputePipeline = std::move(other.m_skyViewComputePipeline);
 
     m_camerasBuffer = std::move(other.m_camerasBuffer);
+    m_atmospheresLegacyBuffer = std::move(other.m_atmospheresLegacyBuffer);
     m_atmospheresBuffer = std::move(other.m_atmospheresBuffer);
 }
 
@@ -78,6 +79,7 @@ void Renderer::destroy()
     m_skyViewComputePipeline.reset();
 
     m_camerasBuffer.reset();
+    m_atmospheresLegacyBuffer.reset();
     m_atmospheresBuffer.reset();
 
     m_device = VK_NULL_HANDLE;
@@ -167,6 +169,15 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
             CAMERA_CAPACITY
         )
     );
+    m_atmospheresLegacyBuffer =
+        std::make_unique<TStagedBuffer<AtmosphereLegacyPacked>>(
+            TStagedBuffer<AtmosphereLegacyPacked>::allocate(
+                device,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                allocator,
+                ATMOSPHERE_CAPACITY
+            )
+        );
     m_atmospheresBuffer = std::make_unique<TStagedBuffer<AtmospherePacked>>(
         TStagedBuffer<AtmospherePacked>::allocate(
             device,
@@ -313,6 +324,10 @@ void Renderer::recordDraw(
             directionalLights.push_back(bakedAtmosphere.sunlight.value());
         }
 
+        m_atmospheresLegacyBuffer->clearStaged();
+        m_atmospheresLegacyBuffer->push(bakedAtmosphere.atmosphereLegacy);
+        m_atmospheresLegacyBuffer->recordCopyToDevice(cmd);
+
         m_atmospheresBuffer->clearStaged();
         m_atmospheresBuffer->push(bakedAtmosphere.atmosphere);
         m_atmospheresBuffer->recordCopyToDevice(cmd);
@@ -348,14 +363,14 @@ void Renderer::recordDraw(
         );
 
         uint32_t const cameraIndex{0};
+        // TODO: create a struct that contains a ref to a struct in a
+        // buffer
+        uint32_t const atmosphereIndex{0};
 
         switch (m_activeRenderingPipeline)
         {
         case RenderingPipelines::DEFERRED:
         {
-            // TODO: create a struct that contains a ref to a struct in a
-            // buffer
-            uint32_t const atmosphereIndex{0};
 
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
@@ -368,7 +383,7 @@ void Renderer::recordDraw(
                 cameraIndex,
                 *m_camerasBuffer,
                 atmosphereIndex,
-                *m_atmospheresBuffer,
+                *m_atmospheresLegacyBuffer,
                 scene.geometry()
             );
 
@@ -403,6 +418,8 @@ void Renderer::recordDraw(
                 cmd,
                 sceneSubregion,
                 sceneTexture.texture().image(),
+                atmosphereIndex,
+                *m_atmospheresBuffer,
                 cameraIndex,
                 *m_camerasBuffer
             );

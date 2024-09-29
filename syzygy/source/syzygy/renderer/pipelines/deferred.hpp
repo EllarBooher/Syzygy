@@ -41,7 +41,7 @@ public:
         uint32_t viewCameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
         uint32_t atmosphereIndex,
-        TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
+        TStagedBuffer<syzygy::AtmosphereLegacyPacked> const& atmospheres,
         std::span<syzygy::MeshInstanced const> sceneGeometry
     );
 

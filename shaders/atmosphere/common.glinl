@@ -1,28 +1,11 @@
-// Hard coded values (temporarily)
-const float PLANET_RADIUS_KM = 6360.0;
-const float ATMOSPHERE_RADIUS_KM = 6420.0;
+#include "../types/atmosphere.glinl"
 
-const float DENSITY_SCALE_MIE_KM = 1.2;
-const float DENSITY_SCALE_RAYLEIGH_KM = 8.0;
- 
 const int TRANSMITTANCE_LUT_WIDTH = 512;
 const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
 const float VIEW_ALTITUDE_KM = 0.0;
 
-const vec3 SCATTERING_COEF_RAYLEIGH_PER_MM = vec3(5.802, 13.558, 33.1);
-// const vec3 ABSORPTION_COEF_RAYLEIGH_PER_MM = vec3(0.0);
-
-const vec3 SCATTERING_COEF_MIE_PER_MM = vec3(3.996);
-const vec3 ABSORPTION_COEF_MIE_PER_MM = vec3(4.40);
-
-// const vec3 SCATTERING_COEF_OZONE_PER_MM = vec3(0.0);
-const vec3 ABSORPTION_COEF_OZONE_PER_MM = vec3(0.650, 1.881, 0.085);
-
 const float PI = 3.141592653589793;
-
-const vec3 INCIDENT_DIRECTION_SUN = normalize(vec3(0.0,-1.0, -1.0));
-const vec3 SUN_INTENSITY = vec3(12.0);
 
 // Transmittance LUT UV mapping based on Bruneton et al. 2017 method
 // https://ebruneton.github.io/precomputed_atmospheric_scattering/atmosphere/functions.glsl#transmittance_lookup
@@ -32,8 +15,7 @@ float safeSqrt(float value)
     return sqrt(max(value, 0.0));
 }
 
-// Squeeze in UV values by half a texel, so the boundaries of our sampled function can be stored precisely at the 
-// boundary of the texture
+// Squeeze in UV values by half a texel, so the bounds of our sampled function can be stored precisely at the edge of the texture
 float textureCoordFromUnitRange(float value, int dimension)
 {
     return 0.5 / float(dimension) + value * (1.0 - 1.0 / float(dimension));
@@ -45,10 +27,10 @@ float unitRangeFromTextureCoord(float texCoord, int dimension)
 
 // Radius is the distance in Mm from the center of the planet, aka length of position vector
 // Mu is the cosine of the angle between the position vector and the direction vector we want to sample the transmittance in
-vec2 transmittanceLUT_RMu_to_UV(const float radius, const float mu)
+vec2 transmittanceLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius, const float mu)
 {
-    const float atmospherRadiusMmSquared = (ATMOSPHERE_RADIUS_KM / 1000.0) * (ATMOSPHERE_RADIUS_KM / 1000.0);
-    const float planetRadiusMmSquared = (PLANET_RADIUS_KM / 1000.0) * (PLANET_RADIUS_KM / 1000.0);
+    const float atmospherRadiusMmSquared = atmosphere.atmosphereRadiusMm * atmosphere.atmosphereRadiusMm;
+    const float planetRadiusMmSquared = atmosphere.planetRadiusMm * atmosphere.planetRadiusMm;
 
     // Ground level, horizontal ray distance to atmospheric boundary
     const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
@@ -64,7 +46,7 @@ vec2 transmittanceLUT_RMu_to_UV(const float radius, const float mu)
 
     // Distance to edge of atmosphere, with both its min and max values at this given radius. 
     const float d = max(-radius * mu + safeSqrt(radius * radius * (mu * mu - 1.0) + atmospherRadiusMmSquared), 0.0);
-    const float d_min = ATMOSPHERE_RADIUS_KM / 1000.0 - radius;
+    const float d_min = atmosphere.atmosphereRadiusMm - radius;
     const float d_max = rho + H;
 
     const float x_mu = (d - d_min) / (d_max - d_min);
@@ -74,13 +56,13 @@ vec2 transmittanceLUT_RMu_to_UV(const float radius, const float mu)
 }
 
 // Inverse of transmittanceLUT_RMu_to_UV
-vec2 transmittanceLUT_UV_to_RMu(const vec2 uv)
+vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
 {
     const float x_mu = unitRangeFromTextureCoord(uv.s, TRANSMITTANCE_LUT_WIDTH);
     const float x_radius = unitRangeFromTextureCoord(uv.t, TRANSMITTANCE_LUT_HEIGHT);
 
-    const float atmospherRadiusMmSquared = (ATMOSPHERE_RADIUS_KM / 1000.0) * (ATMOSPHERE_RADIUS_KM / 1000.0);
-    const float planetRadiusMmSquared = (PLANET_RADIUS_KM / 1000.0) * (PLANET_RADIUS_KM / 1000.0);
+    const float atmospherRadiusMmSquared = atmosphere.atmosphereRadiusMm * atmosphere.atmosphereRadiusMm;
+    const float planetRadiusMmSquared = atmosphere.planetRadiusMm * atmosphere.planetRadiusMm;
 
     // Ground level, horizontal ray distance to atmospheric boundary
     const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
@@ -89,7 +71,7 @@ vec2 transmittanceLUT_UV_to_RMu(const vec2 uv)
 
     const float radius = sqrt(rho * rho + planetRadiusMmSquared);
 
-    const float d_min = ATMOSPHERE_RADIUS_KM / 1000.0 - radius;
+    const float d_min = atmosphere.atmosphereRadiusMm - radius;
     const float d_max = rho + H;
 
     const float d = (d_max - d_min) * x_mu + d_min;
@@ -109,14 +91,14 @@ vec2 transmittanceLUT_UV_to_RMu(const vec2 uv)
     return vec2(radius, clamp(mu, -1.0, 1.0));
 }
 
-// Altitude density distributions for Rayleigh, Mie, and Ozone media.
-// Suggested values for densityScale are 8 km for Rayleigh, and 1.2 km for Mie
-float altitudeDensityRayleighMie(const float altitude_km, const float densityScale_km)
+// Ensure altitude and densityScale are the same units.
+float densityExponential(const float altitude, const float densityScale)
 {
-    return exp(-altitude_km / densityScale_km);
+    return exp(-altitude / densityScale);
 }
 
-float altitudeDensityOzone(const float altitude_km) { return max(0.0, 1.0 - abs(altitude_km - 25.0) / 15.0); }
+// Hardcoded with values for ozone
+float densityTent(const float altitude_km) { return max(0.0, 1.0 - abs(altitude_km - 25.0) / 15.0); }
 
 struct ExtinctionSample
 {
@@ -129,27 +111,27 @@ struct ExtinctionSample
     vec3 extinction;
 };
 
-// Returned units are per MM
-ExtinctionSample sampleExtinction(const float altitude_km)
+// Returned units are per Mm
+ExtinctionSample sampleExtinction(const Atmosphere atmosphere, const float altitude_Mm)
 {
-    const float densityRayleigh = altitudeDensityRayleighMie(altitude_km, DENSITY_SCALE_RAYLEIGH_KM);
-    const vec3 scatteringRayleigh = SCATTERING_COEF_RAYLEIGH_PER_MM * densityRayleigh;
-    // const vec3 absorptionRayleigh = ABSORPTION_COEF_RAYLEIGH_PER_MM * densityRayleigh;
+    const float densityRayleigh = densityExponential(altitude_Mm, atmosphere.densityScaleRayleighMm);
+    const vec3 scatteringRayleigh = atmosphere.scatteringRayleighPerMm * densityRayleigh;
+    const vec3 absorptionRayleigh = atmosphere.absorptionRayleighPerMm * densityRayleigh;
 
-    const float densityMie = altitudeDensityRayleighMie(altitude_km, DENSITY_SCALE_MIE_KM);
-    const vec3 scatteringMie = SCATTERING_COEF_MIE_PER_MM * densityMie;
-    const vec3 absorptionMie = ABSORPTION_COEF_MIE_PER_MM * densityMie;
+    const float densityMie = densityExponential(altitude_Mm, atmosphere.densityScaleMieMm);
+    const vec3 scatteringMie = atmosphere.scatteringMiePerMm * densityMie;
+    const vec3 absorptionMie = atmosphere.absorptionRayleighPerMm * densityMie;
 
-    const float densityOzone = altitudeDensityOzone(altitude_km);
-    // const vec3 scatteringOzone = SCATTERING_COEF_OZONE_PER_MM * densityOzone;
-    const vec3 absorptionOzone = ABSORPTION_COEF_OZONE_PER_MM * densityOzone;
+    const float densityOzone = densityTent(altitude_Mm * 1000.0);
+    const vec3 scatteringOzone = atmosphere.scatteringOzonePerMm * densityOzone;
+    const vec3 absorptionOzone = atmosphere.absorptionOzonePerMm * densityOzone;
 
     ExtinctionSample extinctionSample;
     extinctionSample.scatteringRayleigh = scatteringRayleigh;
     extinctionSample.scatteringMie = scatteringMie;
     extinctionSample.absorptionMie = absorptionMie;
     extinctionSample.absorptionOzone = absorptionOzone;
-    extinctionSample.extinction = scatteringRayleigh + scatteringMie + absorptionMie + absorptionOzone;
+    extinctionSample.extinction = scatteringRayleigh + absorptionRayleigh + scatteringMie + absorptionMie + scatteringOzone + absorptionOzone;
 
     return extinctionSample;
 }

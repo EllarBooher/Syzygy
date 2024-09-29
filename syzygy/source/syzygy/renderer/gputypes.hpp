@@ -35,7 +35,7 @@ struct CameraPacked
 // NOLINTNEXTLINE(readability-magic-numbers)
 static_assert(sizeof(CameraPacked) == 416ULL);
 
-struct AtmospherePacked
+struct AtmosphereLegacyPacked
 {
     glm::vec3 directionToSun;
     float earthRadiusMeters;
@@ -62,7 +62,44 @@ struct AtmospherePacked
     uint8_t padding1[4]{};
 };
 // NOLINTNEXTLINE(readability-magic-numbers)
-static_assert(sizeof(AtmospherePacked) == 96ULL);
+static_assert(sizeof(AtmosphereLegacyPacked) == 96ULL);
+
+struct AtmospherePacked
+{
+    glm::vec3 scatteringRayleighPerMm;
+    float densityScaleRayleighMm;
+    glm::vec3 absorptionRayleighPerMm;
+
+    float planetRadiusMm;
+
+    glm::vec3 scatteringMiePerMm;
+    float densityScaleMieMm;
+    glm::vec3 absorptionMiePerMm;
+
+    float atmosphereRadiusMm;
+
+    glm::vec3 incidentDirectionSun;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+    uint8_t padding0[4]{};
+
+    glm::vec3 scatteringOzonePerMm;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+    uint8_t padding1[4]{};
+
+    glm::vec3 absorptionOzonePerMm;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+    uint8_t padding2[4]{};
+
+    glm::vec3 sunIntensitySpectrum;
+
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+    uint8_t padding3[4]{};
+};
+// NOLINTNEXTLINE(readability-magic-numbers)
+static_assert(sizeof(AtmospherePacked) == 128ULL);
 
 struct DirectionalLightPacked
 {

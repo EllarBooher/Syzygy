@@ -11,6 +11,7 @@
 namespace syzygy
 {
 struct Image;
+struct AtmospherePacked;
 struct CameraPacked;
 template <typename T> struct TStagedBuffer;
 } // namespace syzygy
@@ -36,6 +37,8 @@ public:
         VkCommandBuffer cmd,
         VkRect2D drawRect,
         syzygy::Image& color,
+        uint32_t atmosphereIndex,
+        TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
         uint32_t viewCameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras
     );
@@ -51,6 +54,15 @@ public:
         VkDescriptorSetLayout setLayout{VK_NULL_HANDLE};
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
+        struct PushConstant
+        {
+            VkDeviceAddress atmosphereBuffer{};
+            uint32_t atmosphereIndex{0};
+
+            // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
+            uint8_t padding[4]{0};
+            // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
+        };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };
     struct SkyViewLUTResources
@@ -67,6 +79,15 @@ public:
 
         VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
 
+        struct PushConstant
+        {
+            VkDeviceAddress atmosphereBuffer{};
+            uint32_t atmosphereIndex{0};
+
+            // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
+            uint8_t padding[4]{0};
+            // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
+        };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };
     struct PerspectiveMapResources

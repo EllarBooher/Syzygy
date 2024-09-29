@@ -667,14 +667,14 @@ auto Atmosphere::directionToSun() const -> glm::vec3
     return -forwardFromEulers(sunEulerAngles);
 }
 
-auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
+auto Atmosphere::toDeviceEquivalentLegacy() const -> AtmosphereLegacyPacked
 {
     // TODO: move these computations out to somewhere more sensible
 
     glm::vec4 const sunlight{computeSunlightColor(*this)};
     glm::vec3 const sunDirection{glm::normalize(directionToSun())};
 
-    return AtmospherePacked{
+    return AtmosphereLegacyPacked{
         .directionToSun = sunDirection,
         .earthRadiusMeters = earthRadiusMeters,
         .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
@@ -689,12 +689,46 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
     };
 }
 
+auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
+{
+    glm::vec3 sunDirection{glm::normalize(directionToSun())};
+
+    // Sky view shaders use +y as up
+    sunDirection.y *= -1;
+
+    float constexpr METERS_PER_MEGAMETER{1e6};
+
+    // Hardcoded values that still need to be added to the rest of the engine
+    glm::vec3 constexpr ABSORPTION_RAYLEIGH_PER_MM{0.0F};
+    glm::vec3 constexpr ABSORPTION_MIE_PER_MM{4.40F};
+    glm::vec3 constexpr SCATTERING_OZONE_PER_MM{0.0F};
+    glm::vec3 constexpr ABSORPTION_OZONE_PER_MM{0.650F, 1.881F, 0.085F};
+    glm::vec3 constexpr SUN_INTENSITY_SPECTRUM{12.0F};
+
+    return AtmospherePacked{
+        .scatteringRayleighPerMm =
+            scatteringCoefficientRayleigh * METERS_PER_MEGAMETER,
+        .densityScaleRayleighMm = altitudeDecayRayleigh / METERS_PER_MEGAMETER,
+        .absorptionRayleighPerMm = ABSORPTION_RAYLEIGH_PER_MM,
+        .planetRadiusMm = earthRadiusMeters / METERS_PER_MEGAMETER,
+        .scatteringMiePerMm = scatteringCoefficientMie * METERS_PER_MEGAMETER,
+        .densityScaleMieMm = altitudeDecayMie / METERS_PER_MEGAMETER,
+        .absorptionMiePerMm = ABSORPTION_MIE_PER_MM,
+        .atmosphereRadiusMm = atmosphereRadiusMeters / METERS_PER_MEGAMETER,
+        .incidentDirectionSun = -sunDirection,
+        .scatteringOzonePerMm = SCATTERING_OZONE_PER_MM,
+        .absorptionOzonePerMm = ABSORPTION_OZONE_PER_MM,
+        .sunIntensitySpectrum = SUN_INTENSITY_SPECTRUM,
+    };
+}
+
 auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
 {
+    AtmosphereLegacyPacked const atmosphereLegacy{toDeviceEquivalentLegacy()};
     AtmospherePacked const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
-    float const sunCosine{glm::dot(WORLD_UP, atmosphere.directionToSun)};
+    float const sunCosine{glm::dot(WORLD_UP, atmosphereLegacy.directionToSun)};
     float constexpr SUNSET_COSINE{0.06};
 
     std::optional<DirectionalLightPacked> sunlight{};
@@ -703,7 +737,7 @@ auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
     if (sunCosine > 0.0F)
     {
         sunlight = createSunlight(
-            sceneBounds, sunEulerAngles, atmosphere.sunlightColor
+            sceneBounds, sunEulerAngles, atmosphereLegacy.sunlightColor
         );
     }
     if (sunCosine < SUNSET_COSINE)
@@ -712,6 +746,7 @@ auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
     }
 
     return AtmosphereBaked{
+        .atmosphereLegacy = atmosphereLegacy,
         .atmosphere = atmosphere,
         .sunlight = sunlight,
         .moonlight = moonlight,

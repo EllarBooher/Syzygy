@@ -2,7 +2,7 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
-#include "../types/atmosphere.glsl"
+#include "../types/atmosphere_legacy.glinl"
 #include "../types/camera.glsl"
 
 // A post process shader that adds atmospheric scattering, plus the sky for
@@ -25,7 +25,7 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
 };
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
-    Atmosphere atmospheres[];
+    AtmosphereLegacy atmospheres[];
 };
 
 layout(push_constant) uniform PushConstant
@@ -101,7 +101,7 @@ vec3 computeAtmosphereLight(const vec3 origin,
                             const float tSampleStart,
                             const float tSampleEnd,
                             const vec3 endpointColor,
-                            const Atmosphere atmosphereParameters)
+                            const AtmosphereLegacy atmosphereParameters)
 {
     const float earthRadiusMeters = atmosphereParameters.earthRadiusMeters;
     const float atmosphereRadiusMeters = atmosphereParameters.atmosphereRadiusMeters;
@@ -213,7 +213,7 @@ void main()
     // This UV is into the entire image, not the subregion we are drawing into
     const vec2 uv = (vec2(texelCoord) + offset) / size;
 
-    const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
+    const AtmosphereLegacy atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
     const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
 
     // We shift the origin since otherwise our world coords would be at the center of the planet

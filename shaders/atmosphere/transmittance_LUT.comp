@@ -1,11 +1,23 @@
 #version 460
-
+#extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, set = 0, binding = 0) uniform image2D transmittance_LUT;
 
 #include "common.glinl"
+
+layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
+{
+    Atmosphere atmospheres[];
+};
+
+layout(push_constant) uniform PushConstant
+{
+    AtmosphereBuffer atmosphereBuffer;
+
+    uint atmosphereIndex;
+} pc;
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
 
@@ -49,10 +61,12 @@ void main()
         return;
     }
 
+    const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
 
-    const vec2 RMu = transmittanceLUT_UV_to_RMu(uv);
+    const vec2 RMu = transmittanceLUT_UV_to_RMu(atmosphere, uv);
 
     // u and v vary from [0,1]
 
@@ -60,14 +74,15 @@ void main()
 
     vec3 transmittance = vec3(1.0);
 
-    const float height = RMu.x;
+    const float radius = RMu.x;
     const float directionCosine = RMu.y;
 
-    const vec3 position = vec3(0.0, height, 0.0);
+    const vec3 origin = vec3(0.0, radius, 0.0);
     const vec3 direction = vec3(sqrt(1.0 - directionCosine * directionCosine), directionCosine, 0.0);
 
+    // TODO: See if computing t1 from R and Mu is better
     float t0, t1;
-    if (!raySphereIntersection(position, direction, ATMOSPHERE_RADIUS_KM / 1000.0, t0, t1))
+    if (!raySphereIntersection(origin, direction, atmosphere.atmosphereRadiusMm, t0, t1))
     {
         imageStore(transmittance_LUT, texelCoord, vec4(1.0));
         return;
@@ -79,10 +94,10 @@ void main()
     for (int i = 0; i < SAMPLE_COUNT; i++)
     {
         const float t = distanceThroughAtmosphere * (float(i) + 0.5) / SAMPLE_COUNT;
-        const vec3 samplePosition = position + t * direction;
-        const float sampleAltitude = length(samplePosition) - (PLANET_RADIUS_KM / 1000.0);
+        const vec3 position = origin + t * direction;
+        const float altitude = length(position) - atmosphere.planetRadiusMm;
 
-        const ExtinctionSample extinctionSample = sampleExtinction(sampleAltitude * 1000.0);
+        const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
 
         transmittance *= exp(-abs(dt) * extinctionSample.extinction);
     }

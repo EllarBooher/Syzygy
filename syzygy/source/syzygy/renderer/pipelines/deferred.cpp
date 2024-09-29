@@ -562,7 +562,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     uint32_t const viewCameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
     uint32_t const atmosphereIndex,
-    TStagedBuffer<AtmospherePacked> const& atmospheres,
+    TStagedBuffer<AtmosphereLegacyPacked> const& atmospheres,
     std::span<MeshInstanced const> sceneGeometry
 )
 {

@@ -1,0 +1,32 @@
+// See gputypes.hpp for documentation
+
+struct Atmosphere
+{
+	vec3 scatteringRayleighPerMm;
+	float densityScaleRayleighMm;
+	vec3 absorptionRayleighPerMm;
+
+	float planetRadiusMm;
+
+	vec3 scatteringMiePerMm;
+	float densityScaleMieMm;
+	vec3 absorptionMiePerMm;
+	
+	float atmosphereRadiusMm;
+
+	vec3 incidentDirectionSun;
+	
+	float padding0;
+
+	vec3 scatteringOzonePerMm;
+
+	float padding1;
+
+	vec3 absorptionOzonePerMm;
+
+	float padding2;
+
+	vec3 sunIntensitySpectrum;
+
+	float padding3;
+};

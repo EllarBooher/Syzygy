@@ -7,7 +7,7 @@
 // Supports directional and spot lights.
 // Portions are based on results in https://renderwonk.com/publications/s2010-shading-course/
 
-#include "../types/atmosphere.glsl"
+#include "../types/atmosphere_legacy.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
 
@@ -30,7 +30,7 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
-    Atmosphere atmospheres[];
+    AtmosphereLegacy atmospheres[];
 };
 
 layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
@@ -276,7 +276,7 @@ void main()
                                                                 texture(samplerSpecular, gbufferUV),
                                                                 texture(samplerOcclusionRoughnessMetallic, gbufferUV)));
 
-    const Atmosphere atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
+    const AtmosphereLegacy atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
 
     const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
     const vec3 viewDirection = normalize(camera.position.xyz - material.position.xyz);

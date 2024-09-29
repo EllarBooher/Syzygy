@@ -27,6 +27,7 @@ namespace syzygy
 {
 struct AtmosphereBaked
 {
+    AtmosphereLegacyPacked atmosphereLegacy{};
     AtmospherePacked atmosphere{};
     std::optional<DirectionalLightPacked> sunlight{};
     std::optional<DirectionalLightPacked> moonlight{};
@@ -50,6 +51,8 @@ struct Atmosphere
 
     [[nodiscard]] auto directionToSun() const -> glm::vec3;
 
+    [[nodiscard]] auto toDeviceEquivalentLegacy() const
+        -> AtmosphereLegacyPacked;
     [[nodiscard]] auto toDeviceEquivalent() const -> AtmospherePacked;
     [[nodiscard]] auto baked(AABB) const -> AtmosphereBaked;
 };
