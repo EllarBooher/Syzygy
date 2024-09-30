@@ -155,7 +155,7 @@ void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec
         const vec3 albedo = mix(diffuse, specular, fresnel);
 
         luminance = sampleTransmittanceLUT_Ray(atmosphere, surfacePosition, lightDirection) * atmosphere.sunIntensitySpectrum * albedo
-                  * dot(surfaceNormal, lightDirection);
+                  * clamp(dot(surfaceNormal, lightDirection),0.0,1.0);
         transmittance = sampleTransmittanceLUT_Segment(atmosphere, surfacePosition, origin);
     }
     else if(dot(direction, -atmosphere.incidentDirectionSun) > 0.9995)
