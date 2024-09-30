@@ -89,6 +89,12 @@ vec3 sampleTransmittanceLUT_Ray(const Atmosphere atmosphere, const vec3 position
 
     return texture(transmittance_LUT, uv).rgb;
 }
+vec3 sampleTransmittanceLUT_Ray(const Atmosphere atmosphere, const float radius, const float mu)
+{
+    const vec2 uv = transmittanceLUT_RMu_to_UV(atmosphere, radius, mu);
+
+    return texture(transmittance_LUT, uv).rgb;
+}
 
 vec3 sampleTransmittanceLUT_Segment(const Atmosphere atmosphere, const vec3 from, const vec3 to)
 {
@@ -139,6 +145,34 @@ vec3 sampleTransmittanceLUT_Sun(const Atmosphere atmosphere, const vec3 position
     const vec3 transmittanceThroughAtmosphere = sampleTransmittanceLUT_Ray(atmosphere, position, sunDirection);
 
     const float cos_sunZenith = dot(position, sunDirection) / (length(position) * length(sunDirection));
+
+    // angularFactor goes from 1 to 0 as sunZenith varies from horizonZenith - sunRadius to horizonZenith + sunRadius
+    // Or as cos(sunZenith) varies from cos(horizonZenith - sunRadius) to cos(horizonZenith + sunRadius)
+    // Using angle sum identity, we get that:
+    // cos(horizonZenith - sunRadius) = cos(horizonZenith)cos(sunRadius) + sin(sunRadius)sin(horizonZenith)
+    // cos(horizonZenith + sunRadius) = cos(horizonZenith)cos(sunRadius) - sin(sunRadius)sin(horizonZenith)
+    
+    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius, sin_horizonZenith * sin_sunRadius, cos_sunZenith - cos_horizonZenith * cos_sunRadius);
+
+    return transmittanceThroughAtmosphere * angularFactor;
+}
+vec3 sampleTransmittanceLUT_Sun(const Atmosphere atmosphere, const float radius, const float cos_sunZenith)
+{
+    const float sin_sunRadius = sin(SUN_ANGULAR_RADIUS_RADIANS);
+    const float cos_sunRadius = cos(SUN_ANGULAR_RADIUS_RADIANS);
+
+    /* 
+    Possible small angle approximation
+    const float sin_sunRadius = SUN_ANGULAR_RADIUS_RADIANS;
+    const float cos_sunRadius = 1.0;
+    */
+
+    const float sin_horizonZenith = atmosphere.planetRadiusMm / radius;
+    // Negative since the horizon zenith varies from PI/2 to PI
+    const float cos_horizonZenith = -safeSqrt(1.0 - sin_horizonZenith * sin_horizonZenith);
+
+    // This sample makes no assumption about ground intersection
+    const vec3 transmittanceThroughAtmosphere = sampleTransmittanceLUT_Ray(atmosphere, radius, cos_sunZenith);
 
     // angularFactor goes from 1 to 0 as sunZenith varies from horizonZenith - sunRadius to horizonZenith + sunRadius
     // Or as cos(sunZenith) varies from cos(horizonZenith - sunRadius) to cos(horizonZenith + sunRadius)
@@ -209,12 +243,45 @@ void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec
     l_naught = luminance * transmittance;
 }
 
+struct RaymarchStep
+{
+    float radius;
+    float mu;
+    float mu_sun;
+};
+
+RaymarchStep stepRadiusMu(const RaymarchStep start, const float stepDistance)
+{
+    // Consider starting position (0, radius, 0) 
+    // and step vector of d * (sqrt(1 - mu * mu), mu, 0)
+
+    // When computing changes in radii and mu, we use this method everywhere since norm is preserved upon rotation 
+    // and all cases of stepping can be reduced to the above two vectors
+
+    // cosine sum identity for sun zenith and direction zenith
+    const float mu_sunAndStepDirection = safeSqrt(start.mu_sun * start.mu - safeSqrt((1.0 - start.mu_sun * start.mu_sun) * (1.0 - start.mu * start.mu)));
+
+    RaymarchStep result;
+
+    result.radius = safeSqrt(stepDistance * stepDistance + 2.0 * start.radius * start.mu * stepDistance + start.radius * start.radius);
+    result.mu = (start.radius * start.mu + stepDistance) / result.radius;
+    result.mu_sun = (start.radius * start.mu_sun + stepDistance * mu_sunAndStepDirection) / result.radius;
+
+    return result;
+}
+
 const uint SKY_VIEW_LUT_SAMPLE_COUNT = 32;
 vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, const float sampleDistance)
 {
     // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
     // For the purposes of calculating phase functions, this is the direction we want to use.
     const vec3 scatteringDir = -normalize(direction);
+
+    const float radius = length(origin);
+    const float mu = dot(origin, direction) / (length(origin) * length(direction));
+    const float mu_sun = dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
+
+    const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
 
     vec3 luminance = vec3(0.0);
 
@@ -227,11 +294,13 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 
         const vec3 begin = origin - (float(i) * dSampleDistance) * scatteringDir;
         const vec3 end = origin - (float(i + 1) * dSampleDistance) * scatteringDir;
 
+        const RaymarchStep sampleStep = stepRadiusMu(originStep, t);
+
         // TODO: Possibly accumulate transmittance instead of sampling
 
         const float altitude = length(begin) - atmosphere.planetRadiusMm;
 
-        const vec3 transmittanceToSun = sampleTransmittanceLUT_Sun(atmosphere, begin, -atmosphere.incidentDirectionSun);
+        const vec3 transmittanceToSun = sampleTransmittanceLUT_Sun(atmosphere, sampleStep.radius, sampleStep.mu_sun);
 
         const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
 
@@ -240,8 +309,7 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 
         const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
         const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
                                         + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
-        // Terrain shadowing is handled by the enclosing if statement
-        const vec3 atmosphericShadowing = transmittanceToSun;
+        const vec3 shadowing = transmittanceToSun;
 
         // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
         // This is a single interval of the integral in Equation (1) from Hillaire's paper,
@@ -249,7 +317,7 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 
         const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(atmosphere, begin, end);
         const vec3 transmittanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
 
-        luminance += atmosphere.sunIntensitySpectrum * phaseTimesScattering * atmosphericShadowing * transmittanceIntegral
+        luminance += atmosphere.sunIntensitySpectrum * phaseTimesScattering * shadowing * transmittanceIntegral
                     * transmittanceToBegin;
     }
 
