@@ -169,7 +169,7 @@ auto populateSkyViewResources(
     syzygy::SkyViewComputePipeline::SkyViewLUTResources& resources
 ) -> bool
 {
-    VkExtent2D constexpr EXTENT_LUT{4096U, 4096U};
+    VkExtent2D constexpr EXTENT_LUT{2048U, 1024U};
 
     if (auto mapResult{syzygy::ImageView::allocate(
             device,
@@ -298,7 +298,7 @@ auto populatePerspectiveResources(
     syzygy::SkyViewComputePipeline::PerspectiveMapResources& resources
 ) -> bool
 {
-    VkExtent2D constexpr EXTENT_MAP{2048U, 2048U};
+    VkExtent2D constexpr EXTENT_MAP{4096U, 4096U};
 
     if (auto imageResult{syzygy::ImageView::allocate(
             device,
