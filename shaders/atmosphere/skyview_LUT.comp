@@ -21,6 +21,9 @@ layout(push_constant) uniform PushConstant
 } pc;
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
+//
+// And also "Precomputed Atmospheric Scattering: a New Implementation" by Eric Bruneton
+// https://ebruneton.github.io/precomputed_atmospheric_scattering
 
 // All units are Mm/megameters (10^6 meters) unless marked km/kilometers (10^3 meters)
 
@@ -114,6 +117,40 @@ vec3 sampleTransmittanceLUT_Segment(const Atmosphere atmosphere, const vec3 from
     return clamp(transmittance, 0.0, 1.0);
 }
 
+// The sun is a disk, and treating it as a point source can cause artifacts at near-horizon angles during sunrise/sunset.
+// Thus we sample differently when we want to get the transmittance to the sun
+vec3 sampleTransmittanceLUT_Sun(const Atmosphere atmosphere, const vec3 position, const vec3 sunDirection)
+{
+    const float sin_sunRadius = sin(SUN_ANGULAR_RADIUS_RADIANS);
+    const float cos_sunRadius = cos(SUN_ANGULAR_RADIUS_RADIANS);
+
+    /* 
+    Possible small angle approximation
+    const float sin_sunRadius = SUN_ANGULAR_RADIUS_RADIANS;
+    const float cos_sunRadius = 1.0;
+    */
+    
+    const float radius = length(position);
+    const float sin_horizonZenith = atmosphere.planetRadiusMm / radius;
+    // Negative since the horizon zenith varies from PI/2 to PI
+    const float cos_horizonZenith = -safeSqrt(1.0 - sin_horizonZenith * sin_horizonZenith);
+
+    // This sample makes no assumption about ground intersection
+    const vec3 transmittanceThroughAtmosphere = sampleTransmittanceLUT_Ray(atmosphere, position, sunDirection);
+
+    const float cos_sunZenith = dot(position, sunDirection) / (length(position) * length(sunDirection));
+
+    // angularFactor goes from 1 to 0 as sunZenith varies from horizonZenith - sunRadius to horizonZenith + sunRadius
+    // Or as cos(sunZenith) varies from cos(horizonZenith - sunRadius) to cos(horizonZenith + sunRadius)
+    // Using angle sum identity, we get that:
+    // cos(horizonZenith - sunRadius) = cos(horizonZenith)cos(sunRadius) + sin(sunRadius)sin(horizonZenith)
+    // cos(horizonZenith + sunRadius) = cos(horizonZenith)cos(sunRadius) - sin(sunRadius)sin(horizonZenith)
+    
+    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius, sin_horizonZenith * sin_sunRadius, cos_sunZenith - cos_horizonZenith * cos_sunRadius);
+
+    return transmittanceThroughAtmosphere * angularFactor;
+}
+
 void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, out vec3 l_naught, out float atmosphereDistance)
 {
     float atmosphere_t0, atmosphere_t1;
@@ -192,34 +229,28 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 
 
         // TODO: Possibly accumulate transmittance instead of sampling
 
-        float t0, t1;
-        const bool shadowed =
-            raySphereIntersection(begin, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm, t0, t1) && t1 > 0.0;
-        if (!shadowed)
-        {
-            const float altitude = length(begin) - atmosphere.planetRadiusMm;
+        const float altitude = length(begin) - atmosphere.planetRadiusMm;
 
-            const vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(atmosphere, begin, -atmosphere.incidentDirectionSun);
+        const vec3 transmittanceToSun = sampleTransmittanceLUT_Sun(atmosphere, begin, -atmosphere.incidentDirectionSun);
 
-            const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
+        const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
 
-            // Terms of Equation (3) we assume to not vary over the path segment
-            const vec3 transmittanceToBegin = sampleTransmittanceLUT_Segment(atmosphere, origin, begin);
-            const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
-            const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
-                                            + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
-            // Terrain shadowing is handled by the enclosing if statement
-            const vec3 atmosphericShadowing = transmittanceToSun;
+        // Terms of Equation (3) we assume to not vary over the path segment
+        const vec3 transmittanceToBegin = sampleTransmittanceLUT_Segment(atmosphere, origin, begin);
+        const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
+        const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
+                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
+        // Terrain shadowing is handled by the enclosing if statement
+        const vec3 atmosphericShadowing = transmittanceToSun;
 
-            // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
-            // This is a single interval of the integral in Equation (1) from Hillaire's paper,
-            // with all constant terms factored out above
-            const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(atmosphere, begin, end);
-            const vec3 transmittanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
+        // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
+        // This is a single interval of the integral in Equation (1) from Hillaire's paper,
+        // with all constant terms factored out above
+        const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(atmosphere, begin, end);
+        const vec3 transmittanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
 
-            luminance += atmosphere.sunIntensitySpectrum * phaseTimesScattering * atmosphericShadowing * transmittanceIntegral
-                       * transmittanceToBegin;
-        }
+        luminance += atmosphere.sunIntensitySpectrum * phaseTimesScattering * atmosphericShadowing * transmittanceIntegral
+                    * transmittanceToBegin;
     }
 
     return luminance;

@@ -5,6 +5,9 @@ const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
 const float VIEW_ALTITUDE_KM = 0.0;
 
+// Hand computed from assumption that sun is roughly 32 arcminutes
+const float SUN_ANGULAR_RADIUS_RADIANS = 0.009308422677303;
+
 const float PI = 3.141592653589793;
 
 // Transmittance LUT UV mapping based on Bruneton et al. 2017 method
