@@ -64,6 +64,11 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
 
     const vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, position, direction);
 
+    if (cosDirectionSun < 0.0)
+    {
+        return vec3(0.0);
+    }
+
     return transmittanceToSun * (1.0 - smoothstep(0.2 * sinSunRadius, sinSunRadius, sinDirectionSun));
 }
 
