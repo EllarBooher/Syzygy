@@ -341,6 +341,26 @@ auto populatePerspectiveResources(
             "Failed to create sampler for perspective map.",
             false
         );
+
+        VkSamplerCreateInfo const transmittanceSamplerInfo{
+            syzygy::samplerCreateInfo(
+                static_cast<VkFlags>(0),
+                VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+                VK_FILTER_LINEAR,
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            )
+        };
+
+        SZG_TRY_VK(
+            vkCreateSampler(
+                device,
+                &transmittanceSamplerInfo,
+                nullptr,
+                &resources.transmittanceImmutableSampler
+            ),
+            "Failed to create sampler for transmittance LUT",
+            false
+        );
     }
 
     if (auto setLayoutResult{
@@ -362,6 +382,15 @@ auto populatePerspectiveResources(
                         .bindingFlags = static_cast<VkFlags>(0),
                     },
                     {resources.azimuthElevationMapSampler}
+                )
+                .addBinding(
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 2,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    {resources.transmittanceImmutableSampler}
                 )
                 .build(device, static_cast<VkFlags>(0))
         };
@@ -492,10 +521,17 @@ void updateDescriptors(
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         };
 
-        VkDescriptorImageInfo const skyviewInfo{
-            .sampler = VK_NULL_HANDLE,
-            .imageView = skyviewLUT.map->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+        std::array<VkDescriptorImageInfo, 2> const LUTWrites{
+            VkDescriptorImageInfo{
+                .sampler = VK_NULL_HANDLE,
+                .imageView = skyviewLUT.map->view(),
+                .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+            },
+            VkDescriptorImageInfo{
+                .sampler = VK_NULL_HANDLE,
+                .imageView = transmittanceLUT.map->view(),
+                .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+            }
         };
 
         std::array<VkWriteDescriptorSet, 2> writes{
@@ -513,9 +549,9 @@ void updateDescriptors(
                 .pNext = nullptr,
                 .dstSet = perspectiveMap.set,
                 .dstBinding = 1,
-                .descriptorCount = 1,
+                .descriptorCount = static_cast<uint32_t>(LUTWrites.size()),
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .pImageInfo = &skyviewInfo,
+                .pImageInfo = LUTWrites.data(),
             }
         };
 
@@ -527,7 +563,10 @@ void recordPerspectiveMapCommands(
     VkCommandBuffer const cmd,
     syzygy::SkyViewComputePipeline::PerspectiveMapResources const& resources,
     syzygy::ImageView& skyViewLUT,
+    syzygy::ImageView& transmittanceLUT,
     VkExtent2D const drawExtent,
+    uint32_t atmosphereIndex,
+    syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t viewCameraIndex,
     syzygy::TStagedBuffer<syzygy::CameraPacked> const& cameras
 )
@@ -559,7 +598,9 @@ void recordPerspectiveMapCommands(
 
     syzygy::SkyViewComputePipeline::PerspectiveMapResources::PushConstant const
         pushConstant{
+            .atmosphereBuffer = atmospheres.deviceAddress(),
             .cameraBuffer = cameras.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex,
             .cameraIndex = viewCameraIndex,
             .drawExtent = glm::uvec2{drawExtent.width, drawExtent.height},
         };
@@ -804,7 +845,10 @@ void SkyViewComputePipeline::recordDrawCommands(
         cmd,
         m_perspectiveMap,
         *m_skyViewLUT.map,
+        *m_transmittanceLUT.map,
         drawRect.extent,
+        atmosphereIndex,
+        atmospheres,
         viewCameraIndex,
         cameras
     );

@@ -94,6 +94,16 @@ vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
     return vec2(radius, clamp(mu, -1.0, 1.0));
 }
 
+vec3 sampleTransmittanceLUT_Ray(sampler2D LUT, const Atmosphere atmosphere, const vec3 position, const vec3 direction)
+{
+    const float radius = length(position);
+    const float mu = (dot(position, direction) / (length(position) * length(direction)));
+
+    const vec2 uv = transmittanceLUT_RMu_to_UV(atmosphere, radius, mu);
+
+    return texture(LUT, uv).rgb;
+}
+
 // Ensure altitude and densityScale are the same units.
 float densityExponential(const float altitude, const float densityScale)
 {

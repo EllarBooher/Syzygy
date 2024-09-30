@@ -703,7 +703,9 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
     glm::vec3 constexpr ABSORPTION_MIE_PER_MM{4.40F};
     glm::vec3 constexpr SCATTERING_OZONE_PER_MM{0.0F};
     glm::vec3 constexpr ABSORPTION_OZONE_PER_MM{0.650F, 1.881F, 0.085F};
-    glm::vec3 constexpr SUN_INTENSITY_SPECTRUM{12.0F};
+    glm::vec3 const SUN_INTENSITY_SPECTRUM{
+        glm::normalize(glm::vec3{1.7F, 1.8F, 2.0F})
+    };
 
     return AtmospherePacked{
         .scatteringRayleighPerMm =
