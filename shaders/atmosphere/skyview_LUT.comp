@@ -183,7 +183,7 @@ void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec
             vec3(0.04) + (1.0 - vec3(0.04)) * pow(1.0 - clamp(dot(halfwayDirection, lightDirection), 0.0, 1.0), 5);
         const vec3 albedo = mix(diffuse, specular, fresnel);
 
-        luminance = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection) * atmosphere.sunIntensitySpectrum * albedo
+        luminance = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection) * albedo
                   * clamp(dot(surfaceNormal, lightDirection),0.0,1.0);
         transmittance = sampleTransmittanceLUT_Segment(atmosphere, surfacePosition, origin);
     }
@@ -270,7 +270,7 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 
         const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(atmosphere, begin, end);
         const vec3 transmittanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
 
-        luminance += atmosphere.sunIntensitySpectrum * phaseTimesScattering * shadowing * transmittanceIntegral
+        luminance += phaseTimesScattering * shadowing * transmittanceIntegral
                     * transmittanceToBegin;
     }
 

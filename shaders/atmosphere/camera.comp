@@ -95,17 +95,19 @@ void main()
     const float sin_horizonZenith = radius / atmosphere.planetRadiusMm;
     const float cos_horizonZenith = -safeSqrt(1.0 - sin_horizonZenith * sin_horizonZenith);
 
-    vec3 luminance = sampleMap_Direction(direction);
+    vec3 sunIlluminanceToSkyLuminanceTransfer = vec3(0.0);
+    sunIlluminanceToSkyLuminanceTransfer += sampleMap_Direction(direction);
     
+    // If sun is above horizon, the sun disk is visible
     const float cos_directionZenith = dot(direction, position) / (length(direction) * length(position));
-
     if (cos_directionZenith > cos_horizonZenith)
     {   
-        luminance += sampleSunDisk(atmosphere, position, direction);
+        sunIlluminanceToSkyLuminanceTransfer += sampleSunDisk(atmosphere, position, direction);
     }
 
     // ad-hoc tonemapping
-    const vec3 color = pow(luminance * 10.0, vec3(1.3));
+    vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * 10.0 * atmosphere.sunIntensitySpectrum;
+    const vec3 color = pow(luminance, vec3(1.3));
 
     imageStore(image, texelCoord, vec4(color, 1.0));
 }
