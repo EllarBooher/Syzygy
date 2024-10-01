@@ -36,10 +36,10 @@ vec2 transmittanceLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius,
     const float planetRadiusMmSquared = atmosphere.planetRadiusMm * atmosphere.planetRadiusMm;
 
     // Ground level, horizontal ray distance to atmospheric boundary
-    const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
+    const float H = safeSqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
 
     // Distance to horizon, which is also the exact position the previous horizontal ray starts at
-    const float rho = sqrt(radius * radius - planetRadiusMmSquared);
+    const float rho = safeSqrt(radius * radius - planetRadiusMmSquared);
 
     // rho + H = distance to atmosphere boundary when looking at the horizon
     // It represents the distance along the biggest angle (most negative mu) that has nonzero transmittance, 
@@ -68,7 +68,7 @@ vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
     const float planetRadiusMmSquared = atmosphere.planetRadiusMm * atmosphere.planetRadiusMm;
 
     // Ground level, horizontal ray distance to atmospheric boundary
-    const float H = sqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
+    const float H = safeSqrt(atmospherRadiusMmSquared - planetRadiusMmSquared);
 
     const float rho = H * x_radius;
 
@@ -104,6 +104,65 @@ vec3 sampleTransmittanceLUT_Ray(sampler2D LUT, const Atmosphere atmosphere, cons
     return texture(LUT, uv).rgb;
 }
 
+vec3 sampleTransmittanceLUT_Segment(sampler2D LUT, const Atmosphere atmosphere, const vec3 from, const vec3 to)
+{
+    // Floats do not have enough range to store the very low transmittance of a ray crossing the longest distances.
+    // Thus, a sliver of the transmittance LUT near the horizon is zero when it should be a very small value.
+    // Also, rays that point at the planet return a transmittance of exactly 0 making it impossible to use such samples.
+    // Thus, we sometimes swap the rays depending on how they are oriented.
+
+    vec3 transmittance;
+    vec3 direction = normalize(to - from);
+
+    // Proxy for hitting the ground. 
+    // This check does not necessarily mean the ray hits the ground, but it is safe to flip anyway.
+    if (dot(from, direction) < 0.0)
+    {
+        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, to, -direction) / sampleTransmittanceLUT_Ray(LUT, atmosphere, from, -direction);
+    }
+    else
+    {
+        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, from, direction) / sampleTransmittanceLUT_Ray(LUT, atmosphere, to, direction);
+    }
+
+    return clamp(transmittance, 0.0, 1.0);
+}
+
+vec3 sampleTransmittanceLUT_RadiusMu(sampler2D LUT, const Atmosphere atmosphere, const float radius, const float mu)
+{
+    const vec2 uv = transmittanceLUT_RMu_to_UV(atmosphere, radius, mu);
+
+    return texture(LUT, uv).rgb;
+}
+
+vec3 sampleTransmittanceLUT_Sun(sampler2D LUT, const Atmosphere atmosphere, const float radius, const float cos_sunZenith)
+{
+    const float sin_sunRadius = sin(SUN_ANGULAR_RADIUS_RADIANS);
+    const float cos_sunRadius = cos(SUN_ANGULAR_RADIUS_RADIANS);
+
+    /* 
+    Possible small angle approximation
+    const float sin_sunRadius = SUN_ANGULAR_RADIUS_RADIANS;
+    const float cos_sunRadius = 1.0;
+    */
+
+    const float sin_horizonZenith = atmosphere.planetRadiusMm / radius;
+    // Negative since the horizon zenith varies from PI/2 to PI
+    const float cos_horizonZenith = -safeSqrt(1.0 - sin_horizonZenith * sin_horizonZenith);
+
+    // This sample makes no assumption about ground intersection
+    const vec3 transmittanceThroughAtmosphere = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, radius, cos_sunZenith);
+
+    // angularFactor goes from 1 to 0 as sunZenith varies from horizonZenith - sunRadius to horizonZenith + sunRadius
+    // Or as cos(sunZenith) varies from cos(horizonZenith - sunRadius) to cos(horizonZenith + sunRadius)
+    // Using angle sum identity, we get that:
+    // cos(horizonZenith - sunRadius) = cos(horizonZenith)cos(sunRadius) + sin(sunRadius)sin(horizonZenith)
+    // cos(horizonZenith + sunRadius) = cos(horizonZenith)cos(sunRadius) - sin(sunRadius)sin(horizonZenith)
+    
+    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius, sin_horizonZenith * sin_sunRadius, cos_sunZenith - cos_horizonZenith * cos_sunRadius);
+
+    return transmittanceThroughAtmosphere * angularFactor;
+}
 // Ensure altitude and densityScale are the same units.
 float densityExponential(const float altitude, const float densityScale)
 {
