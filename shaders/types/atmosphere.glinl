@@ -28,5 +28,5 @@ struct Atmosphere
 
 	vec3 sunIntensitySpectrum;
 
-	float padding3;
+	float sunAngularRadius;
 };

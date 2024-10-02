@@ -41,27 +41,39 @@ struct DescriptorAllocator;
 
 namespace syzygy
 {
-/*
- * Values derived from:
- * https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky/simulating-colors-of-the-sky.html
- * Which is based on the original paper "Display of the Earth Taking into
- * Account Atmospheric Scattering" by Tomoyuki Nishita, Takao Sirai, Katsumi
- * Tadamura, Eihachiro Nakamae
- */
-Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{Atmosphere{
-    .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
+float constexpr METERS_PER_MEGAMETER{1'000'000.0};
+float constexpr METERS_PER_KILOMETER{1'000.0};
 
-    .earthRadiusMeters = 6360000,
-    .atmosphereRadiusMeters = 6420000,
+// Values derived from:
+// "A Scalable and Production Ready Sky and Atmosphere Rendering Technique"
+// by Sébastien Hillaire (2020) Available at
+// https://sebh.github.io/publications/egsr2020.pdf
+Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{
+    Atmosphere{
+        .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
 
-    .groundColor = glm::vec3{1.0, 1.0, 1.0},
+        .earthRadiusMeters = 6.360 * METERS_PER_MEGAMETER,
+        .atmosphereRadiusMeters = 6.420 * METERS_PER_MEGAMETER,
 
-    .scatteringCoefficientRayleigh = glm::vec3(0.0000058, 0.0000135, 0.0000331),
-    .altitudeDecayRayleigh = 7994.0,
+        .groundColor = glm::vec3{1.0, 1.0, 1.0},
 
-    .scatteringCoefficientMie = glm::vec3(0.000003996),
-    .altitudeDecayMie = 1200.0,
-}};
+        .scatteringCoefficientRayleigh =
+            glm::vec3{5.802F, 13.558F, 33.1F} / METERS_PER_MEGAMETER,
+        .absorptionCoefficientRayleigh = glm::vec3{0.0F} / METERS_PER_MEGAMETER,
+        .altitudeDecayRayleigh = 8.0F * METERS_PER_KILOMETER,
+
+        .scatteringCoefficientMie = glm::vec3{3.996F} / METERS_PER_MEGAMETER,
+        .absorptionCoefficientMie = glm::vec3{4.40F} / METERS_PER_MEGAMETER,
+        .altitudeDecayMie = 1.2F * METERS_PER_KILOMETER,
+
+        .scatteringCoefficientOzone = glm::vec3{0.0F} / METERS_PER_MEGAMETER,
+        .absorptionCoefficientOzone =
+            glm::vec3{0.650F, 1.881F, 0.085F} / METERS_PER_MEGAMETER,
+
+        .sunIntensitySpectrum = glm::vec3{1.0F, 1.0F, 1.0F},
+        .sunAngularRadius = glm::radians(32.0F / 60.0F),
+    } // namespace syzygy
+};
 
 Camera const Scene::DEFAULT_CAMERA{Camera{
     .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
@@ -696,31 +708,24 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
     // Sky view shaders use +y as up
     sunDirection.y *= -1;
 
-    float constexpr METERS_PER_MEGAMETER{1e6};
-
-    // Hardcoded values that still need to be added to the rest of the engine
-    glm::vec3 constexpr ABSORPTION_RAYLEIGH_PER_MM{0.0F};
-    glm::vec3 constexpr ABSORPTION_MIE_PER_MM{4.40F};
-    glm::vec3 constexpr SCATTERING_OZONE_PER_MM{0.0F};
-    glm::vec3 constexpr ABSORPTION_OZONE_PER_MM{0.650F, 1.881F, 0.085F};
-    glm::vec3 const SUN_INTENSITY_SPECTRUM{
-        glm::normalize(glm::vec3{1.7F, 1.8F, 2.0F})
-    };
-
     return AtmospherePacked{
         .scatteringRayleighPerMm =
             scatteringCoefficientRayleigh * METERS_PER_MEGAMETER,
         .densityScaleRayleighMm = altitudeDecayRayleigh / METERS_PER_MEGAMETER,
-        .absorptionRayleighPerMm = ABSORPTION_RAYLEIGH_PER_MM,
+        .absorptionRayleighPerMm =
+            absorptionCoefficientRayleigh * METERS_PER_MEGAMETER,
         .planetRadiusMm = earthRadiusMeters / METERS_PER_MEGAMETER,
         .scatteringMiePerMm = scatteringCoefficientMie * METERS_PER_MEGAMETER,
         .densityScaleMieMm = altitudeDecayMie / METERS_PER_MEGAMETER,
-        .absorptionMiePerMm = ABSORPTION_MIE_PER_MM,
+        .absorptionMiePerMm = absorptionCoefficientMie * METERS_PER_MEGAMETER,
         .atmosphereRadiusMm = atmosphereRadiusMeters / METERS_PER_MEGAMETER,
         .incidentDirectionSun = -sunDirection,
-        .scatteringOzonePerMm = SCATTERING_OZONE_PER_MM,
-        .absorptionOzonePerMm = ABSORPTION_OZONE_PER_MM,
-        .sunIntensitySpectrum = SUN_INTENSITY_SPECTRUM,
+        .scatteringOzonePerMm =
+            scatteringCoefficientOzone * METERS_PER_MEGAMETER,
+        .absorptionOzonePerMm =
+            absorptionCoefficientOzone * METERS_PER_MEGAMETER,
+        .sunIntensitySpectrum = sunIntensitySpectrum,
+        .sunAngularRadius = sunAngularRadius,
     };
 }
 

@@ -44,10 +44,18 @@ struct Atmosphere
     glm::vec3 groundColor{1.0};
 
     glm::vec3 scatteringCoefficientRayleigh{1.0};
+    glm::vec3 absorptionCoefficientRayleigh{};
     float altitudeDecayRayleigh{1.0};
 
     glm::vec3 scatteringCoefficientMie{1.0};
+    glm::vec3 absorptionCoefficientMie{};
     float altitudeDecayMie{1.0};
+
+    glm::vec3 scatteringCoefficientOzone{};
+    glm::vec3 absorptionCoefficientOzone{};
+
+    glm::vec3 sunIntensitySpectrum{};
+    float sunAngularRadius{};
 
     [[nodiscard]] auto directionToSun() const -> glm::vec3;
 

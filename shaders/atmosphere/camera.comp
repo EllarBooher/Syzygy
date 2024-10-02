@@ -93,7 +93,7 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
 
     const float cosDirectionSun = dot(direction, directionToSun) / (length(direction) * length(directionToSun));
 
-    const float sinSunRadius = SUN_ANGULAR_RADIUS_RADIANS;
+    const float sinSunRadius = atmosphere.sunAngularRadius;
     const float sinDirectionSun = safeSqrt(1.0 - cosDirectionSun * cosDirectionSun);
 
     const vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, position, direction);

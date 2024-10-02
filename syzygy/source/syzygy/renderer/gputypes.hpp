@@ -94,9 +94,7 @@ struct AtmospherePacked
     uint8_t padding2[4]{};
 
     glm::vec3 sunIntensitySpectrum;
-
-    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding3[4]{};
+    float sunAngularRadius;
 };
 // NOLINTNEXTLINE(readability-magic-numbers)
 static_assert(sizeof(AtmospherePacked) == 128ULL);

@@ -186,9 +186,19 @@ void uiAtmosphere(
             "Sun Euler Angles",
             atmosphere.sunEulerAngles,
             defaultValues.sunEulerAngles,
-            syzygy::PropertySliderBehavior{
-                .speed = EULER_ANGLES_SPEED,
-            }
+            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
+        )
+        .rowVec3(
+            "Sun Intensity Spectrum",
+            atmosphere.sunIntensitySpectrum,
+            defaultValues.sunIntensitySpectrum,
+            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
+        )
+        .rowFloat(
+            "Sun Angular Radius",
+            atmosphere.sunAngularRadius,
+            defaultValues.sunAngularRadius,
+            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
         )
         .rowReadOnlyVec3("Direction to Sun", atmosphere.directionToSun())
         .rowVec3(
@@ -230,6 +240,15 @@ void uiAtmosphere(
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
+        .rowVec3(
+            "Rayleigh Absorption Coefficient",
+            atmosphere.absorptionCoefficientRayleigh,
+            defaultValues.absorptionCoefficientRayleigh,
+            syzygy::PropertySliderBehavior{
+                .speed = SCATTERING_COEFFICIENT_SPEED,
+                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
+            }
+        )
         .rowFloat(
             "Rayleigh Altitude Decay",
             atmosphere.altitudeDecayRayleigh,
@@ -248,12 +267,42 @@ void uiAtmosphere(
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
+        .rowVec3(
+            "Mie Absorption Coefficient",
+            atmosphere.absorptionCoefficientMie,
+            defaultValues.absorptionCoefficientMie,
+            syzygy::PropertySliderBehavior{
+                .speed = 0.0F,
+                .flags = ImGuiSliderFlags_Logarithmic,
+                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
+            }
+        )
         .rowFloat(
             "Mie Altitude Decay",
             atmosphere.altitudeDecayMie,
             defaultValues.altitudeDecayMie,
             syzygy::PropertySliderBehavior{
                 .bounds = ALTITUDE_DECAY_BOUNDS,
+            }
+        )
+        .rowVec3(
+            "Ozone Scattering Coefficient",
+            atmosphere.scatteringCoefficientOzone,
+            defaultValues.scatteringCoefficientOzone,
+            syzygy::PropertySliderBehavior{
+                .speed = 0.0F,
+                .flags = ImGuiSliderFlags_Logarithmic,
+                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
+            }
+        )
+        .rowVec3(
+            "Ozone Absorption Coefficient",
+            atmosphere.absorptionCoefficientOzone,
+            defaultValues.absorptionCoefficientOzone,
+            syzygy::PropertySliderBehavior{
+                .speed = 0.0F,
+                .flags = ImGuiSliderFlags_Logarithmic,
+                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
         .end();
