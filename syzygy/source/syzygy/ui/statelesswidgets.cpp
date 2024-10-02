@@ -210,57 +210,58 @@ void uiAtmosphere(
             }
         )
         .rowFloat(
-            "Earth Radius",
-            atmosphere.earthRadiusMeters,
-            defaultValues.earthRadiusMeters,
+            "Earth Radius (Mm)",
+            atmosphere.planetRadiusMegameters,
+            defaultValues.planetRadiusMegameters,
             syzygy::PropertySliderBehavior{
                 .bounds =
                     syzygy::FloatBounds{
-                        PLANETARY_RADIUS_MIN, atmosphere.atmosphereRadiusMeters
+                        PLANETARY_RADIUS_MIN,
+                        atmosphere.atmosphereRadiusMegameters
                     },
             }
         )
         .rowFloat(
-            "Atmosphere Radius",
-            atmosphere.atmosphereRadiusMeters,
-            defaultValues.atmosphereRadiusMeters,
+            "Atmosphere Radius (Mm)",
+            atmosphere.atmosphereRadiusMegameters,
+            defaultValues.atmosphereRadiusMegameters,
             syzygy::PropertySliderBehavior{
                 .bounds =
                     syzygy::FloatBounds{
-                        atmosphere.earthRadiusMeters, PLANETARY_RADIUS_MAX
+                        atmosphere.planetRadiusMegameters, PLANETARY_RADIUS_MAX
                     },
             }
         )
         .rowVec3(
-            "Rayleigh Scattering Coefficient",
-            atmosphere.scatteringCoefficientRayleigh,
-            defaultValues.scatteringCoefficientRayleigh,
+            "Rayleigh Scattering (per Mm)",
+            atmosphere.scatteringRayleighPerMegameter,
+            defaultValues.scatteringRayleighPerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = SCATTERING_COEFFICIENT_SPEED,
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
         .rowVec3(
-            "Rayleigh Absorption Coefficient",
-            atmosphere.absorptionCoefficientRayleigh,
-            defaultValues.absorptionCoefficientRayleigh,
+            "Rayleigh Coefficient (per Mm)",
+            atmosphere.absorptionRayleighPerMegameter,
+            defaultValues.absorptionRayleighPerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = SCATTERING_COEFFICIENT_SPEED,
                 .bounds = SCATTERING_COEFFICIENT_BOUNDS,
             }
         )
         .rowFloat(
-            "Rayleigh Altitude Decay",
-            atmosphere.altitudeDecayRayleigh,
-            defaultValues.altitudeDecayRayleigh,
+            "Rayleigh Altitude Decay (Mm)",
+            atmosphere.altitudeDecayRayleighMegameters,
+            defaultValues.altitudeDecayRayleighMegameters,
             syzygy::PropertySliderBehavior{
                 .bounds = ALTITUDE_DECAY_BOUNDS,
             }
         )
         .rowVec3(
-            "Mie Scattering Coefficient",
-            atmosphere.scatteringCoefficientMie,
-            defaultValues.scatteringCoefficientMie,
+            "Mie Scattering (per Mm)",
+            atmosphere.scatteringMiePerMegameter,
+            defaultValues.scatteringMiePerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = 0.0F,
                 .flags = ImGuiSliderFlags_Logarithmic,
@@ -268,9 +269,9 @@ void uiAtmosphere(
             }
         )
         .rowVec3(
-            "Mie Absorption Coefficient",
-            atmosphere.absorptionCoefficientMie,
-            defaultValues.absorptionCoefficientMie,
+            "Mie Absorption (per Mm)",
+            atmosphere.absorptionMiePerMegameter,
+            defaultValues.absorptionMiePerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = 0.0F,
                 .flags = ImGuiSliderFlags_Logarithmic,
@@ -278,17 +279,17 @@ void uiAtmosphere(
             }
         )
         .rowFloat(
-            "Mie Altitude Decay",
-            atmosphere.altitudeDecayMie,
-            defaultValues.altitudeDecayMie,
+            "Mie Altitude Decay (Mm)",
+            atmosphere.altitudeDecayMieMegameters,
+            defaultValues.altitudeDecayMieMegameters,
             syzygy::PropertySliderBehavior{
                 .bounds = ALTITUDE_DECAY_BOUNDS,
             }
         )
         .rowVec3(
-            "Ozone Scattering Coefficient",
-            atmosphere.scatteringCoefficientOzone,
-            defaultValues.scatteringCoefficientOzone,
+            "Ozone Scattering (per Mm)",
+            atmosphere.scatteringOzonePerMegameter,
+            defaultValues.scatteringOzonePerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = 0.0F,
                 .flags = ImGuiSliderFlags_Logarithmic,
@@ -296,9 +297,9 @@ void uiAtmosphere(
             }
         )
         .rowVec3(
-            "Ozone Absorption Coefficient",
-            atmosphere.absorptionCoefficientOzone,
-            defaultValues.absorptionCoefficientOzone,
+            "Ozone Absorption (per Mm)",
+            atmosphere.absorptionOzonePerMegameter,
+            defaultValues.absorptionOzonePerMegameter,
             syzygy::PropertySliderBehavior{
                 .speed = 0.0F,
                 .flags = ImGuiSliderFlags_Logarithmic,

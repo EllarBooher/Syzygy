@@ -35,24 +35,24 @@ struct AtmosphereBaked
 
 struct Atmosphere
 {
-    glm::vec3 sunEulerAngles{0.0, 0.0, 0.0};
+    glm::vec3 sunEulerAngles{};
 
-    float earthRadiusMeters{0.0};
-    float atmosphereRadiusMeters{0.0};
+    float planetRadiusMegameters{};
+    float atmosphereRadiusMegameters{};
 
     // Used to attenuate sunlight to provide an estimate of ambient lighting.
-    glm::vec3 groundColor{1.0};
+    glm::vec3 groundColor{};
 
-    glm::vec3 scatteringCoefficientRayleigh{1.0};
-    glm::vec3 absorptionCoefficientRayleigh{};
-    float altitudeDecayRayleigh{1.0};
+    glm::vec3 scatteringRayleighPerMegameter{};
+    glm::vec3 absorptionRayleighPerMegameter{};
+    float altitudeDecayRayleighMegameters{};
 
-    glm::vec3 scatteringCoefficientMie{1.0};
-    glm::vec3 absorptionCoefficientMie{};
-    float altitudeDecayMie{1.0};
+    glm::vec3 scatteringMiePerMegameter{};
+    glm::vec3 absorptionMiePerMegameter{};
+    float altitudeDecayMieMegameters{};
 
-    glm::vec3 scatteringCoefficientOzone{};
-    glm::vec3 absorptionCoefficientOzone{};
+    glm::vec3 scatteringOzonePerMegameter{};
+    glm::vec3 absorptionOzonePerMegameter{};
 
     glm::vec3 sunIntensitySpectrum{};
     float sunAngularRadius{};

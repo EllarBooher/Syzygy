@@ -43,6 +43,7 @@ namespace syzygy
 {
 float constexpr METERS_PER_MEGAMETER{1'000'000.0};
 float constexpr METERS_PER_KILOMETER{1'000.0};
+float constexpr KILOMETERS_PER_MEGAMETER{1'000.0};
 
 // Values derived from:
 // "A Scalable and Production Ready Sky and Atmosphere Rendering Technique"
@@ -50,25 +51,23 @@ float constexpr METERS_PER_KILOMETER{1'000.0};
 // https://sebh.github.io/publications/egsr2020.pdf
 Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{
     Atmosphere{
-        .sunEulerAngles = glm::vec3(1.0, 0.0, 0.0),
+        .sunEulerAngles = glm::vec3{1.0, 0.0, 0.0},
 
-        .earthRadiusMeters = 6.360 * METERS_PER_MEGAMETER,
-        .atmosphereRadiusMeters = 6.420 * METERS_PER_MEGAMETER,
+        .planetRadiusMegameters = 6.360F,
+        .atmosphereRadiusMegameters = 6.420F,
 
         .groundColor = glm::vec3{1.0, 1.0, 1.0},
 
-        .scatteringCoefficientRayleigh =
-            glm::vec3{5.802F, 13.558F, 33.1F} / METERS_PER_MEGAMETER,
-        .absorptionCoefficientRayleigh = glm::vec3{0.0F} / METERS_PER_MEGAMETER,
-        .altitudeDecayRayleigh = 8.0F * METERS_PER_KILOMETER,
+        .scatteringRayleighPerMegameter = glm::vec3{5.802F, 13.558F, 33.1F},
+        .absorptionRayleighPerMegameter = glm::vec3{0.0F},
+        .altitudeDecayRayleighMegameters = 8.0F / KILOMETERS_PER_MEGAMETER,
 
-        .scatteringCoefficientMie = glm::vec3{3.996F} / METERS_PER_MEGAMETER,
-        .absorptionCoefficientMie = glm::vec3{4.40F} / METERS_PER_MEGAMETER,
-        .altitudeDecayMie = 1.2F * METERS_PER_KILOMETER,
+        .scatteringMiePerMegameter = glm::vec3{3.996F},
+        .absorptionMiePerMegameter = glm::vec3{4.40F},
+        .altitudeDecayMieMegameters = 1.2F / KILOMETERS_PER_MEGAMETER,
 
-        .scatteringCoefficientOzone = glm::vec3{0.0F} / METERS_PER_MEGAMETER,
-        .absorptionCoefficientOzone =
-            glm::vec3{0.650F, 1.881F, 0.085F} / METERS_PER_MEGAMETER,
+        .scatteringOzonePerMegameter = glm::vec3{0.0F},
+        .absorptionOzonePerMegameter = glm::vec3{0.650F, 1.881F, 0.085F},
 
         .sunIntensitySpectrum = glm::vec3{1.0F, 1.0F, 1.0F},
         .sunAngularRadius = glm::radians(32.0F / 60.0F),
@@ -635,14 +634,18 @@ auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
         return {0.0, 0.0, 0.0, 1.0};
     }
 
-    glm::vec3 const start{0.0, -atmosphere.earthRadiusMeters, 0.0};
+    float const atmosphereRadiusMeters =
+        atmosphere.atmosphereRadiusMegameters * METERS_PER_MEGAMETER;
+    float const planetRadiusMeters =
+        atmosphere.planetRadiusMegameters * METERS_PER_MEGAMETER;
+
+    glm::vec3 const start{0.0, -planetRadiusMeters, 0.0};
     float outDistance{0.0};
     if (!glm::intersectRaySphere(
             start,
             atmosphere.directionToSun(),
             glm::vec3(0.0),
-            atmosphere.atmosphereRadiusMeters
-                * atmosphere.atmosphereRadiusMeters,
+            atmosphereRadiusMeters * atmosphereRadiusMeters,
             outDistance
         ))
     {
@@ -652,21 +655,30 @@ auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
 
     float const atmosphereThickness{outDistance};
 
+    float const altitudeDecayRayleighMeters =
+        atmosphere.altitudeDecayRayleighMegameters * METERS_PER_MEGAMETER;
+    float const altitudeDecayMieMeters =
+        atmosphere.altitudeDecayMieMegameters * METERS_PER_MEGAMETER;
+
     // Calculations derived from sky.comp, we do a single ray straight up
     // to get an idea of the ambient color
     float const opticalDepthRayleigh{
-        atmosphere.altitudeDecayRayleigh / surfaceCosine
-        * (1.0F
-           - glm::exp(-atmosphereThickness / atmosphere.altitudeDecayRayleigh))
+        altitudeDecayRayleighMeters / surfaceCosine
+        * (1.0F - glm::exp(-atmosphereThickness / altitudeDecayRayleighMeters))
     };
     float const opticalDepthMie{
-        atmosphere.altitudeDecayMie / surfaceCosine
-        * (1.0F - glm::exp(-atmosphereThickness / atmosphere.altitudeDecayMie))
+        altitudeDecayMieMeters / surfaceCosine
+        * (1.0F - glm::exp(-atmosphereThickness / altitudeDecayMieMeters))
     };
 
+    glm::vec3 const scatteringRayleighPerMeter =
+        atmosphere.scatteringRayleighPerMegameter / METERS_PER_MEGAMETER;
+    glm::vec3 const scatteringMiePerMeter =
+        atmosphere.scatteringMiePerMegameter / METERS_PER_MEGAMETER;
+
     glm::vec3 const tau{
-        atmosphere.scatteringCoefficientRayleigh * opticalDepthRayleigh
-        + 1.1F * atmosphere.scatteringCoefficientMie * opticalDepthMie
+        scatteringRayleighPerMeter * opticalDepthRayleigh
+        + 1.1F * scatteringMiePerMeter * opticalDepthMie
     };
     glm::vec3 const attenuation{glm::exp(-tau)};
 
@@ -688,14 +700,18 @@ auto Atmosphere::toDeviceEquivalentLegacy() const -> AtmosphereLegacyPacked
 
     return AtmosphereLegacyPacked{
         .directionToSun = sunDirection,
-        .earthRadiusMeters = earthRadiusMeters,
-        .scatteringCoefficientRayleigh = scatteringCoefficientRayleigh,
-        .altitudeDecayRayleigh = altitudeDecayRayleigh,
-        .scatteringCoefficientMie = scatteringCoefficientMie,
-        .altitudeDecayMie = altitudeDecayMie,
+        .earthRadiusMeters = planetRadiusMegameters * METERS_PER_MEGAMETER,
+        .scatteringCoefficientRayleigh =
+            scatteringRayleighPerMegameter / METERS_PER_MEGAMETER,
+        .altitudeDecayRayleigh =
+            altitudeDecayRayleighMegameters * METERS_PER_MEGAMETER,
+        .scatteringCoefficientMie =
+            scatteringMiePerMegameter / METERS_PER_MEGAMETER,
+        .altitudeDecayMie = altitudeDecayMieMegameters * METERS_PER_MEGAMETER,
         .ambientColor = glm::vec3(sunlight) * groundColor
                       * glm::dot(sunDirection, WORLD_UP) / glm::pi<float>(),
-        .atmosphereRadiusMeters = atmosphereRadiusMeters,
+        .atmosphereRadiusMeters =
+            atmosphereRadiusMegameters * METERS_PER_MEGAMETER,
         .sunlightColor = glm::vec3(sunlight),
         .groundColor = groundColor,
     };
@@ -709,21 +725,17 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
     sunDirection.y *= -1;
 
     return AtmospherePacked{
-        .scatteringRayleighPerMm =
-            scatteringCoefficientRayleigh * METERS_PER_MEGAMETER,
-        .densityScaleRayleighMm = altitudeDecayRayleigh / METERS_PER_MEGAMETER,
-        .absorptionRayleighPerMm =
-            absorptionCoefficientRayleigh * METERS_PER_MEGAMETER,
-        .planetRadiusMm = earthRadiusMeters / METERS_PER_MEGAMETER,
-        .scatteringMiePerMm = scatteringCoefficientMie * METERS_PER_MEGAMETER,
-        .densityScaleMieMm = altitudeDecayMie / METERS_PER_MEGAMETER,
-        .absorptionMiePerMm = absorptionCoefficientMie * METERS_PER_MEGAMETER,
-        .atmosphereRadiusMm = atmosphereRadiusMeters / METERS_PER_MEGAMETER,
+        .scatteringRayleighPerMm = scatteringRayleighPerMegameter,
+        .densityScaleRayleighMm = altitudeDecayRayleighMegameters,
+        .absorptionRayleighPerMm = absorptionRayleighPerMegameter,
+        .planetRadiusMm = planetRadiusMegameters,
+        .scatteringMiePerMm = scatteringMiePerMegameter,
+        .densityScaleMieMm = altitudeDecayMieMegameters,
+        .absorptionMiePerMm = absorptionMiePerMegameter,
+        .atmosphereRadiusMm = atmosphereRadiusMegameters,
         .incidentDirectionSun = -sunDirection,
-        .scatteringOzonePerMm =
-            scatteringCoefficientOzone * METERS_PER_MEGAMETER,
-        .absorptionOzonePerMm =
-            absorptionCoefficientOzone * METERS_PER_MEGAMETER,
+        .scatteringOzonePerMm = scatteringOzonePerMegameter,
+        .absorptionOzonePerMm = absorptionOzonePerMegameter,
         .sunIntensitySpectrum = sunIntensitySpectrum,
         .sunAngularRadius = sunAngularRadius,
     };
