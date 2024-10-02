@@ -189,6 +189,14 @@ public:
         PropertySliderBehavior behavior
     ) -> PropertyTable&;
 
+    auto rowColor(
+        std::string const& name,
+        glm::vec3& value,
+        glm::vec3 const& resetValue,
+        PropertySliderBehavior behavior,
+        size_t digits = 4
+    ) -> PropertyTable&;
+
     // Adds a row that contains a non-interactable three-float vector entry.
     auto rowReadOnlyVec3(std::string const& name, glm::vec3 const& value)
         -> PropertyTable&;

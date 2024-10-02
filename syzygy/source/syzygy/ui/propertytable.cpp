@@ -414,6 +414,7 @@ auto PropertyTable::rowInteger(
     }
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::PushItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
 
     ImGui::DragInt(
         fmt::format("##{}{}", name, m_propertyCount).c_str(),
@@ -424,6 +425,8 @@ auto PropertyTable::rowInteger(
         "%i",
         behavior.flags
     );
+
+    ImGui::PopItemWidth();
 
     if (Self::resetColumn(name, value != resetValue))
     {
@@ -445,6 +448,8 @@ auto PropertyTable::rowReadOnlyInteger(
     }
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::PushItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
+
     ImGui::BeginDisabled();
 
     int32_t valueCopy{value};
@@ -459,6 +464,8 @@ auto PropertyTable::rowReadOnlyInteger(
     );
 
     ImGui::EndDisabled();
+
+    ImGui::PopItemWidth();
 
     Self::rowEnd();
 
@@ -493,9 +500,94 @@ auto PropertyTable::rowVec3(
             behavior.speed,
             behavior.bounds.min,
             behavior.bounds.max,
-            "%.12f",
+            "%.4f",
             behavior.flags
         );
+        ImGui::PopItemWidth();
+    }
+
+    if (Self::resetColumn(name, value != resetValue))
+    {
+        value = resetValue;
+    }
+
+    Self::rowEnd();
+
+    return *this;
+}
+
+auto PropertyTable::rowColor(
+    std::string const& name,
+    glm::vec3& value,
+    glm::vec3 const& resetValue,
+    PropertySliderBehavior behavior,
+    size_t const digits
+) -> PropertyTable&
+{
+    if (!Self::rowBegin(name))
+    {
+        return *this;
+    }
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::PushMultiItemsWidths(3, ImGui::GetColumnWidth(VALUE_INDEX));
+    for (size_t component{0}; component < 3; component++)
+    {
+        float const spacing{ImGui::GetStyle().ItemInnerSpacing.x};
+        if (component > 0)
+        {
+            ImGui::SameLine(0.0F, spacing);
+        }
+
+        ImVec4 fieldColor{};
+        ImVec4 fieldHovered{};
+        ImVec4 fieldActive{};
+        std::string fieldFormat{};
+
+        if (component == 0)
+        {
+            ImVec4 constexpr FIELD_RED{0.2, 0.1, 0.1, 0.5};
+            ImVec4 constexpr FIELD_RED_HOVERED{0.8, 0.2, 0.2, 0.5};
+            ImVec4 constexpr FIELD_RED_ACTIVE{0.8, 0.2, 0.2, 0.7};
+            fieldColor = FIELD_RED;
+            fieldHovered = FIELD_RED_HOVERED;
+            fieldActive = FIELD_RED_ACTIVE;
+            fieldFormat = fmt::format("R: %.{}f", digits);
+        }
+        else if (component == 1)
+        {
+            ImVec4 constexpr FIELD_GREEN{0.1, 0.2, 0.1, 0.5};
+            ImVec4 constexpr FIELD_GREEN_HOVERED{0.2, 0.8, 0.2, 0.5};
+            ImVec4 constexpr FIELD_GREEN_ACTIVE{0.2, 0.8, 0.2, 0.7};
+            fieldColor = FIELD_GREEN;
+            fieldHovered = FIELD_GREEN_HOVERED;
+            fieldActive = FIELD_GREEN_ACTIVE;
+            fieldFormat = fmt::format("G: %.{}f", digits);
+        }
+        else if (component == 2)
+        {
+            ImVec4 constexpr FIELD_BLUE{0.1, 0.1, 0.2, 0.5};
+            ImVec4 constexpr FIELD_BLUE_HOVERED{0.2, 0.2, 0.8, 0.5};
+            ImVec4 constexpr FIELD_BLUE_ACTIVE{0.2, 0.2, 0.8, 0.7};
+            fieldColor = FIELD_BLUE;
+            fieldHovered = FIELD_BLUE_HOVERED;
+            fieldActive = FIELD_BLUE_ACTIVE;
+            fieldFormat = fmt::format("B: %.{}f", digits);
+        }
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, fieldColor);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, fieldHovered);
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, fieldActive);
+
+        ImGui::DragFloat(
+            fmt::format("##{}{}{}", name, m_propertyCount, component).c_str(),
+            &value[component],
+            behavior.speed,
+            behavior.bounds.min,
+            behavior.bounds.max,
+            fieldFormat.c_str(),
+            behavior.flags
+        );
+        ImGui::PopStyleColor(3);
         ImGui::PopItemWidth();
     }
 
@@ -563,6 +655,7 @@ auto PropertyTable::rowFloat(
     }
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::PushItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
     ImGui::DragFloat(
         fmt::format("##{}", name).c_str(),
         &value,
@@ -572,6 +665,7 @@ auto PropertyTable::rowFloat(
         "%.6f",
         behavior.flags
     );
+    ImGui::PopItemWidth();
 
     if (Self::resetColumn(name, value != resetValue))
     {
@@ -593,6 +687,7 @@ auto PropertyTable::rowReadOnlyFloat(
     }
 
     ImGui::TableSetColumnIndex(VALUE_INDEX);
+    ImGui::PushItemWidth(ImGui::GetColumnWidth(VALUE_INDEX));
 
     ImGui::BeginDisabled();
 
@@ -608,6 +703,8 @@ auto PropertyTable::rowReadOnlyFloat(
     );
 
     ImGui::EndDisabled();
+
+    ImGui::PopItemWidth();
 
     Self::rowEnd();
 
@@ -763,6 +860,14 @@ void PropertyTable::demoWindow(bool& open)
         )
         .rowVec3(
             "Unbounded Vec3",
+            valueUnboundedVec3,
+            glm::vec3{0.0F},
+            PropertySliderBehavior{
+                .speed = 0.1F,
+            }
+        )
+        .rowColor(
+            "Vec3 with RGB Labels",
             valueUnboundedVec3,
             glm::vec3{0.0F},
             PropertySliderBehavior{

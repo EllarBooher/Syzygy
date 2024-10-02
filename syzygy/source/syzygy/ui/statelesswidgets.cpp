@@ -177,9 +177,22 @@ void uiAtmosphere(
     // unpredictable range. Thus finer controls are needed, and a speed of 0.1
     // or default 0.0 is too high.
     float constexpr SCATTERING_COEFFICIENT_SPEED{0.00001F};
+    float constexpr KILOMETERS_PER_MEGAMETER{1'000.0F};
+    float constexpr RADIANS_PER_ARCMINUTE{
+        (1.0F / 60.0F) * (glm::pi<float>() / 180.0F)
+    };
     syzygy::FloatBounds constexpr SCATTERING_COEFFICIENT_BOUNDS{0.0F, 1.0F};
 
     syzygy::FloatBounds constexpr ALTITUDE_DECAY_BOUNDS{0.0F, 1'000'000.0F};
+
+    syzygy::PropertySliderBehavior constexpr EXTINCTION_COEFFICIENT_BEHAVIOR{
+        .speed = 1.0F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F},
+    };
+    syzygy::PropertySliderBehavior constexpr ALTITUDE_DECAY_BEHAVIOR{
+        .speed = 0.01F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F},
+    };
 
     syzygy::PropertyTable::begin()
         .rowVec3(
@@ -188,32 +201,37 @@ void uiAtmosphere(
             defaultValues.sunEulerAngles,
             syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
         )
-        .rowVec3(
+        .rowColor(
             "Sun Intensity Spectrum",
             atmosphere.sunIntensitySpectrum,
             defaultValues.sunIntensitySpectrum,
-            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
+            syzygy::PropertySliderBehavior{
+                .speed = 1.0F,
+                .bounds = syzygy::FloatBounds{.min = 0.0},
+            }
         )
         .rowFloat(
             "Sun Angular Radius",
             atmosphere.sunAngularRadius,
             defaultValues.sunAngularRadius,
-            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
+            syzygy::PropertySliderBehavior{
+                .speed = RADIANS_PER_ARCMINUTE,
+                .bounds = syzygy::FloatBounds{.min = 0.0F}
+            }
         )
         .rowReadOnlyVec3("Direction to Sun", atmosphere.directionToSun())
-        .rowVec3(
+        .rowColor(
             "Ground Diffuse Color",
             atmosphere.groundColor,
             defaultValues.groundColor,
-            syzygy::PropertySliderBehavior{
-                .bounds = RGBA_BOUNDS,
-            }
+            syzygy::PropertySliderBehavior{.bounds = RGBA_BOUNDS}
         )
         .rowFloat(
             "Earth Radius (Mm)",
             atmosphere.planetRadiusMegameters,
             defaultValues.planetRadiusMegameters,
             syzygy::PropertySliderBehavior{
+                .speed = 1.0F / KILOMETERS_PER_MEGAMETER,
                 .bounds =
                     syzygy::FloatBounds{
                         PLANETARY_RADIUS_MIN,
@@ -226,85 +244,60 @@ void uiAtmosphere(
             atmosphere.atmosphereRadiusMegameters,
             defaultValues.atmosphereRadiusMegameters,
             syzygy::PropertySliderBehavior{
+                .speed = 1.0F / KILOMETERS_PER_MEGAMETER,
                 .bounds =
                     syzygy::FloatBounds{
                         atmosphere.planetRadiusMegameters, PLANETARY_RADIUS_MAX
                     },
             }
         )
-        .rowVec3(
+        .rowColor(
             "Rayleigh Scattering (per Mm)",
             atmosphere.scatteringRayleighPerMegameter,
             defaultValues.scatteringRayleighPerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = SCATTERING_COEFFICIENT_SPEED,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
-        .rowVec3(
-            "Rayleigh Coefficient (per Mm)",
+        .rowColor(
+            "Rayleigh Absorption (per Mm)",
             atmosphere.absorptionRayleighPerMegameter,
             defaultValues.absorptionRayleighPerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = SCATTERING_COEFFICIENT_SPEED,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
         .rowFloat(
             "Rayleigh Altitude Decay (Mm)",
             atmosphere.altitudeDecayRayleighMegameters,
             defaultValues.altitudeDecayRayleighMegameters,
-            syzygy::PropertySliderBehavior{
-                .bounds = ALTITUDE_DECAY_BOUNDS,
-            }
+            ALTITUDE_DECAY_BEHAVIOR
         )
-        .rowVec3(
+        .rowColor(
             "Mie Scattering (per Mm)",
             atmosphere.scatteringMiePerMegameter,
             defaultValues.scatteringMiePerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = 0.0F,
-                .flags = ImGuiSliderFlags_Logarithmic,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
-        .rowVec3(
+        .rowColor(
             "Mie Absorption (per Mm)",
             atmosphere.absorptionMiePerMegameter,
             defaultValues.absorptionMiePerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = 0.0F,
-                .flags = ImGuiSliderFlags_Logarithmic,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
         .rowFloat(
             "Mie Altitude Decay (Mm)",
             atmosphere.altitudeDecayMieMegameters,
             defaultValues.altitudeDecayMieMegameters,
-            syzygy::PropertySliderBehavior{
-                .bounds = ALTITUDE_DECAY_BOUNDS,
-            }
+            ALTITUDE_DECAY_BEHAVIOR
         )
-        .rowVec3(
+        .rowColor(
             "Ozone Scattering (per Mm)",
             atmosphere.scatteringOzonePerMegameter,
             defaultValues.scatteringOzonePerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = 0.0F,
-                .flags = ImGuiSliderFlags_Logarithmic,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
-        .rowVec3(
+        .rowColor(
             "Ozone Absorption (per Mm)",
             atmosphere.absorptionOzonePerMegameter,
             defaultValues.absorptionOzonePerMegameter,
-            syzygy::PropertySliderBehavior{
-                .speed = 0.0F,
-                .flags = ImGuiSliderFlags_Logarithmic,
-                .bounds = SCATTERING_COEFFICIENT_BOUNDS,
-            }
+            EXTINCTION_COEFFICIENT_BEHAVIOR
         )
         .end();
 }
@@ -315,7 +308,8 @@ void uiCamera(
     float const& defaultCameraSpeed
 )
 {
-    // Stay an arbitrary distance away 0 and 180 degrees to avoid singularities
+    // Stay an arbitrary distance away 0 and 180 degrees to avoid
+    // singularities
     syzygy::FloatBounds constexpr FOV_BOUNDS{0.01F, 179.99F};
 
     float constexpr CLIPPING_PLANE_MIN{0.01F};
@@ -412,7 +406,6 @@ void uiTransform(
 }
 void uiInstanceAnimation(syzygy::InstanceAnimation& animation)
 {
-
     // Assumes no gaps in enum values
     std::array<
         char const*,
