@@ -913,6 +913,9 @@ void SkyViewComputePipeline::destroy()
         vkDestroySampler(
             m_device, m_perspectiveMap.azimuthElevationMapSampler, nullptr
         );
+        vkDestroySampler(
+            m_device, m_perspectiveMap.transmittanceImmutableSampler, nullptr
+        );
 
         m_skyViewLUT.shader.cleanup(m_device);
         m_transmittanceLUT.shader.cleanup(m_device);
