@@ -47,15 +47,42 @@ layout(push_constant) uniform PushConstant
 // v := solar elevation
 // v varies from -pi/2 to pi/2
 
-void uv_to_azimuthElevation(const vec2 uv, out float azimuth, out float elevation)
+void uv_to_azimuthElevation(const Atmosphere atmosphere, const vec2 uv, out float azimuth, out float elevation)
 {
-    azimuth = mix(-PI, PI, uv.s);
+    // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
+    const float sinHorizonZenith = atmosphere.planetRadiusMm / (atmosphere.planetRadiusMm + VIEW_ALTITUDE_MM);
+    const float horizonZenith = PI - asin(sinHorizonZenith);
 
-    // Undo v compression that allocates more texels to the horizon
-    // v = 0.5 + 0.5 * sign(elevation) * sqrt(|elevation| / (pi/2))
+    // u stores light-relative azimuth
+    const float cosineViewLightProjected = (uv.s - 0.5) * 2.0;
+    const vec2 lightDirectionProjected = normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
 
-    const float unnormalized_v = 2.0 * (uv.t - 0.5);
-    elevation = sign(unnormalized_v) * unnormalized_v * unnormalized_v * PI / 2.0;
+    float azimuthSun = asin(lightDirectionProjected.x);
+    if (lightDirectionProjected.y < 0.0)
+    {
+        azimuthSun = PI - azimuthSun;
+    }
+
+    azimuth = acos(clamp(cosineViewLightProjected, -1.0, 1.0)) + azimuthSun;
+
+    float viewZenith;
+
+    if (uv.t < 0.5)
+    {
+        const float unnormalized_v = 2.0 * uv.t - 1.0;
+        const float angleFraction = 1.0 - unnormalized_v * unnormalized_v;
+
+        viewZenith = angleFraction * horizonZenith;
+    }
+    else
+    {
+        const float unnormalized_v = 2.0 * uv.t - 1.0;
+        const float angleFraction = unnormalized_v * unnormalized_v;
+
+        viewZenith = (PI - horizonZenith) * angleFraction + horizonZenith;
+    }
+
+    elevation = -(viewZenith - PI / 2.0);
 }
 
 // Input cosine is the cosine of the angle between incident and outgoing scattering directions
@@ -233,18 +260,18 @@ void main()
 
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
+    
+    const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
 
     float azimuth;
     float elevation;
-    uv_to_azimuthElevation(uv, azimuth, elevation);
+    uv_to_azimuthElevation(atmosphere, uv, azimuth, elevation);
         
-    const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
-
     // +x right, +y up, +z forward
     // Note: engine has +y down, but these coordinates are separate and based on azimuth, elevation.
     // +azimuth right, +elevation up
 
-    const vec3 origin = vec3(0.0, atmosphere.planetRadiusMm + 0.000005, 0.0);
+    const vec3 origin = vec3(0.0, atmosphere.planetRadiusMm + VIEW_ALTITUDE_MM, 0.0);
     const vec3 direction =
         normalize(vec3(sin(azimuth) * cos(elevation), sin(elevation), cos(azimuth) * cos(elevation)));
 

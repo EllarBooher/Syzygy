@@ -35,20 +35,54 @@ layout(push_constant) uniform PushConstant
     uvec2 drawExtent;
 } pc;
 
-vec3 sampleMap_Direction(const vec3 direction)
+vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
 {
     const vec3 normalized = normalize(direction);
 
-    const float elevation = asin(clamp(normalized.y, -1.0, 1.0));
+    // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
+    const float sinHorizonZenith = atmosphere.planetRadiusMm / length(position);
+    const float horizonZenith = PI - asin(sinHorizonZenith);
 
-    float azimuth = atan(normalized.x, normalized.z);
-    if (normalized.z == 0.0)
+    const float cosViewZenith = normalized.y;
+    const float cosHorizonZenith = -safeSqrt(1.0 - sinHorizonZenith * sinHorizonZenith);
+
+    const float viewZenith = acos(normalized.y);
+
+    // We still want uv.y = 0 and uv.y = 1 to the extreme zenith angles
+    // But since we make the horizon a straight line through the middle, and its zenith may not be PI/2, 
+    // we must scale angles differently depending on if they are above or below the horizon.
+
+    float u, v;
+
+    if (cosViewZenith > cosHorizonZenith)
     {
-        azimuth = sign(normalized.x) * PI / 2.0;
+        // Above horizon, v shall range from 0.0 to 0.5
+        // viewZenith varies from 0 to horizonZenith
+
+        const float angleFraction = viewZenith / horizonZenith;
+
+        // Increase angle density towards v = 0.5
+        v = (1.0 - sqrt(1.0 - angleFraction)) * 0.5;
+    }
+    else
+    {   
+        // Below horizon, v shall range from 0.5 to 1
+        // viewZenith varies from horizonZenith to PI
+
+        const float angleFraction = (viewZenith - horizonZenith) / (PI - horizonZenith);
+
+        // Increase angle density towards v = 0.5
+        v = sqrt(angleFraction) * 0.5 + 0.5;
     }
 
-    const float u = (azimuth + PI) / (2.0 * PI);
-    float v = 0.5 + 0.5 * sign(elevation) * sqrt(abs(elevation) / (PI / 2.0));
+    {
+        // Sun is always positioned at uv = 0
+
+        const vec2 projectedLightDirection = normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
+        const vec2 projectedViewDirection = normalize(vec2(direction.x, direction.z));
+        
+        u = clamp(dot(projectedLightDirection,projectedViewDirection), -1.0, 1.0) * 0.5 + 0.5;
+    }
 
     return texture(skyview_LUT, vec2(u, v)).rgb;
 }
@@ -147,7 +181,7 @@ void main()
     }
     else
     {
-        sunIlluminanceToSkyLuminanceTransfer += sampleMap_Direction(direction);
+        sunIlluminanceToSkyLuminanceTransfer += sampleMap_Direction(atmosphere, position, direction);
         sunIlluminanceToSkyLuminanceTransfer += sampleSunDisk(atmosphere, position, direction);
     }
 
