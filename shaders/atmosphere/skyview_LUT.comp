@@ -28,25 +28,18 @@ layout(push_constant) uniform PushConstant
     uint cameraIndex;
 } pc;
 
-// Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
-//
-// And also "Precomputed Atmospheric Scattering: a New Implementation" by Eric Bruneton
-// https://ebruneton.github.io/precomputed_atmospheric_scattering
-
 // All units are Mm/megameters (10^6 meters) unless marked km/kilometers (10^3 meters)
 
 // This shader builds a 2D sky-view LUT, which is a lattitude-longitude map of
 // the sky with only the planet's surface shadowing.
 // This map contains the total luminance from in-scattering due to atmospheric effects.
 //
-// TODO: Work remains to figure out how to compose this map with local lights i.e. punctual lights.
-// For now the best thing to do is to light surface geometry without scattering,
-// then compose that with the transmittance from camera to fragment position.
-// This works well for thin atmospheres and lights that are close to their geometry.
+// The purpose of this map is to provide a fast-path when rendering the sky. This texture can be sampled instead of 
+// performing the calculations. Calculations are (probably) still necessary when geometry intersects the view ray.
 //
 // This map only depends on altitude, and allows the camera to be freely rotated
 // without requiring recomputation. There is even an acceptable degree of movement
-// by the camera. Within a range of the provided altitude.
+// by the camera within a range of the provided altitude.
 //
 // Parameterized as follows:
 // u := azimuth angle
@@ -93,170 +86,6 @@ void uv_to_azimuthElevation(const Atmosphere atmosphere, const float radius, con
     elevation = -(viewZenith - PI / 2.0);
 }
 
-// Input cosine is the cosine of the angle between incident and outgoing scattering directions
-float phaseRayleigh(const float cosine)
-{
-    const float scalar = 3.0 / (16.0 * PI);
-    const float numerator = (1.0 + cosine * cosine);
-
-    return scalar * numerator;
-}
-// Input cosine is the cosine of the angle between incident and outgoing scattering directions
-// Input g is a value from -1 to 1 that controls the concentration of back vs forward scattering.
-// Note: g = 0 reduces to the case of our rayleigh phase function
-float phaseMie(const float cosine, const float g)
-{
-    const float scalar = 3.0 / (8.0 * PI);
-    const float numerator = (1.0 - g * g) * (1.0 + cosine * cosine);
-    const float denominator = (2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * cosine, 1.5);
-    return scalar * numerator / denominator;
-}
-
-// Not in use for now, intended for estimating multi-scattering
-const float phaseIsotropic = 1.0 / (4.0 * PI);
-
-void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, out float atmosphereDistance)
-{
-    float atmosphere_t0, atmosphere_t1;
-    const bool hitAtmosphere =
-        raySphereIntersection(origin, direction, atmosphere.atmosphereRadiusMm, atmosphere_t0, atmosphere_t1)
-        && atmosphere_t1 > 0.0;
-
-    atmosphereDistance = 0.0;
-    atmosphere_t0 = max(0.0, atmosphere_t0);
-
-    // TODO: Figure out what to do when inside the planet
-    float planet_t0, planet_t1;
-    const bool hitPlanet =
-        raySphereIntersection(origin, direction, atmosphere.planetRadiusMm, planet_t0, planet_t1) && planet_t0 > 0.0;
-    if (hitPlanet)
-    {
-        atmosphere_t1 = min(planet_t0, atmosphere_t1);
-    }
-
-    if (hitAtmosphere)
-    {
-        atmosphereDistance = atmosphere_t1 - atmosphere_t0;
-    }
-}
-
-struct RaymarchStep
-{
-    float radius;
-    float mu;
-    float mu_sun;
-};
-
-RaymarchStep stepRadiusMu(const RaymarchStep start, const float stepDistance)
-{
-    // Consider starting position (0, radius, 0) 
-    // and step vector of d * (sqrt(1 - mu * mu), mu, 0)
-
-    // When computing changes in radii and mu, we use this method everywhere since norm is preserved upon rotation 
-    // and all cases of stepping can be reduced to the above two vectors
-
-    // cosine sum identity for sun zenith and direction zenith
-    const float mu_sunAndStepDirection = safeSqrt(start.mu_sun * start.mu - safeSqrt((1.0 - start.mu_sun * start.mu_sun) * (1.0 - start.mu * start.mu)));
-
-    RaymarchStep result;
-
-    result.radius = safeSqrt(stepDistance * stepDistance + 2.0 * start.radius * start.mu * stepDistance + start.radius * start.radius);
-    result.mu = (start.radius * start.mu + stepDistance) / result.radius;
-    result.mu_sun = (start.radius * start.mu_sun + stepDistance * mu_sunAndStepDirection) / result.radius;
-
-    return result;
-}
-
-vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere, const RaymarchStep start, const float stepDistance)
-{
-    if (stepDistance < 0.0000001)
-    {   
-        return vec3(1.0);
-    }
-
-    const RaymarchStep end = stepRadiusMu(start, stepDistance);
-
-    vec3 transmittance;
-    if (start.mu > 0.0)
-    {
-        // Oriented up into atmosphere, so we directly sample LUT
-        transmittance = sampleTransmittanceLUT_RadiusMu(transmittance_LUT, atmosphere, start.radius, start.mu) 
-            / sampleTransmittanceLUT_RadiusMu(transmittance_LUT, atmosphere, end.radius, end.mu);
-    }
-    else
-    {
-        // Oriented down towards planet, so direct samples would be invalid
-        // Instead, we flip the direction
-        transmittance = sampleTransmittanceLUT_RadiusMu(transmittance_LUT, atmosphere, end.radius, -end.mu) 
-            / sampleTransmittanceLUT_RadiusMu(transmittance_LUT, atmosphere, start.radius, -start.mu);
-    }
-
-    return clamp(transmittance, 0.0, 1.0);
-}
-
-const uint SKY_VIEW_LUT_SAMPLE_COUNT = 32;
-vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, const float sampleDistance)
-{
-    // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
-    // For the purposes of calculating phase functions, this is the direction we want to use.
-    const vec3 scatteringDir = -normalize(direction);
-
-    const float radius = length(origin);
-    const float mu = dot(origin, direction) / (length(origin) * length(direction));
-    const float mu_sun = dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
-
-    const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
-
-    vec3 luminance = vec3(0.0);
-
-    vec3 transmittance = vec3(1.0);
-
-    // We estimate the integral in Equation (1) of Hillaire's paper.
-
-    const float dSampleDistance = sampleDistance / SKY_VIEW_LUT_SAMPLE_COUNT;
-    for (uint i = 0; i < SKY_VIEW_LUT_SAMPLE_COUNT; i++)
-    {
-        const float t = i * dSampleDistance;
-        const vec3 begin = origin - (float(i) * dSampleDistance) * scatteringDir;
-        const vec3 end = origin - (float(i + 1) * dSampleDistance) * scatteringDir;
-
-        const RaymarchStep sampleStep = stepRadiusMu(originStep, t);
-
-        const float altitude = length(begin) - atmosphere.planetRadiusMm;
-
-        const vec3 transmittanceToSun = sampleTransmittanceLUT_Sun(transmittance_LUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
-
-        const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
-
-        // Terms of Equation (3) we assume to not vary over the path segment
-
-        // We could accumulate samples across loops like:
-        //
-        // const vec3 sampleTransmittance = exp(-dSampleDistance * extinctionSample.extinction);
-        // ... compute luminance using transmittance ...
-        // transmittance *= sampleTransmittance;
-        //
-        // But at the cost of performance, resampling the transmittance LUT is more accurate for larger step sizes
-
-        const vec3 transmittanceToBegin = sampleTransmittanceLUT_RayMarchStep(atmosphere, originStep, t);
-        const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
-        const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
-                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
-        const vec3 shadowing = transmittanceToSun;
-
-        // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
-        // This is a single interval of the integral in Equation (1) from Hillaire's paper,
-        // with all constant terms factored out above
-        const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, begin, end);
-        const vec3 scatteringIlluminanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
-
-        luminance += phaseTimesScattering * shadowing * scatteringIlluminanceIntegral
-                    * transmittanceToBegin;
-    }
-
-    return luminance;
-}
-
 void main()
 {
     const vec2 size = imageSize(skyview_LUT);
@@ -290,7 +119,7 @@ void main()
     float distanceThroughAtmosphere;
     raycastAtmosphere(atmosphere, origin, direction, distanceThroughAtmosphere);
 
-    const vec3 luminance = computeLuminanceScatteringIntegral(atmosphere, origin, direction, distanceThroughAtmosphere);
+    const vec3 luminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceThroughAtmosphere);
 
     imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));
 }

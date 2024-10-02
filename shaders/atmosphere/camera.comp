@@ -108,6 +108,8 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
 
 vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 direction)
 {
+    // Assumes the ray hits the ground
+
     // TODO: Figure out what to do when inside the planet
     float planet_t0, planet_t1;
     const bool hitPlanet =
@@ -137,10 +139,12 @@ vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 dir
 
     vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection);
 
-    const vec3 luminance = transmittanceToSun * albedo * clamp(dot(surfaceNormal, lightDirection),0.0,1.0);
-    const vec3 transmittance = sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
+    const vec3 surfaceLuminance = transmittanceToSun * albedo * clamp(dot(surfaceNormal, lightDirection),0.0,1.0);
+    const vec3 transmittanceToSurface = sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
 
-    return luminance * transmittance;
+    const vec3 aerielPerspectiveLuminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, planet_t0);
+
+    return surfaceLuminance * transmittanceToSurface + aerielPerspectiveLuminance;
 }
 
 void main()
@@ -173,7 +177,10 @@ void main()
 
     vec3 sunIlluminanceToSkyLuminanceTransfer = vec3(0.0);
     
-    // If sun is above horizon, the sun disk and sky is visible
+    // If sun is above horizon, the sun disk and sky is visible. 
+    // We use the precomputed SkyView LUT to get this value.
+    // The sky has low visual frequency, so it is more efficient to look up the values from a low resolution texture
+    // than it is to raymarch for each pixel.
     const float cos_directionZenith = dot(direction, position) / (length(direction) * length(position));
     if (cos_directionZenith < cos_horizonZenith)
     {   
