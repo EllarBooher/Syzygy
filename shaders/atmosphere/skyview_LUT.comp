@@ -6,6 +6,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, set = 0, binding = 0) uniform image2D skyview_LUT;
 layout(set = 0, binding = 1) uniform sampler2D transmittance_LUT;
 
+#include "../types/camera.glsl"
 #include "common.glinl"
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
@@ -13,11 +14,18 @@ layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
     Atmosphere atmospheres[];
 };
 
+layout(buffer_reference, std430) readonly buffer CameraBuffer
+{
+    Camera cameras[];
+};
+
 layout(push_constant) uniform PushConstant
 {
     AtmosphereBuffer atmosphereBuffer;
+    CameraBuffer cameraBuffer;
 
     uint atmosphereIndex;
+    uint cameraIndex;
 } pc;
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
@@ -47,10 +55,10 @@ layout(push_constant) uniform PushConstant
 // v := solar elevation
 // v varies from -pi/2 to pi/2
 
-void uv_to_azimuthElevation(const Atmosphere atmosphere, const vec2 uv, out float azimuth, out float elevation)
+void uv_to_azimuthElevation(const Atmosphere atmosphere, const float radius, const vec2 uv, out float azimuth, out float elevation)
 {
     // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
-    const float sinHorizonZenith = atmosphere.planetRadiusMm / (atmosphere.planetRadiusMm + VIEW_ALTITUDE_MM);
+    const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
     const float horizonZenith = PI - asin(sinHorizonZenith);
 
     // u stores light-relative azimuth
@@ -261,17 +269,21 @@ void main()
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
     
+    const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
 
-    float azimuth;
-    float elevation;
-    uv_to_azimuthElevation(atmosphere, uv, azimuth, elevation);
-        
     // +x right, +y up, +z forward
     // Note: engine has +y down, but these coordinates are separate and based on azimuth, elevation.
     // +azimuth right, +elevation up
 
-    const vec3 origin = vec3(0.0, atmosphere.planetRadiusMm + VIEW_ALTITUDE_MM, 0.0);
+    vec3 origin = camera.position.xyz / METERS_PER_MM;
+    origin.y *= -1;
+    origin.y += atmosphere.planetRadiusMm;
+
+    float azimuth;
+    float elevation;
+    uv_to_azimuthElevation(atmosphere, length(origin), uv, azimuth, elevation);
+
     const vec3 direction =
         normalize(vec3(sin(azimuth) * cos(elevation), sin(elevation), cos(azimuth) * cos(elevation)));
 

@@ -82,11 +82,10 @@ public:
         struct PushConstant
         {
             VkDeviceAddress atmosphereBuffer{};
-            uint32_t atmosphereIndex{0};
+            VkDeviceAddress cameraBuffer{};
 
-            // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
-            uint8_t padding[4]{0};
-            // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
+            uint32_t atmosphereIndex{0};
+            uint32_t cameraIndex{0};
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };

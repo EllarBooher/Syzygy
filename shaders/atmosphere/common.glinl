@@ -4,7 +4,6 @@ const int TRANSMITTANCE_LUT_WIDTH = 512;
 const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
 const float METERS_PER_MM = 1000000;
-const float VIEW_ALTITUDE_MM = 10.0 / METERS_PER_MM;
 
 // Hand computed from assumption that sun is roughly 32 arcminutes
 const float SUN_ANGULAR_RADIUS_RADIANS = 0.009308422677303;

@@ -820,7 +820,9 @@ void SkyViewComputePipeline::recordDrawCommands(
 
         SkyViewLUTResources::PushConstant const pushConstant{
             .atmosphereBuffer = atmospheres.deviceAddress(),
-            .atmosphereIndex = atmosphereIndex
+            .cameraBuffer = cameras.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex,
+            .cameraIndex = viewCameraIndex,
         };
 
         vkCmdPushConstants(

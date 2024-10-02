@@ -157,7 +157,7 @@ void main()
 
     // Convert from engine position (in meters with -y up) 
     // and the skyview coordinates (in megameters with +y up)
-    vec3 position = camera.position.xyz / 1000000.0;
+    vec3 position = camera.position.xyz / METERS_PER_MM;
     position.y *= -1;
     position.y += atmosphere.planetRadiusMm;
 
@@ -185,9 +185,10 @@ void main()
         sunIlluminanceToSkyLuminanceTransfer += sampleSunDisk(atmosphere, position, direction);
     }
 
+    vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;
+
     // ad-hoc tonemapping
-    vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * 10.0 * atmosphere.sunIntensitySpectrum;
-    const vec3 color = pow(luminance, vec3(1.3));
+    const vec3 color = pow(luminance * 10.0, vec3(1.2));
 
     imageStore(image, texelCoord, vec4(color, 1.0));
 }
