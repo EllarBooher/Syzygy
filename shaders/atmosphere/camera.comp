@@ -5,12 +5,16 @@
 #include "../types/camera.glsl"
 #include "common.glinl"
 
+// This shader produces the actual output of our atmosphere volumetric pipeline
+
 // Perpsective projection of a map parameterized by
 // u := azimuth from -pi to pi
 // v := elevation from -pi/2 to pi/2
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba16, set = 0, binding = 0) uniform image2D image;
+//layout(set = 1, binding = 0) uniform sampler2D fragmentDepth;
+
 layout(set = 0, binding = 1) uniform sampler2D skyview_LUT;
 layout(set = 0, binding = 2) uniform sampler2D transmittance_LUT;
 

@@ -15,8 +15,6 @@ namespace syzygy
 {
 struct SceneTexture
 {
-    SceneTexture() = delete;
-
     SceneTexture(SceneTexture const&) = delete;
     auto operator=(SceneTexture const&) -> SceneTexture& = delete;
 
@@ -32,9 +30,9 @@ struct SceneTexture
     static auto create(
         VkDevice,
         VmaAllocator,
-        DescriptorAllocator&,
         VkExtent2D textureMax,
-        VkFormat format
+        VkFormat colorFormat,
+        VkFormat depthFormat
     ) -> std::optional<SceneTexture>;
 
     [[nodiscard]] auto sampler() const -> VkSampler;
@@ -44,34 +42,35 @@ struct SceneTexture
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
+    // layout(rgba16, binding = 0) uniform image2D image;
     [[nodiscard]] auto singletonDescriptor() const -> VkDescriptorSet;
     [[nodiscard]] auto singletonLayout() const -> VkDescriptorSetLayout;
 
+    // layout(binding = 0) uniform image2D image;
+    // layout(binding = 1) uniform sampler2D fragmentDepth;
+    [[nodiscard]] auto combinedDescriptor() const -> VkDescriptorSet;
+    [[nodiscard]] auto combinedDescriptorLayout() const
+        -> VkDescriptorSetLayout;
+
 private:
-    SceneTexture(
-        VkDevice device,
-        VkSampler sampler,
-        std::unique_ptr<ImageView> texture,
-        VkDescriptorSetLayout singletonLayout,
-        VkDescriptorSet singletonSet
-    )
-        : m_device{device}
-        , m_sampler{sampler}
-        , m_texture{std::move(texture)}
-        , m_singletonDescriptorLayout{singletonLayout}
-        , m_singletonDescriptor{singletonSet}
-    {
-    }
+    SceneTexture() = default;
 
     void destroy() noexcept;
 
     // The device used to create this.
     VkDevice m_device{VK_NULL_HANDLE};
 
-    VkSampler m_sampler{VK_NULL_HANDLE};
-    std::unique_ptr<syzygy::ImageView> m_texture{};
+    std::unique_ptr<DescriptorAllocator> m_descriptorPool{};
+
+    VkSampler m_colorSampler{VK_NULL_HANDLE};
+    VkSampler m_depthSampler{VK_NULL_HANDLE};
+    std::unique_ptr<syzygy::ImageView> m_color{};
+    std::unique_ptr<syzygy::ImageView> m_depth{};
 
     VkDescriptorSetLayout m_singletonDescriptorLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_singletonDescriptor{VK_NULL_HANDLE};
+
+    VkDescriptorSetLayout m_combinedDescriptorLayout{VK_NULL_HANDLE};
+    VkDescriptorSet m_combinedDescriptor{VK_NULL_HANDLE};
 };
 } // namespace syzygy

@@ -103,6 +103,8 @@ private:
     // An opaque handle from the Vulkan backend that contains the scene texture
     ImTextureID m_imguiSceneTextureHandle{nullptr};
 
+    // The final output of the application viewport, with all geometry and UI
+    // rendered
     std::unique_ptr<SceneTexture> m_outputTexture;
 
     std::vector<std::unique_ptr<UIWidget>> m_activeWidgets{};

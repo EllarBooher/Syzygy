@@ -238,7 +238,7 @@ auto syzygy::UILayer::create(
     };
 
     std::vector<VkFormat> const colorAttachmentFormats{
-        VK_FORMAT_R16G16B16A16_SFLOAT
+        VK_FORMAT_R16G16B16A16_UNORM
     };
     VkPipelineRenderingCreateInfo const dynamicRenderingInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -286,9 +286,9 @@ auto syzygy::UILayer::create(
     if (std::optional<SceneTexture> outputTextureResult{SceneTexture::create(
             device,
             allocator,
-            descriptorAllocator,
             textureCapacity,
-            VK_FORMAT_R16G16B16A16_SFLOAT
+            VK_FORMAT_R16G16B16A16_UNORM,
+            VK_FORMAT_D32_SFLOAT
         )};
         outputTextureResult.has_value())
     {
@@ -304,9 +304,9 @@ auto syzygy::UILayer::create(
     if (std::optional<SceneTexture> sceneTextureResult{SceneTexture::create(
             device,
             allocator,
-            descriptorAllocator,
             textureCapacity,
-            VK_FORMAT_R16G16B16A16_SFLOAT
+            VK_FORMAT_R16G16B16A16_UNORM,
+            VK_FORMAT_D32_SFLOAT
         )};
         sceneTextureResult.has_value())
     {
