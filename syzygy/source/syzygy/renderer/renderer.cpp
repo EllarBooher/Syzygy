@@ -49,7 +49,6 @@ Renderer::Renderer(Renderer&& other) noexcept
     m_skyViewComputePipeline = std::move(other.m_skyViewComputePipeline);
 
     m_camerasBuffer = std::move(other.m_camerasBuffer);
-    m_atmospheresLegacyBuffer = std::move(other.m_atmospheresLegacyBuffer);
     m_atmospheresBuffer = std::move(other.m_atmospheresBuffer);
 }
 
@@ -79,7 +78,6 @@ void Renderer::destroy()
     m_skyViewComputePipeline.reset();
 
     m_camerasBuffer.reset();
-    m_atmospheresLegacyBuffer.reset();
     m_atmospheresBuffer.reset();
 
     m_device = VK_NULL_HANDLE;
@@ -170,15 +168,6 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
             CAMERA_CAPACITY
         )
     );
-    m_atmospheresLegacyBuffer =
-        std::make_unique<TStagedBuffer<AtmosphereLegacyPacked>>(
-            TStagedBuffer<AtmosphereLegacyPacked>::allocate(
-                device,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                allocator,
-                ATMOSPHERE_CAPACITY
-            )
-        );
     m_atmospheresBuffer = std::make_unique<TStagedBuffer<AtmospherePacked>>(
         TStagedBuffer<AtmospherePacked>::allocate(
             device,
@@ -322,10 +311,6 @@ void Renderer::recordDraw(
             directionalLights.push_back(bakedAtmosphere.sunlight.value());
         }
 
-        m_atmospheresLegacyBuffer->clearStaged();
-        m_atmospheresLegacyBuffer->push(bakedAtmosphere.atmosphereLegacy);
-        m_atmospheresLegacyBuffer->recordCopyToDevice(cmd);
-
         m_atmospheresBuffer->clearStaged();
         m_atmospheresBuffer->push(bakedAtmosphere.atmosphere);
         m_atmospheresBuffer->recordCopyToDevice(cmd);
@@ -379,8 +364,6 @@ void Renderer::recordDraw(
                                        : std::vector<SpotLightPacked>{},
                 cameraIndex,
                 *m_camerasBuffer,
-                atmosphereIndex,
-                *m_atmospheresLegacyBuffer,
                 scene.geometry()
             );
 
@@ -411,15 +394,44 @@ void Renderer::recordDraw(
             break;
         }
         case RenderingPipelines::SKY_VIEW:
-            m_skyViewComputePipeline->recordDrawCommands(
+            m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 sceneSubregion,
-                sceneTexture.color().image(),
+                sceneTexture,
+                directionalLights,
+                scene.spotlightsRender ? scene.spotlights
+                                       : std::vector<SpotLightPacked>{},
+                cameraIndex,
+                *m_camerasBuffer,
+                scene.geometry()
+            );
+
+            m_skyViewComputePipeline->recordDrawCommands(
+                cmd,
+                sceneTexture,
+                sceneSubregion,
                 atmosphereIndex,
                 *m_atmospheresBuffer,
                 cameraIndex,
                 *m_camerasBuffer
             );
+
+            sceneTexture.color().recordTransitionBarriered(
+                cmd, VK_IMAGE_LAYOUT_GENERAL
+            );
+
+            auto const sceneBounds{scene.shadowBounds()};
+
+            m_debugLines.pushBox(
+                sceneBounds.center,
+                glm::identity<glm::quat>(),
+                sceneBounds.halfExtent
+            );
+
+            recordDrawDebugLines(
+                cmd, cameraIndex, sceneTexture, sceneSubregion, *m_camerasBuffer
+            );
+
             break;
         }
     }

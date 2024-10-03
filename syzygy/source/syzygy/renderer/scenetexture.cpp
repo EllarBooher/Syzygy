@@ -155,7 +155,6 @@ auto SceneTexture::create(
             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
         )};
 
-        VkSampler sampler{VK_NULL_HANDLE};
         SZG_TRY_VK(
             vkCreateSampler(
                 device, &samplerInfo, nullptr, &sceneTexture.m_depthSampler
@@ -170,25 +169,10 @@ auto SceneTexture::create(
         return std::nullopt;
     }
 
-    ImageView& color{*sceneTexture.m_color};
-    ImageView& depth{*sceneTexture.m_depth};
-
-    if (auto const layoutResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1
-                )
-                .build(device, 0)
-        };
-        layoutResult.has_value())
+    if (auto const singletonResult{allocateSingletonLayout(device)};
+        singletonResult.has_value())
     {
-        sceneTexture.m_singletonDescriptorLayout = layoutResult.value();
+        sceneTexture.m_singletonDescriptorLayout = singletonResult.value();
         sceneTexture.m_singletonDescriptor =
             sceneTexture.m_descriptorPool->allocate(
                 device, sceneTexture.m_singletonDescriptorLayout
@@ -200,31 +184,10 @@ auto SceneTexture::create(
         return std::nullopt;
     }
 
-    if (auto const layoutResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1
-                )
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 1,
-                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    {sceneTexture.m_depthSampler}
-                )
-                .build(device, 0)
-        };
-        layoutResult.has_value())
+    if (auto const combinedResult{allocateCombinedLayout(device)};
+        combinedResult.has_value())
     {
-        sceneTexture.m_combinedDescriptorLayout = layoutResult.value();
+        sceneTexture.m_combinedDescriptorLayout = combinedResult.value();
         sceneTexture.m_combinedDescriptor =
             sceneTexture.m_descriptorPool->allocate(
                 device, sceneTexture.m_combinedDescriptorLayout
@@ -245,7 +208,7 @@ auto SceneTexture::create(
         VkDescriptorImageInfo const depthInfo{
             .sampler = sceneTexture.m_depthSampler,
             .imageView = sceneTexture.m_depth->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
         };
 
         VkWriteDescriptorSet const singletonColorWrite{
@@ -288,7 +251,7 @@ auto SceneTexture::create(
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 
-            .pImageInfo = &colorInfo,
+            .pImageInfo = &depthInfo,
             .pBufferInfo = nullptr,
             .pTexelBufferView = nullptr,
         };
@@ -301,6 +264,69 @@ auto SceneTexture::create(
     }
 
     return result;
+}
+
+auto SceneTexture::allocateSingletonLayout(VkDevice const device)
+    -> std::optional<VkDescriptorSetLayout>
+{
+    if (auto const layoutResult{
+            DescriptorLayoutBuilder{}
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 0,
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = 0,
+                    },
+                    1
+                )
+                .build(device, 0)
+        };
+        layoutResult.has_value())
+    {
+        return layoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate singleton descriptor layout.");
+        return std::nullopt;
+    }
+}
+
+auto SceneTexture::allocateCombinedLayout(VkDevice const device)
+    -> std::optional<VkDescriptorSetLayout>
+{
+    if (auto const layoutResult{
+            DescriptorLayoutBuilder{}
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 0,
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = 0,
+                    },
+                    1
+                )
+                .addBinding(
+                    DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 1,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = 0,
+                    },
+                    1
+                )
+                .build(device, 0)
+        };
+        layoutResult.has_value())
+    {
+        return layoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate combined descriptor layout.");
+        return std::nullopt;
+    }
 }
 
 auto SceneTexture::colorSampler() const -> VkSampler { return m_colorSampler; }

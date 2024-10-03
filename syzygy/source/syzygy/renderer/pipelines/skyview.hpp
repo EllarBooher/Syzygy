@@ -13,6 +13,7 @@ namespace syzygy
 struct Image;
 struct AtmospherePacked;
 struct CameraPacked;
+struct SceneTexture;
 template <typename T> struct TStagedBuffer;
 } // namespace syzygy
 
@@ -35,8 +36,8 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
+        SceneTexture& sceneTexture,
         VkRect2D drawRect,
-        syzygy::Image& color,
         uint32_t atmosphereIndex,
         TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
         uint32_t viewCameraIndex,
@@ -91,18 +92,23 @@ public:
     };
     struct PerspectiveMapResources
     {
-        std::unique_ptr<syzygy::ImageView> outputImage{};
-
         // Shader excerpt:
-        // set = 0
-        // binding = 0 -> image2D image
-        // binding = 1 -> sampler2D azimuthElevationMap;
+        // layout(rgba16, set = 0, binding = 0) uniform image2D image;
+        // layout(set = 0, binding = 1) uniform sampler2D fragmentDepth;
+        //
+        // layout(set = 1, binding = 0) uniform sampler2D skyview_LUT;
+        // layout(set = 1, binding = 1) uniform sampler2D transmittance_LUT;
 
-        VkDescriptorSet set{VK_NULL_HANDLE};
-        VkDescriptorSetLayout setLayout{VK_NULL_HANDLE};
+        // set 0 is provided by the SceneTexture we are rendering into
+
+        VkDescriptorSetLayout sceneTextureLayout{VK_NULL_HANDLE};
+
+        VkDescriptorSet LUTSet{VK_NULL_HANDLE};
+        VkDescriptorSetLayout LUTSetLayout{VK_NULL_HANDLE};
+
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
-        VkSampler azimuthElevationMapSampler{VK_NULL_HANDLE};
+        VkSampler skyviewImmutableSampler{VK_NULL_HANDLE};
         VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
 
         struct PushConstant

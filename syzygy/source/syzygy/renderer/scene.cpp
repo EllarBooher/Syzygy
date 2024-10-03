@@ -691,32 +691,6 @@ auto Atmosphere::directionToSun() const -> glm::vec3
     return -forwardFromEulers(sunEulerAngles);
 }
 
-auto Atmosphere::toDeviceEquivalentLegacy() const -> AtmosphereLegacyPacked
-{
-    // TODO: move these computations out to somewhere more sensible
-
-    glm::vec4 const sunlight{computeSunlightColor(*this)};
-    glm::vec3 const sunDirection{glm::normalize(directionToSun())};
-
-    return AtmosphereLegacyPacked{
-        .directionToSun = sunDirection,
-        .earthRadiusMeters = planetRadiusMegameters * METERS_PER_MEGAMETER,
-        .scatteringCoefficientRayleigh =
-            scatteringRayleighPerMegameter / METERS_PER_MEGAMETER,
-        .altitudeDecayRayleigh =
-            altitudeDecayRayleighMegameters * METERS_PER_MEGAMETER,
-        .scatteringCoefficientMie =
-            scatteringMiePerMegameter / METERS_PER_MEGAMETER,
-        .altitudeDecayMie = altitudeDecayMieMegameters * METERS_PER_MEGAMETER,
-        .ambientColor = glm::vec3(sunlight) * groundColor
-                      * glm::dot(sunDirection, WORLD_UP) / glm::pi<float>(),
-        .atmosphereRadiusMeters =
-            atmosphereRadiusMegameters * METERS_PER_MEGAMETER,
-        .sunlightColor = glm::vec3(sunlight),
-        .groundColor = groundColor,
-    };
-}
-
 auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
 {
     glm::vec3 sunDirection{glm::normalize(directionToSun())};
@@ -743,11 +717,9 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
 
 auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
 {
-    AtmosphereLegacyPacked const atmosphereLegacy{toDeviceEquivalentLegacy()};
-    AtmospherePacked const atmosphere{toDeviceEquivalent()};
 
     // position of sun as proxy for time
-    float const sunCosine{glm::dot(WORLD_UP, atmosphereLegacy.directionToSun)};
+    float const sunCosine{glm::dot(WORLD_UP, directionToSun())};
     float constexpr SUNSET_COSINE{0.06};
 
     std::optional<DirectionalLightPacked> sunlight{};
@@ -755,17 +727,15 @@ auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
 
     if (sunCosine > 0.0F)
     {
-        sunlight = createSunlight(
-            sceneBounds, sunEulerAngles, atmosphereLegacy.sunlightColor
-        );
+        sunlight = createSunlight(sceneBounds, sunEulerAngles, glm::vec3{1.0F});
     }
     if (sunCosine < SUNSET_COSINE)
     {
         moonlight = createMoonlight(sceneBounds, sunCosine, SUNSET_COSINE);
     }
 
+    AtmospherePacked const atmosphere{toDeviceEquivalent()};
     return AtmosphereBaked{
-        .atmosphereLegacy = atmosphereLegacy,
         .atmosphere = atmosphere,
         .sunlight = sunlight,
         .moonlight = moonlight,

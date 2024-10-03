@@ -13,10 +13,10 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba16, set = 0, binding = 0) uniform image2D image;
-//layout(set = 1, binding = 0) uniform sampler2D fragmentDepth;
+layout(set = 0, binding = 1) uniform sampler2D fragmentDepth;
 
-layout(set = 0, binding = 1) uniform sampler2D skyview_LUT;
-layout(set = 0, binding = 2) uniform sampler2D transmittance_LUT;
+layout(set = 1, binding = 0) uniform sampler2D skyview_LUT;
+layout(set = 1, binding = 1) uniform sampler2D transmittance_LUT;
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
@@ -110,21 +110,27 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
     return transmittanceToSun * (1.0 - smoothstep(0.2 * sinSunRadius, sinSunRadius, sinDirectionSun));
 }
 
-vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 direction)
+bool raycastDistanceToGround(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, out float distanceToGround)
 {
-    // Assumes the ray hits the ground
-
-    // TODO: Figure out what to do when inside the planet
     float planet_t0, planet_t1;
     const bool hitPlanet =
         raySphereIntersection(origin, direction, atmosphere.planetRadiusMm, planet_t0, planet_t1) && planet_t0 > 0.0;
     
     if (!hitPlanet)
     {
-        return vec3(0.0);
+        return false;
     }
 
-    const vec3 surfacePosition = origin + planet_t0 * direction;
+    distanceToGround = planet_t0;
+
+    return true;
+}
+
+vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, const float distanceToGround)
+{
+    // Assumes the ray hits the ground
+
+    const vec3 surfacePosition = origin + distanceToGround * direction;
     const vec3 surfaceNormal = normalize(surfacePosition);
 
     const vec3 lightDirection = -atmosphere.incidentDirectionSun;
@@ -146,7 +152,7 @@ vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 dir
     const vec3 surfaceLuminance = transmittanceToSun * albedo * clamp(dot(surfaceNormal, lightDirection),0.0,1.0);
     const vec3 transmittanceToSurface = sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
 
-    const vec3 aerielPerspectiveLuminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, planet_t0);
+    const vec3 aerielPerspectiveLuminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceToGround);
 
     return surfaceLuminance * transmittanceToSurface + aerielPerspectiveLuminance;
 }
@@ -162,6 +168,9 @@ void main()
 
     const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+
+    const vec2 uvFull = (vec2(texelCoord) + vec2(0.5, 0.5)) / size;
+    const float sceneDepth = texture(fragmentDepth, uvFull).r;
 
     // Convert from engine position (in meters with -y up) 
     // and the skyview coordinates (in megameters with +y up)
@@ -185,10 +194,33 @@ void main()
     // We use the precomputed SkyView LUT to get this value.
     // The sky has low visual frequency, so it is more efficient to look up the values from a low resolution texture
     // than it is to raymarch for each pixel.
+
+    float distanceToGround;
+
+    // Luminance NOT from the sun and should NOT be multiplied by sun intensity
+    vec3 surfaceLuminance = vec3(0.0);
+
     const float cos_directionZenith = dot(direction, position) / (length(direction) * length(position));
-    if (cos_directionZenith < cos_horizonZenith)
-    {   
-        sunIlluminanceToSkyLuminanceTransfer += sampleGround(atmosphere, position, direction);
+    if (sceneDepth > 0.0)
+    {
+        // Hit some geometry, we know we are looking at ground
+
+        const vec4 positionViewSpace = camera.inverseProjection * vec4(clipSpaceUV, sceneDepth, 1.0);
+        distanceToGround = length(positionViewSpace) / 1000000.0;
+
+        const vec3 aerielPerspectiveLuminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, position, direction, distanceToGround);
+        const vec3 surfacePosition = position + distanceToGround * direction;
+        const vec3 transmittanceToSurface = sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, position, surfacePosition);
+
+        // This is messy since the sun should also affect the lighting 
+        // surfaceLuminance = imageLoad(image, texelCoord).rgb * transmittanceToSurface;
+        surfaceLuminance = imageLoad(image, texelCoord).rgb;
+
+        //sunIlluminanceToSkyLuminanceTransfer += aerielPerspectiveLuminance;
+    }
+    else if (raycastDistanceToGround(atmosphere, position, direction, distanceToGround))
+    {
+        sunIlluminanceToSkyLuminanceTransfer += sampleGround(atmosphere, position, direction, distanceToGround);
     }
     else
     {
@@ -199,7 +231,7 @@ void main()
     vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;
 
     // ad-hoc tonemapping
-    const vec3 color = pow(luminance * 10.0, vec3(1.2));
+    const vec3 color = pow(luminance * 10.0 + surfaceLuminance, vec3(1.2));
 
     imageStore(image, texelCoord, vec4(color, 1.0));
 }

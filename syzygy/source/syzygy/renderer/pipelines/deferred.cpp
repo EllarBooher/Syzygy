@@ -313,32 +313,6 @@ DeferredShadingPipeline::DeferredShadingPipeline(
             device, lightingPassDescriptorSets, lightingPassPushConstantRanges
         );
     }
-
-    { // Sky pass pipeline
-        std::vector<VkDescriptorSetLayout> const skyPassDescriptorSets{
-            sceneTexture.combinedDescriptorLayout()
-        };
-
-        m_skyPassComputeShader = loadShader(
-            device,
-            "shaders/deferred/sky.comp.spv",
-            VK_SHADER_STAGE_COMPUTE_BIT,
-            0,
-            skyPassDescriptorSets,
-            sizeof(SkyPassComputePushConstant)
-        );
-
-        std::vector<VkPushConstantRange> const skyPassPushConstantRanges{
-            VkPushConstantRange{
-                .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-                .offset = 0,
-                .size = sizeof(SkyPassComputePushConstant),
-            }
-        };
-        m_skyPassLayout = createLayout(
-            device, skyPassDescriptorSets, skyPassPushConstantRanges
-        );
-    }
 }
 } // namespace syzygy
 
@@ -445,8 +419,6 @@ void DeferredShadingPipeline::recordDrawCommands(
     std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
-    uint32_t const atmosphereIndex,
-    TStagedBuffer<AtmosphereLegacyPacked> const& atmospheres,
     std::span<MeshInstanced const> sceneGeometry
 )
 {
@@ -455,9 +427,6 @@ void DeferredShadingPipeline::recordDrawCommands(
         | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
     };
     cameras.recordTotalCopyBarrier(
-        cmd, GBUFFER_ACCESS_STAGES, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
-    );
-    atmospheres.recordTotalCopyBarrier(
         cmd, GBUFFER_ACCESS_STAGES, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
     );
 
@@ -774,7 +743,6 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         LightingPassComputePushConstant const pushConstant{
             .cameraBuffer = cameras.deviceAddress(),
-            .atmosphereBuffer = atmospheres.deviceAddress(),
 
             .directionalLightsBuffer = m_directionalLights->deviceAddress(),
             .spotLightsBuffer = m_spotLights->deviceAddress(),
@@ -782,7 +750,6 @@ void DeferredShadingPipeline::recordDrawCommands(
             .directionalLightCount =
                 static_cast<uint32_t>(m_directionalLights->deviceSize()),
             .spotLightCount = static_cast<uint32_t>(m_spotLights->deviceSize()),
-            .atmosphereIndex = atmosphereIndex,
             .cameraIndex = viewCameraIndex,
             .gbufferOffset = glm::vec2{0.0, 0.0},
             .gbufferExtent =
@@ -795,66 +762,6 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
             sizeof(LightingPassComputePushConstant),
-            &pushConstant
-        );
-
-        uint32_t constexpr COMPUTE_WORKGROUP_SIZE{16};
-
-        vkCmdDispatch(
-            cmd,
-            computeDispatchCount(drawRect.extent.width, COMPUTE_WORKGROUP_SIZE),
-            computeDispatchCount(
-                drawRect.extent.height, COMPUTE_WORKGROUP_SIZE
-            ),
-            1
-        );
-
-        VkShaderEXT const unboundHandle{VK_NULL_HANDLE};
-        vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
-    }
-
-    { // Sky post-process pass
-        sceneTexture.color().recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_GENERAL
-        );
-        sceneTexture.depth().recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
-        );
-
-        VkShaderStageFlagBits const computeStage{VK_SHADER_STAGE_COMPUTE_BIT};
-        VkShaderEXT const shader{m_skyPassComputeShader.shaderObject()};
-        vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
-
-        std::array<VkDescriptorSet, 1> const descriptorSets{
-            sceneTexture.combinedDescriptor()
-        };
-
-        vkCmdBindDescriptorSets(
-            cmd,
-            VK_PIPELINE_BIND_POINT_COMPUTE,
-            m_skyPassLayout,
-            0,
-            VKR_ARRAY(descriptorSets),
-            0,
-            nullptr
-        );
-
-        SkyPassComputePushConstant const pushConstant{
-            .atmosphereBuffer = atmospheres.deviceAddress(),
-            .cameraBuffer = cameras.deviceAddress(),
-            .atmosphereIndex = atmosphereIndex,
-            .cameraIndex = viewCameraIndex,
-            .drawOffset = glm::vec2{0.0, 0.0},
-            .drawExtent =
-                glm::vec2{drawRect.extent.width, drawRect.extent.height},
-        };
-
-        vkCmdPushConstants(
-            cmd,
-            m_skyPassLayout,
-            VK_SHADER_STAGE_COMPUTE_BIT,
-            0,
-            sizeof(SkyPassComputePushConstant),
             &pushConstant
         );
 
@@ -886,12 +793,10 @@ void DeferredShadingPipeline::cleanup(
 
     vkDestroyPipelineLayout(device, m_gBufferLayout, nullptr);
     vkDestroyPipelineLayout(device, m_lightingPassLayout, nullptr);
-    vkDestroyPipelineLayout(device, m_skyPassLayout, nullptr);
 
     m_gBufferVertexShader.cleanup(device);
     m_gBufferFragmentShader.cleanup(device);
     m_lightingPassComputeShader.cleanup(device);
-    m_skyPassComputeShader.cleanup(device);
 }
 auto DeferredShadingPipeline::getConfiguration() const -> Configuration
 {

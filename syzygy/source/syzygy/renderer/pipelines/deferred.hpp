@@ -41,8 +41,6 @@ public:
         std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
-        uint32_t atmosphereIndex,
-        TStagedBuffer<syzygy::AtmosphereLegacyPacked> const& atmospheres,
         std::span<syzygy::MeshInstanced const> sceneGeometry
     );
 
@@ -86,14 +84,16 @@ private:
     struct LightingPassComputePushConstant
     {
         VkDeviceAddress cameraBuffer{};
-        VkDeviceAddress atmosphereBuffer{};
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+        uint8_t padding0to1[8]{};
 
         VkDeviceAddress directionalLightsBuffer{};
         VkDeviceAddress spotLightsBuffer{};
 
         uint32_t directionalLightCount{};
         uint32_t spotLightCount{};
-        uint32_t atmosphereIndex{0};
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+        uint8_t padding2[4]{};
         uint32_t cameraIndex{0};
 
         glm::vec2 gbufferOffset{};
@@ -105,27 +105,6 @@ private:
     };
 
     VkPipelineLayout m_lightingPassLayout{VK_NULL_HANDLE};
-
-    struct SkyPassComputePushConstant
-    {
-        VkDeviceAddress atmosphereBuffer{};
-        VkDeviceAddress cameraBuffer{};
-
-        uint32_t atmosphereIndex{0};
-        uint32_t cameraIndex{0};
-
-        glm::vec2 drawOffset{};
-        glm::vec2 drawExtent{};
-
-        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-        uint8_t padding0[8]{};
-    };
-
-    ShaderObjectReflected m_skyPassComputeShader{
-        ShaderObjectReflected::makeInvalid()
-    };
-
-    VkPipelineLayout m_skyPassLayout{VK_NULL_HANDLE};
 
 public:
     struct Configuration

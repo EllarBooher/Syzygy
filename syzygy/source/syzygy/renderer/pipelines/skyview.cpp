@@ -4,6 +4,7 @@
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/image.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
 #include <filesystem>
@@ -300,25 +301,17 @@ auto populatePerspectiveResources(
 {
     VkExtent2D constexpr EXTENT_MAP{4096U, 4096U};
 
-    if (auto imageResult{syzygy::ImageView::allocate(
-            device,
-            allocator,
-            syzygy::ImageAllocationParameters{
-                .extent = EXTENT_MAP,
-                .format = VK_FORMAT_R16G16B16A16_UNORM,
-                .usageFlags = VK_IMAGE_USAGE_STORAGE_BIT
-                            | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            },
-            syzygy::ImageViewAllocationParameters{}
-        )};
-        imageResult.has_value())
+    if (auto sceneTextureLayoutResult{
+            syzygy::SceneTexture::allocateCombinedLayout(device)
+        };
+        sceneTextureLayoutResult.has_value())
     {
-        resources.outputImage = std::move(imageResult).value();
+        resources.sceneTextureLayout = sceneTextureLayoutResult.value();
     }
     else
     {
-        SZG_ERROR("Failed to allocate perspective map output image.");
-        return false;
+        SZG_ERROR("Failed to allocate scene texture descriptor layout for "
+                  "perspective map.");
     }
 
     {
@@ -336,7 +329,7 @@ auto populatePerspectiveResources(
                 device,
                 &azimuthElevationMapSampler,
                 nullptr,
-                &resources.azimuthElevationMapSampler
+                &resources.skyviewImmutableSampler
             ),
             "Failed to create sampler for perspective map.",
             false
@@ -368,24 +361,15 @@ auto populatePerspectiveResources(
                 .addBinding(
                     syzygy::DescriptorLayoutBuilder::AddBindingParameters{
                         .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = static_cast<VkFlags>(0),
-                    },
-                    1
-                )
-                .addBinding(
-                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 1,
                         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
                         .bindingFlags = static_cast<VkFlags>(0),
                     },
-                    {resources.azimuthElevationMapSampler}
+                    {resources.skyviewImmutableSampler}
                 )
                 .addBinding(
                     syzygy::DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 2,
+                        .binding = 1,
                         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                         .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
                         .bindingFlags = static_cast<VkFlags>(0),
@@ -396,7 +380,7 @@ auto populatePerspectiveResources(
         };
         setLayoutResult.has_value())
     {
-        resources.setLayout = setLayoutResult.value();
+        resources.LUTSetLayout = setLayoutResult.value();
     }
     else
     {
@@ -405,9 +389,12 @@ auto populatePerspectiveResources(
         return false;
     }
 
-    resources.set = descriptorAllocator.allocate(device, resources.setLayout);
+    resources.LUTSet =
+        descriptorAllocator.allocate(device, resources.LUTSetLayout);
 
-    std::array<VkDescriptorSetLayout, 1> const setLayouts{resources.setLayout};
+    std::array<VkDescriptorSetLayout, 2> const setLayouts{
+        resources.sceneTextureLayout, resources.LUTSetLayout
+    };
     if (auto shaderResult{syzygy::loadShaderObject(
             device,
             "shaders/atmosphere/camera.comp.spv",
@@ -515,12 +502,6 @@ void updateDescriptors(
     }
 
     { // Write perspective map descriptor
-        VkDescriptorImageInfo const mapInfo{
-            .sampler = VK_NULL_HANDLE,
-            .imageView = perspectiveMap.outputImage->view(),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
-
         std::array<VkDescriptorImageInfo, 2> const LUTWrites{
             VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE,
@@ -534,26 +515,15 @@ void updateDescriptors(
             }
         };
 
-        std::array<VkWriteDescriptorSet, 2> writes{
-            VkWriteDescriptorSet{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
-                .dstSet = perspectiveMap.set,
-                .dstBinding = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                .pImageInfo = &mapInfo,
-            },
-            VkWriteDescriptorSet{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
-                .dstSet = perspectiveMap.set,
-                .dstBinding = 1,
-                .descriptorCount = static_cast<uint32_t>(LUTWrites.size()),
-                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .pImageInfo = LUTWrites.data(),
-            }
-        };
+        std::array<VkWriteDescriptorSet, 1> writes{VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = perspectiveMap.LUTSet,
+            .dstBinding = 0,
+            .descriptorCount = static_cast<uint32_t>(LUTWrites.size()),
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = LUTWrites.data(),
+        }};
 
         vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
@@ -562,6 +532,7 @@ void updateDescriptors(
 void recordPerspectiveMapCommands(
     VkCommandBuffer const cmd,
     syzygy::SkyViewComputePipeline::PerspectiveMapResources const& resources,
+    syzygy::SceneTexture& sceneTexture,
     syzygy::ImageView& skyViewLUT,
     syzygy::ImageView& transmittanceLUT,
     VkExtent2D const drawExtent,
@@ -575,8 +546,11 @@ void recordPerspectiveMapCommands(
         cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
 
-    resources.outputImage->recordTransitionBarriered(
+    sceneTexture.color().recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_GENERAL
+    );
+    sceneTexture.depth().recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
     );
 
     // Perspective map shader
@@ -585,15 +559,17 @@ void recordPerspectiveMapCommands(
 
     vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
 
+    std::array<VkDescriptorSet, 2> perspectiveSets{
+        sceneTexture.combinedDescriptor(), resources.LUTSet
+    };
+
     vkCmdBindDescriptorSets(
         cmd,
         VK_PIPELINE_BIND_POINT_COMPUTE,
         resources.layout,
         0,
-        1,
-        &resources.set,
-        0,
-        nullptr
+        VKR_ARRAY(perspectiveSets),
+        VKR_ARRAY_NONE
     );
 
     syzygy::SkyViewComputePipeline::PerspectiveMapResources::PushConstant const
@@ -604,6 +580,7 @@ void recordPerspectiveMapCommands(
             .cameraIndex = viewCameraIndex,
             .drawExtent = glm::uvec2{drawExtent.width, drawExtent.height},
         };
+
     vkCmdPushConstants(
         cmd,
         resources.layout,
@@ -711,8 +688,8 @@ auto SkyViewComputePipeline::create(
 }
 void SkyViewComputePipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
+    SceneTexture& sceneTexture,
     VkRect2D const drawRect,
-    syzygy::Image& color,
     uint32_t atmosphereIndex,
     TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t viewCameraIndex,
@@ -807,13 +784,14 @@ void SkyViewComputePipeline::recordDrawCommands(
 
         vkCmdBindShadersEXT(cmd, 1, &stage, &skyviewShader);
 
+        std::vector<VkDescriptorSet> skyviewSets{m_skyViewLUT.set};
+
         vkCmdBindDescriptorSets(
             cmd,
             VK_PIPELINE_BIND_POINT_COMPUTE,
             m_skyViewLUT.layout,
             0,
-            1,
-            &m_skyViewLUT.set,
+            VKR_ARRAY(skyviewSets),
             0,
             nullptr
         );
@@ -846,6 +824,7 @@ void SkyViewComputePipeline::recordDrawCommands(
     detail::recordPerspectiveMapCommands(
         cmd,
         m_perspectiveMap,
+        sceneTexture,
         *m_skyViewLUT.map,
         *m_transmittanceLUT.map,
         drawRect.extent,
@@ -853,38 +832,6 @@ void SkyViewComputePipeline::recordDrawCommands(
         atmospheres,
         viewCameraIndex,
         cameras
-    );
-
-    m_perspectiveMap.outputImage->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-    );
-    color.recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
-    );
-
-    VkOffset3D const srcMin{};
-    VkOffset3D const srcMax{
-        static_cast<int32_t>(drawRect.extent.width),
-        static_cast<int32_t>(drawRect.extent.height),
-        1
-    };
-
-    VkOffset3D const dstMin{drawRect.offset.x, drawRect.offset.y, 0};
-    VkOffset3D const dstMax{
-        static_cast<int32_t>(drawRect.extent.width) + dstMin.x,
-        static_cast<int32_t>(drawRect.extent.height) + dstMin.y,
-        1
-    };
-
-    Image::recordCopyRect(
-        cmd,
-        m_perspectiveMap.outputImage->image(),
-        color,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        srcMin,
-        srcMax,
-        dstMin,
-        dstMax
     );
 }
 
@@ -900,7 +847,10 @@ void SkyViewComputePipeline::destroy()
             m_device, m_transmittanceLUT.setLayout, nullptr
         );
         vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.setLayout, nullptr
+            m_device, m_perspectiveMap.sceneTextureLayout, nullptr
+        );
+        vkDestroyDescriptorSetLayout(
+            m_device, m_perspectiveMap.LUTSetLayout, nullptr
         );
 
         vkDestroyPipelineLayout(m_device, m_skyViewLUT.layout, nullptr);
@@ -911,7 +861,7 @@ void SkyViewComputePipeline::destroy()
             m_device, m_skyViewLUT.transmittanceImmutableSampler, nullptr
         );
         vkDestroySampler(
-            m_device, m_perspectiveMap.azimuthElevationMapSampler, nullptr
+            m_device, m_perspectiveMap.skyviewImmutableSampler, nullptr
         );
         vkDestroySampler(
             m_device, m_perspectiveMap.transmittanceImmutableSampler, nullptr

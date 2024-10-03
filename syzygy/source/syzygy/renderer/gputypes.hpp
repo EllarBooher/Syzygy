@@ -35,35 +35,7 @@ struct CameraPacked
 // NOLINTNEXTLINE(readability-magic-numbers)
 static_assert(sizeof(CameraPacked) == 416ULL);
 
-struct AtmosphereLegacyPacked
-{
-    glm::vec3 directionToSun;
-    float earthRadiusMeters;
-
-    glm::vec3 scatteringCoefficientRayleigh;
-    float altitudeDecayRayleigh;
-
-    glm::vec3 scatteringCoefficientMie;
-    float altitudeDecayMie;
-
-    // An estimate of bounce lighting
-    glm::vec3 ambientColor;
-    float atmosphereRadiusMeters;
-
-    // The sunlight that reaches the camera
-    glm::vec3 sunlightColor;
-
-    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding0[4]{};
-
-    glm::vec3 groundColor;
-
-    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding1[4]{};
-};
-// NOLINTNEXTLINE(readability-magic-numbers)
-static_assert(sizeof(AtmosphereLegacyPacked) == 96ULL);
-
+// Right handed coordinates with +X right, +Y up, and +Z forward
 struct AtmospherePacked
 {
     glm::vec3 scatteringRayleighPerMm;

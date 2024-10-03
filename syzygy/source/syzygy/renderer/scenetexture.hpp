@@ -35,6 +35,15 @@ struct SceneTexture
         VkFormat depthFormat
     ) -> std::optional<SceneTexture>;
 
+    // Convenience methods to help pipelines get the layout SceneTexture will
+    // provide its descriptors in without needing an instance of scene texture
+
+    static auto allocateSingletonLayout(VkDevice)
+        -> std::optional<VkDescriptorSetLayout>;
+
+    static auto allocateCombinedLayout(VkDevice)
+        -> std::optional<VkDescriptorSetLayout>;
+
     [[nodiscard]] auto colorSampler() const -> VkSampler;
 
     auto color() -> ImageView&;

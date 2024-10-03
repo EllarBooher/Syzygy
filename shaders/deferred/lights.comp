@@ -7,7 +7,6 @@
 // Supports directional and spot lights.
 // Portions are based on results in https://renderwonk.com/publications/s2010-shading-course/
 
-#include "../types/atmosphere_legacy.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
 
@@ -28,11 +27,6 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
     Camera cameras[];
 };
 
-layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
-{
-    AtmosphereLegacy atmospheres[];
-};
-
 layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
 {
     LightDirectional lights[];
@@ -46,14 +40,15 @@ layout(buffer_reference, std430) readonly buffer LightSpotBuffer
 layout(push_constant) uniform PushConstant
 {
     CameraBuffer cameraBuffer;
-    AtmosphereBuffer atmosphereBuffer;
+    uint padding0;
+    uint padding1;
 
     LightDirectionalBuffer directionalLights;
     LightSpotBuffer spotLights;
 
     uint directionalLightCount;
     uint spotLightCount;
-    uint atmosphereIndex;
+    uint padding2;
     uint cameraIndex;
 
     vec2 gbufferOffset;
@@ -276,13 +271,8 @@ void main()
                                                                 texture(samplerSpecular, gbufferUV),
                                                                 texture(samplerOcclusionRoughnessMetallic, gbufferUV)));
 
-    const AtmosphereLegacy atmosphere = pushConstant.atmosphereBuffer.atmospheres[pushConstant.atmosphereIndex];
-
     const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
     const vec3 viewDirection = normalize(camera.position.xyz - material.position.xyz);
-
-    // AMBIENT
-    const vec3 ambientContribution = material.subscatteringColor * atmosphere.ambientColor;
 
     vec3 lightContribution = vec3(0.0);
 
@@ -311,7 +301,5 @@ void main()
         shadowMapIndex += 1;
     }
 
-    const vec4 finalColor = vec4(ambientContribution + lightContribution, 1.0);
-
-    imageStore(image, texelCoord, finalColor);
+    imageStore(image, texelCoord, vec4(lightContribution, 1.0));
 }
