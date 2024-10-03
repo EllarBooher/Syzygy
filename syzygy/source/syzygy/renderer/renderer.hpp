@@ -42,6 +42,7 @@ public:
     static auto create(
         VkDevice,
         VmaAllocator,
+        SceneTexture const&,
         DescriptorAllocator&,
         VkDescriptorSetLayout computeImageDescriptorLayout
     ) -> std::optional<Renderer>;
@@ -72,7 +73,7 @@ private:
     void initWorld(VkDevice, VmaAllocator);
     void initDebug(VkDevice, VmaAllocator);
     void
-    initDeferredShadingPipeline(VkDevice, VmaAllocator, DescriptorAllocator&);
+    initDeferredShadingPipeline(VkDevice, VmaAllocator, SceneTexture const&, DescriptorAllocator&);
 
     // TODO: This should be changed. Passing the layout is wrong since the
     // pipeline/shaders know what layout they want. Compatibility with the

@@ -17,6 +17,7 @@ namespace syzygy
 struct Image;
 struct MeshInstanced;
 struct DescriptorAllocator;
+struct SceneTexture;
 } // namespace syzygy
 
 namespace syzygy
@@ -27,6 +28,7 @@ public:
     DeferredShadingPipeline(
         VkDevice device,
         VmaAllocator allocator,
+        SceneTexture const& sceneTexture,
         DescriptorAllocator& descriptorAllocator,
         VkExtent2D dimensionCapacity
     );
@@ -34,8 +36,7 @@ public:
     void recordDrawCommands(
         VkCommandBuffer cmd,
         VkRect2D drawRect,
-        syzygy::Image& color,
-        syzygy::ImageView& depth,
+        SceneTexture& sceneTexture,
         std::span<syzygy::DirectionalLightPacked const> directionalLights,
         std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
@@ -45,14 +46,10 @@ public:
         std::span<syzygy::MeshInstanced const> sceneGeometry
     );
 
-    void updateRenderTargetDescriptors(VkDevice, syzygy::ImageView& depthImage);
-
     void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:
     ShadowPassArray m_shadowPassArray{};
-
-    std::unique_ptr<syzygy::ImageView> m_drawImage{};
 
     using LightDirectionalBuffer =
         TStagedBuffer<syzygy::DirectionalLightPacked>;
@@ -60,16 +57,6 @@ private:
 
     using LightSpotBuffer = TStagedBuffer<syzygy::SpotLightPacked>;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
-
-    VkDescriptorSet m_drawImageSet{VK_NULL_HANDLE};
-    // Used by compute shaders to output final image
-    VkDescriptorSetLayout m_drawImageLayout{VK_NULL_HANDLE};
-
-    VkDescriptorSet m_depthImageSet{VK_NULL_HANDLE};
-    // Used by compute shaders to read syzygy depth
-    VkDescriptorSetLayout m_depthImageLayout{VK_NULL_HANDLE};
-
-    VkSampler m_depthImageImmutableSampler{VK_NULL_HANDLE};
 
     GBuffer m_gBuffer{};
 

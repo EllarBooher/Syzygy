@@ -317,8 +317,8 @@ auto syzygy::UILayer::create(
         SceneTexture& sceneTexture{*layer.m_sceneTexture};
 
         layer.m_imguiSceneTextureHandle = ImGui_ImplVulkan_AddTexture(
-            sceneTexture.sampler(),
-            sceneTexture.texture().view(),
+            sceneTexture.colorSampler(),
+            sceneTexture.color().view(),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
@@ -419,8 +419,8 @@ auto UILayer::sceneViewport(bool const forceFocus)
         return std::nullopt;
     }
 
-    VkExtent2D const sceneTextureMax{m_sceneTexture->texture().image().extent2D(
-    )};
+    VkExtent2D const sceneTextureMax{m_sceneTexture->color().image().extent2D()
+    };
     WindowResult<std::optional<VkRect2D>> widgetResult{sceneViewportWindow(
         "Scene Viewport",
         m_currentDockingLayout.centerTop,
@@ -447,6 +447,8 @@ auto UILayer::sceneViewport(bool const forceFocus)
         .renderedSubregion = widgetResult.payload.value(),
     };
 }
+
+auto UILayer::sceneTexture() -> SceneTexture const& { return *m_sceneTexture; }
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 void UILayer::setCursorEnabled(bool const enabled, bool const breakWindowFocus)
@@ -520,12 +522,12 @@ auto UILayer::recordDraw(VkCommandBuffer const cmd)
 
     if (m_sceneTexture != nullptr)
     {
-        m_sceneTexture->texture().recordTransitionBarriered(
+        m_sceneTexture->color().recordTransitionBarriered(
             cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
 
-    m_outputTexture->texture().recordTransitionBarriered(
+    m_outputTexture->color().recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     );
 
@@ -545,7 +547,7 @@ auto UILayer::recordDraw(VkCommandBuffer const cmd)
 
     VkRenderingAttachmentInfo const colorAttachmentInfo{
         syzygy::renderingAttachmentInfo(
-            m_outputTexture->texture().view(),
+            m_outputTexture->color().view(),
             VK_IMAGE_LAYOUT_GENERAL,
             VkClearValue{
                 .color = VkClearColorValue{.float32 = {0.0F, 0.0F, 0.0F, 1.0F}}

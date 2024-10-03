@@ -299,8 +299,8 @@ auto endFrame(
         return acquireResult;
     }
 
-    sourceTexture.texture().image().recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT
+    sourceTexture.color().recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_GENERAL
     );
 
     { // Perform conversion linear -> nonlinear before presentation
@@ -342,8 +342,8 @@ auto endFrame(
         vkCmdBindShadersEXT(cmd, 1, &stage, nullptr);
     }
 
-    sourceTexture.texture().image().recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+    sourceTexture.color().recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
     );
 
     VkImage const swapchainImage{swapchain.images()[swapchainImageIndex]};
@@ -357,7 +357,7 @@ auto endFrame(
 
     syzygy::recordCopyImageToImage(
         cmd,
-        sourceTexture.texture().image().image(),
+        sourceTexture.color().image().image(),
         swapchainImage,
         sourceSubregion,
         VkRect2D{.extent{swapchain.extent()}}
@@ -574,6 +574,7 @@ auto run() -> EditorResult
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
+        uiLayer.sceneTexture(),
         graphicsContext.descriptorAllocator(),
         uiLayer.sceneTextureLayout().value_or(VK_NULL_HANDLE)
     )};

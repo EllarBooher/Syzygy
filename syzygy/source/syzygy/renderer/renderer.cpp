@@ -91,6 +91,7 @@ void Renderer::destroy()
 auto Renderer::create(
     VkDevice const device,
     VmaAllocator const allocator,
+    SceneTexture const& sceneTexture,
     DescriptorAllocator& descriptorAllocator,
     VkDescriptorSetLayout const computeImageDescriptorLayout
 ) -> std::optional<Renderer>
@@ -108,7 +109,7 @@ auto Renderer::create(
     renderer.initGenericComputePipelines(device, computeImageDescriptorLayout);
 
     renderer.initDeferredShadingPipeline(
-        device, allocator, descriptorAllocator
+        device, allocator, sceneTexture, descriptorAllocator
     );
 
     renderer.m_skyViewComputePipeline =
@@ -218,15 +219,12 @@ void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
 void Renderer::initDeferredShadingPipeline(
     VkDevice const device,
     VmaAllocator const allocator,
+    syzygy::SceneTexture const& sceneTexture,
     DescriptorAllocator& descriptorAllocator
 )
 {
     m_deferredShadingPipeline = std::make_unique<DeferredShadingPipeline>(
-        device, allocator, descriptorAllocator, MAX_DRAW_EXTENTS
-    );
-
-    m_deferredShadingPipeline->updateRenderTargetDescriptors(
-        device, *m_sceneDepthTexture
+        device, allocator, sceneTexture, descriptorAllocator, MAX_DRAW_EXTENTS
     );
 }
 
@@ -358,7 +356,7 @@ void Renderer::recordDraw(
     }
 
     {
-        sceneTexture.texture().recordTransitionBarriered(
+        sceneTexture.color().recordTransitionBarriered(
             cmd, VK_IMAGE_LAYOUT_GENERAL
         );
 
@@ -375,8 +373,7 @@ void Renderer::recordDraw(
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 sceneSubregion,
-                sceneTexture.texture().image(),
-                *m_sceneDepthTexture,
+                sceneTexture,
                 directionalLights,
                 scene.spotlightsRender ? scene.spotlights
                                        : std::vector<SpotLightPacked>{},
@@ -387,7 +384,7 @@ void Renderer::recordDraw(
                 scene.geometry()
             );
 
-            sceneTexture.texture().recordTransitionBarriered(
+            sceneTexture.color().recordTransitionBarriered(
                 cmd, VK_IMAGE_LAYOUT_GENERAL
             );
 
@@ -417,7 +414,7 @@ void Renderer::recordDraw(
             m_skyViewComputePipeline->recordDrawCommands(
                 cmd,
                 sceneSubregion,
-                sceneTexture.texture().image(),
+                sceneTexture.color().image(),
                 atmosphereIndex,
                 *m_atmospheresBuffer,
                 cameraIndex,
@@ -450,7 +447,7 @@ void Renderer::recordDrawDebugLines(
                 false,
                 m_debugLines.lineWidth,
                 sceneSubregion,
-                sceneTexture.texture(),
+                sceneTexture.color(),
                 *m_sceneDepthTexture,
                 cameraIndex,
                 camerasBuffer,

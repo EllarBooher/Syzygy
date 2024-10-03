@@ -303,11 +303,15 @@ auto SceneTexture::create(
     return result;
 }
 
-auto SceneTexture::sampler() const -> VkSampler { return m_colorSampler; }
+auto SceneTexture::colorSampler() const -> VkSampler { return m_colorSampler; }
 
-auto SceneTexture::texture() -> ImageView& { return *m_color; }
+auto SceneTexture::color() -> ImageView& { return *m_color; }
 
-auto SceneTexture::texture() const -> ImageView const& { return *m_color; }
+auto SceneTexture::color() const -> ImageView const& { return *m_color; }
+
+auto SceneTexture::depth() -> ImageView& { return *m_depth; }
+
+auto SceneTexture::depth() const -> ImageView const& { return *m_depth; }
 
 auto SceneTexture::singletonDescriptor() const -> VkDescriptorSet
 {

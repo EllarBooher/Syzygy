@@ -74,6 +74,10 @@ public:
 
     auto sceneViewport(bool forceFocus) -> std::optional<SceneViewport>;
 
+    // TODO: remove this once able to, to encapsulate scene texture and defer
+    // exposing it until rendering time
+    [[nodiscard]] auto sceneTexture() -> SceneTexture const&;
+
     void setCursorEnabled(bool enabled, bool breakWindowFocus = true);
 
     void addWidget(std::unique_ptr<UIWidget>);

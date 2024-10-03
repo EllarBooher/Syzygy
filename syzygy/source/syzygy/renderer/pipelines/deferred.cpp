@@ -12,6 +12,7 @@
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/rendercommands.hpp"
 #include "syzygy/renderer/scene.hpp"
+#include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
 #include <filesystem>
@@ -144,6 +145,7 @@ namespace syzygy
 DeferredShadingPipeline::DeferredShadingPipeline(
     VkDevice const device,
     VmaAllocator const allocator,
+    SceneTexture const& sceneTexture,
     DescriptorAllocator& descriptorAllocator,
     VkExtent2D const dimensionCapacity
 )
@@ -181,123 +183,6 @@ DeferredShadingPipeline::DeferredShadingPipeline(
                     LIGHT_CAPACITY
                 )
             );
-    }
-
-    { // Descriptor Sets
-        m_drawImageLayout =
-            DescriptorLayoutBuilder()
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1U
-                )
-                .build(device, 0)
-                .value_or(VK_NULL_HANDLE);
-
-        m_drawImageSet =
-            descriptorAllocator.allocate(device, m_drawImageLayout);
-
-        {
-            VkExtent2D const drawImageExtent{
-                .width = dimensionCapacity.width,
-                .height = dimensionCapacity.height,
-            };
-
-            if (std::optional<std::unique_ptr<syzygy::ImageView>>
-                    drawImageResult{syzygy::ImageView::allocate(
-                        device,
-                        allocator,
-                        syzygy::ImageAllocationParameters{
-                            .extent = drawImageExtent,
-                            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                            .usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-                                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                                        | VK_IMAGE_USAGE_STORAGE_BIT
-                                        | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                        },
-                        syzygy::ImageViewAllocationParameters{
-                            .subresourceRange = syzygy::imageSubresourceRange(
-                                VK_IMAGE_ASPECT_COLOR_BIT
-                            )
-                        }
-                    )};
-                drawImageResult.has_value())
-            {
-                m_drawImage = std::move(drawImageResult).value();
-            }
-            else
-            {
-                SZG_WARNING(
-                    "Failed to allocate draw image for deferred shading "
-                    "pipeline."
-                );
-            }
-
-            VkDescriptorImageInfo const drawImageInfo{
-                .sampler = VK_NULL_HANDLE,
-                .imageView = m_drawImage->view(),
-                .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-            };
-
-            VkWriteDescriptorSet const drawImageWrite{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = nullptr,
-
-                .dstSet = m_drawImageSet,
-                .dstBinding = 0,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-
-                .pImageInfo = &drawImageInfo,
-                .pBufferInfo = nullptr,
-                .pTexelBufferView = nullptr,
-            };
-
-            std::vector<VkWriteDescriptorSet> const writes{drawImageWrite};
-
-            vkUpdateDescriptorSets(device, VKR_ARRAY(writes), 0, nullptr);
-        }
-
-        VkSamplerCreateInfo const depthImageImmutableSamplerInfo{
-            syzygy::samplerCreateInfo(
-                0,
-                VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
-                VK_FILTER_NEAREST,
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
-            )
-        };
-
-        SZG_LOG_VK(
-            vkCreateSampler(
-                device,
-                &depthImageImmutableSamplerInfo,
-                nullptr,
-                &m_depthImageImmutableSampler
-            ),
-            "Creating depth sampler for deferred shading"
-        );
-
-        m_depthImageLayout =
-            DescriptorLayoutBuilder()
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    {m_depthImageImmutableSampler}
-                )
-                .build(device, 0)
-                .value_or(VK_NULL_HANDLE);
-
-        m_depthImageSet =
-            descriptorAllocator.allocate(device, m_depthImageLayout);
     }
 
     uint32_t constexpr SHADOWMAP_SIZE{8192};
@@ -402,7 +287,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
     { // Lighting pass pipeline
         std::vector<VkDescriptorSetLayout> const lightingPassDescriptorSets{
-            m_drawImageLayout,
+            sceneTexture.singletonLayout(),
             m_gBuffer.descriptorLayout,
             m_shadowPassArray.samplerSetLayout(),
             m_shadowPassArray.texturesSetLayout()
@@ -431,7 +316,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 
     { // Sky pass pipeline
         std::vector<VkDescriptorSetLayout> const skyPassDescriptorSets{
-            m_drawImageLayout, m_depthImageLayout
+            sceneTexture.combinedDescriptorLayout()
         };
 
         m_skyPassComputeShader = loadShader(
@@ -555,8 +440,7 @@ namespace syzygy
 void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
-    Image& color,
-    ImageView& depth,
+    SceneTexture& sceneTexture,
     std::span<DirectionalLightPacked const> const directionalLights,
     std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
@@ -633,7 +517,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         );
 
-        depth.recordTransitionBarriered(
+        sceneTexture.depth().recordTransitionBarriered(
             cmd, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
         );
     }
@@ -674,7 +558,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
 
-            .imageView = depth.view(),
+            .imageView = sceneTexture.depth().view(),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 
             .resolveMode = VK_RESOLVE_MODE_NONE,
@@ -850,14 +734,18 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdEndRendering(cmd);
     }
 
-    recordClearColorImage(cmd, color, COLOR_BLACK_OPAQUE);
+    recordClearColorImage(
+        cmd, sceneTexture.color().image(), COLOR_BLACK_OPAQUE
+    );
 
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
             cmd, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
         );
 
-        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
+        sceneTexture.color().recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_GENERAL
+        );
 
         m_shadowPassArray.recordTransitionActiveShadowMaps(
             cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
@@ -868,7 +756,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
 
         std::array<VkDescriptorSet, 4> descriptorSets{
-            m_drawImageSet,
+            sceneTexture.singletonDescriptor(),
             m_gBuffer.descriptors,
             m_shadowPassArray.samplerSet(),
             m_shadowPassArray.textureSet()
@@ -926,8 +814,10 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 
     { // Sky post-process pass
-        m_drawImage->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-        depth.recordTransitionBarriered(
+        sceneTexture.color().recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_GENERAL
+        );
+        sceneTexture.depth().recordTransitionBarriered(
             cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
         );
 
@@ -935,8 +825,8 @@ void DeferredShadingPipeline::recordDrawCommands(
         VkShaderEXT const shader{m_skyPassComputeShader.shaderObject()};
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
 
-        std::array<VkDescriptorSet, 2> const descriptorSets{
-            m_drawImageSet, m_depthImageSet
+        std::array<VkDescriptorSet, 1> const descriptorSets{
+            sceneTexture.combinedDescriptor()
         };
 
         vkCmdBindDescriptorSets(
@@ -982,71 +872,6 @@ void DeferredShadingPipeline::recordDrawCommands(
         VkShaderEXT const unboundHandle{VK_NULL_HANDLE};
         vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
     }
-
-    {
-        m_drawImage->recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-        );
-        color.recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
-        );
-
-        VkOffset3D const srcMin{};
-        VkOffset3D const srcMax{
-            .x = static_cast<int32_t>(drawRect.extent.width),
-            .y = static_cast<int32_t>(drawRect.extent.height),
-            .z = 1
-        };
-        VkOffset3D const dstMin{
-            .x = drawRect.offset.x, .y = drawRect.offset.y, .z = 0
-        };
-        VkOffset3D const dstMax{
-            .x = static_cast<int32_t>(dstMin.x + drawRect.extent.width),
-            .y = static_cast<int32_t>(dstMin.y + drawRect.extent.height),
-            .z = 1
-        };
-
-        Image::recordCopyRect(
-            cmd,
-            m_drawImage->image(),
-            color,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            srcMin,
-            srcMax,
-            dstMin,
-            dstMax
-        );
-    }
-}
-
-void DeferredShadingPipeline::updateRenderTargetDescriptors(
-    VkDevice const device, ImageView& depthImage
-)
-{
-    VkDescriptorImageInfo const depthImageInfo{
-        .sampler = VK_NULL_HANDLE,
-        .imageView = depthImage.view(),
-        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-    };
-
-    VkWriteDescriptorSet const depthImageWrite{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-
-        .dstSet = m_depthImageSet,
-        .dstBinding = 0,
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-
-        .pImageInfo = &depthImageInfo,
-        .pBufferInfo = nullptr,
-        .pTexelBufferView = nullptr,
-    };
-
-    std::vector<VkWriteDescriptorSet> const writes{depthImageWrite};
-
-    vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
 }
 
 void DeferredShadingPipeline::cleanup(
@@ -1058,13 +883,6 @@ void DeferredShadingPipeline::cleanup(
 
     m_directionalLights.reset();
     m_spotLights.reset();
-
-    m_drawImage.reset();
-
-    vkDestroyDescriptorSetLayout(device, m_depthImageLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, m_drawImageLayout, nullptr);
-
-    vkDestroySampler(device, m_depthImageImmutableSampler, nullptr);
 
     vkDestroyPipelineLayout(device, m_gBufferLayout, nullptr);
     vkDestroyPipelineLayout(device, m_lightingPassLayout, nullptr);

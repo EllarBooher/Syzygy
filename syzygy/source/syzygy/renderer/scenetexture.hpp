@@ -35,10 +35,12 @@ struct SceneTexture
         VkFormat depthFormat
     ) -> std::optional<SceneTexture>;
 
-    [[nodiscard]] auto sampler() const -> VkSampler;
+    [[nodiscard]] auto colorSampler() const -> VkSampler;
 
-    auto texture() -> ImageView&;
-    [[nodiscard]] auto texture() const -> ImageView const&;
+    auto color() -> ImageView&;
+    [[nodiscard]] auto color() const -> ImageView const&;
+    auto depth() -> ImageView&;
+    [[nodiscard]] auto depth() const -> ImageView const&;
 
     // A descriptor set that contains just this image in binding 0 for compute
     // shaders.
