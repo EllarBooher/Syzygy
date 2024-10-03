@@ -92,8 +92,7 @@ private:
 
         uint32_t directionalLightCount{};
         uint32_t spotLightCount{};
-        // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-        uint8_t padding2[4]{};
+        uint32_t directionalLightSkipCount{};
         uint32_t cameraIndex{0};
 
         glm::vec2 gbufferOffset{};

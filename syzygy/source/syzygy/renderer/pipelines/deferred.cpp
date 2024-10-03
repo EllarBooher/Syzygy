@@ -750,6 +750,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .directionalLightCount =
                 static_cast<uint32_t>(m_directionalLights->deviceSize()),
             .spotLightCount = static_cast<uint32_t>(m_spotLights->deviceSize()),
+            .directionalLightSkipCount = 1, // assume sun is always present
             .cameraIndex = viewCameraIndex,
             .gbufferOffset = glm::vec2{0.0, 0.0},
             .gbufferExtent =

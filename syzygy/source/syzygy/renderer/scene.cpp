@@ -725,14 +725,8 @@ auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
     std::optional<DirectionalLightPacked> sunlight{};
     std::optional<DirectionalLightPacked> moonlight{};
 
-    if (sunCosine > 0.0F)
-    {
-        sunlight = createSunlight(sceneBounds, sunEulerAngles, glm::vec3{1.0F});
-    }
-    if (sunCosine < SUNSET_COSINE)
-    {
-        moonlight = createMoonlight(sceneBounds, sunCosine, SUNSET_COSINE);
-    }
+    sunlight = createSunlight(sceneBounds, sunEulerAngles, glm::vec3{1.0F});
+    moonlight = createMoonlight(sceneBounds, sunCosine, SUNSET_COSINE);
 
     AtmospherePacked const atmosphere{toDeviceEquivalent()};
     return AtmosphereBaked{

@@ -304,11 +304,11 @@ void Renderer::recordDraw(
         };
         if (bakedAtmosphere.moonlight.has_value())
         {
-            directionalLights.push_back(bakedAtmosphere.moonlight.value());
+            directionalLights.push_back(bakedAtmosphere.sunlight.value());
         }
         if (bakedAtmosphere.sunlight.has_value())
         {
-            directionalLights.push_back(bakedAtmosphere.sunlight.value());
+            directionalLights.push_back(bakedAtmosphere.moonlight.value());
         }
 
         m_atmospheresBuffer->clearStaged();
