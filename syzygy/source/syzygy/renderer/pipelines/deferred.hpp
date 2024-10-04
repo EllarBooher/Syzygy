@@ -44,6 +44,8 @@ public:
         std::span<syzygy::MeshInstanced const> sceneGeometry
     );
 
+    [[nodiscard]] auto gbuffer() -> GBuffer const&;
+
     void cleanup(VkDevice device, VmaAllocator allocator);
 
 private:

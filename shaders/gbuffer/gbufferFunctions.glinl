@@ -1,0 +1,20 @@
+struct GBufferTexel
+{
+    vec4 position;
+    vec4 normal;
+    vec4 diffuseColor;
+    vec4 specularColor;
+    vec4 occlusionRoughnessMetallic;
+};
+
+GBufferTexel sampleGBuffer(const vec2 uv)
+{
+    GBufferTexel texel;
+    texel.diffuseColor = texture(gbufferDiffuse, uv);
+    texel.specularColor = texture(gbufferSpecular, uv);
+    texel.normal = texture(gbufferNormal, uv);
+    texel.position = texture(gbufferWorldPosition, uv);
+    texel.occlusionRoughnessMetallic = texture(gbufferOcclusionRoughnessMetallic, uv);
+
+    return texel;
+}

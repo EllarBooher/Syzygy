@@ -7,17 +7,17 @@
 // Supports directional and spot lights.
 // Portions are based on results in https://renderwonk.com/publications/s2010-shading-course/
 
+#include "../gbuffer/gbuffer.glinl"
+#include "../gbuffer/pbr.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba16, set = 0, binding = 0) uniform image2D image;
 
-layout(set = 1, binding = 0) uniform sampler2D samplerDiffuse;
-layout(set = 1, binding = 1) uniform sampler2D samplerSpecular;
-layout(set = 1, binding = 2) uniform sampler2D samplerNormal;
-layout(set = 1, binding = 3) uniform sampler2D samplerWorldPosition;
-layout(set = 1, binding = 4) uniform sampler2D samplerOcclusionRoughnessMetallic;
+SZG_DECLARE_GBUFFER_SET(1)
+#include "../gbuffer/gbufferFunctions.glinl"
+#include "../gbuffer/pbrFunctions.glinl"
 
 layout(set = 2, binding = 0) uniform sampler shadowMapSampler;
 layout(set = 3, binding = 0) uniform texture2D shadowMaps[];
@@ -120,47 +120,6 @@ float sampleShadowMap(const ShadowFrame shadow, const uint index)
     return 1.0 - summedDistance / SAMPLE_COUNT;
 }
 
-struct GBufferTexel
-{
-    vec4 position;
-    vec4 normal;
-    vec4 diffuseColor;
-    vec4 specularColor;
-    vec4 occlusionRoughnessMetallic;
-};
-
-struct PBRTexel
-{
-    vec3 position;
-    vec3 normal;
-    vec3 subscatteringColor;
-    vec3 normalReflectance;
-    float occlusion;
-    float specularPower;
-    float metallic;
-};
-
-float max3(const vec3 rgb) { return max(max(rgb.r, rgb.g), rgb.b); }
-
-PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
-{
-    const float specularPower = 160;
-
-    const vec3 dialectricReflectence = vec3(0.04);
-    const vec3 metallicReflectence = vec3(0.95) * gbuffer.specularColor.rgb / max3(gbuffer.specularColor.rgb);
-
-    const float metallic = gbuffer.occlusionRoughnessMetallic.b;
-
-    return PBRTexel(
-        /* position = */ gbuffer.position.xyz,
-        /* normal = */ gbuffer.normal.xyz,
-        /* subscatteringColor = */ gbuffer.diffuseColor.rgb,
-        /* normalReflectance = */ mix(dialectricReflectence, metallicReflectence, metallic),
-        /* occlusion = */ gbuffer.occlusionRoughnessMetallic.r,
-        /* roughness = */ pow(specularPower, 1.0 - gbuffer.occlusionRoughnessMetallic.g),
-        /* metallic = */ metallic);
-}
-
 struct IncomingLight
 {
     vec3 lightDirectionUnit;
@@ -195,38 +154,6 @@ IncomingLight computeIncomingLight(const LightSpot light,
     return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
 
-vec3 computeFresnel(const PBRTexel material, const vec3 lightDirection, const vec3 viewDirection)
-{
-    const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-
-    // Schlick approximation of fresnel reflection
-    const vec3 fresnel =
-        material.normalReflectance
-        + (1.0 - material.normalReflectance) * pow(1.0 - clamp(dot(halfwayDirection, lightDirection), 0.0, 1.0), 5);
-
-    return fresnel;
-}
-
-vec3 diffuseBRDF(const PBRTexel material, const vec3 lightDirection)
-{
-    // Lambertian BRDF
-
-    return material.subscatteringColor / 3.14159265359;
-}
-
-vec3 specularBRDF(const PBRTexel material, const vec3 lightDirection, const vec3 viewDirection)
-{
-    const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-
-    const float specularPower = material.specularPower;
-    const float microfacetDistribution = pow(clamp(dot(halfwayDirection, material.normal), 0.0, 1.0), specularPower);
-
-    // Without this term, the overall brightness decreases as roughness increases
-    const float normalizationTerm = (specularPower + 2) / 8.0;
-
-    return vec3(normalizationTerm * microfacetDistribution);
-}
-
 vec3 computeLightContribution(const IncomingLight light, const PBRTexel material, const vec3 viewDirection)
 {
     // Our model uses a microfacet specular BRDF layered with a diffuse BRDF
@@ -257,19 +184,15 @@ void main()
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 gbufferUV = (vec2(texelCoord) + offset) / pushConstant.gbufferExtent;
 
-    const vec4 gbufferDiffuse = texture(samplerDiffuse, gbufferUV);
+    const GBufferTexel gbufferTexel = sampleGBuffer(gbufferUV);
 
     // No transparent geometry for now, less than 1.0 alpha indicates background texels
-    if (gbufferDiffuse.a < 1.0)
+    if (gbufferTexel.diffuseColor.a < 1.0)
     {
         return;
     }
 
-    const PBRTexel material = convertPBRProperties(GBufferTexel(texture(samplerWorldPosition, gbufferUV),
-                                                                texture(samplerNormal, gbufferUV),
-                                                                gbufferDiffuse,
-                                                                texture(samplerSpecular, gbufferUV),
-                                                                texture(samplerOcclusionRoughnessMetallic, gbufferUV)));
+    const PBRTexel material = convertPBRProperties(gbufferTexel);
 
     const Camera camera = pushConstant.cameraBuffer.cameras[pushConstant.cameraIndex];
     const vec3 viewDirection = normalize(camera.position.xyz - material.position.xyz);

@@ -132,54 +132,7 @@ auto GBuffer::create(
 
     // The descriptor for accessing all the samplers in the lighting passes
     std::optional<VkDescriptorSetLayout> const descriptorLayoutResult{
-        DescriptorLayoutBuilder{}
-            .addBinding(
-                DescriptorLayoutBuilder::AddBindingParameters{
-                    .binding = 0,
-                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .bindingFlags = 0,
-                },
-                {diffuseColorSampler}
-            )
-            .addBinding(
-                DescriptorLayoutBuilder::AddBindingParameters{
-                    .binding = 1,
-                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .bindingFlags = 0,
-                },
-                {specularColorSampler}
-            )
-            .addBinding(
-                DescriptorLayoutBuilder::AddBindingParameters{
-                    .binding = 2,
-                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .bindingFlags = 0,
-                },
-                {normalSampler}
-            )
-            .addBinding(
-                DescriptorLayoutBuilder::AddBindingParameters{
-                    .binding = 3,
-                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .bindingFlags = 0,
-                },
-                {positionSampler}
-            )
-            .addBinding(
-                DescriptorLayoutBuilder::AddBindingParameters{
-                    .binding = 4,
-                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .bindingFlags = 0,
-                },
-                {ormSampler}
-            )
-            .build(device, 0)
-            .value_or(VK_NULL_HANDLE)
+        allocateDescriptorSetLayout(device)
     };
     if (!descriptorLayoutResult.has_value())
     {
@@ -193,27 +146,27 @@ auto GBuffer::create(
 
     std::vector<VkDescriptorImageInfo> const imageInfos{
         VkDescriptorImageInfo{
-            .sampler = VK_NULL_HANDLE,
+            .sampler = diffuseColorSampler,
             .imageView = diffuseResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
-            .sampler = VK_NULL_HANDLE,
+            .sampler = specularColorSampler,
             .imageView = specularResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
-            .sampler = VK_NULL_HANDLE,
+            .sampler = normalSampler,
             .imageView = normalResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
-            .sampler = VK_NULL_HANDLE,
+            .sampler = positionSampler,
             .imageView = positionResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         },
         VkDescriptorImageInfo{
-            .sampler = VK_NULL_HANDLE,
+            .sampler = ormSampler,
             .imageView = ormResult.value()->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         }
@@ -250,6 +203,68 @@ auto GBuffer::create(
         .immutableSamplers =
             {immutableSamplers.begin(), immutableSamplers.end()},
     };
+}
+
+auto GBuffer::allocateDescriptorSetLayout(VkDevice const device)
+    -> std::optional<VkDescriptorSetLayout>
+{
+    std::optional<VkDescriptorSetLayout> const descriptorLayoutResult{
+        DescriptorLayoutBuilder{}
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 1,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 2,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 3,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 4,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .build(device, 0)
+            .value_or(VK_NULL_HANDLE)
+    };
+    if (!descriptorLayoutResult.has_value())
+    {
+        SZG_ERROR("Failed to create GBuffer descriptor set layout.");
+        return std::nullopt;
+    }
+
+    return descriptorLayoutResult;
 }
 
 auto GBuffer::extent() const -> VkExtent2D

@@ -34,7 +34,7 @@ layout(push_constant) uniform PushConstant
 // the sky with only the planet's surface shadowing.
 // This map contains the total luminance from in-scattering due to atmospheric effects.
 //
-// The purpose of this map is to provide a fast-path when rendering the sky. This texture can be sampled instead of 
+// The purpose of this map is to provide a fast-path when rendering the sky. This texture can be sampled instead of
 // performing the calculations. Calculations are (probably) still necessary when geometry intersects the view ray.
 //
 // This map only depends on altitude, and allows the camera to be freely rotated
@@ -48,7 +48,8 @@ layout(push_constant) uniform PushConstant
 // v := solar elevation
 // v varies from -pi/2 to pi/2
 
-void uv_to_azimuthElevation(const Atmosphere atmosphere, const float radius, const vec2 uv, out float azimuth, out float elevation)
+void uv_to_azimuthElevation(
+    const Atmosphere atmosphere, const float radius, const vec2 uv, out float azimuth, out float elevation)
 {
     // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
     const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
@@ -56,7 +57,8 @@ void uv_to_azimuthElevation(const Atmosphere atmosphere, const float radius, con
 
     // u stores light-relative azimuth
     const float cosineViewLightProjected = (uv.s - 0.5) * 2.0;
-    const vec2 lightDirectionProjected = normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
+    const vec2 lightDirectionProjected =
+        normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
 
     float azimuthSun = asin(lightDirectionProjected.x);
     if (lightDirectionProjected.y < 0.0)
@@ -97,7 +99,7 @@ void main()
 
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
-    
+
     const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
 
@@ -119,7 +121,8 @@ void main()
     float distanceThroughAtmosphere;
     raycastAtmosphere(atmosphere, origin, direction, distanceThroughAtmosphere);
 
-    const vec3 luminance = computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceThroughAtmosphere);
+    const vec3 luminance =
+        computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceThroughAtmosphere);
 
     imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));
 }

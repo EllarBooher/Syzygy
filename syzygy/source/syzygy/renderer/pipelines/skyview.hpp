@@ -15,6 +15,7 @@ struct AtmospherePacked;
 struct CameraPacked;
 struct SceneTexture;
 template <typename T> struct TStagedBuffer;
+struct GBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -38,6 +39,7 @@ public:
         VkCommandBuffer cmd,
         SceneTexture& sceneTexture,
         VkRect2D drawRect,
+        GBuffer const& gbuffer,
         uint32_t atmosphereIndex,
         TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
         uint32_t viewCameraIndex,
@@ -106,6 +108,8 @@ public:
         VkDescriptorSet LUTSet{VK_NULL_HANDLE};
         VkDescriptorSetLayout LUTSetLayout{VK_NULL_HANDLE};
 
+        VkDescriptorSetLayout GBufferSetLayout{VK_NULL_HANDLE};
+
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
         VkSampler skyviewImmutableSampler{VK_NULL_HANDLE};
@@ -120,6 +124,13 @@ public:
             uint32_t cameraIndex{0};
 
             glm::uvec2 drawExtent{};
+
+            uint32_t sunShadowMapIndex{};
+            // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
+            uint8_t padding[4]{0};
+            // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
+
+            glm::uvec2 gbufferExtent{};
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };

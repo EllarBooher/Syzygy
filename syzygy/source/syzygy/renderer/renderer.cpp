@@ -183,7 +183,7 @@ void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
     m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
         device,
         DebugLineGraphicsPipeline::ImageFormats{
-            .color = VK_FORMAT_R16G16B16A16_SFLOAT,
+            .color = VK_FORMAT_R16G16B16A16_UNORM,
             .depth = m_sceneDepthTexture->image().format(),
         }
     );
@@ -410,6 +410,7 @@ void Renderer::recordDraw(
                 cmd,
                 sceneTexture,
                 sceneSubregion,
+                m_deferredShadingPipeline->gbuffer(),
                 atmosphereIndex,
                 *m_atmospheresBuffer,
                 cameraIndex,

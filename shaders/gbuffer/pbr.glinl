@@ -1,0 +1,10 @@
+struct PBRTexel
+{
+    vec3 position;
+    vec3 normal;
+    vec3 subscatteringColor;
+    vec3 normalReflectance;
+    float occlusion;
+    float specularPower;
+    float metallic;
+};

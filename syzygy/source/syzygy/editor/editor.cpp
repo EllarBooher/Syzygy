@@ -510,7 +510,7 @@ auto run() -> EditorResult
     bool inputCapturedByScene{false};
     Scene scene{};
     {
-        glm::vec3 const floatingPosition{glm::vec3{0.0F, -4.0F, 0.0F}};
+        glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
         glm::vec3 constexpr MESH_SCALE{5.0F};
         glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
 
@@ -542,7 +542,7 @@ auto run() -> EditorResult
         );
 
         Transform const floorTransform{
-            .translation = glm::vec3{0.0F, 10.0F, 0.0F},
+            .translation = glm::vec3{0.0F, -1.0F, 0.0F},
             .eulerAnglesRadians = glm::vec3{0.0F},
             .scale = glm::vec3{400.0F, 1.0F, 400.0F}
         };

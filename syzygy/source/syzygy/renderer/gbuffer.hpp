@@ -36,6 +36,9 @@ struct GBuffer
         DescriptorAllocator& descriptorAllocator
     ) -> std::optional<GBuffer>;
 
+    static auto allocateDescriptorSetLayout(VkDevice)
+        -> std::optional<VkDescriptorSetLayout>;
+
     [[nodiscard]] auto extent() const -> VkExtent2D;
 
     void

@@ -782,6 +782,8 @@ void DeferredShadingPipeline::recordDrawCommands(
     }
 }
 
+auto DeferredShadingPipeline::gbuffer() -> GBuffer const& { return m_gBuffer; }
+
 void DeferredShadingPipeline::cleanup(
     VkDevice const device, VmaAllocator const allocator
 )

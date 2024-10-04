@@ -1,0 +1,52 @@
+float max3(const vec3 rgb) { return max(max(rgb.r, rgb.g), rgb.b); }
+
+PBRTexel convertPBRProperties(const GBufferTexel gbuffer)
+{
+    const float specularPower = 160;
+
+    const vec3 dialectricReflectence = vec3(0.04);
+    const vec3 metallicReflectence = vec3(0.5) * gbuffer.specularColor.rgb / max3(gbuffer.specularColor.rgb);
+
+    const float metallic = gbuffer.occlusionRoughnessMetallic.b;
+
+    return PBRTexel(
+        /* position = */ gbuffer.position.xyz,
+        /* normal = */ gbuffer.normal.xyz,
+        /* subscatteringColor = */ gbuffer.diffuseColor.rgb,
+        /* normalReflectance = */ mix(dialectricReflectence, metallicReflectence, metallic),
+        /* occlusion = */ gbuffer.occlusionRoughnessMetallic.r,
+        /* roughness = */ pow(specularPower, 1.0 - gbuffer.occlusionRoughnessMetallic.g),
+        /* metallic = */ metallic);
+}
+
+vec3 computeFresnel(const PBRTexel material, const vec3 lightOutgoing, const vec3 viewOutgoing)
+{
+    const vec3 halfwayDirection = normalize(lightOutgoing + viewOutgoing);
+
+    // Schlick approximation of fresnel reflection
+    const vec3 fresnel =
+        material.normalReflectance
+        + (1.0 - material.normalReflectance) * pow(1.0 - clamp(dot(halfwayDirection, lightOutgoing), 0.0, 1.0), 5);
+
+    return fresnel;
+}
+
+vec3 diffuseBRDF(const PBRTexel material, const vec3 lightOutgoing)
+{
+    // Lambertian BRDF
+
+    return material.subscatteringColor / 3.14159265359;
+}
+
+vec3 specularBRDF(const PBRTexel material, const vec3 lightOutgoing, const vec3 viewOutgoing)
+{
+    const vec3 halfwayDirection = normalize(lightOutgoing + viewOutgoing);
+
+    const float specularPower = material.specularPower;
+    const float microfacetDistribution = pow(clamp(dot(halfwayDirection, material.normal), 0.0, 1.0), specularPower);
+
+    // Without this term, the overall brightness decreases as roughness increases
+    const float normalizationTerm = (specularPower + 2) / 8.0;
+
+    return vec3(normalizationTerm * microfacetDistribution);
+}

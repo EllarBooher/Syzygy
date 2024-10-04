@@ -3,6 +3,7 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
@@ -384,16 +385,29 @@ auto populatePerspectiveResources(
     }
     else
     {
-        SZG_ERROR("Failed to allocate perspective map descriptor set 0 layout."
-        );
+        SZG_ERROR("Failed to allocate perspective map LUT set layout.");
         return false;
+    }
+
+    if (auto gbufferSetLayoutResult{
+            syzygy::GBuffer::allocateDescriptorSetLayout(device)
+        };
+        gbufferSetLayoutResult.has_value())
+    {
+        resources.GBufferSetLayout = gbufferSetLayoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate perspective map GBuffer set layout.")
     }
 
     resources.LUTSet =
         descriptorAllocator.allocate(device, resources.LUTSetLayout);
 
-    std::array<VkDescriptorSetLayout, 2> const setLayouts{
-        resources.sceneTextureLayout, resources.LUTSetLayout
+    std::array<VkDescriptorSetLayout, 3> const setLayouts{
+        resources.sceneTextureLayout,
+        resources.LUTSetLayout,
+        resources.GBufferSetLayout
     };
     if (auto shaderResult{syzygy::loadShaderObject(
             device,
@@ -535,6 +549,7 @@ void recordPerspectiveMapCommands(
     syzygy::SceneTexture& sceneTexture,
     syzygy::ImageView& skyViewLUT,
     syzygy::ImageView& transmittanceLUT,
+    syzygy::GBuffer const& gbuffer,
     VkExtent2D const drawExtent,
     uint32_t atmosphereIndex,
     syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
@@ -559,8 +574,8 @@ void recordPerspectiveMapCommands(
 
     vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
 
-    std::array<VkDescriptorSet, 2> perspectiveSets{
-        sceneTexture.combinedDescriptor(), resources.LUTSet
+    std::array<VkDescriptorSet, 3> perspectiveSets{
+        sceneTexture.combinedDescriptor(), resources.LUTSet, gbuffer.descriptors
     };
 
     vkCmdBindDescriptorSets(
@@ -579,6 +594,9 @@ void recordPerspectiveMapCommands(
             .atmosphereIndex = atmosphereIndex,
             .cameraIndex = viewCameraIndex,
             .drawExtent = glm::uvec2{drawExtent.width, drawExtent.height},
+            .sunShadowMapIndex = 0, // Assume sun is in first position
+            .gbufferExtent =
+                glm::uvec2{gbuffer.extent().width, gbuffer.extent().height}
         };
 
     vkCmdPushConstants(
@@ -690,6 +708,7 @@ void SkyViewComputePipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     SceneTexture& sceneTexture,
     VkRect2D const drawRect,
+    GBuffer const& gbuffer,
     uint32_t atmosphereIndex,
     TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t viewCameraIndex,
@@ -827,6 +846,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         sceneTexture,
         *m_skyViewLUT.map,
         *m_transmittanceLUT.map,
+        gbuffer,
         drawRect.extent,
         atmosphereIndex,
         atmospheres,
@@ -851,6 +871,9 @@ void SkyViewComputePipeline::destroy()
         );
         vkDestroyDescriptorSetLayout(
             m_device, m_perspectiveMap.LUTSetLayout, nullptr
+        );
+        vkDestroyDescriptorSetLayout(
+            m_device, m_perspectiveMap.GBufferSetLayout, nullptr
         );
 
         vkDestroyPipelineLayout(m_device, m_skyViewLUT.layout, nullptr);
