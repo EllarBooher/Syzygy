@@ -4,6 +4,7 @@
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/renderer/gputypes.hpp"
+#include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <initializer_list>
 #include <span>

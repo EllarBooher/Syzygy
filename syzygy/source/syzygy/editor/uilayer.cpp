@@ -132,7 +132,6 @@ auto syzygy::UILayer::create(
     VkPhysicalDevice const physicalDevice,
     VkDevice const device,
     VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
     VkExtent2D textureCapacity,
     uint32_t const graphicsQueueFamily,
     VkQueue const graphicsQueue,

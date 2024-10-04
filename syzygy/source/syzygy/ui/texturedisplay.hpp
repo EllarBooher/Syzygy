@@ -1,6 +1,6 @@
 #pragma once
 
-#include "syzygy/assets/assets.hpp"
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include <imgui.h>
@@ -12,7 +12,6 @@
 
 namespace syzygy
 {
-struct Image;
 struct ImmediateSubmissionQueue;
 } // namespace syzygy
 

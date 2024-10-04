@@ -4,18 +4,18 @@
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
+#include "syzygy/ui/uiwidgets.hpp"
 #include <functional>
 #include <imgui.h>
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace syzygy
 {
-struct DescriptorAllocator;
 struct PlatformWindow;
 struct SceneTexture;
-struct UIWidget;
 } // namespace syzygy
 
 namespace syzygy
@@ -56,7 +56,6 @@ public:
         VkPhysicalDevice,
         VkDevice,
         VmaAllocator,
-        DescriptorAllocator&,
         VkExtent2D textureCapacity,
         uint32_t graphicsQueueFamily,
         VkQueue graphicsQueue,

@@ -28,9 +28,9 @@
 #include <limits>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
+#include <tuple>
 #include <utility>
 #include <variant>
-#include <vulkan/vk_enum_string_helper.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>

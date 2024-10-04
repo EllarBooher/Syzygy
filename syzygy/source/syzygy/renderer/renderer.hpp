@@ -14,7 +14,6 @@
 namespace syzygy
 {
 struct DescriptorAllocator;
-struct AtmosphereLegacyPacked;
 struct AtmospherePacked;
 struct CameraPacked;
 struct Scene;

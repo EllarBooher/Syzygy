@@ -1,12 +1,12 @@
 #include "deferred.hpp"
 
 #include "syzygy/assets/assets.hpp"
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
-#include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/material.hpp"
 #include "syzygy/renderer/pipelines.hpp"

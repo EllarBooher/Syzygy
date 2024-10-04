@@ -1,15 +1,10 @@
 #pragma once
 
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include <memory>
 #include <optional>
-#include <utility>
-
-namespace syzygy
-{
-struct DescriptorAllocator;
-} // namespace syzygy
 
 namespace syzygy
 {

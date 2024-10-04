@@ -3,7 +3,6 @@
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
-#include <memory>
 #include <optional>
 
 namespace syzygy

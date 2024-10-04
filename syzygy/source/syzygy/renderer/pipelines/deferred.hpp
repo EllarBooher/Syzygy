@@ -5,7 +5,6 @@
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/gputypes.hpp"
-#include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include <glm/vec2.hpp>
@@ -14,7 +13,6 @@
 
 namespace syzygy
 {
-struct Image;
 struct MeshInstanced;
 struct DescriptorAllocator;
 struct SceneTexture;

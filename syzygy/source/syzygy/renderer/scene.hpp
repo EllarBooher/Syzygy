@@ -4,6 +4,7 @@
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"

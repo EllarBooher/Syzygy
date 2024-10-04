@@ -1,6 +1,5 @@
 #include "scenetexture.hpp"
 
-#include "syzygy/core/deletionqueue.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/renderer/descriptors.hpp"
@@ -8,9 +7,9 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
-#include <functional>
 #include <imgui.h>
-#include <imgui_impl_vulkan.h>
+#include <span>
+#include <utility>
 #include <vector>
 
 namespace syzygy
@@ -269,64 +268,62 @@ auto SceneTexture::create(
 auto SceneTexture::allocateSingletonLayout(VkDevice const device)
     -> std::optional<VkDescriptorSetLayout>
 {
-    if (auto const layoutResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1
-                )
-                .build(device, 0)
-        };
-        layoutResult.has_value())
-    {
-        return layoutResult.value();
-    }
-    else
+    auto const layoutResult{
+        DescriptorLayoutBuilder{}
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .build(device, 0)
+    };
+
+    if (!layoutResult.has_value())
     {
         SZG_ERROR("Failed to allocate singleton descriptor layout.");
         return std::nullopt;
     }
+
+    return layoutResult.value();
 }
 
 auto SceneTexture::allocateCombinedLayout(VkDevice const device)
     -> std::optional<VkDescriptorSetLayout>
 {
-    if (auto const layoutResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1
-                )
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 1,
-                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    1
-                )
-                .build(device, 0)
-        };
-        layoutResult.has_value())
+    auto const layoutResult{
+        DescriptorLayoutBuilder{}
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 1,
+                    .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .build(device, 0)
+    };
+
+    if (!layoutResult.has_value())
     {
-        return layoutResult.value();
-    }
-    else
-    {
+
         SZG_ERROR("Failed to allocate combined descriptor layout.");
         return std::nullopt;
     }
+    return layoutResult.value();
 }
 
 auto SceneTexture::colorSampler() const -> VkSampler { return m_colorSampler; }

@@ -1,10 +1,10 @@
 #include "uiwidgets.hpp"
 
-#include "syzygy/core/log.hpp"
 #include "syzygy/editor/uilayer.hpp"
+#include "syzygy/platform/integer.hpp"
 #include "syzygy/ui/propertytable.hpp"
-#include "syzygy/ui/uiwindowscope.hpp"
-#include <spdlog/fmt/bundled/format.h>
+#include <imgui.h>
+#include <spdlog/fmt/bundled/core.h>
 #include <utility>
 
 namespace syzygy

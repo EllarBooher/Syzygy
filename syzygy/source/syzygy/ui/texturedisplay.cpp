@@ -1,6 +1,5 @@
 #include "texturedisplay.hpp"
 
-#include "syzygy/assets/assets.hpp"
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/core/uuid.hpp"

@@ -6,6 +6,8 @@
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
+#include <cassert>
+#include <memory>
 #include <utility>
 
 syzygy::MaterialDescriptors::MaterialDescriptors(MaterialDescriptors&& other

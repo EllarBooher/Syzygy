@@ -3,9 +3,11 @@
 #include "imgui.h"
 #include "syzygy/core/uuid.hpp"
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace syzygy
 {

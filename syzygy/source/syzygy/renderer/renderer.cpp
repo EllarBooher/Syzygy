@@ -1,8 +1,10 @@
 #include "renderer.hpp"
 
 #include "syzygy/assets/assets.hpp"
+#include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/gputypes.hpp"
@@ -18,6 +20,7 @@
 #include "syzygy/ui/engineui.hpp"
 #include "syzygy/ui/pipelineui.hpp"
 #include "syzygy/ui/uiwindowscope.hpp"
+#include <functional>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>

@@ -10,7 +10,10 @@
   { "symbol": [ "std::memcpy", "private", "<cstring>", "public" ] },
   { "symbol": [ "std::isfinite", "private", "<cmath>", "public" ] },
   { "symbol": [ "std::monostate", "private", "<variant>", "public" ] },
+
   { "symbol": [ "std::copy", "private", "<algorithm>", "public" ] },
+  { "symbol": [ "std::remove_if", "private", "<algorithm>", "public" ] },
+
   { "symbol": [ "std::is_same", "private", "<type_traits>", "public" ] },
-  { "symbol": [ "std::reference_wrapper", "private", "<functional>", "public" ] },
+  { "symbol": [ "std::reference_wrapper", "private", "<functional>", "public" ] }
 ]

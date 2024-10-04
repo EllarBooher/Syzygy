@@ -295,7 +295,6 @@ auto populateSkyViewResources(
 
 auto populatePerspectiveResources(
     VkDevice const device,
-    VmaAllocator const allocator,
     syzygy::DescriptorAllocator& descriptorAllocator,
     syzygy::SkyViewComputePipeline::PerspectiveMapResources& resources
 ) -> bool
@@ -560,6 +559,9 @@ void recordPerspectiveMapCommands(
     skyViewLUT.recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
+    transmittanceLUT.recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
 
     sceneTexture.color().recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_GENERAL
@@ -685,10 +687,7 @@ auto SkyViewComputePipeline::create(
         return nullptr;
     }
     if (!detail::populatePerspectiveResources(
-            device,
-            allocator,
-            *pipeline.m_descriptorAllocator,
-            pipeline.m_perspectiveMap
+            device, *pipeline.m_descriptorAllocator, pipeline.m_perspectiveMap
         ))
     {
         SZG_ERROR("Failed to allocate one or more perspective map resources.");

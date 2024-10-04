@@ -10,7 +10,6 @@
 
 namespace syzygy
 {
-struct Image;
 struct AtmospherePacked;
 struct CameraPacked;
 struct SceneTexture;

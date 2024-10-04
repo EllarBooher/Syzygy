@@ -44,8 +44,6 @@
 #include <utility>
 #include <vector>
 
-#include "syzygy/assets/assetsfwd.hpp"
-
 VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
 
 struct UIResults
@@ -147,7 +145,6 @@ auto initialize() -> std::optional<EditorResources>
         graphicsContext.physicalDevice(),
         graphicsContext.device(),
         graphicsContext.allocator(),
-        graphicsContext.descriptorAllocator(),
         TEXTURE_MAX,
         graphicsContext.universalQueueFamily(),
         graphicsContext.universalQueue(),

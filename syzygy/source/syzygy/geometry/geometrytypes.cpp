@@ -1,6 +1,5 @@
 #include "geometrytypes.hpp"
 
-#include "syzygy/geometry/transform.hpp"
 #include <glm/common.hpp>
 
 namespace syzygy
