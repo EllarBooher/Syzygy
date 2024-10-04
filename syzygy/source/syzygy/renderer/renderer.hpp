@@ -111,11 +111,14 @@ private:
     // Scene
 
     static uint32_t constexpr CAMERA_CAPACITY{20};
-    std::unique_ptr<TStagedBuffer<syzygy::CameraPacked>> m_camerasBuffer{};
+    std::unique_ptr<TStagedBuffer<CameraPacked>> m_camerasBuffer{};
+
+    static uint32_t constexpr LIGHT_CAPACITY{16};
+    std::unique_ptr<TStagedBuffer<DirectionalLightPacked>>
+        m_directionalLightsBuffer{};
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
-    std::unique_ptr<TStagedBuffer<syzygy::AtmospherePacked>>
-        m_atmospheresBuffer{};
+    std::unique_ptr<TStagedBuffer<AtmospherePacked>> m_atmospheresBuffer{};
 
     // End Vulkan
 };

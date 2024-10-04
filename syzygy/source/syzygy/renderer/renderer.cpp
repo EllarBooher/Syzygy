@@ -53,6 +53,7 @@ Renderer::Renderer(Renderer&& other) noexcept
 
     m_camerasBuffer = std::move(other.m_camerasBuffer);
     m_atmospheresBuffer = std::move(other.m_atmospheresBuffer);
+    m_directionalLightsBuffer = std::move(other.m_directionalLightsBuffer);
 }
 
 Renderer::~Renderer() { destroy(); }
@@ -82,6 +83,7 @@ void Renderer::destroy()
 
     m_camerasBuffer.reset();
     m_atmospheresBuffer.reset();
+    m_directionalLightsBuffer.reset();
 
     m_device = VK_NULL_HANDLE;
     m_allocator = VK_NULL_HANDLE;
@@ -179,6 +181,15 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
             ATMOSPHERE_CAPACITY
         )
     );
+    m_directionalLightsBuffer =
+        std::make_unique<TStagedBuffer<DirectionalLightPacked>>(
+            TStagedBuffer<DirectionalLightPacked>::allocate(
+                device,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                allocator,
+                LIGHT_CAPACITY
+            )
+        );
 }
 
 void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
@@ -319,6 +330,19 @@ void Renderer::recordDraw(
         m_atmospheresBuffer->recordCopyToDevice(cmd);
     }
 
+    {
+        if (!directionalLights.empty())
+        {
+            m_directionalLightsBuffer->clearStaged();
+            m_directionalLightsBuffer->push(directionalLights);
+            m_directionalLightsBuffer->recordCopyToDevice(cmd);
+        }
+        else
+        {
+            m_directionalLightsBuffer->clearStagedAndDevice();
+        }
+    }
+
     for (MeshInstanced const& instance : scene.geometry())
     {
         if (instance.models != nullptr)
@@ -352,17 +376,17 @@ void Renderer::recordDraw(
         // TODO: create a struct that contains a ref to a struct in a
         // buffer
         uint32_t const atmosphereIndex{0};
+        uint32_t const sunLightIndex{0};
 
         switch (m_activeRenderingPipeline)
         {
         case RenderingPipelines::DEFERRED:
         {
-
             m_deferredShadingPipeline->recordDrawCommands(
                 cmd,
                 sceneSubregion,
                 sceneTexture,
-                directionalLights,
+                *m_directionalLightsBuffer,
                 scene.spotlightsRender ? scene.spotlights
                                        : std::vector<SpotLightPacked>{},
                 cameraIndex,
@@ -401,7 +425,7 @@ void Renderer::recordDraw(
                 cmd,
                 sceneSubregion,
                 sceneTexture,
-                directionalLights,
+                *m_directionalLightsBuffer,
                 scene.spotlightsRender ? scene.spotlights
                                        : std::vector<SpotLightPacked>{},
                 cameraIndex,

@@ -165,15 +165,6 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     { // Lights used during the pass
         VkDeviceSize constexpr LIGHT_CAPACITY{16};
 
-        m_directionalLights = std::make_unique<
-            syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>>(
-            syzygy::TStagedBuffer<syzygy::DirectionalLightPacked>::allocate(
-                device,
-                static_cast<VkBufferUsageFlags>(0),
-                allocator,
-                LIGHT_CAPACITY
-            )
-        );
         m_spotLights =
             std::make_unique<syzygy::TStagedBuffer<syzygy::SpotLightPacked>>(
                 syzygy::TStagedBuffer<syzygy::SpotLightPacked>::allocate(
@@ -415,7 +406,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
     SceneTexture& sceneTexture,
-    std::span<DirectionalLightPacked const> const directionalLights,
+    TStagedBuffer<DirectionalLightPacked> const& directionalLights,
     std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
@@ -429,24 +420,11 @@ void DeferredShadingPipeline::recordDrawCommands(
     cameras.recordTotalCopyBarrier(
         cmd, GBUFFER_ACCESS_STAGES, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
     );
+    directionalLights.recordTotalCopyBarrier(
+        cmd, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT
+    );
 
     { // Update lights
-        if (!directionalLights.empty())
-        {
-            m_directionalLights->clearStaged();
-            m_directionalLights->push(directionalLights);
-            m_directionalLights->recordCopyToDevice(cmd);
-            m_directionalLights->recordTotalCopyBarrier(
-                cmd,
-                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                VK_ACCESS_2_SHADER_READ_BIT
-            );
-        }
-        else
-        {
-            m_directionalLights->clearStagedAndDevice();
-        }
-
         if (!spotLights.empty())
         {
             m_spotLights->clearStaged();
@@ -472,7 +450,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         m_shadowPassArray.recordInitialize(
             cmd,
             m_configuration.shadowPassParameters,
-            m_directionalLights->readValidStaged(),
+            directionalLights.readValidStaged(),
             m_spotLights->readValidStaged()
         );
 
@@ -744,11 +722,11 @@ void DeferredShadingPipeline::recordDrawCommands(
         LightingPassComputePushConstant const pushConstant{
             .cameraBuffer = cameras.deviceAddress(),
 
-            .directionalLightsBuffer = m_directionalLights->deviceAddress(),
+            .directionalLightsBuffer = directionalLights.deviceAddress(),
             .spotLightsBuffer = m_spotLights->deviceAddress(),
 
             .directionalLightCount =
-                static_cast<uint32_t>(m_directionalLights->deviceSize()),
+                static_cast<uint32_t>(directionalLights.deviceSize()),
             .spotLightCount = static_cast<uint32_t>(m_spotLights->deviceSize()),
             .directionalLightSkipCount = 1, // assume sun is always present
             .cameraIndex = viewCameraIndex,
@@ -791,7 +769,6 @@ void DeferredShadingPipeline::cleanup(
     m_shadowPassArray.cleanup(device, allocator);
     m_gBuffer.cleanup(device);
 
-    m_directionalLights.reset();
     m_spotLights.reset();
 
     vkDestroyPipelineLayout(device, m_gBufferLayout, nullptr);

@@ -35,7 +35,7 @@ public:
         VkCommandBuffer cmd,
         VkRect2D drawRect,
         SceneTexture& sceneTexture,
-        std::span<syzygy::DirectionalLightPacked const> directionalLights,
+        TStagedBuffer<DirectionalLightPacked> const& directionalLights,
         std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
@@ -48,10 +48,6 @@ public:
 
 private:
     ShadowPassArray m_shadowPassArray{};
-
-    using LightDirectionalBuffer =
-        TStagedBuffer<syzygy::DirectionalLightPacked>;
-    std::unique_ptr<LightDirectionalBuffer> m_directionalLights{};
 
     using LightSpotBuffer = TStagedBuffer<syzygy::SpotLightPacked>;
     std::unique_ptr<LightSpotBuffer> m_spotLights{};
