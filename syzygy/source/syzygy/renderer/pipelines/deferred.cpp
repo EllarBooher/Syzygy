@@ -436,6 +436,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     VkCommandBuffer const cmd,
     VkRect2D const drawRect,
     SceneTexture& sceneTexture,
+    uint32_t atmosphericDirectionalLightsCount,
     TStagedBuffer<DirectionalLightPacked> const& directionalLights,
     std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
@@ -758,7 +759,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             .directionalLightCount =
                 static_cast<uint32_t>(directionalLights.deviceSize()),
             .spotLightCount = static_cast<uint32_t>(m_spotLights->deviceSize()),
-            .directionalLightSkipCount = 1, // assume sun is always present
+            .directionalLightSkipCount = atmosphericDirectionalLightsCount,
             .cameraIndex = viewCameraIndex,
             .gbufferOffset = glm::vec2{0.0, 0.0},
             .gbufferExtent =

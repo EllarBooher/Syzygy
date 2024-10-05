@@ -541,7 +541,7 @@ auto run() -> EditorResult
         Transform const floorTransform{
             .translation = glm::vec3{0.0F, -1.0F, 0.0F},
             .eulerAnglesRadians = glm::vec3{0.0F},
-            .scale = glm::vec3{400.0F, 1.0F, 400.0F}
+            .scale = glm::vec3{20.0F, 1.0F, 20.0F}
         };
 
         scene.addMeshInstance(
@@ -551,8 +551,7 @@ auto run() -> EditorResult
             assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
             InstanceAnimation::None,
             "Floor",
-            std::array<Transform, 1>{Transform{floorTransform}},
-            false
+            std::array<Transform, 1>{Transform{floorTransform}}
         );
 
         glm::vec3 const spotlightOffset{-20.0};

@@ -103,7 +103,7 @@ private:
     static uint32_t constexpr DEBUGLINES_CAPACITY{1000};
     DebugLines m_debugLines{};
 
-    RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::SKY_VIEW};
+    RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::DEFERRED};
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};
     std::unique_ptr<DeferredShadingPipeline> m_deferredShadingPipeline{};
     std::unique_ptr<SkyViewComputePipeline> m_skyViewComputePipeline{};
@@ -119,6 +119,8 @@ private:
 
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
     std::unique_ptr<TStagedBuffer<AtmospherePacked>> m_atmospheresBuffer{};
+
+    bool m_renderAtmosphere;
 
     // End Vulkan
 };

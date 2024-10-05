@@ -35,6 +35,7 @@ public:
         VkCommandBuffer cmd,
         VkRect2D drawRect,
         SceneTexture& sceneTexture,
+        uint32_t atmosphericDirectionalLightsCount,
         TStagedBuffer<DirectionalLightPacked> const& directionalLights,
         std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,

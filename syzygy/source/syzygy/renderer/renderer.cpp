@@ -260,12 +260,10 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
         {
         case RenderingPipelines::DEFERRED:
             imguiPipelineControls(*m_deferredShadingPipeline);
+            ImGui::Checkbox("Render Atmosphere", &m_renderAtmosphere);
             break;
         case RenderingPipelines::COMPUTE_COLLECTION:
             imguiPipelineControls(*m_genericComputePipeline);
-            break;
-        case RenderingPipelines::SKY_VIEW:
-            ImGui::Text("No controls for Sky View pipeline.");
             break;
         default:
             ImGui::Text("Invalid rendering pipeline selected.");
@@ -316,11 +314,11 @@ void Renderer::recordDraw(
         AtmosphereBaked const bakedAtmosphere{
             scene.atmosphere.baked(scene.shadowBounds())
         };
-        if (bakedAtmosphere.moonlight.has_value())
+        if (bakedAtmosphere.sunlight.has_value())
         {
             directionalLights.push_back(bakedAtmosphere.sunlight.value());
         }
-        if (bakedAtmosphere.sunlight.has_value())
+        if (bakedAtmosphere.moonlight.has_value())
         {
             directionalLights.push_back(bakedAtmosphere.moonlight.value());
         }
@@ -386,6 +384,7 @@ void Renderer::recordDraw(
                 cmd,
                 sceneSubregion,
                 sceneTexture,
+                m_renderAtmosphere ? 1 : 0,
                 *m_directionalLightsBuffer,
                 scene.spotlightsRender ? scene.spotlights
                                        : std::vector<SpotLightPacked>{},
@@ -397,6 +396,23 @@ void Renderer::recordDraw(
             sceneTexture.color().recordTransitionBarriered(
                 cmd, VK_IMAGE_LAYOUT_GENERAL
             );
+
+            if (m_renderAtmosphere)
+            {
+                m_skyViewComputePipeline->recordDrawCommands(
+                    cmd,
+                    sceneTexture,
+                    sceneSubregion,
+                    m_deferredShadingPipeline->gbuffer(),
+                    m_deferredShadingPipeline->shadowMaps(),
+                    atmosphereIndex,
+                    *m_atmospheresBuffer,
+                    cameraIndex,
+                    *m_camerasBuffer,
+                    sunLightIndex,
+                    *m_directionalLightsBuffer
+                );
+            }
 
             auto const sceneBounds{scene.shadowBounds()};
 
@@ -420,50 +436,6 @@ void Renderer::recordDraw(
 
             break;
         }
-        case RenderingPipelines::SKY_VIEW:
-            m_deferredShadingPipeline->recordDrawCommands(
-                cmd,
-                sceneSubregion,
-                sceneTexture,
-                *m_directionalLightsBuffer,
-                scene.spotlightsRender ? scene.spotlights
-                                       : std::vector<SpotLightPacked>{},
-                cameraIndex,
-                *m_camerasBuffer,
-                scene.geometry()
-            );
-
-            m_skyViewComputePipeline->recordDrawCommands(
-                cmd,
-                sceneTexture,
-                sceneSubregion,
-                m_deferredShadingPipeline->gbuffer(),
-                m_deferredShadingPipeline->shadowMaps(),
-                atmosphereIndex,
-                *m_atmospheresBuffer,
-                cameraIndex,
-                *m_camerasBuffer,
-                sunLightIndex,
-                *m_directionalLightsBuffer
-            );
-
-            sceneTexture.color().recordTransitionBarriered(
-                cmd, VK_IMAGE_LAYOUT_GENERAL
-            );
-
-            auto const sceneBounds{scene.shadowBounds()};
-
-            m_debugLines.pushBox(
-                sceneBounds.center,
-                glm::identity<glm::quat>(),
-                sceneBounds.halfExtent
-            );
-
-            recordDrawDebugLines(
-                cmd, cameraIndex, sceneTexture, sceneSubregion, *m_camerasBuffer
-            );
-
-            break;
         }
     }
 

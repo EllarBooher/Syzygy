@@ -217,7 +217,7 @@ void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
 {
     SpotlightParams const lightParams{
         .color = glm::vec4{color, 1.0},
-        .strength = 300.0F,
+        .strength = 1000.0F,
         .falloffFactor = 1.0F,
         .falloffDistance = 1.0F,
         .verticalFOVDegrees = 30.0F,
@@ -600,7 +600,7 @@ auto createMoonlight(
     AABB const sceneBounds, float const sunCosine, float const sunsetCosine
 ) -> DirectionalLightPacked
 {
-    float constexpr MOONRISE_LENGTH{0.08};
+    float constexpr MOONRISE_LENGTH{0.12};
 
     float const moonlightStrength{
         0.02F
