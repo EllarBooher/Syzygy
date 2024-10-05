@@ -59,16 +59,15 @@ Some notes on building:
 
 ## Showcase
 
-![image](assets/screenshots/sunset_maximized.png)
-*Pictured above is a volume rendering model of light scattering in the sky, alongside deferred-shaded lighting. See [`shaders/deferred/sky.comp`](shaders/deferred/sky.comp) for the implementation of the sky's compute pass, which tints every pixel based on atmospheric scattering.*
-
-![image](assets/screenshots/teal_day.png)
-*The user interface, which utilizes Dear ImGui's docking features to allow dragging, dropping, and resizing*
+![image](screenshots/sunset.png)
+*Pictured above is the deferred shading with a volumetric model of the sun's scattering in the sky based on* ["A Scalable and Production Ready
+Sky and Atmosphere Rendering Technique"](https://sebh.github.io/publications/egsr2020.pdf) *by Sébastien Hillaire.* Pictured are also sample assets distributed by Khronos Group at https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame.
 
 ## Features
 
-- A deferred shading pipeline with multiple passes, including post-process
-- A dynamic sun with passing time, which drives a volume rendering model of light scattering
+- Deferred shaded opaque geometry
+- Dynamic sun and time of day
+- Volumetric model of atmospheric scattering
 - Free flying camera controlled by mouse and keyboard
 - Directional and spot lights
 - Runtime reflection of SPIR-V shaders for data verification, easier resource management, and to populate the UI

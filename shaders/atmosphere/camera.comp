@@ -1,10 +1,13 @@
 #version 460
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
+#extension GL_EXT_nonuniform_qualifier : require
 
 #include "../gbuffer/gbuffer.glinl"
 #include "../gbuffer/pbr.glinl"
 #include "../types/camera.glsl"
+#include "../types/lights.glsl"
+#include "../shadowmap.glinl"
 #include "common.glinl"
 
 // This shader renders the ground and sky, while consuming a GBuffer to light opaque geometry with the sun
@@ -39,6 +42,11 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
     Camera cameras[];
 };
 
+layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
+{
+    LightDirectional lights[];
+};
+
 layout(push_constant) uniform PushConstant
 {
     AtmosphereBuffer atmosphereBuffer;
@@ -53,7 +61,11 @@ layout(push_constant) uniform PushConstant
     uint padding0;
 
     uvec2 gbufferExtent;
+
+    LightDirectionalBuffer directionalLights;
+    uint sunLightIndex;
 } pc;
+
 
 vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
 {
@@ -225,7 +237,8 @@ vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 dir
 vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
                                       const vec3 origin,
                                       const vec3 direction,
-                                      const PBRTexel material)
+                                      const PBRTexel material,
+                                      const float shadowFactor)
 {
     // Alternative way to compute surface position
     // const vec4 positionViewSpace = camera.inverseProjection * vec4(clipSpaceUV, sceneDepth, 1.0);
@@ -252,8 +265,8 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
 
     const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, length(material.position));
 
-    const vec3 surfaceTransfer = fractionOfSunVisible * float(!surfaceShadowedByPlanet) * transmittanceToSun
-                               * transmittanceToSurface * material.occlusion
+    const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible * float(!surfaceShadowedByPlanet)
+                               * transmittanceToSun * transmittanceToSurface * material.occlusion
                                * mix(diffuseContribution, specularContribution, fresnel)
                                * clamp(dot(material.normal, lightDirection), 0.0, 1.0);
 
@@ -270,7 +283,10 @@ vec3 reflectDirection(const vec3 normal, const vec3 outgoingDirection)
     return 2.0 * parallel - outgoingDirection;
 }
 
-vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
+vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
+                                        const vec3 position,
+                                        const vec3 direction,
+                                        const float sunShadowFactor)
 {
     float distanceToGround;
     if (raycastDistanceToGround(atmosphere, position, direction, distanceToGround))
@@ -279,7 +295,8 @@ vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere, const vec3 
     }
     else
     {
-        return sampleMap_Direction(atmosphere, position, direction) + sampleSunDisk(atmosphere, position, direction);
+        return sampleMap_Direction(atmosphere, position, direction)
+             + sampleSunDisk(atmosphere, position, direction) * sunShadowFactor;
     }
 }
 
@@ -331,14 +348,25 @@ void main()
 
     const float cos_directionZenith = dot(direction, position) / (length(direction) * length(position));
 
+    const LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
+
     // GBuffer has +y down, skip rendering gbuffer results if we are underground
     if (sceneDepth == 0.0 || material.position.y > 0.0)
     {
-        sunIlluminanceToSkyLuminanceTransfer += sampleEnvironmentLuminanceTransfer(atmosphere, position, direction);
+        // Sampling shadowmap here is pointless since we will not be on this branch if the view is in a shadow cast by
+        // the sun
+        const float shadowFactor = 1.0;
+        sunIlluminanceToSkyLuminanceTransfer +=
+            sampleEnvironmentLuminanceTransfer(atmosphere, position, direction, shadowFactor);
     }
     else // sceneDepth > 0.0 && material.position.y < 0.0
     {
         surfaceLuminance = imageLoad(image, texelCoord).rgb;
+
+        const ShadowFrame shadowframe = computeShadowFrame(
+            sunDirectionalLight.projection * sunDirectionalLight.view, material.position, material.normal);
+        // TODO: Add separate index for sun shadowmap in push constant since it technically is independent
+        const float surfaceSunShadowFactor = sampleShadowMap(shadowMaps[pc.sunLightIndex], shadowMapSampler, shadowframe);
 
         material.normal.y *= -1;
         material.position.y *= -1;
@@ -346,7 +374,7 @@ void main()
         material.position.y += atmosphere.planetRadiusMm;
 
         sunIlluminanceToSkyLuminanceTransfer +=
-            computeGeometryLuminanceTransfer(atmosphere, position, direction, material);
+            computeGeometryLuminanceTransfer(atmosphere, position, direction, material, surfaceSunShadowFactor);
 
         // Ad-hoc single bounce reflection, for metals only
         const vec3 transmittanceToSurface =
@@ -354,7 +382,8 @@ void main()
         const vec3 reflectionDirection = reflectDirection(material.normal, -direction);
         sunIlluminanceToSkyLuminanceTransfer +=
             transmittanceToSurface * material.metallic * computeFresnel(material, -direction, reflectionDirection)
-            * sampleEnvironmentLuminanceTransfer(atmosphere, material.position, reflectionDirection);
+            * sampleEnvironmentLuminanceTransfer(
+                atmosphere, material.position, reflectionDirection, surfaceSunShadowFactor);
     }
 
     vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;

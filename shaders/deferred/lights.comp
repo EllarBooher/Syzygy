@@ -11,6 +11,7 @@
 #include "../gbuffer/pbr.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
+#include "../shadowmap.glinl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba16, set = 0, binding = 0) uniform image2D image;
@@ -55,71 +56,6 @@ layout(push_constant) uniform PushConstant
     vec2 gbufferExtent;
 } pushConstant;
 
-// clang-format off
-const mat4 TO_TEX_COORD_MAT = mat4(
-	0.5, 0.0, 0.0, 0.0,
-	0.0, 0.5, 0.0, 0.0,
-	0.0, 0.0, 1.0, 0.0,
-	0.5, 0.5, 0.0, 1.0
-);
-// clang-format on
-
-struct ShadowFrame
-{
-    vec4 coord;
-    float dx;
-    float dy;
-};
-
-ShadowFrame computeShadowFrame(mat4 lightProjView, vec3 position, vec3 normal)
-{
-    const mat4 shadowMatrix = TO_TEX_COORD_MAT * lightProjView;
-    vec4 shadowCoord = shadowMatrix * vec4(position, 1.0);
-    shadowCoord /= shadowCoord.w;
-
-    const vec4 projectedNormal = shadowMatrix * vec4(normal, 0.0);
-
-    // The smaller the normal gets in shadowmap space, the further out we should sample
-    const float dx = sqrt(1.0 - clamp(projectedNormal.x * projectedNormal.x, 0.0, 1.0));
-    const float dy = sqrt(1.0 - clamp(projectedNormal.y * projectedNormal.y, 0.0, 1.0));
-
-    return ShadowFrame(shadowCoord, dx, dy);
-}
-
-float sampleShadowMap(const ShadowFrame shadow, const uint index)
-{
-    float fragmentDepth = shadow.coord.z;
-
-    const ivec2 shadowmapDimensions = textureSize(sampler2D(shadowMaps[index], shadowMapSampler), 0);
-
-    const float dx = 1.5 * shadow.dx / float(shadowmapDimensions.x);
-    const float dy = 1.5 * shadow.dy / float(shadowmapDimensions.y);
-
-    float summedDistance = 0.0;
-
-    const int SAMPLE_RANGE = 2;
-    const int SAMPLE_COUNT = (2 * SAMPLE_RANGE + 1) * (2 * SAMPLE_RANGE + 1);
-
-    for (int y = -SAMPLE_RANGE; y <= SAMPLE_RANGE; y++)
-    {
-        for (int x = -SAMPLE_RANGE; x <= SAMPLE_RANGE; x++)
-        {
-            vec2 offsetShadowCoord = shadow.coord.st + vec2(x * dx, y * dy);
-
-            const float occluderDepth =
-                texture(nonuniformEXT(sampler2D(shadowMaps[index], shadowMapSampler)), offsetShadowCoord).r;
-
-            // Reverse-Z
-            if (occluderDepth > 0.0 && occluderDepth > fragmentDepth)
-            {
-                summedDistance += 1.0;
-            }
-        }
-    }
-
-    return 1.0 - summedDistance / SAMPLE_COUNT;
-}
-
 struct IncomingLight
 {
     vec3 lightDirectionUnit;
@@ -129,7 +65,7 @@ struct IncomingLight
 IncomingLight computeIncomingLight(const LightDirectional light, const ShadowFrame shadow, const uint shadowMapIndex)
 {
     const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
-    const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadow, shadowMapIndex);
+    const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
 
     return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
@@ -149,7 +85,7 @@ IncomingLight computeIncomingLight(const LightSpot light,
     const float edgeSoftening = 1.0 - distanceUV * distanceUV;
 
     const vec3 lightSpectralFactor =
-        light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadow, shadowMapIndex);
+        light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
 
     return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }

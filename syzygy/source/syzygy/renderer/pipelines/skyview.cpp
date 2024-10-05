@@ -6,6 +6,7 @@
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/scenetexture.hpp"
+#include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include <array>
 #include <filesystem>
@@ -397,16 +398,51 @@ auto populatePerspectiveResources(
     }
     else
     {
-        SZG_ERROR("Failed to allocate perspective map GBuffer set layout.")
+        SZG_ERROR("Failed to allocate perspective map GBuffer set layout.");
+        return false;
     }
 
     resources.LUTSet =
         descriptorAllocator.allocate(device, resources.LUTSetLayout);
 
-    std::array<VkDescriptorSetLayout, 3> const setLayouts{
+    if (auto samplerSetLayoutResult{
+            syzygy::ShadowPassArray::allocateSamplerSetLayout(device)
+        };
+        samplerSetLayoutResult.has_value())
+    {
+        resources.shadowMapSamplerSetLayout = samplerSetLayoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to create shadow map sampler set layout.");
+        return false;
+    }
+
+    // This must match the value used when generating the layout over where the
+    // shadow map is created, which is annoying.
+    // TODO: Figure out a better way to synchronize/share descriptor set layouts
+    uint32_t constexpr SHADOWMAP_COUNT{10};
+    if (auto textureSetLayoutResult{
+            syzygy::ShadowPassArray::allocateTextureSetLayout(
+                device, SHADOWMAP_COUNT
+            )
+        };
+        textureSetLayoutResult.has_value())
+    {
+        resources.shadowMapTextureSetLayout = textureSetLayoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to create shadow map texture set layout.");
+        return false;
+    }
+
+    std::array<VkDescriptorSetLayout, 5> const setLayouts{
         resources.sceneTextureLayout,
         resources.LUTSetLayout,
-        resources.GBufferSetLayout
+        resources.GBufferSetLayout,
+        resources.shadowMapSamplerSetLayout,
+        resources.shadowMapTextureSetLayout
     };
     if (auto shaderResult{syzygy::loadShaderObject(
             device,
@@ -549,11 +585,14 @@ void recordPerspectiveMapCommands(
     syzygy::ImageView& skyViewLUT,
     syzygy::ImageView& transmittanceLUT,
     syzygy::GBuffer const& gbuffer,
+    syzygy::ShadowPassArray const& shadowMaps,
     VkExtent2D const drawExtent,
-    uint32_t atmosphereIndex,
+    uint32_t const atmosphereIndex,
     syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
-    uint32_t viewCameraIndex,
-    syzygy::TStagedBuffer<syzygy::CameraPacked> const& cameras
+    uint32_t const viewCameraIndex,
+    syzygy::TStagedBuffer<syzygy::CameraPacked> const& cameras,
+    uint32_t const sunLightIndex,
+    syzygy::TStagedBuffer<syzygy::DirectionalLightPacked> const& lights
 )
 {
     skyViewLUT.recordTransitionBarriered(
@@ -576,8 +615,12 @@ void recordPerspectiveMapCommands(
 
     vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
 
-    std::array<VkDescriptorSet, 3> perspectiveSets{
-        sceneTexture.combinedDescriptor(), resources.LUTSet, gbuffer.descriptors
+    std::array<VkDescriptorSet, 5> perspectiveSets{
+        sceneTexture.combinedDescriptor(),
+        resources.LUTSet,
+        gbuffer.descriptors,
+        shadowMaps.samplerSet(),
+        shadowMaps.textureSet()
     };
 
     vkCmdBindDescriptorSets(
@@ -598,7 +641,9 @@ void recordPerspectiveMapCommands(
             .drawExtent = glm::uvec2{drawExtent.width, drawExtent.height},
             .sunShadowMapIndex = 0, // Assume sun is in first position
             .gbufferExtent =
-                glm::uvec2{gbuffer.extent().width, gbuffer.extent().height}
+                glm::uvec2{gbuffer.extent().width, gbuffer.extent().height},
+            .directionalLights = lights.deviceAddress(),
+            .sunLightIndex = sunLightIndex,
         };
 
     vkCmdPushConstants(
@@ -708,10 +753,13 @@ void SkyViewComputePipeline::recordDrawCommands(
     SceneTexture& sceneTexture,
     VkRect2D const drawRect,
     GBuffer const& gbuffer,
-    uint32_t atmosphereIndex,
-    TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
-    uint32_t viewCameraIndex,
-    TStagedBuffer<syzygy::CameraPacked> const& cameras
+    ShadowPassArray const& shadowMaps,
+    uint32_t const atmosphereIndex,
+    TStagedBuffer<AtmospherePacked> const& atmospheres,
+    uint32_t const viewCameraIndex,
+    TStagedBuffer<CameraPacked> const& cameras,
+    uint32_t const sunLightIndex,
+    TStagedBuffer<DirectionalLightPacked> const& lights
 )
 {
     atmospheres.recordTotalCopyBarrier(
@@ -720,6 +768,11 @@ void SkyViewComputePipeline::recordDrawCommands(
         VK_ACCESS_2_SHADER_STORAGE_READ_BIT
     );
     cameras.recordTotalCopyBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+    );
+    lights.recordTotalCopyBarrier(
         cmd,
         VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
         VK_ACCESS_2_SHADER_STORAGE_READ_BIT
@@ -846,11 +899,14 @@ void SkyViewComputePipeline::recordDrawCommands(
         *m_skyViewLUT.map,
         *m_transmittanceLUT.map,
         gbuffer,
+        shadowMaps,
         drawRect.extent,
         atmosphereIndex,
         atmospheres,
         viewCameraIndex,
-        cameras
+        cameras,
+        sunLightIndex,
+        lights
     );
 }
 
@@ -873,6 +929,12 @@ void SkyViewComputePipeline::destroy()
         );
         vkDestroyDescriptorSetLayout(
             m_device, m_perspectiveMap.GBufferSetLayout, nullptr
+        );
+        vkDestroyDescriptorSetLayout(
+            m_device, m_perspectiveMap.shadowMapSamplerSetLayout, nullptr
+        );
+        vkDestroyDescriptorSetLayout(
+            m_device, m_perspectiveMap.shadowMapTextureSetLayout, nullptr
         );
 
         vkDestroyPipelineLayout(m_device, m_skyViewLUT.layout, nullptr);

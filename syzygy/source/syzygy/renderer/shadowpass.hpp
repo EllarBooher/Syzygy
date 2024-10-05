@@ -62,8 +62,10 @@ public:
     void
     recordTransitionActiveShadowMaps(VkCommandBuffer, VkImageLayout dstLayout);
 
-    [[nodiscard]] auto samplerSetLayout() const -> VkDescriptorSetLayout;
-    [[nodiscard]] auto texturesSetLayout() const -> VkDescriptorSetLayout;
+    static auto allocateSamplerSetLayout(VkDevice)
+        -> std::optional<VkDescriptorSetLayout>;
+    static auto allocateTextureSetLayout(VkDevice, uint32_t const capacity)
+        -> std::optional<VkDescriptorSetLayout>;
     [[nodiscard]] auto samplerSet() const -> VkDescriptorSet;
     [[nodiscard]] auto textureSet() const -> VkDescriptorSet;
 

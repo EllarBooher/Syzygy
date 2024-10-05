@@ -277,11 +277,41 @@ DeferredShadingPipeline::DeferredShadingPipeline(
     }
 
     { // Lighting pass pipeline
+        if (auto samplerSetLayoutResult{
+                ShadowPassArray::allocateSamplerSetLayout(device)
+            };
+            !samplerSetLayoutResult.has_value())
+        {
+            SZG_WARNING(
+                "DeferredShadingPipeline: Failed to create sampler set layout."
+            );
+        }
+        else
+        {
+            m_shadowPassArraySamplerSetLayout = samplerSetLayoutResult.value();
+        }
+
+        if (auto textureSetLayoutResult{
+                ShadowPassArray::allocateTextureSetLayout(
+                    device, SHADOWMAP_COUNT
+                )
+            };
+            !textureSetLayoutResult.has_value())
+        {
+            SZG_WARNING(
+                "DeferredShadingPipeline: Failed to create texture set layout."
+            );
+        }
+        else
+        {
+            m_shadowPassArrayTextureSetLayout = textureSetLayoutResult.value();
+        }
+
         std::vector<VkDescriptorSetLayout> const lightingPassDescriptorSets{
             sceneTexture.singletonLayout(),
             m_gBuffer.descriptorLayout,
-            m_shadowPassArray.samplerSetLayout(),
-            m_shadowPassArray.texturesSetLayout()
+            m_shadowPassArraySamplerSetLayout,
+            m_shadowPassArrayTextureSetLayout
         };
 
         m_lightingPassComputeShader = loadShader(
@@ -762,6 +792,11 @@ void DeferredShadingPipeline::recordDrawCommands(
 
 auto DeferredShadingPipeline::gbuffer() -> GBuffer const& { return m_gBuffer; }
 
+auto DeferredShadingPipeline::shadowMaps() -> ShadowPassArray const&
+{
+    return m_shadowPassArray;
+}
+
 void DeferredShadingPipeline::cleanup(
     VkDevice const device, VmaAllocator const allocator
 )
@@ -770,6 +805,13 @@ void DeferredShadingPipeline::cleanup(
     m_gBuffer.cleanup(device);
 
     m_spotLights.reset();
+
+    vkDestroyDescriptorSetLayout(
+        device, m_shadowPassArraySamplerSetLayout, nullptr
+    );
+    vkDestroyDescriptorSetLayout(
+        device, m_shadowPassArrayTextureSetLayout, nullptr
+    );
 
     vkDestroyPipelineLayout(device, m_gBufferLayout, nullptr);
     vkDestroyPipelineLayout(device, m_lightingPassLayout, nullptr);

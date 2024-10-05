@@ -48,21 +48,8 @@ auto ShadowPassArray::create(
             return {};
         }
 
-        std::vector<VkSampler> const immutableSamplers{1, shadowPass.m_sampler};
-
         std::optional<VkDescriptorSetLayout> buildResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_SAMPLER,
-                        .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
-                                   | VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags = 0,
-                    },
-                    immutableSamplers
-                )
-                .build(device, 0)
+            allocateSamplerSetLayout(device)
         };
         if (!buildResult.has_value())
         {
@@ -77,7 +64,29 @@ auto ShadowPassArray::create(
         shadowPass.m_samplerSet =
             descriptorAllocator.allocate(device, shadowPass.m_samplerSetLayout);
 
-        // No need to write into this set since we use an immutable sampler.
+        VkDescriptorImageInfo const samplerInfo{
+            .sampler = shadowPass.m_sampler,
+            .imageView = VK_NULL_HANDLE,
+            .imageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        };
+
+        VkWriteDescriptorSet const samplerWrite{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+
+            .dstSet = shadowPass.m_samplerSet,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+
+            .pImageInfo = &samplerInfo,
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr,
+        };
+
+        std::vector<VkWriteDescriptorSet> const writes{samplerWrite};
+        vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
 
     { // shadow map textures
@@ -113,19 +122,7 @@ auto ShadowPassArray::create(
 
     { // textures descriptors
         std::optional<VkDescriptorSetLayout> buildResult{
-            DescriptorLayoutBuilder{}
-                .addBinding(
-                    DescriptorLayoutBuilder::AddBindingParameters{
-                        .binding = 0,
-                        .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                        .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
-                                   | VK_SHADER_STAGE_COMPUTE_BIT,
-                        .bindingFlags =
-                            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
-                    },
-                    capacity
-                )
-                .build(device, 0)
+            allocateTextureSetLayout(device, capacity)
         };
         if (!buildResult.has_value())
         {
@@ -282,14 +279,60 @@ void ShadowPassArray::recordTransitionActiveShadowMaps(
     }
 }
 
-auto ShadowPassArray::samplerSetLayout() const -> VkDescriptorSetLayout
+auto ShadowPassArray::allocateSamplerSetLayout(VkDevice const device)
+    -> std::optional<VkDescriptorSetLayout>
 {
-    return m_samplerSetLayout;
+    std::optional<VkDescriptorSetLayout> buildResult{
+        DescriptorLayoutBuilder{}
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
+                               | VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = 0,
+                },
+                1
+            )
+            .build(device, 0)
+    };
+    if (!buildResult.has_value())
+    {
+        SZG_WARNING("Unable to build ShadowPassArray sampler descriptor layout."
+        );
+        return {};
+    }
+
+    return buildResult.value();
 }
 
-auto ShadowPassArray::texturesSetLayout() const -> VkDescriptorSetLayout
+auto ShadowPassArray::allocateTextureSetLayout(
+    VkDevice const device, uint32_t const capacity
+) -> std::optional<VkDescriptorSetLayout>
 {
-    return m_shadowmapSetLayout;
+    std::optional<VkDescriptorSetLayout> buildResult{
+        DescriptorLayoutBuilder{}
+            .addBinding(
+                DescriptorLayoutBuilder::AddBindingParameters{
+                    .binding = 0,
+                    .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    .stageMask = VK_SHADER_STAGE_FRAGMENT_BIT
+                               | VK_SHADER_STAGE_COMPUTE_BIT,
+                    .bindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
+                },
+                capacity
+            )
+            .build(device, 0)
+    };
+    if (!buildResult.has_value())
+    {
+        SZG_WARNING(
+            "Unable to build ShadowPassArray textures descriptor layout."
+        );
+        return {};
+    }
+
+    return buildResult.value();
 }
 
 auto ShadowPassArray::samplerSet() const -> VkDescriptorSet

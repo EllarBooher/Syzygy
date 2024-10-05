@@ -43,6 +43,7 @@ public:
     );
 
     [[nodiscard]] auto gbuffer() -> GBuffer const&;
+    [[nodiscard]] auto shadowMaps() -> ShadowPassArray const&;
 
     void cleanup(VkDevice device, VmaAllocator allocator);
 
@@ -99,6 +100,8 @@ private:
         ShaderObjectReflected::makeInvalid()
     };
 
+    VkDescriptorSetLayout m_shadowPassArraySamplerSetLayout{VK_NULL_HANDLE};
+    VkDescriptorSetLayout m_shadowPassArrayTextureSetLayout{VK_NULL_HANDLE};
     VkPipelineLayout m_lightingPassLayout{VK_NULL_HANDLE};
 
 public:

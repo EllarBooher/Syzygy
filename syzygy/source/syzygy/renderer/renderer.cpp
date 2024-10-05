@@ -438,10 +438,13 @@ void Renderer::recordDraw(
                 sceneTexture,
                 sceneSubregion,
                 m_deferredShadingPipeline->gbuffer(),
+                m_deferredShadingPipeline->shadowMaps(),
                 atmosphereIndex,
                 *m_atmospheresBuffer,
                 cameraIndex,
-                *m_camerasBuffer
+                *m_camerasBuffer,
+                sunLightIndex,
+                *m_directionalLightsBuffer
             );
 
             sceneTexture.color().recordTransitionBarriered(

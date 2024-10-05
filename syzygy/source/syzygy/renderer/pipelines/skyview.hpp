@@ -12,9 +12,11 @@ namespace syzygy
 {
 struct AtmospherePacked;
 struct CameraPacked;
+struct DirectionalLightPacked;
 struct SceneTexture;
 template <typename T> struct TStagedBuffer;
 struct GBuffer;
+struct ShadowPassArray;
 } // namespace syzygy
 
 namespace syzygy
@@ -39,15 +41,18 @@ public:
         SceneTexture& sceneTexture,
         VkRect2D drawRect,
         GBuffer const& gbuffer,
+        ShadowPassArray const& shadowMaps,
         uint32_t atmosphereIndex,
-        TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
+        TStagedBuffer<AtmospherePacked> const& atmospheres,
         uint32_t viewCameraIndex,
-        TStagedBuffer<syzygy::CameraPacked> const& cameras
+        TStagedBuffer<CameraPacked> const& cameras,
+        uint32_t sunLightIndex,
+        TStagedBuffer<DirectionalLightPacked> const& lights
     );
 
     struct TransmittanceLUTResources
     {
-        std::unique_ptr<syzygy::ImageView> map{};
+        std::unique_ptr<ImageView> map{};
 
         // Shader excerpt:
         // set = 0
@@ -69,7 +74,7 @@ public:
     };
     struct SkyViewLUTResources
     {
-        std::unique_ptr<syzygy::ImageView> map{};
+        std::unique_ptr<ImageView> map{};
 
         // Shader excerpt:
         // set = 0
@@ -109,6 +114,9 @@ public:
 
         VkDescriptorSetLayout GBufferSetLayout{VK_NULL_HANDLE};
 
+        VkDescriptorSetLayout shadowMapSamplerSetLayout{VK_NULL_HANDLE};
+        VkDescriptorSetLayout shadowMapTextureSetLayout{VK_NULL_HANDLE};
+
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
         VkSampler skyviewImmutableSampler{VK_NULL_HANDLE};
@@ -130,6 +138,9 @@ public:
             // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
 
             glm::uvec2 gbufferExtent{};
+
+            VkDeviceAddress directionalLights{};
+            uint32_t sunLightIndex{0};
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };
