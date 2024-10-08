@@ -183,14 +183,21 @@ struct ExtinctionSample
 {
     vec3 scatteringRayleigh;
     vec3 scatteringMie;
+    vec3 scatteringOzone;
 
+    vec3 absorptionRayleigh;
     vec3 absorptionMie;
     vec3 absorptionOzone;
+
+    // This parameter is redundant, but convenient.
+    // It is the sum of all scattering values.
+    vec3 scattering;
 
     vec3 extinction;
 };
 
-// Returned units are per Mm
+// Returned units are per Mm. Take care that this function takes in altitude, NOT radius.
+// radius := altitude + planetRadius
 ExtinctionSample sampleExtinction(const Atmosphere atmosphere, const float altitude_Mm)
 {
     const float densityRayleigh = densityExponential(altitude_Mm, atmosphere.densityScaleRayleighMm);
@@ -206,11 +213,17 @@ ExtinctionSample sampleExtinction(const Atmosphere atmosphere, const float altit
     const vec3 absorptionOzone = atmosphere.absorptionOzonePerMm * densityOzone;
 
     ExtinctionSample extinctionSample;
+    
     extinctionSample.scatteringRayleigh = scatteringRayleigh;
     extinctionSample.scatteringMie = scatteringMie;
+    extinctionSample.scatteringOzone = scatteringOzone;
+
+    extinctionSample.absorptionRayleigh = absorptionRayleigh;
     extinctionSample.absorptionMie = absorptionMie;
     extinctionSample.absorptionOzone = absorptionOzone;
-    extinctionSample.extinction = scatteringRayleigh + absorptionRayleigh + scatteringMie + absorptionMie + scatteringOzone + absorptionOzone;
+
+    extinctionSample.scattering = scatteringRayleigh + scatteringMie + scatteringOzone;
+    extinctionSample.extinction = extinctionSample.scattering + absorptionRayleigh + absorptionMie + absorptionOzone;
 
     return extinctionSample;
 }
@@ -406,8 +419,13 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D t
 
         const vec3 transmittanceToBegin = sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
         const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
+
+        // Ozone does not scatter light, so we arbitrarily use rayleigh's phase function in case ozone's scattering
+        // coefficient in nonzero
         const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
-                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8);
+                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8) 
+                                        + extinctionSample.scatteringOzone * phaseRayleigh(incidentCosine);
+
         const vec3 shadowing = transmittanceToSun;
 
         // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
