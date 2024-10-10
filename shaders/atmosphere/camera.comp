@@ -347,7 +347,7 @@ void main()
         const vec3 diffuseLuminance = transmittanceToSurface * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, atmosphere.incidentDirectionSun) * material.subscatteringColor / PI;
         // Diffuse only, assume contribution of specular from environment is low
 
-        sunIlluminanceToSkyLuminanceTransfer += mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
+        sunIlluminanceToSkyLuminanceTransfer += material.occlusion * mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
     }
 
     vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;

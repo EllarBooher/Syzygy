@@ -766,23 +766,26 @@ auto uploadMaterialDataAsAssets(
             size_t ormTextureIndex{};
             ImageChannelOverrides overrides{};
 
-            if (materialTextures.occlusion.has_value()
-                && materialTextures.occlusion
-                       != materialTextures.roughnessMetallic)
-            {
-                SZG_WARNING("Material {}: occlusion and roughnessMetallic "
-                            "textures differ. Loading roughnessMetallic and "
-                            "overriding its occlusion channel.");
-            }
-
             if (materialTextures.roughnessMetallic.has_value())
             {
                 ormTextureIndex = materialTextures.roughnessMetallic.value();
-                overrides.red = RGBATexel::SATURATED_COMPONENT;
+
+                if (materialTextures.occlusion.has_value()
+                    && materialTextures.occlusion
+                           != materialTextures.roughnessMetallic)
+                {
+                    SZG_WARNING(
+                        "Material {}: occlusion and roughnessMetallic "
+                        "textures differ. Loading roughnessMetallic and "
+                        "overriding its occlusion channel."
+                    );
+                    overrides.red = RGBATexel::SATURATED_COMPONENT;
+                }
             }
-            else
+            else // materialTextures.occlusion.has_value()
             {
                 ormTextureIndex = materialTextures.occlusion.value();
+
                 overrides.green = 0U;
                 overrides.blue = 0U;
             }
