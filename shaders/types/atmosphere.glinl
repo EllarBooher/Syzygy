@@ -14,6 +14,8 @@ struct Atmosphere
 	
 	float atmosphereRadiusMm;
 
+	// In the long term, sun parameters should not be in this struct.
+	// This is so directional lights participating in the atmosphere can be externally defined.
 	vec3 incidentDirectionSun;
 	
 	float padding0;

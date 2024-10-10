@@ -72,6 +72,31 @@ public:
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };
+    struct MultiScatterLUTResources
+    {
+        std::unique_ptr<ImageView> map{};
+
+        // Shader excerpt:
+        // set = 0
+        // binding = 0 -> rgba32f image2D multiscatter_LUT
+        // binding = 1 -> sampler2D transmittance_LUT
+        VkDescriptorSet set{VK_NULL_HANDLE};
+        VkDescriptorSetLayout setLayout{VK_NULL_HANDLE};
+        VkPipelineLayout layout{VK_NULL_HANDLE};
+
+        VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
+
+        struct PushConstant
+        {
+            VkDeviceAddress atmosphereBuffer{};
+
+            uint32_t atmosphereIndex{0};
+            // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
+            uint8_t padding[4]{0};
+            // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
+        };
+        ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
+    };
     struct SkyViewLUTResources
     {
         std::unique_ptr<ImageView> map{};
@@ -85,6 +110,7 @@ public:
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
         VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
+        VkSampler multiscatterImmutableSampler{VK_NULL_HANDLE};
 
         struct PushConstant
         {
@@ -121,6 +147,7 @@ public:
 
         VkSampler skyviewImmutableSampler{VK_NULL_HANDLE};
         VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
+        VkSampler multiscatterImmutableSampler{VK_NULL_HANDLE};
 
         struct PushConstant
         {
@@ -156,6 +183,7 @@ private:
     std::unique_ptr<DescriptorAllocator> m_descriptorAllocator{};
 
     TransmittanceLUTResources m_transmittanceLUT{};
+    MultiScatterLUTResources m_multiscatterLUT{};
     SkyViewLUTResources m_skyViewLUT{};
     PerspectiveMapResources m_perspectiveMap{};
 };

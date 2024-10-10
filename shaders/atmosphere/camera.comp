@@ -5,9 +5,14 @@
 
 #include "../gbuffer/gbuffer.glinl"
 #include "../gbuffer/pbr.glinl"
+#include "../shadowmap.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
-#include "../shadowmap.glinl"
+
+#ifndef SZG_MULTISCATTERING_ENABLED
+#define SZG_MULTISCATTERING_ENABLED 1
+#endif
+
 #include "common.glinl"
 
 // This shader renders the ground and sky, while consuming a GBuffer to light opaque geometry with the sun
@@ -21,6 +26,7 @@ layout(set = 0, binding = 1) uniform sampler2D fragmentDepth;
 // Atmosphere LUTs
 layout(set = 1, binding = 0) uniform sampler2D skyview_LUT;
 layout(set = 1, binding = 1) uniform sampler2D transmittance_LUT;
+layout(set = 1, binding = 2) uniform sampler2D multiscatter_LUT;
 
 // Opaque geometry GBuffer
 
@@ -65,7 +71,6 @@ layout(push_constant) uniform PushConstant
     LightDirectionalBuffer directionalLights;
     uint sunLightIndex;
 } pc;
-
 
 vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
 {
@@ -229,7 +234,9 @@ vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 dir
         sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
 
     const vec3 aerielPerspectiveLuminance =
-        computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceToGround);
+        computeLuminanceScatteringIntegral(
+            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, distanceToGround)
+            .luminance;
 
     return surfaceLuminance * transmittanceToSurface + aerielPerspectiveLuminance;
 }
@@ -272,7 +279,9 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
 
     const float distanceToGround = length(surfacePosition - origin);
     const vec3 aerialPerspectiveLuminance =
-        computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, distanceToGround);
+        computeLuminanceScatteringIntegral(
+            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, distanceToGround)
+            .luminance;
 
     return surfaceTransfer + aerialPerspectiveLuminance;
 }
@@ -366,7 +375,8 @@ void main()
         const ShadowFrame shadowframe = computeShadowFrame(
             sunDirectionalLight.projection * sunDirectionalLight.view, material.position, material.normal);
         // TODO: Add separate index for sun shadowmap in push constant since it technically is independent
-        const float surfaceSunShadowFactor = sampleShadowMap(shadowMaps[pc.sunLightIndex], shadowMapSampler, shadowframe);
+        const float surfaceSunShadowFactor =
+            sampleShadowMap(shadowMaps[pc.sunLightIndex], shadowMapSampler, shadowframe);
 
         material.normal.y *= -1;
         material.position.y *= -1;

@@ -120,7 +120,7 @@ private:
     static uint32_t constexpr ATMOSPHERE_CAPACITY{1};
     std::unique_ptr<TStagedBuffer<AtmospherePacked>> m_atmospheresBuffer{};
 
-    bool m_renderAtmosphere;
+    bool m_renderAtmosphere{true};
 
     // End Vulkan
 };

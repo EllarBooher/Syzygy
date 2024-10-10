@@ -1,0 +1,156 @@
+#version 460
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_ARB_shading_language_include : require
+
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(rgba32f, set = 0, binding = 0) uniform image2D multiscatter_LUT;
+layout(set = 0, binding = 1) uniform sampler2D transmittance_LUT;
+
+#ifndef SZG_ISOTROPIC_PHASE
+#define SZG_ISOTROPIC_PHASE 1
+#endif
+
+#include "common.glinl"
+
+layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
+{
+    Atmosphere atmospheres[];
+};
+
+layout(push_constant) uniform PushConstant
+{
+    AtmosphereBuffer atmosphereBuffer;
+
+    uint atmosphereIndex;
+} pc;
+
+// Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire (2020)
+
+// This shader builds a 2D multiscattering LUT, where each position stores the light from second and higher order
+// scattering in a large neighborhood.
+//
+// We can reasonably assume 2nd order scattering is the same for a sufficiently large neighborhood around a sample.
+// Thus, it is reasonable to assume 2nd order scattering is globally uniform from the view of a sample point. Hillaire
+// notes a correlation between 2nd order scattering and all other orders, meaning we should be able to reasonably
+// estimate all scattering orders from just the 2nd with a complexity of O(1), independent of the number of orders we
+// wish to estimate.
+//
+// So:
+// 1) We compute the second order scattered luminance L_2ndOrder at a point. This is computed with the same scattering
+// rendering equation ((1) from Hillaire 2020), except we use an isotropic/uniform phase function. 2) We compute a
+// multiscattering transfer factor (f_ms in Hillaire 2020). It is a global and unitless measure of the fraction of
+// scattered energy reaching this point, and is only useful when assuming n-th order scattering reaching each point is
+// uniform.
+//
+// Thus, L_(n+1)thOrder = f_ms * L_nthOrder, and we compute the total multiscattering luminance:
+// L_2ndOrder + L_3rdOrder + L_4thOrder + ... = L_2ndOrder(1 + f_ms + f_ms ^ 2 + ...) = L_2ndOrder / (1 - f_ms)
+// Care is taken to ensure that f_ms remains in the radius of convergence.
+// This value can then be sampled in later integrals, to give us a better estimate of scattered luminance.
+// Compare equations (1) and (11) in Hillaire.
+//
+// This table needs to only be recomputed if the atmosphere parameters change:
+// it is global for the planet and independent of sun direction or view position.
+// Note it DOES depend on the size of the sun
+//
+// We are able to store the multiscattering in a 2D map because the atmospheric medium (aerosols, ozone, gasses like
+// nitrogen) is distributed based only on altitude and the planet is a sphere.
+//
+// For a given sample position x and light direction v (v towards light, NOT incident)
+// u := 0.5 + 0.5 * cos(sunZenith)
+// u = 0.5 + 0.5 * x.v / (|x| * |v|)
+//
+// Planet radius R_bot and atmosphere radius R_top
+// v := clamp((|x| - R_bot)/(R_top - R_bot), 0, 1)
+
+void main()
+{
+    const vec2 size = imageSize(multiscatter_LUT);
+    const ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texelCoord.x >= size.x || texelCoord.y >= size.y)
+    {
+        return;
+    }
+
+    Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+
+    const vec2 offset = vec2(0.5, 0.5);
+    const vec2 uv = (vec2(texelCoord) + offset) / size;
+
+    const vec2 RMuLight = multiscatterLUT_UV_to_RMu(atmosphere, uv);
+
+    const vec3 origin = vec3(0.0, RMuLight.x, 0.0);
+
+    const float cosSunZenith = clamp(RMuLight.y, -1.0, 1.0);
+    const float sinSunZenith = sqrt(1.0 - cosSunZenith * cosSunZenith);
+
+    // SunZenith is relative to origin
+    // As established, scattering is symmetrical around up axis, so just pick an azimuth = 0 for sun
+    const vec3 sunDirection = vec3(0.0, cosSunZenith, sinSunZenith);
+
+    // TODO: The atmosphere shouldn't contain the sun direction, but methods rely on it so for now we patch it in. In
+    // the future, sunDirection should be passed as part of a separate parameter.
+    atmosphere.incidentDirectionSun = -sunDirection;
+
+    // Unmarked units are in megameters (10^6 meters or 1000 km)
+
+    // We evaluate scattering luminance and transfer in all directions from our sample point.
+    // So we sample a finite amount of uniformly distributed directions.
+
+    vec3 luminanceSecondOrder = vec3(0.0);
+    vec3 multiScattTransfer = vec3(0.0);
+
+    const float SPHERE_SOLID_ANGLE = 4.0 * PI;
+    const float ISOTROPIC_PHASE = 1.0 / (4.0 * PI);
+
+    // There is an accumulated constant bias in sample directions, but it is quite small and does not matter for the
+    // small sample counts we shall be using
+    // TODO: mitigate the artifacts that seem to occur due to how we are sampling the directions. For some reason
+    // prime/odd numbers seem to avoid bands that occur at higher altitudes, that is independent of sun angle.
+    const uint SAMPLE_COUNT_SQRT = 11;
+    const uint SAMPLE_COUNT = SAMPLE_COUNT_SQRT * SAMPLE_COUNT_SQRT;
+    for (uint sampleIndex = 0; sampleIndex < SAMPLE_COUNT; sampleIndex++)
+    {
+        // 0, 0, 0, 0, 1, 1, 1, 1, ...
+        const float azimuthalIndex = float(sampleIndex / SAMPLE_COUNT_SQRT);
+
+        // 0, 1, 2, 3, 0, 1, 2, 3, ...
+        const float zenithIndex = float(mod(sampleIndex, SAMPLE_COUNT_SQRT)) + 0.5;
+
+        const float azimuth = 2.0 * PI * (azimuthalIndex / SAMPLE_COUNT_SQRT);
+
+        const float cosAzimuth = cos(azimuth);
+        const float cosZenith = clamp(2.0 * (zenithIndex / SAMPLE_COUNT_SQRT) - 1.0, -1.0, 1.0);
+
+        const float sinAzimuth = sin(azimuth);
+        // sinZenith is always positive since zenith ranges from 0 to pi
+        const float sinZenith = sqrt(1.0 - cosZenith * cosZenith);
+
+        // Uniformly distributed on unit sphere direction
+        const vec3 direction = vec3(sinAzimuth * sinZenith, cosZenith, cosAzimuth * sinZenith);
+
+        float sampleDistance;
+        raycastAtmosphere(atmosphere, origin, direction, sampleDistance);
+
+        ScatteringResult scattering =
+            computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, sampleDistance);
+
+        // dw in equations (5) and (7) in Hillaire 2020
+        const float sampleSolidAngle = (SPHERE_SOLID_ANGLE / SAMPLE_COUNT);
+
+        // Equations (6) and (8)
+        luminanceSecondOrder += scattering.luminance * sampleSolidAngle;
+        multiScattTransfer += scattering.multiScattTransfer * sampleSolidAngle;
+    }
+
+    // Equations (5) and (7)
+    const vec3 inscattering = luminanceSecondOrder * ISOTROPIC_PHASE;
+    const vec3 scatteringTransfer = multiScattTransfer * ISOTROPIC_PHASE;
+
+    // Geometric sum with r = multiScattTransfer
+    const vec3 infiniteScatterTransfer = 1.0 / (1.0 - scatteringTransfer);
+
+    // Equation (10)
+    const vec3 multiscattering = infiniteScatterTransfer * inscattering;
+
+    imageStore(multiscatter_LUT, texelCoord, vec4(multiscattering, 1.0));
+}

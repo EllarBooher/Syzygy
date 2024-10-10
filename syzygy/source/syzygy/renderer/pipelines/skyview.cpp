@@ -165,6 +165,137 @@ auto populateTransmittanceResources(
 
     return true;
 }
+
+auto populateMultiscatterResources(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    syzygy::DescriptorAllocator& descriptorAllocator,
+    syzygy::SkyViewComputePipeline::MultiScatterLUTResources& resources
+) -> bool
+{
+    // Match definition in 'common.glinl'
+    VkExtent2D constexpr EXTENT_LUT{256U, 256U};
+
+    if (auto mapResult{syzygy::ImageView::allocate(
+            device,
+            allocator,
+            syzygy::ImageAllocationParameters{
+                .extent = EXTENT_LUT,
+                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                .usageFlags =
+                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            },
+            syzygy::ImageViewAllocationParameters{}
+        )};
+        mapResult.has_value())
+    {
+        resources.map = std::move(mapResult).value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate multiscatter LUT map.");
+        return false;
+    }
+
+    {
+        VkSamplerCreateInfo const transmittanceSamplerInfo{
+            syzygy::samplerCreateInfo(
+                static_cast<VkFlags>(0),
+                VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+                VK_FILTER_LINEAR,
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            )
+        };
+
+        SZG_TRY_VK(
+            vkCreateSampler(
+                device,
+                &transmittanceSamplerInfo,
+                nullptr,
+                &resources.transmittanceImmutableSampler
+            ),
+            "Failed to create sampler for transmittance LUT",
+            false
+        );
+    }
+
+    if (auto setLayoutResult{
+            syzygy::DescriptorLayoutBuilder{}
+                .addBinding(
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 0,
+                        .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    1
+                )
+                .addBinding(
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 1,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    {resources.transmittanceImmutableSampler}
+                )
+                .build(device, static_cast<VkFlags>(0))
+        };
+        setLayoutResult.has_value())
+    {
+        resources.setLayout = setLayoutResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate multiscatter LUT descriptor set 0 layout."
+        );
+        return false;
+    }
+
+    resources.set = descriptorAllocator.allocate(device, resources.setLayout);
+
+    std::array<VkDescriptorSetLayout, 1> const setLayouts{resources.setLayout};
+
+    if (auto shaderResult{syzygy::loadShaderObject(
+            device,
+            "shaders/atmosphere/multiscatter_LUT.comp.spv",
+            VK_SHADER_STAGE_COMPUTE_BIT,
+            static_cast<VkFlags>(0),
+            setLayouts,
+            {}
+        )};
+        shaderResult.has_value())
+    {
+        resources.shader = shaderResult.value();
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate multiscatter LUT shader object.");
+        return false;
+    }
+
+    std::array<VkPushConstantRange, 1> const pushConstants{
+        resources.shader.reflectionData().defaultPushConstant().totalRange(
+            VK_SHADER_STAGE_COMPUTE_BIT
+        )
+    };
+
+    if (auto const& layoutResult{
+            detail::createLayout(device, setLayouts, pushConstants)
+        };
+        layoutResult != VK_NULL_HANDLE)
+    {
+        resources.layout = layoutResult;
+    }
+    else
+    {
+        SZG_ERROR("Failed to allocate skyview LUT pipeline layout.");
+        return false;
+    }
+
+    return true;
+}
+
 auto populateSkyViewResources(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -206,6 +337,10 @@ auto populateSkyViewResources(
             )
         };
 
+        VkSamplerCreateInfo const multiscatterSamplerInfo{
+            transmittanceSamplerInfo
+        };
+
         SZG_TRY_VK(
             vkCreateSampler(
                 device,
@@ -214,6 +349,17 @@ auto populateSkyViewResources(
                 &resources.transmittanceImmutableSampler
             ),
             "Failed to create sampler for transmittance LUT",
+            false
+        );
+
+        SZG_TRY_VK(
+            vkCreateSampler(
+                device,
+                &multiscatterSamplerInfo,
+                nullptr,
+                &resources.multiscatterImmutableSampler
+            ),
+            "Failed to create sampler for multiscatter LUT",
             false
         );
     }
@@ -237,6 +383,15 @@ auto populateSkyViewResources(
                         .bindingFlags = static_cast<VkFlags>(0),
                     },
                     {resources.transmittanceImmutableSampler}
+                )
+                .addBinding(
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 2,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    {resources.multiscatterImmutableSampler}
                 )
                 .build(device, static_cast<VkFlags>(0))
         };
@@ -345,6 +500,15 @@ auto populatePerspectiveResources(
             )
         };
 
+        VkSamplerCreateInfo const multiscatterSamplerInfo{
+            syzygy::samplerCreateInfo(
+                static_cast<VkFlags>(0),
+                VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+                VK_FILTER_LINEAR,
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            )
+        };
+
         SZG_TRY_VK(
             vkCreateSampler(
                 device,
@@ -353,6 +517,17 @@ auto populatePerspectiveResources(
                 &resources.transmittanceImmutableSampler
             ),
             "Failed to create sampler for transmittance LUT",
+            false
+        );
+
+        SZG_TRY_VK(
+            vkCreateSampler(
+                device,
+                &multiscatterSamplerInfo,
+                nullptr,
+                &resources.multiscatterImmutableSampler
+            ),
+            "Failed to create sampler for multiscatter LUT",
             false
         );
     }
@@ -376,6 +551,15 @@ auto populatePerspectiveResources(
                         .bindingFlags = static_cast<VkFlags>(0),
                     },
                     {resources.transmittanceImmutableSampler}
+                )
+                .addBinding(
+                    syzygy::DescriptorLayoutBuilder::AddBindingParameters{
+                        .binding = 2,
+                        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                        .stageMask = VK_SHADER_STAGE_COMPUTE_BIT,
+                        .bindingFlags = static_cast<VkFlags>(0),
+                    },
+                    {resources.multiscatterImmutableSampler}
                 )
                 .build(device, static_cast<VkFlags>(0))
         };
@@ -488,6 +672,8 @@ void updateDescriptors(
     VkDevice const device,
     syzygy::SkyViewComputePipeline::TransmittanceLUTResources const&
         transmittanceLUT,
+    syzygy::SkyViewComputePipeline::MultiScatterLUTResources const&
+        multiscatterLUT,
     syzygy::SkyViewComputePipeline::SkyViewLUTResources const& skyviewLUT,
     syzygy::SkyViewComputePipeline::PerspectiveMapResources const&
         perspectiveMap
@@ -513,6 +699,43 @@ void updateDescriptors(
         vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
 
+    { // Write multiscatter descriptor
+        VkDescriptorImageInfo const mapInfo{
+            .sampler = VK_NULL_HANDLE,
+            .imageView = multiscatterLUT.map->view(),
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+
+        VkDescriptorImageInfo const transmittanceInfo{
+            .sampler = VK_NULL_HANDLE,
+            .imageView = transmittanceLUT.map->view(),
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+        };
+
+        std::array<VkWriteDescriptorSet, 2> writes{
+            VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = multiscatterLUT.set,
+                .dstBinding = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                .pImageInfo = &mapInfo,
+            },
+            VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = multiscatterLUT.set,
+                .dstBinding = 1,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &transmittanceInfo,
+            }
+        };
+
+        vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
+    }
+
     { // Write skyview descriptor
         VkDescriptorImageInfo const mapInfo{
             .sampler = VK_NULL_HANDLE,
@@ -525,8 +748,13 @@ void updateDescriptors(
             .imageView = transmittanceLUT.map->view(),
             .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
         };
+        VkDescriptorImageInfo const multiscatterInfo{
+            .sampler = VK_NULL_HANDLE,
+            .imageView = multiscatterLUT.map->view(),
+            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+        };
 
-        std::array<VkWriteDescriptorSet, 2> writes{
+        std::array<VkWriteDescriptorSet, 3> writes{
             VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
@@ -544,6 +772,15 @@ void updateDescriptors(
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 .pImageInfo = &transmittanceInfo,
+            },
+            VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = skyviewLUT.set,
+                .dstBinding = 2,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &multiscatterInfo,
             }
         };
 
@@ -551,7 +788,7 @@ void updateDescriptors(
     }
 
     { // Write perspective map descriptor
-        std::array<VkDescriptorImageInfo, 2> const LUTWrites{
+        std::array<VkDescriptorImageInfo, 3> const LUTWrites{
             VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE,
                 .imageView = skyviewLUT.map->view(),
@@ -560,6 +797,11 @@ void updateDescriptors(
             VkDescriptorImageInfo{
                 .sampler = VK_NULL_HANDLE,
                 .imageView = transmittanceLUT.map->view(),
+                .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+            },
+            VkDescriptorImageInfo{
+                .sampler = VK_NULL_HANDLE,
+                .imageView = multiscatterLUT.map->view(),
                 .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
             }
         };
@@ -576,6 +818,61 @@ void updateDescriptors(
 
         vkUpdateDescriptorSets(device, VKR_ARRAY(writes), VKR_ARRAY_NONE);
     }
+}
+
+void recordMultiscatterLUTCommands(
+    VkCommandBuffer const cmd,
+    syzygy::SkyViewComputePipeline::MultiScatterLUTResources const& resources,
+    syzygy::ImageView& transmittanceLUT,
+    uint32_t const atmosphereIndex,
+    syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres
+)
+{
+    resources.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
+    transmittanceLUT.recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+
+    VkShaderEXT const shader{resources.shader.shaderObject()};
+
+    VkShaderStageFlagBits const stage{VK_SHADER_STAGE_COMPUTE_BIT};
+    uint32_t constexpr WORKGROUP_SIZE{16};
+    vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
+
+    std::array<VkDescriptorSet, 1> sets{resources.set};
+
+    vkCmdBindDescriptorSets(
+        cmd,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        resources.layout,
+        0,
+        VKR_ARRAY(sets),
+        0,
+        nullptr
+    );
+
+    syzygy::SkyViewComputePipeline::MultiScatterLUTResources::PushConstant const
+        pushConstant{
+            .atmosphereBuffer = atmospheres.deviceAddress(),
+            .atmosphereIndex = atmosphereIndex,
+        };
+
+    vkCmdPushConstants(
+        cmd,
+        resources.layout,
+        VK_SHADER_STAGE_COMPUTE_BIT,
+        0,
+        sizeof(pushConstant),
+        &pushConstant
+    );
+
+    VkExtent2D const skyViewExtent{resources.map->image().extent2D()};
+    vkCmdDispatch(
+        cmd,
+        detail::computeDispatchCount(skyViewExtent.width, WORKGROUP_SIZE),
+        detail::computeDispatchCount(skyViewExtent.height, WORKGROUP_SIZE),
+        1
+    );
 }
 
 void recordPerspectiveMapCommands(
@@ -679,6 +976,7 @@ SkyViewComputePipeline::SkyViewComputePipeline(SkyViewComputePipeline&& other
     m_descriptorAllocator = std::move(other.m_descriptorAllocator);
 
     m_transmittanceLUT = std::exchange(other.m_transmittanceLUT, {});
+    m_multiscatterLUT = std::exchange(other.m_multiscatterLUT, {});
     m_skyViewLUT = std::exchange(other.m_skyViewLUT, {});
     m_perspectiveMap = std::exchange(other.m_perspectiveMap, {});
 }
@@ -721,6 +1019,16 @@ auto SkyViewComputePipeline::create(
         );
         return nullptr;
     }
+    if (!detail::populateMultiscatterResources(
+            device,
+            allocator,
+            *pipeline.m_descriptorAllocator,
+            pipeline.m_multiscatterLUT
+        ))
+    {
+        SZG_ERROR("Failed to allocate one or more Multiscatter LUT resources.");
+        return nullptr;
+    }
     if (!detail::populateSkyViewResources(
             device,
             allocator,
@@ -742,6 +1050,7 @@ auto SkyViewComputePipeline::create(
     detail::updateDescriptors(
         device,
         pipeline.m_transmittanceLUT,
+        pipeline.m_multiscatterLUT,
         pipeline.m_skyViewLUT,
         pipeline.m_perspectiveMap
     );
@@ -844,7 +1153,18 @@ void SkyViewComputePipeline::recordDrawCommands(
         );
     }
 
+    detail::recordMultiscatterLUTCommands(
+        cmd,
+        m_multiscatterLUT,
+        *m_transmittanceLUT.map,
+        atmosphereIndex,
+        atmospheres
+    );
+
     m_transmittanceLUT.map->recordTransitionBarriered(
+        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+    m_multiscatterLUT.map->recordTransitionBarriered(
         cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
     m_skyViewLUT.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);

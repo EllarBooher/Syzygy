@@ -13,6 +13,9 @@
 const int TRANSMITTANCE_LUT_WIDTH = 512;
 const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
+const int MULTISCATTER_LUT_WIDTH = 256;
+const int MULTISCATTER_LUT_HEIGHT = 256;
+
 const float METERS_PER_MM = 1000000;
 
 const float PI = 3.141592653589793;
@@ -99,6 +102,37 @@ vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
 
     // This clamp is very important
     return vec2(radius, clamp(mu, -1.0, 1.0));
+}
+
+vec2 multiscatterLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius, const float mu_light)
+{
+    const float u_unit = 0.5 + 0.5 * mu_light;
+    const float v_unit = clamp((radius - atmosphere.planetRadiusMm) / (atmosphere.atmosphereRadiusMm - atmosphere.planetRadiusMm), 0, 1);
+
+    return vec2(textureCoordFromUnitRange(u_unit, MULTISCATTER_LUT_WIDTH), textureCoordFromUnitRange(v_unit, MULTISCATTER_LUT_HEIGHT));
+}
+
+vec2 multiscatterLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
+{
+    const float u_unit = unitRangeFromTextureCoord(uv.s, MULTISCATTER_LUT_WIDTH);
+    const float v_unit = unitRangeFromTextureCoord(uv.t, MULTISCATTER_LUT_HEIGHT);
+
+    const float mu_light = 2.0 * (u_unit - 0.5);
+
+    // The exact radius is not too critical, and multiscattering is sensitive to being out of range, so we squeeze into a slightly smaller planet radius to ensure we are valid.
+    const float radius = mix(atmosphere.planetRadiusMm * (1.0002), atmosphere.atmosphereRadiusMm * (0.9998), v_unit);
+
+    return vec2(radius, mu_light);
+}
+
+vec3 sampleMultiscatterLUT(sampler2D LUT, const Atmosphere atmosphere, const vec3 position, const vec3 incidentDirectionLight)
+{
+    const float radius = length(position) + 0.001;
+    const float mu_light = dot(position, -incidentDirectionLight) / (length(position) * length(incidentDirectionLight));
+
+    const vec2 uv = multiscatterLUT_RMu_to_UV(atmosphere, radius, mu_light);
+
+    return texture(LUT, uv).rgb;
 }
 
 vec3 sampleTransmittanceLUT_Ray(sampler2D LUT, const Atmosphere atmosphere, const vec3 position, const vec3 direction)
@@ -206,7 +240,7 @@ ExtinctionSample sampleExtinction(const Atmosphere atmosphere, const float altit
 
     const float densityMie = densityExponential(altitude_Mm, atmosphere.densityScaleMieMm);
     const vec3 scatteringMie = atmosphere.scatteringMiePerMm * densityMie;
-    const vec3 absorptionMie = atmosphere.absorptionRayleighPerMm * densityMie;
+    const vec3 absorptionMie = atmosphere.absorptionMiePerMm * densityMie;
 
     const float densityOzone = densityTent(altitude_Mm * 1000.0);
     const vec3 scatteringOzone = atmosphere.scatteringOzonePerMm * densityOzone;
@@ -291,9 +325,6 @@ float phaseMie(const float cosine, const float g)
     return scalar * numerator / denominator;
 }
 
-// Not in use for now, intended for estimating multi-scattering
-const float phaseIsotropic = 1.0 / (4.0 * PI);
-
 void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, out float atmosphereDistance)
 {
     float atmosphere_t0, atmosphere_t1;
@@ -373,8 +404,25 @@ vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere, sampler2D 
     return clamp(transmittance, 0.0, 1.0);
 }
 
-const uint SKY_VIEW_LUT_SAMPLE_COUNT = 32;
-vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D transmittanceLUT, const vec3 origin, const vec3 direction, const float sampleDistance)
+#ifndef SZG_MULTISCATTERING_ENABLED
+#define SZG_MULTISCATTERING_ENABLED 0
+#endif
+
+#ifndef SZG_ISOTROPIC_PHASE
+#define SZG_ISOTROPIC_PHASE 0
+#endif
+
+struct ScatteringResult
+{
+    vec3 luminance;
+    vec3 multiScattTransfer;
+};
+
+#if SZG_MULTISCATTERING_ENABLED
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D transmittanceLUT, sampler2D multiscatterLUT, const vec3 origin, const vec3 direction, const float sampleDistance)
+#else
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D transmittanceLUT, const vec3 origin, const vec3 direction, const float sampleDistance)
+#endif
 {
     // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
     // For the purposes of calculating phase functions, this is the direction we want to use.
@@ -386,14 +434,18 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D t
 
     const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
 
-    vec3 luminance = vec3(0.0);
-
-    vec3 transmittance = vec3(1.0);
+    ScatteringResult result;
+    result.luminance = vec3(0.0);
+    result.multiScattTransfer = vec3(0.0);
 
     // We estimate the integral in Equation (1) of Hillaire's paper.
 
-    const float dSampleDistance = sampleDistance / SKY_VIEW_LUT_SAMPLE_COUNT;
-    for (uint i = 0; i < SKY_VIEW_LUT_SAMPLE_COUNT; i++)
+    const float ISOTROPIC_PHASE = 1.0 / (4.0 * PI);
+
+    const uint SAMPLE_COUNT = 32;
+
+    const float dSampleDistance = sampleDistance / SAMPLE_COUNT;
+    for (uint i = 0; i < SAMPLE_COUNT; i++)
     {
         const float t = i * dSampleDistance;
         const vec3 begin = origin - (float(i) * dSampleDistance) * scatteringDir;
@@ -420,11 +472,21 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D t
         const vec3 transmittanceToBegin = sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
         const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
 
+#if SZG_ISOTROPIC_PHASE
+        const vec3 phaseTimesScattering = extinctionSample.scattering * ISOTROPIC_PHASE;
+#else
         // Ozone does not scatter light, so we arbitrarily use rayleigh's phase function in case ozone's scattering
-        // coefficient in nonzero
+        // coefficient is nonzero
         const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
                                         + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8) 
                                         + extinctionSample.scatteringOzone * phaseRayleigh(incidentCosine);
+#endif
+
+#if SZG_MULTISCATTERING_ENABLED
+        const vec3 multiscatter = sampleMultiscatterLUT(multiscatterLUT, atmosphere, begin, atmosphere.incidentDirectionSun);
+#else
+        const vec3 multiscatter = vec3(0.0);
+#endif
 
         const vec3 shadowing = transmittanceToSun;
 
@@ -434,9 +496,10 @@ vec3 computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D t
         const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(transmittanceLUT, atmosphere, begin, end);
         const vec3 scatteringIlluminanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
 
-        luminance += phaseTimesScattering * shadowing * scatteringIlluminanceIntegral
+        result.luminance += (phaseTimesScattering * shadowing + multiscatter * extinctionSample.scattering) * scatteringIlluminanceIntegral
                     * transmittanceToBegin;
+        result.multiScattTransfer += extinctionSample.scattering * scatteringIlluminanceIntegral * transmittanceToBegin;
     }
 
-    return luminance;
+    return result;
 }
