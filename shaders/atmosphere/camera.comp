@@ -213,9 +213,8 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
 
     const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, length(material.position));
 
-    const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible
-                               * transmittanceToSun * transmittanceToSurface * material.occlusion
-                               * mix(diffuseContribution, specularContribution, fresnel)
+    const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible * transmittanceToSun * transmittanceToSurface
+                               * material.occlusion * mix(diffuseContribution, specularContribution, fresnel)
                                * clamp(dot(material.normal, lightDirection), 0.0, 1.0);
 
     const bool includeGround = false;
@@ -239,7 +238,9 @@ vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
                                         const vec3 direction,
                                         const float sunShadowFactor)
 {
-    if (raycastTestSphere(position, direction, atmosphere.planetRadiusMm))
+    // Slight fudge factor to ease jagged edges at horizon. There will always be issues with a flat horizon, but this
+    // mitigates super dark pixels that come from sampling the sky view LUT with too high of a zenith angle
+    if (raycastTestSphere(position, direction, atmosphere.planetRadiusMm * 1.000002))
     {
         const bool includeGround = true;
         return computeLuminanceScatteringIntegral(
@@ -336,14 +337,20 @@ void main()
         const vec3 reflectionDirection = reflectDirection(material.normal, -direction);
         const vec3 fresnel = computeFresnel(material, -direction, reflectionDirection);
 
-        const vec3 metallicLuminance = transmittanceToSurface * sampleEnvironmentLuminanceTransfer(
-                atmosphere, material.position, reflectionDirection, surfaceSunShadowFactor);
+        const vec3 metallicLuminance = transmittanceToSurface
+                                     * sampleEnvironmentLuminanceTransfer(
+                                           atmosphere, material.position, reflectionDirection, surfaceSunShadowFactor);
 
-        // TODO: fresnel weighted ambient lighting? Does it significantly contribute to the appearance of ambient lighting?
-        const vec3 diffuseLuminance = transmittanceToSurface * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, atmosphere.incidentDirectionSun) * material.subscatteringColor / PI;
+        // TODO: fresnel weighted ambient lighting? Does it significantly contribute to the appearance of ambient
+        // lighting?
+        const vec3 diffuseLuminance =
+            transmittanceToSurface
+            * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, atmosphere.incidentDirectionSun)
+            * material.subscatteringColor / PI;
         // Diffuse only, assume contribution of specular from environment is low
 
-        sunIlluminanceToSkyLuminanceTransfer += material.occlusion * mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
+        sunIlluminanceToSkyLuminanceTransfer +=
+            material.occlusion * mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
     }
 
     vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;

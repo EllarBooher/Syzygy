@@ -458,6 +458,11 @@ vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere,
 #define SZG_ISOTROPIC_PHASE 0
 #endif
 
+// This can help with small sample counts
+#ifndef SZG_SCATTERING_NONLINEAR_SAMPLE
+#define SZG_SCATTERING_NONLINEAR_SAMPLE 0
+#endif
+
 struct ScatteringResult
 {
     vec3 luminance;
@@ -536,9 +541,23 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
     const float dSampleDistance = sampleDistance / SAMPLE_COUNT;
     for (uint i = 0; i < SAMPLE_COUNT; i++)
     {
-        const float t = i * dSampleDistance;
-        const vec3 begin = origin - (float(i) * dSampleDistance) * scatteringDir;
-        const vec3 end = origin - (float(i + 1) * dSampleDistance) * scatteringDir;
+        float tBegin = float(i) / SAMPLE_COUNT;
+        float tEnd = float(i + 1.0) / SAMPLE_COUNT;
+
+#if SZG_SCATTERING_NONLINEAR_SAMPLE
+        tBegin = tBegin * tBegin;
+        tEnd *= tEnd * tEnd;
+#endif
+
+        tBegin = tBegin * sampleDistance;
+        tEnd = min(tEnd * sampleDistance, sampleDistance);
+        tBegin = float(i) * dSampleDistance;
+        tEnd = float(i + 1) * dSampleDistance;
+
+        const float t = mix(tBegin, tEnd, 0.5);
+        const vec3 begin = origin - tBegin * scatteringDir;
+        const vec3 samplePosition = origin - t * scatteringDir;
+        const vec3 end = origin - tEnd * scatteringDir;
 
         const RaymarchStep sampleStep = stepRadiusMu(originStep, t);
 
@@ -575,14 +594,17 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
 #if SZG_MULTISCATTERING_ENABLED
         const vec3 multiscatter =
-            sampleMultiscatterLUT(multiscatterLUT, atmosphere, begin, atmosphere.incidentDirectionSun);
+            sampleMultiscatterLUT(multiscatterLUT, atmosphere, samplePosition, atmosphere.incidentDirectionSun);
 #else
         const vec3 multiscatter = vec3(0.0);
 #endif
 
-        const float shadowBegin = float(raycastTestSphere(begin, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
-        const float shadowMiddle = float(raycastTestSphere(0.5 * (begin + end), -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
-        const float shadowEnd = float(raycastTestSphere(end, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const float shadowBegin =
+            float(raycastTestSphere(begin, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const float shadowMiddle =
+            float(raycastTestSphere(0.5 * (begin + end), -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const float shadowEnd =
+            float(raycastTestSphere(end, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
         const vec3 shadowing = transmittanceToSun * (1.0 - 0.25 * (shadowBegin + 2.0 * shadowMiddle + shadowEnd));
 
         // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
@@ -624,7 +646,8 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     const vec3 direction,
                                                     const bool includeGround)
 {
-    return computeLuminanceScatteringIntegral(atmosphere, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
+    return computeLuminanceScatteringIntegral(
+        atmosphere, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
 }
 #else
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
@@ -633,6 +656,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     const vec3 direction,
                                                     const bool includeGround)
 {
-    return computeLuminanceScatteringIntegral(atmosphere, transmittanceLUT, origin, direction, includeGround, 1000000.0);
+    return computeLuminanceScatteringIntegral(
+        atmosphere, transmittanceLUT, origin, direction, includeGround, 1000000.0);
 }
 #endif
