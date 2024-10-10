@@ -149,8 +149,6 @@ float computeFractionOfSunVisible(const Atmosphere atmosphere, const float radiu
     const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
     const float cosSunZenith = -atmosphere.incidentDirectionSun.y;
 
-    return sinHorizonZenith;
-
     // Ignore third dimension, since earth is a symmetrical sphere
     const vec2 directionToHorizon =
         normalize(vec2(sinHorizonZenith, safeSqrt(1.0 - sinHorizonZenith * sinHorizonZenith)));
@@ -205,8 +203,6 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
     const vec3 lightDirection = normalize(-atmosphere.incidentDirectionSun);
     const vec3 viewDirection = normalize(-direction);
 
-    const bool surfaceShadowedByPlanet = raycastHitTestPlanet(atmosphere, surfacePosition, lightDirection);
-
     const vec3 diffuseContribution = diffuseBRDF(material, lightDirection);
     const vec3 specularContribution = specularBRDF(material, lightDirection, viewDirection);
 
@@ -217,7 +213,7 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
 
     const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, length(material.position));
 
-    const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible * float(!surfaceShadowedByPlanet)
+    const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible
                                * transmittanceToSun * transmittanceToSurface * material.occlusion
                                * mix(diffuseContribution, specularContribution, fresnel)
                                * clamp(dot(material.normal, lightDirection), 0.0, 1.0);
