@@ -131,8 +131,9 @@ void main()
         float sampleDistance;
         raycastAtmosphere(atmosphere, origin, direction, sampleDistance);
 
+        const bool includeGround = true;
         ScatteringResult scattering =
-            computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, sampleDistance);
+            computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, includeGround);
 
         // dw in equations (5) and (7) in Hillaire 2020
         const float sampleSolidAngle = (SPHERE_SOLID_ANGLE / SAMPLE_COUNT);

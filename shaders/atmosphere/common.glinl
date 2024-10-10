@@ -133,7 +133,7 @@ vec3 sampleMultiscatterLUT(sampler2D LUT,
                            const vec3 position,
                            const vec3 incidentDirectionLight)
 {
-    const float radius = length(position) + 0.001;
+    const float radius = length(position);
     const float mu_light = dot(position, -incidentDirectionLight) / (length(position) * length(incidentDirectionLight));
 
     const vec2 uv = multiscatterLUT_RMu_to_UV(atmosphere, radius, mu_light);
@@ -316,6 +316,34 @@ bool raySphereIntersection(vec3 rayOrigin, vec3 rayDirectionNormalized, float ra
     return true;
 }
 
+struct RaycastHit
+{
+    bool hit;
+    float tMin;
+    float tMax;
+};
+
+RaycastHit raycastSphere(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius)
+{
+    float t0, t1 = 0.0;
+
+    RaycastHit result;
+
+    result.hit = raySphereIntersection(rayOrigin, rayDirectionNormalized, radius, t0, t1);
+    result.tMin = t0;
+    result.tMax = t1;
+
+    return result;
+}
+
+// Returns true if the ray hits the sphere with radius in the direction indicated.
+// Returns false if the sphere is not hit or if the sphere is behind the ray.
+bool raycastTestSphere(vec3 rayOrigin, vec3 rayDirectionNormalized, float radius)
+{
+    RaycastHit result = raycastSphere(rayOrigin, rayDirectionNormalized, radius);
+    return result.hit && result.tMax > 0.0;
+}
+
 // Input cosine is the cosine of the angle between incident and outgoing scattering directions
 float phaseRayleigh(const float cosine)
 {
@@ -440,20 +468,57 @@ struct ScatteringResult
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     sampler2D transmittanceLUT,
                                                     sampler2D multiscatterLUT,
-                                                    const vec3 origin,
+                                                    in vec3 origin,
                                                     const vec3 direction,
-                                                    const float sampleDistance)
+                                                    const bool includeGround,
+                                                    const float tMax)
 #else
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     sampler2D transmittanceLUT,
-                                                    const vec3 origin,
+                                                    in vec3 origin,
                                                     const vec3 direction,
-                                                    const float sampleDistance)
+                                                    const bool includeGround,
+                                                    const float tMax)
 #endif
 {
     // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
     // For the purposes of calculating phase functions, this is the direction we want to use.
     const vec3 scatteringDir = -normalize(direction);
+
+    const RaycastHit hitPlanet = raycastSphere(origin, direction, atmosphere.planetRadiusMm);
+    const RaycastHit hitAtmosphere = raycastSphere(origin, direction, atmosphere.atmosphereRadiusMm);
+
+    ScatteringResult result;
+    result.luminance = vec3(0.0);
+    result.multiScattTransfer = vec3(0.0);
+
+    float sampleDistance = 0.0;
+
+    if (!hitAtmosphere.hit || (hitPlanet.hit && (hitPlanet.tMin < 0.0 && hitPlanet.tMax > 0.0)))
+    {
+        return result;
+    }
+
+    // Assuming the planet was hit, we have hitAtmosphere.tMin < hitPlanet.tMin < hitPlanet.tMax < hitAtmosphere.tMax
+    // If this assumption ever fails (such as 0 atmosphere?), this method needs to be reworked anyway to skip some
+    // calculations
+
+    if (hitPlanet.hit && hitPlanet.tMin > 0.0)
+    {
+        sampleDistance = hitPlanet.tMin;
+    }
+    else
+    {
+        sampleDistance = hitAtmosphere.tMax;
+    }
+
+    if (hitAtmosphere.tMin > 0.0)
+    {
+        origin += hitAtmosphere.tMin * direction;
+        sampleDistance -= hitAtmosphere.tMin;
+    }
+
+    sampleDistance = min(sampleDistance, tMax);
 
     const float radius = length(origin);
     const float mu = dot(origin, direction) / (length(origin) * length(direction));
@@ -461,10 +526,6 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
 
     const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
-
-    ScatteringResult result;
-    result.luminance = vec3(0.0);
-    result.multiScattTransfer = vec3(0.0);
 
     // We estimate the integral in Equation (1) of Hillaire's paper.
 
@@ -532,5 +593,43 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         result.multiScattTransfer += extinctionSample.scattering * scatteringIlluminanceIntegral * transmittanceToBegin;
     }
 
+    if (includeGround && hitPlanet.hit && hitPlanet.tMin > 0.0)
+    {
+        const RaymarchStep sampleStep = stepRadiusMu(originStep, sampleDistance);
+
+        const vec3 transmittanceToSurface =
+            sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, hitPlanet.tMin);
+        const vec3 transmittanceToSun =
+            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
+
+        const float NdotL = clamp(sampleStep.mu_sun, 0.0, 1.0);
+
+        // TODO: ground color albedo
+        const vec3 diffuse = vec3(0.3) / PI;
+
+        result.luminance += transmittanceToSurface * transmittanceToSun * NdotL * diffuse;
+    }
+
     return result;
 }
+
+#if SZG_MULTISCATTERING_ENABLED
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    sampler2D transmittanceLUT,
+                                                    sampler2D multiscatterLUT,
+                                                    in vec3 origin,
+                                                    const vec3 direction,
+                                                    const bool includeGround)
+{
+    return computeLuminanceScatteringIntegral(atmosphere, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
+}
+#else
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    sampler2D transmittanceLUT,
+                                                    in vec3 origin,
+                                                    const vec3 direction,
+                                                    const bool includeGround)
+{
+    return computeLuminanceScatteringIntegral(atmosphere, transmittanceLUT, origin, direction, includeGround, 1000000.0);
+}
+#endif

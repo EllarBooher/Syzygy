@@ -177,25 +177,6 @@ float computeFractionOfSunVisible(const Atmosphere atmosphere, const float radiu
     return 0.5 * (sinHorizonSun / sinSunRadius) + 0.5;
 }
 
-bool raycastDistanceToGround(const Atmosphere atmosphere,
-                             const vec3 origin,
-                             const vec3 direction,
-                             out float distanceToGround)
-{
-    float planet_t0, planet_t1;
-    const bool hitPlanet =
-        raySphereIntersection(origin, direction, atmosphere.planetRadiusMm, planet_t0, planet_t1) && planet_t0 > 0.0;
-
-    if (!hitPlanet)
-    {
-        return false;
-    }
-
-    distanceToGround = planet_t0;
-
-    return true;
-}
-
 bool raycastHitTestPlanet(const Atmosphere atmosphere, const vec3 origin, const vec3 direction)
 {
     float planet_t0, planet_t1;
@@ -203,42 +184,6 @@ bool raycastHitTestPlanet(const Atmosphere atmosphere, const vec3 origin, const 
         raySphereIntersection(origin, direction, atmosphere.planetRadiusMm, planet_t0, planet_t1) && planet_t0 > 0.0;
 
     return hitPlanet;
-}
-
-vec3 sampleGround(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, const float distanceToGround)
-{
-    // Assumes the ray hits the ground
-
-    const vec3 surfacePosition = origin + distanceToGround * direction;
-    const vec3 surfaceNormal = normalize(surfacePosition);
-
-    const vec3 lightDirection = -atmosphere.incidentDirectionSun;
-    const vec3 viewDirection = -direction;
-    // Quick and dirty estimate of surface albedo
-    const vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-    const float specularPower = 160.0;
-    const float microfacetAttenuation = pow(clamp(dot(halfwayDirection, surfaceNormal), 0.0, 1.0), specularPower);
-    const float normalizationTerm = (specularPower + 2) / 8.0;
-    const vec3 specular = vec3(normalizationTerm * microfacetAttenuation);
-    const vec3 diffuse = vec3(0.4) / PI;
-
-    const vec3 fresnel =
-        vec3(0.04) + (1.0 - vec3(0.04)) * pow(1.0 - clamp(dot(halfwayDirection, lightDirection), 0.0, 1.0), 5);
-    const vec3 albedo = mix(diffuse, specular, fresnel);
-
-    vec3 transmittanceToSun =
-        sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection);
-
-    const vec3 surfaceLuminance = transmittanceToSun * albedo * clamp(dot(surfaceNormal, lightDirection), 0.0, 1.0);
-    const vec3 transmittanceToSurface =
-        sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
-
-    const vec3 aerielPerspectiveLuminance =
-        computeLuminanceScatteringIntegral(
-            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, distanceToGround)
-            .luminance;
-
-    return surfaceLuminance * transmittanceToSurface + aerielPerspectiveLuminance;
 }
 
 vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
@@ -277,10 +222,11 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
                                * mix(diffuseContribution, specularContribution, fresnel)
                                * clamp(dot(material.normal, lightDirection), 0.0, 1.0);
 
-    const float distanceToGround = length(surfacePosition - origin);
+    const bool includeGround = false;
+    const float sampleDistance = length(surfacePosition - origin);
     const vec3 aerialPerspectiveLuminance =
         computeLuminanceScatteringIntegral(
-            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, distanceToGround)
+            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround, sampleDistance)
             .luminance;
 
     return surfaceTransfer + aerialPerspectiveLuminance;
@@ -297,10 +243,12 @@ vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
                                         const vec3 direction,
                                         const float sunShadowFactor)
 {
-    float distanceToGround;
-    if (raycastDistanceToGround(atmosphere, position, direction, distanceToGround))
+    if (raycastTestSphere(position, direction, atmosphere.planetRadiusMm))
     {
-        return sampleGround(atmosphere, position, direction, distanceToGround);
+        const bool includeGround = true;
+        return computeLuminanceScatteringIntegral(
+                   atmosphere, transmittance_LUT, multiscatter_LUT, position, direction, includeGround)
+            .luminance;
     }
     else
     {
@@ -386,14 +334,20 @@ void main()
         sunIlluminanceToSkyLuminanceTransfer +=
             computeGeometryLuminanceTransfer(atmosphere, position, direction, material, surfaceSunShadowFactor);
 
-        // Ad-hoc single bounce reflection, for metals only
+        // Ad-hoc environment reflection, picks up metallic reflection and ambient lighting on dialectrics
         const vec3 transmittanceToSurface =
             sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, position, material.position);
         const vec3 reflectionDirection = reflectDirection(material.normal, -direction);
-        sunIlluminanceToSkyLuminanceTransfer +=
-            transmittanceToSurface * material.metallic * computeFresnel(material, -direction, reflectionDirection)
-            * sampleEnvironmentLuminanceTransfer(
+        const vec3 fresnel = computeFresnel(material, -direction, reflectionDirection);
+
+        const vec3 metallicLuminance = transmittanceToSurface * sampleEnvironmentLuminanceTransfer(
                 atmosphere, material.position, reflectionDirection, surfaceSunShadowFactor);
+
+        // TODO: fresnel weighted ambient lighting? Does it significantly contribute to the appearance of ambient lighting?
+        const vec3 diffuseLuminance = transmittanceToSurface * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, atmosphere.incidentDirectionSun) * material.subscatteringColor / PI;
+        // Diffuse only, assume contribution of specular from environment is low
+
+        sunIlluminanceToSkyLuminanceTransfer += mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
     }
 
     vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;

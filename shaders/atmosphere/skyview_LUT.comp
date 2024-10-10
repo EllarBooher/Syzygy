@@ -127,10 +127,10 @@ void main()
     float distanceThroughAtmosphere;
     raycastAtmosphere(atmosphere, origin, direction, distanceThroughAtmosphere);
 
-    const vec3 luminance =
-        computeLuminanceScatteringIntegral(
-            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, distanceThroughAtmosphere)
-            .luminance;
+    const bool includeGround = false;
+    const vec3 luminance = computeLuminanceScatteringIntegral(
+                               atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround)
+                               .luminance;
 
     imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));
 }
