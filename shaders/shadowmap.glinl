@@ -49,8 +49,7 @@ float sampleShadowMap(texture2D map, sampler mapSampler, const ShadowFrame shado
         {
             vec2 offsetShadowCoord = shadow.coord.st + vec2(x * dx, y * dy);
 
-            const float occluderDepth =
-                texture(sampler2D(map, mapSampler), offsetShadowCoord).r;
+            const float occluderDepth = texture(sampler2D(map, mapSampler), offsetShadowCoord).r;
 
             // Reverse-Z
             if (occluderDepth > 0.0 && occluderDepth > fragmentDepth)

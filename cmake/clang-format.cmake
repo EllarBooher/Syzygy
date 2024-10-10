@@ -28,6 +28,7 @@ if (CLANG_FORMAT_PATH)
 			${SHADER_DIR}/*.frag
 			${SHADER_DIR}/*.vert
 			${SHADER_DIR}/*.glsl
+			${SHADER_DIR}/*.glinl
 	)
 	
 	set(ALL_SOURCE_FILES ${ALL_CXX_SOURCE_FILES} ${ALL_SHADER_SOURCE_FILES})

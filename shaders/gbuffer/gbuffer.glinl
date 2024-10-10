@@ -1,6 +1,6 @@
-#define SZG_DECLARE_GBUFFER_SET(n) \
-layout(set = n, binding = 0) uniform sampler2D gbufferDiffuse; \
-layout(set = n, binding = 1) uniform sampler2D gbufferSpecular; \
-layout(set = n, binding = 2) uniform sampler2D gbufferNormal; \
-layout(set = n, binding = 3) uniform sampler2D gbufferWorldPosition; \
-layout(set = n, binding = 4) uniform sampler2D gbufferOcclusionRoughnessMetallic;
+#define SZG_DECLARE_GBUFFER_SET(n)                                                                                     \
+    layout(set = n, binding = 0) uniform sampler2D gbufferDiffuse;                                                     \
+    layout(set = n, binding = 1) uniform sampler2D gbufferSpecular;                                                    \
+    layout(set = n, binding = 2) uniform sampler2D gbufferNormal;                                                      \
+    layout(set = n, binding = 3) uniform sampler2D gbufferWorldPosition;                                               \
+    layout(set = n, binding = 4) uniform sampler2D gbufferOcclusionRoughnessMetallic;

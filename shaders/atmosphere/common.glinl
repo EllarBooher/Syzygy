@@ -9,7 +9,6 @@
 // "Precomputed Atmospheric Scattering: a New Implementation" by Eric Bruneton (2017)
 // https://ebruneton.github.io/precomputed_atmospheric_scattering
 
-
 const int TRANSMITTANCE_LUT_WIDTH = 512;
 const int TRANSMITTANCE_LUT_HEIGHT = 128;
 
@@ -23,12 +22,10 @@ const float PI = 3.141592653589793;
 // Transmittance LUT UV mapping based on Bruneton et al. 2017 method
 // https://ebruneton.github.io/precomputed_atmospheric_scattering/atmosphere/functions.glsl#transmittance_lookup
 
-float safeSqrt(float value)
-{
-    return sqrt(max(value, 0.0));
-}
+float safeSqrt(float value) { return sqrt(max(value, 0.0)); }
 
-// Squeeze in UV values by half a texel, so the bounds of our sampled function can be stored precisely at the edge of the texture
+// Squeeze in UV values by half a texel, so the bounds of our sampled function can be stored precisely at the edge of
+// the texture
 float textureCoordFromUnitRange(float value, int dimension)
 {
     return 0.5 / float(dimension) + value * (1.0 - 1.0 / float(dimension));
@@ -39,7 +36,8 @@ float unitRangeFromTextureCoord(float texCoord, int dimension)
 }
 
 // Radius is the distance in Mm from the center of the planet, aka length of position vector
-// Mu is the cosine of the angle between the position vector and the direction vector we want to sample the transmittance in
+// Mu is the cosine of the angle between the position vector and the direction vector we want to sample the
+// transmittance in
 vec2 transmittanceLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius, const float mu)
 {
     const float atmospherRadiusMmSquared = atmosphere.atmosphereRadiusMm * atmosphere.atmosphereRadiusMm;
@@ -52,12 +50,12 @@ vec2 transmittanceLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius,
     const float rho = safeSqrt(radius * radius - planetRadiusMmSquared);
 
     // rho + H = distance to atmosphere boundary when looking at the horizon
-    // It represents the distance along the biggest angle (most negative mu) that has nonzero transmittance, 
+    // It represents the distance along the biggest angle (most negative mu) that has nonzero transmittance,
     // since any lower and we intersect the planet
     // This angle changes as the radius does, so this mapping seeks to compress a different range of mu values
     // at any given radius value
 
-    // Distance to edge of atmosphere, with both its min and max values at this given radius. 
+    // Distance to edge of atmosphere, with both its min and max values at this given radius.
     const float d = max(-radius * mu + safeSqrt(radius * radius * (mu * mu - 1.0) + atmospherRadiusMmSquared), 0.0);
     const float d_min = atmosphere.atmosphereRadiusMm - radius;
     const float d_max = rho + H;
@@ -65,7 +63,8 @@ vec2 transmittanceLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius,
     const float x_mu = (d - d_min) / (d_max - d_min);
     const float x_radius = rho / H;
 
-    return vec2(textureCoordFromUnitRange(x_mu, TRANSMITTANCE_LUT_WIDTH), textureCoordFromUnitRange(x_radius, TRANSMITTANCE_LUT_HEIGHT));
+    return vec2(textureCoordFromUnitRange(x_mu, TRANSMITTANCE_LUT_WIDTH),
+                textureCoordFromUnitRange(x_radius, TRANSMITTANCE_LUT_HEIGHT));
 }
 
 // Inverse of transmittanceLUT_RMu_to_UV
@@ -91,13 +90,14 @@ vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
 
     if (d == 0.0)
     {
-        // mu is ambiguous since we are at the very edge of the atmosphere, where no angle produces valid transmittance values
+        // mu is ambiguous since we are at the very edge of the atmosphere, where no angle produces valid transmittance
+        // values
         return vec2(radius, 1.0);
     }
 
     const float mu = (H * H - rho * rho - d * d) / (2.0 * radius * d);
     // Equivalenty, mu = (atmospherRadiusMmSquared - radius * radius - d*d) / (2.0 * radius * d)
-    // But atmospherRadiusMmSquared and radius * radius are large, so this avoids floating point errors from adding 
+    // But atmospherRadiusMmSquared and radius * radius are large, so this avoids floating point errors from adding
     // these to the much smaller d * d
 
     // This clamp is very important
@@ -107,9 +107,11 @@ vec2 transmittanceLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
 vec2 multiscatterLUT_RMu_to_UV(const Atmosphere atmosphere, const float radius, const float mu_light)
 {
     const float u_unit = 0.5 + 0.5 * mu_light;
-    const float v_unit = clamp((radius - atmosphere.planetRadiusMm) / (atmosphere.atmosphereRadiusMm - atmosphere.planetRadiusMm), 0, 1);
+    const float v_unit =
+        clamp((radius - atmosphere.planetRadiusMm) / (atmosphere.atmosphereRadiusMm - atmosphere.planetRadiusMm), 0, 1);
 
-    return vec2(textureCoordFromUnitRange(u_unit, MULTISCATTER_LUT_WIDTH), textureCoordFromUnitRange(v_unit, MULTISCATTER_LUT_HEIGHT));
+    return vec2(textureCoordFromUnitRange(u_unit, MULTISCATTER_LUT_WIDTH),
+                textureCoordFromUnitRange(v_unit, MULTISCATTER_LUT_HEIGHT));
 }
 
 vec2 multiscatterLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
@@ -119,13 +121,17 @@ vec2 multiscatterLUT_UV_to_RMu(const Atmosphere atmosphere, const vec2 uv)
 
     const float mu_light = 2.0 * (u_unit - 0.5);
 
-    // The exact radius is not too critical, and multiscattering is sensitive to being out of range, so we squeeze into a slightly smaller planet radius to ensure we are valid.
+    // The exact radius is not too critical, and multiscattering is sensitive to being out of range, so we squeeze into
+    // a slightly smaller planet radius to ensure we are valid.
     const float radius = mix(atmosphere.planetRadiusMm * (1.0002), atmosphere.atmosphereRadiusMm * (0.9998), v_unit);
 
     return vec2(radius, mu_light);
 }
 
-vec3 sampleMultiscatterLUT(sampler2D LUT, const Atmosphere atmosphere, const vec3 position, const vec3 incidentDirectionLight)
+vec3 sampleMultiscatterLUT(sampler2D LUT,
+                           const Atmosphere atmosphere,
+                           const vec3 position,
+                           const vec3 incidentDirectionLight)
 {
     const float radius = length(position) + 0.001;
     const float mu_light = dot(position, -incidentDirectionLight) / (length(position) * length(incidentDirectionLight));
@@ -155,15 +161,17 @@ vec3 sampleTransmittanceLUT_Segment(sampler2D LUT, const Atmosphere atmosphere, 
     vec3 transmittance;
     vec3 direction = normalize(to - from);
 
-    // Proxy for hitting the ground. 
+    // Proxy for hitting the ground.
     // This check does not necessarily mean the ray hits the ground, but it is safe to flip anyway.
     if (dot(from, direction) < 0.0)
     {
-        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, to, -direction) / sampleTransmittanceLUT_Ray(LUT, atmosphere, from, -direction);
+        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, to, -direction)
+                      / sampleTransmittanceLUT_Ray(LUT, atmosphere, from, -direction);
     }
     else
     {
-        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, from, direction) / sampleTransmittanceLUT_Ray(LUT, atmosphere, to, direction);
+        transmittance = sampleTransmittanceLUT_Ray(LUT, atmosphere, from, direction)
+                      / sampleTransmittanceLUT_Ray(LUT, atmosphere, to, direction);
     }
 
     return clamp(transmittance, 0.0, 1.0);
@@ -176,12 +184,15 @@ vec3 sampleTransmittanceLUT_RadiusMu(sampler2D LUT, const Atmosphere atmosphere,
     return texture(LUT, uv).rgb;
 }
 
-vec3 sampleTransmittanceLUT_Sun(sampler2D LUT, const Atmosphere atmosphere, const float radius, const float cos_sunZenith)
+vec3 sampleTransmittanceLUT_Sun(sampler2D LUT,
+                                const Atmosphere atmosphere,
+                                const float radius,
+                                const float cos_sunZenith)
 {
     const float sin_sunRadius = sin(atmosphere.sunAngularRadius);
     const float cos_sunRadius = cos(atmosphere.sunAngularRadius);
 
-    /* 
+    /*
     Possible small angle approximation
     const float sin_sunRadius = SUN_ANGULAR_RADIUS_RADIANS;
     const float cos_sunRadius = 1.0;
@@ -199,16 +210,15 @@ vec3 sampleTransmittanceLUT_Sun(sampler2D LUT, const Atmosphere atmosphere, cons
     // Using angle sum identity, we get that:
     // cos(horizonZenith - sunRadius) = cos(horizonZenith)cos(sunRadius) + sin(sunRadius)sin(horizonZenith)
     // cos(horizonZenith + sunRadius) = cos(horizonZenith)cos(sunRadius) - sin(sunRadius)sin(horizonZenith)
-    
-    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius, sin_horizonZenith * sin_sunRadius, cos_sunZenith - cos_horizonZenith * cos_sunRadius);
+
+    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius,
+                                           sin_horizonZenith * sin_sunRadius,
+                                           cos_sunZenith - cos_horizonZenith * cos_sunRadius);
 
     return transmittanceThroughAtmosphere * angularFactor;
 }
 // Ensure altitude and densityScale are the same units.
-float densityExponential(const float altitude, const float densityScale)
-{
-    return exp(-altitude / densityScale);
-}
+float densityExponential(const float altitude, const float densityScale) { return exp(-altitude / densityScale); }
 
 // Hardcoded with values for ozone
 float densityTent(const float altitude_km) { return max(0.0, 1.0 - abs(altitude_km - 25.0) / 15.0); }
@@ -247,7 +257,7 @@ ExtinctionSample sampleExtinction(const Atmosphere atmosphere, const float altit
     const vec3 absorptionOzone = atmosphere.absorptionOzonePerMm * densityOzone;
 
     ExtinctionSample extinctionSample;
-    
+
     extinctionSample.scatteringRayleigh = scatteringRayleigh;
     extinctionSample.scatteringMie = scatteringMie;
     extinctionSample.scatteringOzone = scatteringOzone;
@@ -325,7 +335,10 @@ float phaseMie(const float cosine, const float g)
     return scalar * numerator / denominator;
 }
 
-void raycastAtmosphere(const Atmosphere atmosphere, const vec3 origin, const vec3 direction, out float atmosphereDistance)
+void raycastAtmosphere(const Atmosphere atmosphere,
+                       const vec3 origin,
+                       const vec3 direction,
+                       out float atmosphereDistance)
 {
     float atmosphere_t0, atmosphere_t1;
     const bool hitAtmosphere =
@@ -359,28 +372,33 @@ struct RaymarchStep
 
 RaymarchStep stepRadiusMu(const RaymarchStep start, const float stepDistance)
 {
-    // Consider starting position (0, radius, 0) 
+    // Consider starting position (0, radius, 0)
     // and step vector of d * (sqrt(1 - mu * mu), mu, 0)
 
-    // When computing changes in radii and mu, we use this method everywhere since norm is preserved upon rotation 
+    // When computing changes in radii and mu, we use this method everywhere since norm is preserved upon rotation
     // and all cases of stepping can be reduced to the above two vectors
 
     // cosine sum identity for sun zenith and direction zenith
-    const float mu_sunAndStepDirection = safeSqrt(start.mu_sun * start.mu - safeSqrt((1.0 - start.mu_sun * start.mu_sun) * (1.0 - start.mu * start.mu)));
+    const float mu_sunAndStepDirection =
+        safeSqrt(start.mu_sun * start.mu - safeSqrt((1.0 - start.mu_sun * start.mu_sun) * (1.0 - start.mu * start.mu)));
 
     RaymarchStep result;
 
-    result.radius = safeSqrt(stepDistance * stepDistance + 2.0 * start.radius * start.mu * stepDistance + start.radius * start.radius);
+    result.radius = safeSqrt(stepDistance * stepDistance + 2.0 * start.radius * start.mu * stepDistance
+                             + start.radius * start.radius);
     result.mu = (start.radius * start.mu + stepDistance) / result.radius;
     result.mu_sun = (start.radius * start.mu_sun + stepDistance * mu_sunAndStepDirection) / result.radius;
 
     return result;
 }
 
-vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere, sampler2D LUT, const RaymarchStep start, const float stepDistance)
+vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere,
+                                         sampler2D LUT,
+                                         const RaymarchStep start,
+                                         const float stepDistance)
 {
     if (stepDistance < 0.0000001)
-    {   
+    {
         return vec3(1.0);
     }
 
@@ -390,15 +408,15 @@ vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere, sampler2D 
     if (start.mu > 0.0)
     {
         // Oriented up into atmosphere, so we directly sample LUT
-        transmittance = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, start.radius, start.mu) 
-            / sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, end.radius, end.mu);
+        transmittance = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, start.radius, start.mu)
+                      / sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, end.radius, end.mu);
     }
     else
     {
         // Oriented down towards planet, so direct samples would be invalid
         // Instead, we flip the direction
-        transmittance = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, end.radius, -end.mu) 
-            / sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, start.radius, -start.mu);
+        transmittance = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, end.radius, -end.mu)
+                      / sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, start.radius, -start.mu);
     }
 
     return clamp(transmittance, 0.0, 1.0);
@@ -419,9 +437,18 @@ struct ScatteringResult
 };
 
 #if SZG_MULTISCATTERING_ENABLED
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D transmittanceLUT, sampler2D multiscatterLUT, const vec3 origin, const vec3 direction, const float sampleDistance)
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    sampler2D transmittanceLUT,
+                                                    sampler2D multiscatterLUT,
+                                                    const vec3 origin,
+                                                    const vec3 direction,
+                                                    const float sampleDistance)
 #else
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere, sampler2D transmittanceLUT, const vec3 origin, const vec3 direction, const float sampleDistance)
+ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    sampler2D transmittanceLUT,
+                                                    const vec3 origin,
+                                                    const vec3 direction,
+                                                    const float sampleDistance)
 #endif
 {
     // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
@@ -430,7 +457,8 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
     const float radius = length(origin);
     const float mu = dot(origin, direction) / (length(origin) * length(direction));
-    const float mu_sun = dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
+    const float mu_sun =
+        dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
 
     const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
 
@@ -455,7 +483,8 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
         const float altitude = length(begin) - atmosphere.planetRadiusMm;
 
-        const vec3 transmittanceToSun = sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
+        const vec3 transmittanceToSun =
+            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
 
         const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
 
@@ -469,7 +498,8 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         //
         // But at the cost of performance, resampling the transmittance LUT is more accurate for larger step sizes
 
-        const vec3 transmittanceToBegin = sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
+        const vec3 transmittanceToBegin =
+            sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
         const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
 
 #if SZG_ISOTROPIC_PHASE
@@ -478,12 +508,13 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         // Ozone does not scatter light, so we arbitrarily use rayleigh's phase function in case ozone's scattering
         // coefficient is nonzero
         const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
-                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8) 
+                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8)
                                         + extinctionSample.scatteringOzone * phaseRayleigh(incidentCosine);
 #endif
 
 #if SZG_MULTISCATTERING_ENABLED
-        const vec3 multiscatter = sampleMultiscatterLUT(multiscatterLUT, atmosphere, begin, atmosphere.incidentDirectionSun);
+        const vec3 multiscatter =
+            sampleMultiscatterLUT(multiscatterLUT, atmosphere, begin, atmosphere.incidentDirectionSun);
 #else
         const vec3 multiscatter = vec3(0.0);
 #endif
@@ -496,8 +527,8 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(transmittanceLUT, atmosphere, begin, end);
         const vec3 scatteringIlluminanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
 
-        result.luminance += (phaseTimesScattering * shadowing + multiscatter * extinctionSample.scattering) * scatteringIlluminanceIntegral
-                    * transmittanceToBegin;
+        result.luminance += (phaseTimesScattering * shadowing + multiscatter * extinctionSample.scattering)
+                          * scatteringIlluminanceIntegral * transmittanceToBegin;
         result.multiScattTransfer += extinctionSample.scattering * scatteringIlluminanceIntegral * transmittanceToBegin;
     }
 

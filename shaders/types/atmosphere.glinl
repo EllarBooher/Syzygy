@@ -2,33 +2,33 @@
 
 struct Atmosphere
 {
-	vec3 scatteringRayleighPerMm;
-	float densityScaleRayleighMm;
-	vec3 absorptionRayleighPerMm;
+    vec3 scatteringRayleighPerMm;
+    float densityScaleRayleighMm;
+    vec3 absorptionRayleighPerMm;
 
-	float planetRadiusMm;
+    float planetRadiusMm;
 
-	vec3 scatteringMiePerMm;
-	float densityScaleMieMm;
-	vec3 absorptionMiePerMm;
-	
-	float atmosphereRadiusMm;
+    vec3 scatteringMiePerMm;
+    float densityScaleMieMm;
+    vec3 absorptionMiePerMm;
 
-	// In the long term, sun parameters should not be in this struct.
-	// This is so directional lights participating in the atmosphere can be externally defined.
-	vec3 incidentDirectionSun;
-	
-	float padding0;
+    float atmosphereRadiusMm;
 
-	vec3 scatteringOzonePerMm;
+    // In the long term, sun parameters should not be in this struct.
+    // This is so directional lights participating in the atmosphere can be externally defined.
+    vec3 incidentDirectionSun;
 
-	float padding1;
+    float padding0;
 
-	vec3 absorptionOzonePerMm;
+    vec3 scatteringOzonePerMm;
 
-	float padding2;
+    float padding1;
 
-	vec3 sunIntensitySpectrum;
+    vec3 absorptionOzonePerMm;
 
-	float sunAngularRadius;
+    float padding2;
+
+    vec3 sunIntensitySpectrum;
+
+    float sunAngularRadius;
 };

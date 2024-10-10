@@ -9,9 +9,9 @@
 
 #include "../gbuffer/gbuffer.glinl"
 #include "../gbuffer/pbr.glinl"
+#include "../shadowmap.glinl"
 #include "../types/camera.glsl"
 #include "../types/lights.glsl"
-#include "../shadowmap.glinl"
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba16, set = 0, binding = 0) uniform image2D image;
@@ -65,7 +65,8 @@ struct IncomingLight
 IncomingLight computeIncomingLight(const LightDirectional light, const ShadowFrame shadow, const uint shadowMapIndex)
 {
     const vec3 lightDirectionUnit = normalize(-light.forward.xyz);
-    const vec3 lightSpectralFactor = light.color.rgb * light.strength * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
+    const vec3 lightSpectralFactor =
+        light.color.rgb * light.strength * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
 
     return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
@@ -84,8 +85,8 @@ IncomingLight computeIncomingLight(const LightSpot light,
     const float distanceUV = clamp(distance(shadow.coord.st, vec2(0.5, 0.5)) / 0.5, 0.0, 1.0);
     const float edgeSoftening = 1.0 - distanceUV * distanceUV;
 
-    const vec3 lightSpectralFactor =
-        light.color.rgb * light.strength / lightFalloff * edgeSoftening * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
+    const vec3 lightSpectralFactor = light.color.rgb * light.strength / lightFalloff * edgeSoftening
+                                   * sampleShadowMap(shadowMaps[shadowMapIndex], shadowMapSampler, shadow);
 
     return IncomingLight(lightDirectionUnit, lightSpectralFactor);
 }
