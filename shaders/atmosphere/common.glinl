@@ -580,7 +580,10 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         const vec3 multiscatter = vec3(0.0);
 #endif
 
-        const vec3 shadowing = transmittanceToSun;
+        const float shadowBegin = float(raycastTestSphere(begin, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const float shadowMiddle = float(raycastTestSphere(0.5 * (begin + end), -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const float shadowEnd = float(raycastTestSphere(end, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+        const vec3 shadowing = transmittanceToSun * (1.0 - 0.25 * (shadowBegin + 2.0 * shadowMiddle + shadowEnd));
 
         // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
         // This is a single interval of the integral in Equation (1) from Hillaire's paper,
