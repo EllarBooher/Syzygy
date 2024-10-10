@@ -131,7 +131,7 @@ public:
         // layout(set = 1, binding = 0) uniform sampler2D skyview_LUT;
         // layout(set = 1, binding = 1) uniform sampler2D transmittance_LUT;
 
-        // set 0 is provided by the SceneTexture we are rendering into
+        // set 0, 2, and 3 are provided externally at render time
 
         VkDescriptorSetLayout sceneTextureLayout{VK_NULL_HANDLE};
 

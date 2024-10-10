@@ -1229,51 +1229,97 @@ void SkyViewComputePipeline::recordDrawCommands(
         lights
     );
 }
+} // namespace syzygy
 
+namespace detail
+{
+void destroyAndNull(
+    VkDevice const device,
+    syzygy::SkyViewComputePipeline::TransmittanceLUTResources& resources
+)
+{
+    resources.map.reset();
+
+    vkDestroyDescriptorSetLayout(device, resources.setLayout, nullptr);
+    vkDestroyPipelineLayout(device, resources.layout, nullptr);
+
+    resources.shader.cleanup(device);
+
+    resources = {};
+}
+
+void destroyAndNull(
+    VkDevice const device,
+    syzygy::SkyViewComputePipeline::MultiScatterLUTResources& resources
+)
+{
+    resources.map.reset();
+
+    vkDestroyDescriptorSetLayout(device, resources.setLayout, nullptr);
+    vkDestroyPipelineLayout(device, resources.layout, nullptr);
+
+    vkDestroySampler(device, resources.transmittanceImmutableSampler, nullptr);
+
+    resources.shader.cleanup(device);
+
+    resources = {};
+}
+
+void destroyAndNull(
+    VkDevice const device,
+    syzygy::SkyViewComputePipeline::SkyViewLUTResources& resources
+)
+{
+    resources.map.reset();
+
+    vkDestroyDescriptorSetLayout(device, resources.setLayout, nullptr);
+    vkDestroyPipelineLayout(device, resources.layout, nullptr);
+
+    vkDestroySampler(device, resources.transmittanceImmutableSampler, nullptr);
+    vkDestroySampler(device, resources.multiscatterImmutableSampler, nullptr);
+
+    resources.shader.cleanup(device);
+
+    resources = {};
+}
+
+void destroyAndNull(
+    VkDevice const device,
+    syzygy::SkyViewComputePipeline::PerspectiveMapResources& resources
+)
+{
+    vkDestroyDescriptorSetLayout(device, resources.sceneTextureLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, resources.LUTSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, resources.GBufferSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(
+        device, resources.shadowMapSamplerSetLayout, nullptr
+    );
+    vkDestroyDescriptorSetLayout(
+        device, resources.shadowMapTextureSetLayout, nullptr
+    );
+
+    vkDestroyPipelineLayout(device, resources.layout, nullptr);
+
+    vkDestroySampler(device, resources.skyviewImmutableSampler, nullptr);
+    vkDestroySampler(device, resources.transmittanceImmutableSampler, nullptr);
+    vkDestroySampler(device, resources.multiscatterImmutableSampler, nullptr);
+
+    resources.shader.cleanup(device);
+
+    resources = {};
+}
+} // namespace detail
+
+namespace syzygy
+{
 void SkyViewComputePipeline::destroy()
 {
-    m_skyViewLUT.map.reset();
-    m_transmittanceLUT.map.reset();
-
     if (m_device != VK_NULL_HANDLE)
     {
-        vkDestroyDescriptorSetLayout(m_device, m_skyViewLUT.setLayout, nullptr);
-        vkDestroyDescriptorSetLayout(
-            m_device, m_transmittanceLUT.setLayout, nullptr
-        );
-        vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.sceneTextureLayout, nullptr
-        );
-        vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.LUTSetLayout, nullptr
-        );
-        vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.GBufferSetLayout, nullptr
-        );
-        vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.shadowMapSamplerSetLayout, nullptr
-        );
-        vkDestroyDescriptorSetLayout(
-            m_device, m_perspectiveMap.shadowMapTextureSetLayout, nullptr
-        );
-
-        vkDestroyPipelineLayout(m_device, m_skyViewLUT.layout, nullptr);
-        vkDestroyPipelineLayout(m_device, m_transmittanceLUT.layout, nullptr);
-        vkDestroyPipelineLayout(m_device, m_perspectiveMap.layout, nullptr);
-
-        vkDestroySampler(
-            m_device, m_skyViewLUT.transmittanceImmutableSampler, nullptr
-        );
-        vkDestroySampler(
-            m_device, m_perspectiveMap.skyviewImmutableSampler, nullptr
-        );
-        vkDestroySampler(
-            m_device, m_perspectiveMap.transmittanceImmutableSampler, nullptr
-        );
-
-        m_skyViewLUT.shader.cleanup(m_device);
-        m_transmittanceLUT.shader.cleanup(m_device);
-        m_perspectiveMap.shader.cleanup(m_device);
+        detail::destroyAndNull(m_device, m_perspectiveMap);
+        detail::destroyAndNull(m_device, m_transmittanceLUT);
+        detail::destroyAndNull(m_device, m_multiscatterLUT);
+        detail::destroyAndNull(m_device, m_skyViewLUT);
     }
     else if (m_hasAllocations)
     {
