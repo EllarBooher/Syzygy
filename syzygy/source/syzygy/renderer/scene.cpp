@@ -49,15 +49,15 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
         -glm::half_pi<float>(), 0.0F, 0.0F
     };
 
-    float constexpr SUNLIGHT_STRENGTH{1.0F};
+    float constexpr SUNLIGHT_STRENGTH{10.0F};
     float constexpr SUN_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
 
     float constexpr SUNSET_COSINE{0.06};
 
     float constexpr MOONRISE_LENGTH{0.12};
 
-    // TODO: Compute moonlight strength based on sun position
-    float const MOONLIGHT_STRENGTH{0.1F};
+    // TODO: Compute moonlight strength and color based on sun position
+    float const MOONLIGHT_STRENGTH{1.0F};
     float constexpr MOON_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
     // float constexpr MOON_ORBITAL_PERIOD_DAYS = 27.3F;
     float constexpr MOON_ORBITAL_PERIOD_DAYS = 2.73F;
@@ -124,7 +124,7 @@ Camera const Scene::DEFAULT_CAMERA{Camera{
 float const Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
 SceneTime const Scene::DEFAULT_SUN_ANIMATION{SceneTime{
-    .frozen = false, .time = 0.5F, .speed = 100.0F, .skipNight = false
+    .frozen = false, .time = 0.0F, .speed = 100.0F, .skipNight = false
 }};
 
 float const SceneTime::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};

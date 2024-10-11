@@ -315,6 +315,42 @@ vec3 sampleGeometryLuminance(const Atmosphere atmosphere,
     return surfaceLuminance;
 }
 
+vec3 tonemapPBRNeutral(vec3 color)
+{
+    // Implementation of https://github.com/KhronosGroup/ToneMapping/tree/main/PBR_Neutral
+
+    // 4% Fresnel Reflection for a standard 1.5 IoR material
+    const float F_normal = 0.04;
+
+    const float x = min(min(color.r, color.g), color.b);
+
+    float f = F_normal;
+    if (x <= 2.0 * F_normal)
+    {
+        f = x - x * x / (4.0 * F_normal);
+    }
+
+    const float p = max(max(color.r - f, color.g - f), color.b - f);
+
+    // Parameter that controls when highlight compression starts
+    const float K_s = 0.8 - F_normal;
+    // Speed of destruction
+    const float K_d = 0.15;
+
+    const float p_n = 1.0 - (1.0 - K_s) * (1.0 - K_s) / (p + 1.0 - 2.0 * K_s);
+    const float g = 1.0 / (K_d * (p - p_n) + 1.0);
+
+    vec3 mapped = color - vec3(f);
+
+    if (p > K_s)
+    {
+        mapped = mapped * g * p_n / p + vec3(p_n) * (1.0 - g);
+    }
+
+    return mapped;
+
+}
+
 void main()
 {
     const vec2 size = imageSize(image);
@@ -339,9 +375,6 @@ void main()
 
     vec3 luminance = vec3(0.0);
 
-    // Luminance NOT from the sun and should NOT be multiplied by sun intensity
-    vec3 surfaceLuminance = vec3(0.0);
-
     // GBuffer size should in general match the size of the image
     const vec2 uvGBuffer = (vec2(texelCoord) + vec2(0.5, 0.5)) / vec2(pc.gbufferExtent);
     const PBRTexel material = convertPBRProperties(sampleGBuffer(uvGBuffer));
@@ -354,13 +387,11 @@ void main()
     }
     else // sceneDepth > 0.0 && material.position.y < 0.0
     {
-        surfaceLuminance = imageLoad(image, texelCoord).rgb;
-
+        luminance += imageLoad(image, texelCoord).rgb;
         luminance += sampleGeometryLuminance(atmosphere, position, direction, material);
     }
 
-    // ad-hoc tonemapping
-    const vec3 color = pow(luminance * 10.0 + surfaceLuminance, vec3(1.2));
+    const vec3 color = tonemapPBRNeutral(luminance);
 
     imageStore(image, texelCoord, vec4(color, 1.0));
 }
