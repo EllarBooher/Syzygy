@@ -72,13 +72,20 @@ void uv_to_azimuthElevation(
 
     // u stores light-relative azimuth
     const float cosineViewLightProjected = (uv.s - 0.5) * 2.0;
-    const vec2 lightDirectionProjected =
-        normalize(vec2(-celestialLight.forward.x, -celestialLight.forward.z));
 
-    float azimuthSun = asin(lightDirectionProjected.x);
-    if (lightDirectionProjected.y < 0.0)
+    float azimuthSun = 0.0;
+    // Azimuth is ambiguous when zenith is too close to 0 or PI
+    if(abs(dot(celestialLight.forward, WORLD_UP)) < 0.999999)
     {
-        azimuthSun = PI - azimuthSun;
+        const vec2 lightDirectionProjected =
+            normalize(vec2(-celestialLight.forward.x, -celestialLight.forward.z));
+
+        azimuthSun = asin(lightDirectionProjected.x);
+
+        if (lightDirectionProjected.y < 0.0)
+        {
+            azimuthSun = PI - azimuthSun;
+        }
     }
 
     azimuth = acos(clamp(cosineViewLightProjected, -1.0, 1.0)) + azimuthSun;

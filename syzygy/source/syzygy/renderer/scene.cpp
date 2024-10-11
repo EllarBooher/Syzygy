@@ -59,20 +59,26 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
     // TODO: Compute moonlight strength based on sun position
     float const MOONLIGHT_STRENGTH{0.1F};
     float constexpr MOON_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
+    // float constexpr MOON_ORBITAL_PERIOD_DAYS = 27.3F;
+    float constexpr MOON_ORBITAL_PERIOD_DAYS = 2.73F;
 
     glm::vec3 constexpr MOONLIGHT_COLOR_RGB{0.3, 0.4, 0.6};
 
     scene.addAtmosphereLight(syzygy::DirectionalLight{
         .color = SUNLIGHT_RGB,
         .strength = SUNLIGHT_STRENGTH,
-        .eulerAngles = STRAIGHT_DOWN_EULER_ANGLES,
         .angularRadius = SUN_ANGULAR_RADIUS,
+        .orbitalPeriodDays = 1.0F,
+        .zenith = 0.0F,
+        .azimuth = 0.0F,
     });
     scene.addAtmosphereLight(syzygy::DirectionalLight{
         .color = MOONLIGHT_COLOR_RGB,
         .strength = MOONLIGHT_STRENGTH,
-        .eulerAngles = STRAIGHT_DOWN_EULER_ANGLES,
         .angularRadius = MOON_ANGULAR_RADIUS,
+        .orbitalPeriodDays = MOON_ORBITAL_PERIOD_DAYS,
+        .zenith = 0.0F,
+        .azimuth = 1.0F,
     });
 }
 } // namespace
@@ -117,11 +123,11 @@ Camera const Scene::DEFAULT_CAMERA{Camera{
 
 float const Scene::DEFAULT_CAMERA_CONTROLLED_SPEED{20.0F};
 
-SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
+SceneTime const Scene::DEFAULT_SUN_ANIMATION{SceneTime{
     .frozen = false, .time = 0.5F, .speed = 100.0F, .skipNight = false
 }};
 
-float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
+float const SceneTime::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
 auto Scene::shadowBounds() const -> AABB { return m_shadowBounds; }
 
@@ -570,48 +576,64 @@ namespace syzygy
 {
 void Scene::tick(TickTiming const lastFrame)
 {
-    if (!sunAnimation.frozen)
+    if (!time.frozen)
     {
-        sunAnimation.time = glm::fract(
-            sunAnimation.time
-            + sunAnimation.speed
-                  * static_cast<float>(lastFrame.deltaTimeSeconds)
-                  / SunAnimation::DAY_LENGTH_SECONDS
-        );
+        time.time += time.speed * static_cast<float>(lastFrame.deltaTimeSeconds)
+                   / SceneTime::DAY_LENGTH_SECONDS;
     }
 
-    if (sunAnimation.skipNight && !sunAnimation.frozen)
+    if (!m_atmosphereLights.empty())
     {
-        float constexpr SUNSET_LENGTH_TIME{0.015F};
-
-        // The times when the sun is at the respective horizons
-        float constexpr HORIZON_A_TIME{0.25F - SUNSET_LENGTH_TIME};
-        float constexpr HORIZON_B_TIME{0.75F + SUNSET_LENGTH_TIME};
-
-        bool const isNight{
-            sunAnimation.time < HORIZON_A_TIME
-            || sunAnimation.time > HORIZON_B_TIME
-        };
-
-        if (isNight)
+        if (time.skipNight && !time.frozen)
         {
-            bool const sunRisesAtA{sunAnimation.speed > 0.0F};
+            DirectionalLight const& sun{m_atmosphereLights[0]};
 
-            sunAnimation.time = sunRisesAtA ? HORIZON_A_TIME : HORIZON_B_TIME;
+            float constexpr SUNSET_ANGLE_RADIANS{0.1F};
+
+            // The times when the sun dips far enough the horizon for us to
+            // consider it night
+            // Normal and reverse are weird names, but help when you
+            // consider that time can run backwards
+            float constexpr NORMAL_SUNSET_ZENITH{
+                glm::half_pi<float>() + SUNSET_ANGLE_RADIANS
+            };
+            float constexpr REVERSE_SUNSET_ZENITH{
+                glm::three_over_two_pi<float>() - SUNSET_ANGLE_RADIANS
+            };
+
+            float tickedZenith{glm::mod(
+                glm::two_pi<float>() * time.time / sun.orbitalPeriodDays,
+                glm::two_pi<float>()
+            )};
+
+            bool const willBeNight{
+                tickedZenith > NORMAL_SUNSET_ZENITH
+                && tickedZenith < REVERSE_SUNSET_ZENITH
+            };
+
+            if (willBeNight)
+            {
+                float const deltaZenithToSunrise =
+                    time.speed > 0.0F
+                        ? glm::abs(REVERSE_SUNSET_ZENITH - tickedZenith)
+                        : glm::abs(tickedZenith - NORMAL_SUNSET_ZENITH);
+
+                float const daysUntilSunrise = sun.orbitalPeriodDays
+                                             * deltaZenithToSunrise
+                                             / glm::two_pi<float>();
+
+                time.time += glm::sign(time.speed) * daysUntilSunrise;
+            }
+        }
+
+        for (auto& light : m_atmosphereLights)
+        {
+            light.zenith =
+                glm::two_pi<float>() * time.time / light.orbitalPeriodDays;
+
+            light.zenith = glm::mod(light.zenith, glm::two_pi<float>());
         }
     }
-
-    // Sun starts straight down i.e. middle of the night
-    float constexpr SUN_START_RADIANS{glm::half_pi<float>()};
-    // Wrap around the planet once
-    float constexpr SUN_END_RADIANS{SUN_START_RADIANS + glm::two_pi<float>()};
-
-    DirectionalLight& sun{m_atmosphereLights[0]};
-    sun.eulerAngles = glm::vec3{
-        glm::lerp(SUN_START_RADIANS, SUN_END_RADIANS, sunAnimation.time),
-        sun.eulerAngles.y,
-        sun.eulerAngles.z
-    };
 
     for (auto& instance : m_geometry)
     {
@@ -688,19 +710,24 @@ auto computeSunlightColor(
 }
 } // namespace
 
-auto DirectionalLight::incidentDirection() const -> glm::vec3
+auto DirectionalLight::forward() const -> glm::vec3
 {
-    return -forwardFromEulers(eulerAngles);
+    return -(
+        glm::sin(zenith) * glm::sin(azimuth) * WORLD_RIGHT
+        + glm::cos(zenith) * WORLD_UP
+        + glm::sin(zenith) * glm::cos(azimuth) * WORLD_FORWARD
+    );
 }
 auto DirectionalLight::toDeviceEquivalent(AABB const capturedBounds) const
     -> DirectionalLightPacked
 {
-    glm::mat4x4 const view{viewVk(glm::vec3{0.0}, eulerAngles)};
+    glm::mat4x4 const view{viewVk(glm::vec3{0.0}, eulersFromForward(forward()))
+    };
     glm::mat4x4 const projection{projectionOrthoAABBVk(view, capturedBounds)};
 
     return DirectionalLightPacked{
         .color = glm::vec4{color, 1.0},
-        .forward = glm::vec4{forwardFromEulers(eulerAngles), 0.0},
+        .forward = glm::vec4{forward(), 0.0},
         .projection = projection,
         .view = view,
         .strength = strength,

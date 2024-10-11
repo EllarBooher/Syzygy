@@ -297,6 +297,11 @@ void uiAtmosphereLights(std::span<syzygy::DirectionalLight> const lights)
     };
     float constexpr DEFAULT_ANGULAR_RADIUS{RADIANS_PER_ARCMINUTE * 16.0F};
 
+    syzygy::PropertySliderBehavior constexpr AZIMUTH_BEHAVIOR{
+        .speed = 0.0F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F, .max = glm::two_pi<float>()}
+    };
+
     syzygy::PropertySliderBehavior constexpr ANGULAR_RADIUS_BEHAVIOR{
         .speed = RADIANS_PER_ARCMINUTE,
         .bounds = syzygy::FloatBounds{.min = 0.0F}
@@ -307,13 +312,15 @@ void uiAtmosphereLights(std::span<syzygy::DirectionalLight> const lights)
         table.rowChildPropertyBegin("Light", false)
             .rowColor("Color", light.color, glm::vec3{1.0F}, RGB_BEHAVIOR)
             .rowFloat("Strength", light.strength, 1.0F, STRENGTH_BEHAVIOR)
-            .rowReadOnlyVec3("Euler Angles", light.eulerAngles)
+            .rowReadOnlyFloat("Zenith", light.zenith)
+            .rowFloat("Azimuth", light.azimuth, 0.0F, AZIMUTH_BEHAVIOR)
             .rowFloat(
                 "Angular Radius",
                 light.angularRadius,
                 DEFAULT_ANGULAR_RADIUS,
                 ANGULAR_RADIUS_BEHAVIOR
             )
+            .rowReadOnlyVec3("Incident Direction", light.forward())
             .childPropertyEnd();
     }
     table.end();
@@ -782,40 +789,32 @@ void sceneControlsWindow(
         return;
     }
 
-    if (ImGui::CollapsingHeader(
-            "Sun Animation", ImGuiTreeNodeFlags_DefaultOpen
-        ))
+    if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        SunAnimation const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
+        SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
 
         FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
             -100'000.0F, 100'000.0F
         };
 
         PropertyTable::begin()
-            .rowBoolean(
-                "Frozen", scene.sunAnimation.frozen, defaultAnimation.frozen
-            )
+            .rowBoolean("Frozen", scene.time.frozen, defaultAnimation.frozen)
             .rowFloat(
-                "Time",
-                scene.sunAnimation.time,
+                "Time (Days)",
+                scene.time.time,
                 defaultAnimation.time,
-                PropertySliderBehavior{
-                    .bounds = {0.0F, 1.0F},
-                }
+                PropertySliderBehavior{.speed = 0.01F}
             )
             .rowFloat(
                 "Speed",
-                scene.sunAnimation.speed,
+                scene.time.speed,
                 defaultAnimation.speed,
                 PropertySliderBehavior{
                     .bounds = SUN_ANIMATION_SPEED_BOUNDS,
                 }
             )
             .rowBoolean(
-                "Skip Night",
-                scene.sunAnimation.skipNight,
-                defaultAnimation.skipNight
+                "Skip Night", scene.time.skipNight, defaultAnimation.skipNight
             )
             .end();
     }

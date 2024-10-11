@@ -58,12 +58,14 @@ struct DirectionalLight
 {
     glm::vec3 color{};
     float strength{};
-    glm::vec3 eulerAngles{};
 
     // Describes the angular radius of a celestial body creating this light
     float angularRadius{};
+    float orbitalPeriodDays{};
+    float zenith{};
+    float azimuth{};
 
-    [[nodiscard]] auto incidentDirection() const -> glm::vec3;
+    [[nodiscard]] auto forward() const -> glm::vec3;
 
     // Requires the bounds that inform the scale of its projection matrix
     [[nodiscard]] auto toDeviceEquivalent(AABB capturedBounds) const
@@ -154,12 +156,13 @@ private:
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
 
-struct SunAnimation
+struct SceneTime
 {
     static float const DAY_LENGTH_SECONDS;
 
     bool frozen{false};
     float time{0.0F};
+
     float speed{1.0F};
     bool skipNight{false};
 };
@@ -171,9 +174,9 @@ public:
     static Atmosphere const DEFAULT_ATMOSPHERE_EARTH;
     static Camera const DEFAULT_CAMERA;
     static float const DEFAULT_CAMERA_CONTROLLED_SPEED;
-    static SunAnimation const DEFAULT_SUN_ANIMATION;
+    static SceneTime const DEFAULT_SUN_ANIMATION;
 
-    SunAnimation sunAnimation{DEFAULT_SUN_ANIMATION};
+    SceneTime time{DEFAULT_SUN_ANIMATION};
 
     Atmosphere atmosphere{DEFAULT_ATMOSPHERE_EARTH};
     Camera camera{DEFAULT_CAMERA};
