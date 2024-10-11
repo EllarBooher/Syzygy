@@ -3,6 +3,7 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/descriptors.hpp"
+#include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include <glm/vec2.hpp>
@@ -10,9 +11,6 @@
 
 namespace syzygy
 {
-struct AtmospherePacked;
-struct CameraPacked;
-struct DirectionalLightPacked;
 struct SceneTexture;
 template <typename T> struct TStagedBuffer;
 struct GBuffer;
@@ -61,6 +59,8 @@ public:
         VkDescriptorSetLayout setLayout{VK_NULL_HANDLE};
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
+        AtmospherePacked cachedAtmosphere{};
+
         struct PushConstant
         {
             VkDeviceAddress atmosphereBuffer{};
@@ -85,6 +85,11 @@ public:
         VkPipelineLayout layout{VK_NULL_HANDLE};
 
         VkSampler transmittanceImmutableSampler{VK_NULL_HANDLE};
+
+        AtmospherePacked cachedAtmosphere{};
+        // Hacky, but this is the only property the shader depends on so we
+        // track just it
+        float cachedSunLightAngularRadius{};
 
         struct PushConstant
         {

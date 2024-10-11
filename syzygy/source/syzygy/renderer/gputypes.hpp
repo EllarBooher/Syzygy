@@ -38,6 +38,8 @@ static_assert(sizeof(CameraPacked) == 416ULL);
 // Right handed coordinates with +X right, +Y up, and +Z forward
 struct AtmospherePacked
 {
+    auto operator==(AtmospherePacked const&) const -> bool = default;
+
     glm::vec3 scatteringRayleighPerMm;
     float densityScaleRayleighMm;
     glm::vec3 absorptionRayleighPerMm;

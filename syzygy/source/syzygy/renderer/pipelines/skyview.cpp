@@ -831,9 +831,6 @@ void recordMultiscatterLUTCommands(
 )
 {
     resources.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
-    transmittanceLUT.recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
 
     VkShaderEXT const shader{resources.shader.shaderObject()};
 
@@ -1105,11 +1102,16 @@ void SkyViewComputePipeline::recordDrawCommands(
     VkShaderStageFlagBits const stage{VK_SHADER_STAGE_COMPUTE_BIT};
     uint32_t constexpr WORKGROUP_SIZE{16};
 
-    m_transmittanceLUT.map->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_GENERAL
-    );
+    AtmospherePacked const currentAtmosphere =
+        atmospheres.readValidStaged()[atmosphereIndex];
+    DirectionalLightPacked const sunLight = lights.readValidStaged()[0];
 
+    if (m_transmittanceLUT.cachedAtmosphere != currentAtmosphere)
     {
+        m_transmittanceLUT.map->recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_GENERAL
+        );
+
         // Transmittance shader
         VkShaderEXT const transmittanceShader{
             m_transmittanceLUT.shader.shaderObject()
@@ -1155,24 +1157,36 @@ void SkyViewComputePipeline::recordDrawCommands(
             ),
             1
         );
+
+        m_transmittanceLUT.cachedAtmosphere = currentAtmosphere;
+
+        m_transmittanceLUT.map->recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
     }
 
-    detail::recordMultiscatterLUTCommands(
-        cmd,
-        m_multiscatterLUT,
-        *m_transmittanceLUT.map,
-        atmosphereIndex,
-        atmospheres,
-        atmosphereLightCount,
-        lights
-    );
+    if (m_multiscatterLUT.cachedAtmosphere != currentAtmosphere
+        || m_multiscatterLUT.cachedSunLightAngularRadius
+               != sunLight.angularRadius)
+    {
+        detail::recordMultiscatterLUTCommands(
+            cmd,
+            m_multiscatterLUT,
+            *m_transmittanceLUT.map,
+            atmosphereIndex,
+            atmospheres,
+            atmosphereLightCount,
+            lights
+        );
 
-    m_transmittanceLUT.map->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
-    m_multiscatterLUT.map->recordTransitionBarriered(
-        cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    );
+        m_multiscatterLUT.cachedAtmosphere = currentAtmosphere;
+        m_multiscatterLUT.cachedSunLightAngularRadius = sunLight.angularRadius;
+
+        m_multiscatterLUT.map->recordTransitionBarriered(
+            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+    }
+
     m_skyViewLUT.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
 
     {
