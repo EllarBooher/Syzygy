@@ -39,6 +39,44 @@ namespace syzygy
 struct DescriptorAllocator;
 } // namespace syzygy
 
+namespace
+{
+void pushDefaultAtmosphereLights(syzygy::Scene& scene)
+{
+    glm::vec3 SUNLIGHT_RGB{1.0F};
+
+    glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{
+        -glm::half_pi<float>(), 0.0F, 0.0F
+    };
+
+    float constexpr SUNLIGHT_STRENGTH{1.0F};
+    float constexpr SUN_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
+
+    float constexpr SUNSET_COSINE{0.06};
+
+    float constexpr MOONRISE_LENGTH{0.12};
+
+    // TODO: Compute moonlight strength based on sun position
+    float const MOONLIGHT_STRENGTH{0.1F};
+    float constexpr MOON_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
+
+    glm::vec3 constexpr MOONLIGHT_COLOR_RGB{0.3, 0.4, 0.6};
+
+    scene.addAtmosphereLight(syzygy::DirectionalLight{
+        .color = SUNLIGHT_RGB,
+        .strength = SUNLIGHT_STRENGTH,
+        .eulerAngles = STRAIGHT_DOWN_EULER_ANGLES,
+        .angularRadius = SUN_ANGULAR_RADIUS,
+    });
+    scene.addAtmosphereLight(syzygy::DirectionalLight{
+        .color = MOONLIGHT_COLOR_RGB,
+        .strength = MOONLIGHT_STRENGTH,
+        .eulerAngles = STRAIGHT_DOWN_EULER_ANGLES,
+        .angularRadius = MOON_ANGULAR_RADIUS,
+    });
+}
+} // namespace
+
 namespace syzygy
 {
 float constexpr METERS_PER_MEGAMETER{1'000'000.0};
@@ -51,8 +89,6 @@ float constexpr KILOMETERS_PER_MEGAMETER{1'000.0};
 // https://sebh.github.io/publications/egsr2020.pdf
 Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{
     Atmosphere{
-        .sunEulerAngles = glm::vec3{1.0, 0.0, 0.0},
-
         .planetRadiusMegameters = 6.360F,
         .atmosphereRadiusMegameters = 6.420F,
 
@@ -68,14 +104,11 @@ Atmosphere const Scene::DEFAULT_ATMOSPHERE_EARTH{
 
         .scatteringOzonePerMegameter = glm::vec3{0.0F},
         .absorptionOzonePerMegameter = glm::vec3{0.650F, 1.881F, 0.085F},
-
-        .sunIntensitySpectrum = glm::vec3{1.0F, 1.0F, 1.0F},
-        .sunAngularRadius = glm::radians(32.0F / 60.0F),
     } // namespace syzygy
 };
 
 Camera const Scene::DEFAULT_CAMERA{Camera{
-    .cameraPosition = glm::vec3(0.0F, -10.0F, -13.0F),
+    .cameraPosition = glm::vec3(0.0F, -15.0F, -20.0F),
     .eulerAngles = glm::vec3(0.0F, 0.0F, 0.0F),
     .fovDegrees = 70.0F,
     .near = 0.1F,
@@ -91,6 +124,21 @@ SunAnimation const Scene::DEFAULT_SUN_ANIMATION{SunAnimation{
 float const SunAnimation::DAY_LENGTH_SECONDS{60.0F * 60.0F * 24.0F};
 
 auto Scene::shadowBounds() const -> AABB { return m_shadowBounds; }
+
+auto Scene::bakeAtmosphere(AABB sceneBounds) const -> AtmosphereBaked
+{
+    syzygy::AtmosphereBaked result{};
+    result.atmosphere = atmosphere.toDeviceEquivalent();
+
+    for (auto const& atmosphereLight : m_atmosphereLights)
+    {
+        result.atmosphereLights.push_back(
+            atmosphereLight.toDeviceEquivalent(sceneBounds)
+        );
+    }
+
+    return result;
+}
 
 void Scene::calculateShadowBounds()
 {
@@ -154,6 +202,16 @@ auto Scene::geometry() const -> std::span<MeshInstanced const>
 
 auto Scene::geometry() -> std::span<MeshInstanced> { return m_geometry; }
 
+auto Scene::atmosphereLights() const -> std::span<DirectionalLight const>
+{
+    return m_atmosphereLights;
+}
+
+auto Scene::atmosphereLights() -> std::span<DirectionalLight>
+{
+    return m_atmosphereLights;
+}
+
 void Scene::addMeshInstance(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -213,6 +271,11 @@ void Scene::addMeshInstance(
     m_geometry.push_back(std::move(instance));
 }
 
+void Scene::addAtmosphereLight(DirectionalLight const light)
+{
+    m_atmosphereLights.push_back(light);
+}
+
 void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
 {
     SpotlightParams const lightParams{
@@ -237,95 +300,69 @@ auto Scene::defaultScene(
     VkDevice const device,
     VmaAllocator const allocator,
     DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetPtr<Mesh>> const& initialMesh
+    AssetLibrary& library
 ) -> Scene
 {
     Scene scene{};
 
-    { // Floor
-        std::array<Transform, 1> const transform{Transform{
-            .translation = glm::vec3{0.0F},
+    pushDefaultAtmosphereLights(scene);
+
+    glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
+    glm::vec3 constexpr MESH_SCALE{5.0F};
+    glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
+
+    scene.addMeshInstance(
+        device,
+        allocator,
+        descriptorAllocator,
+        library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
+        InstanceAnimation::None,
+        "Model_1",
+        std::array<Transform, 1>{Transform{
+            .translation = floatingPosition + MESH_OFFSET,
             .eulerAnglesRadians = glm::vec3{0.0F},
-            .scale = glm::vec3{400.0F, 1.0F, 400.0F}
-        }};
-
-        scene.addMeshInstance(
-            device,
-            allocator,
-            descriptorAllocator,
-            initialMesh,
-            InstanceAnimation::None,
-            "Floor",
-            transform,
-            false
-        );
-    }
-
-    glm::vec3 const floatingMeshPosition{4.0F * WORLD_UP};
-
-    { // Single floating demo mesh
-        std::array<Transform, 1> const transform{Transform{
-            .translation = floatingMeshPosition,
+            .scale = MESH_SCALE
+        }}
+    );
+    scene.addMeshInstance(
+        device,
+        allocator,
+        descriptorAllocator,
+        library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
+        InstanceAnimation::None,
+        "Model_2",
+        std::array<Transform, 1>{Transform{
+            .translation = floatingPosition - MESH_OFFSET,
             .eulerAnglesRadians = glm::vec3{0.0F},
-            .scale = glm::vec3{1.0F}
-        }};
+            .scale = MESH_SCALE
+        }}
+    );
 
-        scene.addMeshInstance(
-            device,
-            allocator,
-            descriptorAllocator,
-            initialMesh,
-            InstanceAnimation::None,
-            "Floating",
-            transform
-        );
-    }
-
-    { // Lights to shine on mesh
-        SpotlightParams const sharedParams{
-            .strength = 30.0F,
-            .falloffFactor = 1.0F,
-            .falloffDistance = 1.0F,
-            .verticalFOVDegrees = 60.0F,
-            .horizontalScale = 1.0F,
-            .near = 0.1F,
-            .far = 1000.0F
-        };
-
-        glm::vec3 const lightsHeight{8.0F * WORLD_UP};
-        glm::vec3 const lightsOffset{8.0F * (WORLD_FORWARD + WORLD_RIGHT)};
-
-        {
-            Transform const lightTransform{Transform::lookAt(
-                Ray::create(
-                    floatingMeshPosition + lightsHeight + lightsOffset,
-                    floatingMeshPosition
-                ),
-                glm::vec3{1.0F}
-            )};
-            SpotlightParams lightParams{sharedParams};
-            lightParams.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
-            lightParams.eulerAngles = lightTransform.eulerAnglesRadians;
-            lightParams.position = lightTransform.translation;
-
-            scene.spotlights.push_back(makeSpot(lightParams));
-        }
-        {
-            Transform const lightTransform{Transform::lookAt(
-                Ray::create(
-                    floatingMeshPosition + lightsHeight - lightsOffset,
-                    floatingMeshPosition
-                ),
-                glm::vec3{1.0F}
-            )};
-            SpotlightParams lightParams{sharedParams};
-            lightParams.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
-            lightParams.eulerAngles = lightTransform.eulerAnglesRadians;
-            lightParams.position = lightTransform.translation;
-
-            scene.spotlights.push_back(makeSpot(lightParams));
-        }
+    Transform const floorTransform{
+        .translation = glm::vec3{0.0F, -1.0F, 0.0F},
+        .eulerAnglesRadians = glm::vec3{0.0F},
+        .scale = glm::vec3{20.0F, 1.0F, 20.0F}
     };
+
+    scene.addMeshInstance(
+        device,
+        allocator,
+        descriptorAllocator,
+        library.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
+        InstanceAnimation::None,
+        "Floor",
+        std::array<Transform, 1>{Transform{floorTransform}}
+    );
+
+    glm::vec3 const spotlightOffset{-20.0};
+
+    scene.addSpotlight(
+        glm::vec3{1.0, 0.0, 0.0},
+        Transform::lookAt(
+            Ray::create(floatingPosition + spotlightOffset, floatingPosition),
+            glm::vec3{1.0F}
+        )
+    );
 
     scene.spotlightsRender = true;
 
@@ -340,6 +377,8 @@ auto Scene::diagonalWaveScene(
 ) -> Scene
 {
     Scene scene{};
+
+    pushDefaultAtmosphereLights(scene);
 
     int32_t constexpr COORDINATE_MIN{-40};
     int32_t constexpr COORDINATE_MAX{40};
@@ -567,10 +606,11 @@ void Scene::tick(TickTiming const lastFrame)
     // Wrap around the planet once
     float constexpr SUN_END_RADIANS{SUN_START_RADIANS + glm::two_pi<float>()};
 
-    atmosphere.sunEulerAngles = glm::vec3{
+    DirectionalLight& sun{m_atmosphereLights[0]};
+    sun.eulerAngles = glm::vec3{
         glm::lerp(SUN_START_RADIANS, SUN_END_RADIANS, sunAnimation.time),
-        atmosphere.sunEulerAngles.y,
-        atmosphere.sunEulerAngles.z
+        sun.eulerAngles.y,
+        sun.eulerAngles.z
     };
 
     for (auto& instance : m_geometry)
@@ -581,53 +621,15 @@ void Scene::tick(TickTiming const lastFrame)
 
 namespace
 {
-auto createSunlight(
-    AABB const sceneBounds,
-    glm::vec3 const sunEulerAngles,
-    glm::vec3 const sunlightRGB
-) -> DirectionalLightPacked
-{
-    float constexpr SUNLIGHT_STRENGTH{4.0F};
-
-    return makeDirectional(
-        glm::vec4(sunlightRGB, 1.0),
-        SUNLIGHT_STRENGTH,
-        sunEulerAngles,
-        sceneBounds
-    );
-}
-auto createMoonlight(
-    AABB const sceneBounds, float const sunCosine, float const sunsetCosine
-) -> DirectionalLightPacked
-{
-    float constexpr MOONRISE_LENGTH{0.12};
-
-    float const moonlightStrength{
-        0.02F
-        * glm::clamp(
-            0.0F, 1.0F, glm::abs(sunCosine - sunsetCosine) / MOONRISE_LENGTH
-        )
-    };
-
-    glm::vec4 constexpr MOONLIGHT_COLOR_RGBA{0.3, 0.4, 0.6, 1.0};
-    glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{
-        -glm::half_pi<float>(), 0.0F, 0.0F
-    };
-
-    return makeDirectional(
-        MOONLIGHT_COLOR_RGBA,
-        moonlightStrength,
-        STRAIGHT_DOWN_EULER_ANGLES,
-        sceneBounds
-    );
-}
 
 // Returns an estimate of the color of sunlight that has reached the
 // origin, attenuated due to scattering.
-auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
+auto computeSunlightColor(
+    Atmosphere const& atmosphere, glm::vec3 const directionToSun
+) -> glm::vec4
 {
     float const surfaceCosine{
-        glm::dot(atmosphere.directionToSun(), glm::vec3{0.0, -1.0, 0.0})
+        glm::dot(directionToSun, glm::vec3{0.0, -1.0, 0.0})
     };
     if (surfaceCosine <= 0.0)
     {
@@ -643,7 +645,7 @@ auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
     float outDistance{0.0};
     if (!glm::intersectRaySphere(
             start,
-            atmosphere.directionToSun(),
+            directionToSun,
             glm::vec3(0.0),
             atmosphereRadiusMeters * atmosphereRadiusMeters,
             outDistance
@@ -686,14 +688,28 @@ auto computeSunlightColor(Atmosphere const& atmosphere) -> glm::vec4
 }
 } // namespace
 
-auto Atmosphere::directionToSun() const -> glm::vec3
+auto DirectionalLight::incidentDirection() const -> glm::vec3
 {
-    return -forwardFromEulers(sunEulerAngles);
+    return -forwardFromEulers(eulerAngles);
+}
+auto DirectionalLight::toDeviceEquivalent(AABB const capturedBounds) const
+    -> DirectionalLightPacked
+{
+    glm::mat4x4 const view{viewVk(glm::vec3{0.0}, eulerAngles)};
+    glm::mat4x4 const projection{projectionOrthoAABBVk(view, capturedBounds)};
+
+    return DirectionalLightPacked{
+        .color = glm::vec4{color, 1.0},
+        .forward = glm::vec4{forwardFromEulers(eulerAngles), 0.0},
+        .projection = projection,
+        .view = view,
+        .strength = strength,
+        .angularRadius = angularRadius,
+    };
 }
 
 auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
 {
-    glm::vec3 sunDirection{glm::normalize(directionToSun())};
 
     return AtmospherePacked{
         .scatteringRayleighPerMm = scatteringRayleighPerMegameter,
@@ -704,32 +720,8 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
         .densityScaleMieMm = altitudeDecayMieMegameters,
         .absorptionMiePerMm = absorptionMiePerMegameter,
         .atmosphereRadiusMm = atmosphereRadiusMegameters,
-        .incidentDirectionSun = -sunDirection,
         .scatteringOzonePerMm = scatteringOzonePerMegameter,
         .absorptionOzonePerMm = absorptionOzonePerMegameter,
-        .sunIntensitySpectrum = sunIntensitySpectrum,
-        .sunAngularRadius = sunAngularRadius,
-    };
-}
-
-auto Atmosphere::baked(AABB const sceneBounds) const -> AtmosphereBaked
-{
-
-    // position of sun as proxy for time
-    float const sunCosine{glm::dot(WORLD_UP, directionToSun())};
-    float constexpr SUNSET_COSINE{0.06};
-
-    std::optional<DirectionalLightPacked> sunlight{};
-    std::optional<DirectionalLightPacked> moonlight{};
-
-    sunlight = createSunlight(sceneBounds, sunEulerAngles, glm::vec3{1.0F});
-    moonlight = createMoonlight(sceneBounds, sunCosine, SUNSET_COSINE);
-
-    AtmospherePacked const atmosphere{toDeviceEquivalent()};
-    return AtmosphereBaked{
-        .atmosphere = atmosphere,
-        .sunlight = sunlight,
-        .moonlight = moonlight,
     };
 }
 

@@ -1,4 +1,5 @@
 #include "../types/atmosphere.glinl"
+#include "../types/lights.glsl"
 
 // This file contains all methods used in Raymarching the atmosphere
 
@@ -188,11 +189,12 @@ vec3 sampleTransmittanceLUT_RadiusMu(sampler2D LUT, const Atmosphere atmosphere,
 
 vec3 sampleTransmittanceLUT_Sun(sampler2D LUT,
                                 const Atmosphere atmosphere,
+                                const LightDirectional sun,
                                 const float radius,
                                 const float cos_sunZenith)
 {
-    const float sin_sunRadius = sin(atmosphere.sunAngularRadius);
-    const float cos_sunRadius = cos(atmosphere.sunAngularRadius);
+    const float sin_sunRadius = sin(sun.angularRadius);
+    const float cos_sunRadius = cos(sun.angularRadius);
 
     /*
     Possible small angle approximation
@@ -473,6 +475,7 @@ struct ScatteringResult
 
 #if SZG_MULTISCATTERING_ENABLED
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    const LightDirectional celestialLight,
                                                     sampler2D transmittanceLUT,
                                                     sampler2D multiscatterLUT,
                                                     in vec3 origin,
@@ -481,6 +484,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     const float tMax)
 #else
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    const LightDirectional celestialLight,
                                                     sampler2D transmittanceLUT,
                                                     in vec3 origin,
                                                     const vec3 direction,
@@ -530,7 +534,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
     const float radius = length(origin);
     const float mu = dot(origin, direction) / (length(origin) * length(direction));
     const float mu_sun =
-        dot(origin, -atmosphere.incidentDirectionSun) / (length(origin) * length(atmosphere.incidentDirectionSun));
+        dot(origin, -celestialLight.forward) / (length(origin) * length(celestialLight.forward));
 
     const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
 
@@ -566,7 +570,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         const float altitude = length(begin) - atmosphere.planetRadiusMm;
 
         const vec3 transmittanceToSun =
-            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
+            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, celestialLight, sampleStep.radius, sampleStep.mu_sun);
 
         const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
 
@@ -582,7 +586,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
         const vec3 transmittanceToBegin =
             sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
-        const float incidentCosine = dot(atmosphere.incidentDirectionSun, scatteringDir);
+        const float incidentCosine = dot(celestialLight.forward, scatteringDir);
 
 #if SZG_ISOTROPIC_PHASE
         const vec3 phaseTimesScattering = extinctionSample.scattering * ISOTROPIC_PHASE;
@@ -596,17 +600,17 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
 #if SZG_MULTISCATTERING_ENABLED
         const vec3 multiscatter =
-            sampleMultiscatterLUT(multiscatterLUT, atmosphere, samplePosition, atmosphere.incidentDirectionSun);
+            sampleMultiscatterLUT(multiscatterLUT, atmosphere, samplePosition, celestialLight.forward);
 #else
         const vec3 multiscatter = vec3(0.0);
 #endif
 
         const float shadowBegin =
-            float(raycastTestSphere(begin, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+            float(raycastTestSphere(begin, -celestialLight.forward, atmosphere.planetRadiusMm));
         const float shadowMiddle =
-            float(raycastTestSphere(0.5 * (begin + end), -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+            float(raycastTestSphere(0.5 * (begin + end), -celestialLight.forward, atmosphere.planetRadiusMm));
         const float shadowEnd =
-            float(raycastTestSphere(end, -atmosphere.incidentDirectionSun, atmosphere.planetRadiusMm));
+            float(raycastTestSphere(end, -celestialLight.forward, atmosphere.planetRadiusMm));
         const vec3 shadowing = transmittanceToSun * (1.0 - 0.25 * (shadowBegin + 2.0 * shadowMiddle + shadowEnd));
 
         // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
@@ -627,7 +631,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
         const vec3 transmittanceToSurface =
             sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, hitPlanet.tMin);
         const vec3 transmittanceToSun =
-            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, sampleStep.radius, sampleStep.mu_sun);
+            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, celestialLight, sampleStep.radius, sampleStep.mu_sun);
 
         const float NdotL = clamp(sampleStep.mu_sun, 0.0, 1.0);
 
@@ -642,6 +646,7 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
 
 #if SZG_MULTISCATTERING_ENABLED
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    const LightDirectional celestialLight,
                                                     sampler2D transmittanceLUT,
                                                     sampler2D multiscatterLUT,
                                                     in vec3 origin,
@@ -649,16 +654,17 @@ ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
                                                     const bool includeGround)
 {
     return computeLuminanceScatteringIntegral(
-        atmosphere, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
+        atmosphere, celestialLight, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
 }
 #else
 ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
+                                                    const LightDirectional celestialLight,
                                                     sampler2D transmittanceLUT,
                                                     in vec3 origin,
                                                     const vec3 direction,
                                                     const bool includeGround)
 {
     return computeLuminanceScatteringIntegral(
-        atmosphere, transmittanceLUT, origin, direction, includeGround, 1000000.0);
+        atmosphere, celestialLight, transmittanceLUT, origin, direction, includeGround, 1000000.0);
 }
 #endif

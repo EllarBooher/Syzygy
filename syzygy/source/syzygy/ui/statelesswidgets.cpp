@@ -195,31 +195,6 @@ void uiAtmosphere(
     };
 
     syzygy::PropertyTable::begin()
-        .rowVec3(
-            "Sun Euler Angles",
-            atmosphere.sunEulerAngles,
-            defaultValues.sunEulerAngles,
-            syzygy::PropertySliderBehavior{.speed = EULER_ANGLES_SPEED}
-        )
-        .rowColor(
-            "Sun Intensity Spectrum",
-            atmosphere.sunIntensitySpectrum,
-            defaultValues.sunIntensitySpectrum,
-            syzygy::PropertySliderBehavior{
-                .speed = 1.0F,
-                .bounds = syzygy::FloatBounds{.min = 0.0},
-            }
-        )
-        .rowFloat(
-            "Sun Angular Radius",
-            atmosphere.sunAngularRadius,
-            defaultValues.sunAngularRadius,
-            syzygy::PropertySliderBehavior{
-                .speed = RADIANS_PER_ARCMINUTE,
-                .bounds = syzygy::FloatBounds{.min = 0.0F}
-            }
-        )
-        .rowReadOnlyVec3("Direction to Sun", atmosphere.directionToSun())
         .rowColor(
             "Ground Diffuse Color",
             atmosphere.groundColor,
@@ -300,6 +275,48 @@ void uiAtmosphere(
             EXTINCTION_COEFFICIENT_BEHAVIOR
         )
         .end();
+}
+void uiAtmosphereLights(std::span<syzygy::DirectionalLight> const lights)
+{
+    auto table{syzygy::PropertyTable::begin()};
+
+    syzygy::PropertySliderBehavior constexpr RGB_BEHAVIOR{
+        .speed = 0.0F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F, .max = 1.0F},
+    };
+    syzygy::PropertySliderBehavior constexpr STRENGTH_BEHAVIOR{
+        .speed = 0.01F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F},
+    };
+    syzygy::PropertySliderBehavior constexpr EULER_ANGLES_BEHAVIOR{
+        .speed = 0.1F,
+    };
+
+    float constexpr RADIANS_PER_ARCMINUTE{
+        (1.0F / 60.0F) * (glm::pi<float>() / 180.0F)
+    };
+    float constexpr DEFAULT_ANGULAR_RADIUS{RADIANS_PER_ARCMINUTE * 16.0F};
+
+    syzygy::PropertySliderBehavior constexpr ANGULAR_RADIUS_BEHAVIOR{
+        .speed = RADIANS_PER_ARCMINUTE,
+        .bounds = syzygy::FloatBounds{.min = 0.0F}
+    };
+
+    for (auto& light : lights)
+    {
+        table.rowChildPropertyBegin("Light", false)
+            .rowColor("Color", light.color, glm::vec3{1.0F}, RGB_BEHAVIOR)
+            .rowFloat("Strength", light.strength, 1.0F, STRENGTH_BEHAVIOR)
+            .rowReadOnlyVec3("Euler Angles", light.eulerAngles)
+            .rowFloat(
+                "Angular Radius",
+                light.angularRadius,
+                DEFAULT_ANGULAR_RADIUS,
+                ANGULAR_RADIUS_BEHAVIOR
+            )
+            .childPropertyEnd();
+    }
+    table.end();
 }
 void uiCamera(
     syzygy::Camera& camera,
@@ -806,6 +823,13 @@ void sceneControlsWindow(
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
     {
         uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
+    }
+
+    if (ImGui::CollapsingHeader(
+            "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
+        ))
+    {
+        uiAtmosphereLights(scene.atmosphereLights());
     }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))

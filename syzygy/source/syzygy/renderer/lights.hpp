@@ -11,10 +11,6 @@ struct AABB;
 
 namespace syzygy
 {
-auto makeDirectional(
-    glm::vec4 color, float strength, glm::vec3 eulerAngles, AABB capturedBounds
-) -> DirectionalLightPacked;
-
 struct SpotlightParams
 {
     glm::vec4 color;

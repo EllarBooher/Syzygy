@@ -2,13 +2,16 @@ struct LightDirectional
 {
     vec4 color;
 
-    vec4 forward;
+    vec3 forward;
+    float forwardW;
 
     mat4 projection;
 
     mat4 view;
 
     float strength;
+
+    float angularRadius;
 };
 
 struct LightSpot

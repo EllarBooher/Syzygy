@@ -505,68 +505,12 @@ auto run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    Scene scene{};
-    {
-        glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
-        glm::vec3 constexpr MESH_SCALE{5.0F};
-        glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
-
-        scene.addMeshInstance(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.descriptorAllocator(),
-            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
-            InstanceAnimation::None,
-            "Model_1",
-            std::array<Transform, 1>{Transform{
-                .translation = floatingPosition + MESH_OFFSET,
-                .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = MESH_SCALE
-            }}
-        );
-        scene.addMeshInstance(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.descriptorAllocator(),
-            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
-            InstanceAnimation::None,
-            "Model_2",
-            std::array<Transform, 1>{Transform{
-                .translation = floatingPosition - MESH_OFFSET,
-                .eulerAnglesRadians = glm::vec3{0.0F},
-                .scale = MESH_SCALE
-            }}
-        );
-
-        Transform const floorTransform{
-            .translation = glm::vec3{0.0F, -1.0F, 0.0F},
-            .eulerAnglesRadians = glm::vec3{0.0F},
-            .scale = glm::vec3{20.0F, 1.0F, 20.0F}
-        };
-
-        scene.addMeshInstance(
-            graphicsContext.device(),
-            graphicsContext.allocator(),
-            graphicsContext.descriptorAllocator(),
-            assetLibrary.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
-            InstanceAnimation::None,
-            "Floor",
-            std::array<Transform, 1>{Transform{floorTransform}}
-        );
-
-        glm::vec3 const spotlightOffset{-20.0};
-
-        scene.addSpotlight(
-            glm::vec3{1.0, 0.0, 0.0},
-            Transform::lookAt(
-                Ray::create(
-                    floatingPosition + spotlightOffset, floatingPosition
-                ),
-                glm::vec3{1.0F}
-            )
-        );
-    }
-
+    Scene scene{Scene::defaultScene(
+        graphicsContext.device(),
+        graphicsContext.allocator(),
+        graphicsContext.descriptorAllocator(),
+        assetLibrary
+    )};
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),

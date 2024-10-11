@@ -825,7 +825,9 @@ void recordMultiscatterLUTCommands(
     syzygy::SkyViewComputePipeline::MultiScatterLUTResources const& resources,
     syzygy::ImageView& transmittanceLUT,
     uint32_t const atmosphereIndex,
-    syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres
+    syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
+    uint32_t const sunLightIndex,
+    syzygy::TStagedBuffer<syzygy::DirectionalLightPacked> const& lights
 )
 {
     resources.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
@@ -854,7 +856,9 @@ void recordMultiscatterLUTCommands(
     syzygy::SkyViewComputePipeline::MultiScatterLUTResources::PushConstant const
         pushConstant{
             .atmosphereBuffer = atmospheres.deviceAddress(),
+            .directionalLights = lights.deviceAddress(),
             .atmosphereIndex = atmosphereIndex,
+            .sunLightIndex = sunLightIndex,
         };
 
     vkCmdPushConstants(
@@ -1158,7 +1162,9 @@ void SkyViewComputePipeline::recordDrawCommands(
         m_multiscatterLUT,
         *m_transmittanceLUT.map,
         atmosphereIndex,
-        atmospheres
+        atmospheres,
+        sunLightIndex,
+        lights
     );
 
     m_transmittanceLUT.map->recordTransitionBarriered(
@@ -1192,6 +1198,8 @@ void SkyViewComputePipeline::recordDrawCommands(
             .cameraBuffer = cameras.deviceAddress(),
             .atmosphereIndex = atmosphereIndex,
             .cameraIndex = viewCameraIndex,
+            .directionalLights = lights.deviceAddress(),
+            .sunLightIndex = sunLightIndex,
         };
 
         vkCmdPushConstants(

@@ -29,14 +29,11 @@ namespace syzygy
 struct AtmosphereBaked
 {
     AtmospherePacked atmosphere{};
-    std::optional<DirectionalLightPacked> sunlight{};
-    std::optional<DirectionalLightPacked> moonlight{};
+    std::vector<DirectionalLightPacked> atmosphereLights{};
 };
 
 struct Atmosphere
 {
-    glm::vec3 sunEulerAngles{};
-
     float planetRadiusMegameters{};
     float atmosphereRadiusMegameters{};
 
@@ -54,13 +51,23 @@ struct Atmosphere
     glm::vec3 scatteringOzonePerMegameter{};
     glm::vec3 absorptionOzonePerMegameter{};
 
-    glm::vec3 sunIntensitySpectrum{};
-    float sunAngularRadius{};
-
-    [[nodiscard]] auto directionToSun() const -> glm::vec3;
-
     [[nodiscard]] auto toDeviceEquivalent() const -> AtmospherePacked;
-    [[nodiscard]] auto baked(AABB) const -> AtmosphereBaked;
+};
+
+struct DirectionalLight
+{
+    glm::vec3 color{};
+    float strength{};
+    glm::vec3 eulerAngles{};
+
+    // Describes the angular radius of a celestial body creating this light
+    float angularRadius{};
+
+    [[nodiscard]] auto incidentDirection() const -> glm::vec3;
+
+    // Requires the bounds that inform the scale of its projection matrix
+    [[nodiscard]] auto toDeviceEquivalent(AABB capturedBounds) const
+        -> DirectionalLightPacked;
 };
 
 struct Camera
@@ -179,9 +186,15 @@ public:
     void calculateShadowBounds();
     // The bounds of the scene that are intended to cast shadows.
     [[nodiscard]] auto shadowBounds() const -> AABB;
+    [[nodiscard]] auto bakeAtmosphere(AABB sceneBounds) const
+        -> AtmosphereBaked;
 
     [[nodiscard]] auto geometry() const -> std::span<MeshInstanced const>;
     [[nodiscard]] auto geometry() -> std::span<MeshInstanced>;
+
+    [[nodiscard]] auto atmosphereLights() const
+        -> std::span<DirectionalLight const>;
+    [[nodiscard]] auto atmosphereLights() -> std::span<DirectionalLight>;
 
     void addMeshInstance(
         VkDevice,
@@ -193,14 +206,13 @@ public:
         std::span<Transform const> transforms,
         bool castsShadow = true
     );
+
+    void addAtmosphereLight(DirectionalLight);
     void addSpotlight(glm::vec3 color, Transform transform);
 
-    static auto defaultScene(
-        VkDevice,
-        VmaAllocator,
-        DescriptorAllocator&,
-        std::optional<AssetPtr<Mesh>> const& initialMesh
-    ) -> Scene;
+    static auto
+    defaultScene(VkDevice, VmaAllocator, DescriptorAllocator&, AssetLibrary&)
+        -> Scene;
     static auto diagonalWaveScene(
         VkDevice,
         VmaAllocator,
@@ -214,6 +226,7 @@ public:
 private:
     AABB m_shadowBounds{};
     std::vector<MeshInstanced> m_geometry;
+    std::vector<DirectionalLight> m_atmosphereLights;
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
 } // namespace syzygy

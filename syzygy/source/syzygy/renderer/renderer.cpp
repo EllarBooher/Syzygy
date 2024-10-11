@@ -312,15 +312,12 @@ void Renderer::recordDraw(
     std::vector<DirectionalLightPacked> directionalLights{};
     { // Copy atmospheres to gpu
         AtmosphereBaked const bakedAtmosphere{
-            scene.atmosphere.baked(scene.shadowBounds())
+            scene.bakeAtmosphere(scene.shadowBounds())
         };
-        if (bakedAtmosphere.sunlight.has_value())
+
+        for (auto const& light : bakedAtmosphere.atmosphereLights)
         {
-            directionalLights.push_back(bakedAtmosphere.sunlight.value());
-        }
-        if (bakedAtmosphere.moonlight.has_value())
-        {
-            directionalLights.push_back(bakedAtmosphere.moonlight.value());
+            directionalLights.push_back(light);
         }
 
         m_atmospheresBuffer->clearStaged();
@@ -384,7 +381,7 @@ void Renderer::recordDraw(
                 cmd,
                 sceneSubregion,
                 sceneTexture,
-                m_renderAtmosphere ? 1 : 0,
+                m_renderAtmosphere ? directionalLights.size() : 0,
                 *m_directionalLightsBuffer,
                 scene.spotlightsRender ? scene.spotlights
                                        : std::vector<SpotLightPacked>{},

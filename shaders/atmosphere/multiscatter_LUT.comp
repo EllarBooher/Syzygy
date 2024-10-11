@@ -17,11 +17,18 @@ layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
     Atmosphere atmospheres[];
 };
 
+layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
+{
+    LightDirectional lights[];
+};
+
 layout(push_constant) uniform PushConstant
 {
     AtmosphereBuffer atmosphereBuffer;
+    LightDirectionalBuffer directionalLights;
 
     uint atmosphereIndex;
+    uint sunLightIndex;
 } pc;
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire (2020)
@@ -71,25 +78,23 @@ void main()
         return;
     }
 
-    Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+    const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+    LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
 
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;
 
     const vec2 RMuLight = multiscatterLUT_UV_to_RMu(atmosphere, uv);
 
-    const vec3 origin = vec3(0.0, RMuLight.x, 0.0);
+    const vec3 origin = vec3(0.0, -RMuLight.x, 0.0);
 
     const float cosSunZenith = clamp(RMuLight.y, -1.0, 1.0);
     const float sinSunZenith = sqrt(1.0 - cosSunZenith * cosSunZenith);
 
     // SunZenith is relative to origin
     // As established, scattering is symmetrical around up axis, so just pick an azimuth = 0 for sun
-    const vec3 sunDirection = vec3(0.0, cosSunZenith, sinSunZenith);
-
-    // TODO: The atmosphere shouldn't contain the sun direction, but methods rely on it so for now we patch it in. In
-    // the future, sunDirection should be passed as part of a separate parameter.
-    atmosphere.incidentDirectionSun = -sunDirection;
+    const vec3 sunDirection = vec3(0.0, -cosSunZenith, sinSunZenith);
+    sunDirectionalLight.forward = -sunDirection;
 
     // Unmarked units are in megameters (10^6 meters or 1000 km)
 
@@ -133,7 +138,7 @@ void main()
 
         const bool includeGround = true;
         ScatteringResult scattering =
-            computeLuminanceScatteringIntegral(atmosphere, transmittance_LUT, origin, direction, includeGround);
+            computeLuminanceScatteringIntegral(atmosphere, sunDirectionalLight, transmittance_LUT, origin, direction, includeGround);
 
         // dw in equations (5) and (7) in Hillaire 2020
         const float sampleSolidAngle = (SPHERE_SOLID_ANGLE / SAMPLE_COUNT);

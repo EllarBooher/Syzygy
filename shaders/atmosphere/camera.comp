@@ -7,7 +7,6 @@
 #include "../gbuffer/pbr.glinl"
 #include "../shadowmap.glinl"
 #include "../types/camera.glsl"
-#include "../types/lights.glsl"
 
 #ifndef SZG_MULTISCATTERING_ENABLED
 #define SZG_MULTISCATTERING_ENABLED 1
@@ -72,7 +71,7 @@ layout(push_constant) uniform PushConstant
     uint sunLightIndex;
 } pc;
 
-vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
+vec3 sampleMap_Direction(const Atmosphere atmosphere, const LightDirectional celestialLight, const vec3 position, const vec3 direction)
 {
     // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
     const float sinHorizonZenith = atmosphere.planetRadiusMm / length(position);
@@ -114,7 +113,7 @@ vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const
         // Sun is always positioned at u = 0, so u is computed relative to the light direction
 
         const vec2 projectedLightDirection =
-            normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
+            normalize(vec2(-celestialLight.forward.x, -celestialLight.forward.z));
         const vec2 projectedViewDirection = normalize(vec2(direction.x, direction.z));
 
         u = clamp(dot(projectedLightDirection, projectedViewDirection), -1.0, 1.0) * 0.5 + 0.5;
@@ -123,13 +122,15 @@ vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const
     return texture(skyview_LUT, vec2(u, v)).rgb;
 }
 
-vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
+vec3 sampleSunDisk(const Atmosphere atmosphere, const LightDirectional celestialLight, const vec3 position, const vec3 direction)
 {
-    const vec3 directionToSun = -atmosphere.incidentDirectionSun;
+    const vec3 directionToSun = -celestialLight.forward;
 
     const float cosDirectionSun = dot(direction, directionToSun) / (length(direction) * length(directionToSun));
 
-    const float sinSunRadius = atmosphere.sunAngularRadius;
+    // Small angle approximation
+    const float sinSunRadius = celestialLight.angularRadius;
+
     const float sinDirectionSun = safeSqrt(1.0 - cosDirectionSun * cosDirectionSun);
 
     const vec3 transmittanceToSun = sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, position, direction);
@@ -142,10 +143,10 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
     return transmittanceToSun * (1.0 - smoothstep(0.2 * sinSunRadius, sinSunRadius, sinDirectionSun));
 }
 
-float computeFractionOfSunVisible(const Atmosphere atmosphere, const vec3 position)
+float computeFractionOfSunVisible(const Atmosphere atmosphere, const LightDirectional celestialLight, const vec3 position)
 {
     const float sinHorizonZenith = atmosphere.planetRadiusMm / length(position);
-    const float cosSunZenith = dot(position, -atmosphere.incidentDirectionSun) / length(position);
+    const float cosSunZenith = dot(-celestialLight.forward, normalize(position));
 
     // Ignore third dimension, since earth is a symmetrical sphere
     const vec2 directionToHorizon =
@@ -158,7 +159,8 @@ float computeFractionOfSunVisible(const Atmosphere atmosphere, const vec3 positi
     const float sinHorizonSun =
         sign(directionToSun.y - directionToHorizon.y) * safeSqrt(1.0 - cosHorizonSun * cosHorizonSun);
 
-    const float sinSunRadius = sin(atmosphere.sunAngularRadius);
+    // Small angle approximation
+    const float sinSunRadius = celestialLight.angularRadius;
 
     if (sinHorizonSun > sinSunRadius)
     {
@@ -183,6 +185,7 @@ bool raycastHitTestPlanet(const Atmosphere atmosphere, const vec3 origin, const 
 }
 
 vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
+                                      const LightDirectional celestialLight,
                                       const vec3 origin,
                                       const vec3 direction,
                                       const PBRTexel material,
@@ -198,7 +201,7 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
     const vec3 transmittanceToSurface =
         sampleTransmittanceLUT_Segment(transmittance_LUT, atmosphere, origin, surfacePosition);
 
-    const vec3 lightDirection = normalize(-atmosphere.incidentDirectionSun);
+    const vec3 lightDirection = normalize(-celestialLight.forward);
     const vec3 viewDirection = normalize(-direction);
 
     const vec3 diffuseContribution = diffuseBRDF(material, lightDirection);
@@ -209,7 +212,7 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
     const vec3 transmittanceToSun =
         sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection);
 
-    const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, material.position);
+    const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, celestialLight, material.position);
 
     const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible * transmittanceToSun * transmittanceToSurface
                                * material.occlusion * mix(diffuseContribution, specularContribution, fresnel)
@@ -219,7 +222,7 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
     const float sampleDistance = length(surfacePosition - origin);
     const vec3 aerialPerspectiveLuminance =
         computeLuminanceScatteringIntegral(
-            atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround, sampleDistance)
+            atmosphere, celestialLight, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround, sampleDistance)
             .luminance;
 
     return surfaceTransfer + aerialPerspectiveLuminance;
@@ -232,6 +235,7 @@ vec3 reflectDirection(const vec3 normal, const vec3 outgoingDirection)
 }
 
 vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
+                                        const LightDirectional celestialLight,
                                         const vec3 position,
                                         const vec3 direction,
                                         const float sunShadowFactor)
@@ -240,13 +244,13 @@ vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
     {
         const bool includeGround = true;
         return computeLuminanceScatteringIntegral(
-                   atmosphere, transmittance_LUT, multiscatter_LUT, position, direction, includeGround)
+                   atmosphere, celestialLight, transmittance_LUT, multiscatter_LUT, position, direction, includeGround)
             .luminance;
     }
     else
     {
-        return sampleMap_Direction(atmosphere, position, direction)
-             + sampleSunDisk(atmosphere, position, direction) * sunShadowFactor;
+        return sampleMap_Direction(atmosphere, celestialLight, position, direction)
+             + sampleSunDisk(atmosphere, celestialLight, position, direction) * sunShadowFactor;
     }
 }
 
@@ -261,12 +265,11 @@ void main()
 
     const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+    LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
 
     const vec2 uvFull = (vec2(texelCoord) + vec2(0.5, 0.5)) / size;
     const float sceneDepth = texture(fragmentDepth, uvFull).r;
 
-    // Convert from engine position (in meters with -y up)
-    // and the skyview coordinates (in megameters with +y up)
     vec3 position = camera.position.xyz / METERS_PER_MM;
     position += atmosphere.planetRadiusMm * WORLD_UP;
 
@@ -296,8 +299,6 @@ void main()
 
     const float cos_directionZenith = dot(direction, position) / (length(direction) * length(position));
 
-    const LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
-
     // GBuffer has +y down, skip rendering gbuffer results if we are underground
     if (sceneDepth == 0.0 || material.position.y > 0.0)
     {
@@ -305,7 +306,7 @@ void main()
         // the sun
         const float shadowFactor = 1.0;
         sunIlluminanceToSkyLuminanceTransfer +=
-            sampleEnvironmentLuminanceTransfer(atmosphere, position, direction, shadowFactor);
+            sampleEnvironmentLuminanceTransfer(atmosphere, sunDirectionalLight, position, direction, shadowFactor);
     }
     else // sceneDepth > 0.0 && material.position.y < 0.0
     {
@@ -321,7 +322,7 @@ void main()
         material.position += atmosphere.planetRadiusMm * WORLD_UP;
 
         sunIlluminanceToSkyLuminanceTransfer +=
-            computeGeometryLuminanceTransfer(atmosphere, position, direction, material, surfaceSunShadowFactor);
+            computeGeometryLuminanceTransfer(atmosphere, sunDirectionalLight, position, direction, material, surfaceSunShadowFactor);
 
         // Ad-hoc environment reflection, picks up metallic reflection and ambient lighting on dialectrics
         const vec3 transmittanceToSurface =
@@ -331,13 +332,13 @@ void main()
 
         const vec3 metallicLuminance = transmittanceToSurface
                                      * sampleEnvironmentLuminanceTransfer(
-                                           atmosphere, material.position, reflectionDirection, surfaceSunShadowFactor);
+                                           atmosphere, sunDirectionalLight, material.position, reflectionDirection, surfaceSunShadowFactor);
 
         // TODO: fresnel weighted ambient lighting? Does it significantly contribute to the appearance of ambient
         // lighting?
         const vec3 diffuseLuminance =
             transmittanceToSurface
-            * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, atmosphere.incidentDirectionSun)
+            * sampleMultiscatterLUT(multiscatter_LUT, atmosphere, material.position, sunDirectionalLight.forward)
             * material.subscatteringColor / PI;
         // Diffuse only, assume contribution of specular from environment is low
 
@@ -345,7 +346,7 @@ void main()
             material.occlusion * mix(diffuseLuminance, metallicLuminance * fresnel, material.metallic);
     }
 
-    vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * atmosphere.sunIntensitySpectrum;
+    vec3 luminance = sunIlluminanceToSkyLuminanceTransfer * sunDirectionalLight.color.rgb * sunDirectionalLight.strength;
 
     // ad-hoc tonemapping
     const vec3 color = pow(luminance * 10.0 + surfaceLuminance, vec3(1.2));

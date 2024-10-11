@@ -25,6 +25,11 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
     Camera cameras[];
 };
 
+layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
+{
+    LightDirectional lights[];
+};
+
 layout(push_constant) uniform PushConstant
 {
     AtmosphereBuffer atmosphereBuffer;
@@ -32,6 +37,10 @@ layout(push_constant) uniform PushConstant
 
     uint atmosphereIndex;
     uint cameraIndex;
+
+    LightDirectionalBuffer directionalLights;
+
+    uint sunLightIndex;
 } pc;
 
 // All units are Mm/megameters (10^6 meters) unless marked km/kilometers (10^3 meters)
@@ -55,7 +64,7 @@ layout(push_constant) uniform PushConstant
 // v varies from -pi/2 to pi/2
 
 void uv_to_azimuthElevation(
-    const Atmosphere atmosphere, const float radius, const vec2 uv, out float azimuth, out float elevation)
+    const Atmosphere atmosphere, const LightDirectional celestialLight, const float radius, const vec2 uv, out float azimuth, out float elevation)
 {
     // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
     const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
@@ -64,7 +73,7 @@ void uv_to_azimuthElevation(
     // u stores light-relative azimuth
     const float cosineViewLightProjected = (uv.s - 0.5) * 2.0;
     const vec2 lightDirectionProjected =
-        normalize(vec2(-atmosphere.incidentDirectionSun.x, -atmosphere.incidentDirectionSun.z));
+        normalize(vec2(-celestialLight.forward.x, -celestialLight.forward.z));
 
     float azimuthSun = asin(lightDirectionProjected.x);
     if (lightDirectionProjected.y < 0.0)
@@ -108,6 +117,7 @@ void main()
 
     const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
+    const LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
 
     // +x right, +y up, +z forward
     // Note: engine has +y down, but these coordinates are separate and based on azimuth, elevation.
@@ -118,14 +128,14 @@ void main()
 
     float azimuth;
     float elevation;
-    uv_to_azimuthElevation(atmosphere, length(origin), uv, azimuth, elevation);
+    uv_to_azimuthElevation(atmosphere, sunDirectionalLight, length(origin), uv, azimuth, elevation);
 
     const vec3 direction =
         normalize(vec3(sin(azimuth) * cos(elevation), WORLD_UP.y * sin(elevation), cos(azimuth) * cos(elevation)));
 
     const bool includeGround = false;
     const vec3 luminance = computeLuminanceScatteringIntegral(
-                               atmosphere, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround)
+                               atmosphere, sunDirectionalLight, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround)
                                .luminance;
 
     imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));

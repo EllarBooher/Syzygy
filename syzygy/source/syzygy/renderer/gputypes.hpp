@@ -50,10 +50,8 @@ struct AtmospherePacked
 
     float atmosphereRadiusMm;
 
-    glm::vec3 incidentDirectionSun;
-
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding0[4]{};
+    uint8_t padding0[16]{};
 
     glm::vec3 scatteringOzonePerMm;
 
@@ -65,8 +63,8 @@ struct AtmospherePacked
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
     uint8_t padding2[4]{};
 
-    glm::vec3 sunIntensitySpectrum;
-    float sunAngularRadius;
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
+    uint8_t padding3[16]{};
 };
 // NOLINTNEXTLINE(readability-magic-numbers)
 static_assert(sizeof(AtmospherePacked) == 128ULL);
@@ -83,8 +81,10 @@ struct DirectionalLightPacked
 
     float strength;
 
+    float angularRadius;
+
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding0[12]{};
+    uint8_t padding0[8]{};
 };
 // NOLINTNEXTLINE(readability-magic-numbers)
 static_assert(sizeof(DirectionalLightPacked) == 176ULL);
