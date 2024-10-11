@@ -695,9 +695,6 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
 {
     glm::vec3 sunDirection{glm::normalize(directionToSun())};
 
-    // Sky view shaders use +y as up
-    sunDirection.y *= -1;
-
     return AtmospherePacked{
         .scatteringRayleighPerMm = scatteringRayleighPerMegameter,
         .densityScaleRayleighMm = altitudeDecayRayleighMegameters,

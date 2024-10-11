@@ -74,16 +74,14 @@ layout(push_constant) uniform PushConstant
 
 vec3 sampleMap_Direction(const Atmosphere atmosphere, const vec3 position, const vec3 direction)
 {
-    const vec3 normalized = normalize(direction);
-
     // Horizon zenith cannot be less than PI/2, so we use sin and assume it is a quadrant 2 angle
     const float sinHorizonZenith = atmosphere.planetRadiusMm / length(position);
     const float horizonZenith = PI - asin(sinHorizonZenith);
 
-    const float cosViewZenith = normalized.y;
+    const float cosViewZenith = dot(position, direction) / (length(position) * length(direction));
     const float cosHorizonZenith = -safeSqrt(1.0 - sinHorizonZenith * sinHorizonZenith);
 
-    const float viewZenith = acos(normalized.y);
+    const float viewZenith = acos(cosViewZenith);
 
     // We still want uv.y = 0 and uv.y = 1 to the extreme zenith angles
     // But since we make the horizon a straight line through the middle, and its zenith may not be PI/2,
@@ -144,10 +142,10 @@ vec3 sampleSunDisk(const Atmosphere atmosphere, const vec3 position, const vec3 
     return transmittanceToSun * (1.0 - smoothstep(0.2 * sinSunRadius, sinSunRadius, sinDirectionSun));
 }
 
-float computeFractionOfSunVisible(const Atmosphere atmosphere, const float radius)
+float computeFractionOfSunVisible(const Atmosphere atmosphere, const vec3 position)
 {
-    const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
-    const float cosSunZenith = -atmosphere.incidentDirectionSun.y;
+    const float sinHorizonZenith = atmosphere.planetRadiusMm / length(position);
+    const float cosSunZenith = dot(position, -atmosphere.incidentDirectionSun) / length(position);
 
     // Ignore third dimension, since earth is a symmetrical sphere
     const vec2 directionToHorizon =
@@ -211,7 +209,7 @@ vec3 computeGeometryLuminanceTransfer(const Atmosphere atmosphere,
     const vec3 transmittanceToSun =
         sampleTransmittanceLUT_Ray(transmittance_LUT, atmosphere, surfacePosition, lightDirection);
 
-    const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, length(material.position));
+    const float fractionOfSunVisible = computeFractionOfSunVisible(atmosphere, material.position);
 
     const vec3 surfaceTransfer = shadowFactor * fractionOfSunVisible * transmittanceToSun * transmittanceToSurface
                                * material.occlusion * mix(diffuseContribution, specularContribution, fresnel)
@@ -238,9 +236,7 @@ vec3 sampleEnvironmentLuminanceTransfer(const Atmosphere atmosphere,
                                         const vec3 direction,
                                         const float sunShadowFactor)
 {
-    // Slight fudge factor to ease jagged edges at horizon. There will always be issues with a flat horizon, but this
-    // mitigates super dark pixels that come from sampling the sky view LUT with too high of a zenith angle
-    if (raycastTestSphere(position, direction, atmosphere.planetRadiusMm * 1.000002))
+    if (raycastTestSphere(position, direction, atmosphere.planetRadiusMm))
     {
         const bool includeGround = true;
         return computeLuminanceScatteringIntegral(
@@ -272,14 +268,12 @@ void main()
     // Convert from engine position (in meters with -y up)
     // and the skyview coordinates (in megameters with +y up)
     vec3 position = camera.position.xyz / METERS_PER_MM;
-    position.y *= -1;
-    position.y += atmosphere.planetRadiusMm;
+    position += atmosphere.planetRadiusMm * WORLD_UP;
 
     const vec2 clipSpaceUV = vec2((gl_GlobalInvocationID.xy / vec2(pc.drawExtent)) - 0.5) * 2.0;
     const float nearPlaneDepth = 1.0;
     const vec4 directionViewSpace = camera.inverseProjection * vec4(clipSpaceUV, nearPlaneDepth, 1.0);
     vec3 direction = normalize((camera.rotation * directionViewSpace).xyz);
-    direction.y *= -1;
 
     const float radius = length(position);
     const float sin_horizonZenith = atmosphere.planetRadiusMm / radius;
@@ -323,10 +317,8 @@ void main()
         const float surfaceSunShadowFactor =
             sampleShadowMap(shadowMaps[pc.sunLightIndex], shadowMapSampler, shadowframe);
 
-        material.normal.y *= -1;
-        material.position.y *= -1;
-        material.position /= 1000000.0;
-        material.position.y += atmosphere.planetRadiusMm;
+        material.position /= METERS_PER_MM;
+        material.position += atmosphere.planetRadiusMm * WORLD_UP;
 
         sunIlluminanceToSkyLuminanceTransfer +=
             computeGeometryLuminanceTransfer(atmosphere, position, direction, material, surfaceSunShadowFactor);

@@ -15,6 +15,8 @@ const int TRANSMITTANCE_LUT_HEIGHT = 128;
 const int MULTISCATTER_LUT_WIDTH = 256;
 const int MULTISCATTER_LUT_HEIGHT = 256;
 
+const vec3 WORLD_UP = vec3(0.0,-1.0,0.0);
+
 const float METERS_PER_MM = 1000000;
 
 const float PI = 3.141592653589793;

@@ -114,18 +114,14 @@ void main()
     // +azimuth right, +elevation up
 
     vec3 origin = camera.position.xyz / METERS_PER_MM;
-    origin.y *= -1;
-    origin.y += atmosphere.planetRadiusMm;
+    origin += atmosphere.planetRadiusMm * WORLD_UP;
 
     float azimuth;
     float elevation;
     uv_to_azimuthElevation(atmosphere, length(origin), uv, azimuth, elevation);
 
     const vec3 direction =
-        normalize(vec3(sin(azimuth) * cos(elevation), sin(elevation), cos(azimuth) * cos(elevation)));
-
-    float distanceThroughAtmosphere;
-    raycastAtmosphere(atmosphere, origin, direction, distanceThroughAtmosphere);
+        normalize(vec3(sin(azimuth) * cos(elevation), WORLD_UP.y * sin(elevation), cos(azimuth) * cos(elevation)));
 
     const bool includeGround = false;
     const vec3 luminance = computeLuminanceScatteringIntegral(
