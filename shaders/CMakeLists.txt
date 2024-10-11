@@ -59,7 +59,7 @@ foreach(GLSL_PATH ${GLSL_SOURCE_FILES})
 
     add_custom_command(
         OUTPUT "${SPIRV_PATH}"
-        COMMAND "${GLSL_VALIDATOR}" -V "${GLSL_PATH}" -o "${SPIRV_PATH}" --depfile "${DEPFILE_PATH}"
+        COMMAND "${GLSL_VALIDATOR}" -V "${GLSL_PATH}" -o "${SPIRV_PATH}" --depfile "${DEPFILE_PATH}" -g
         COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SPIRV_PATH}" "${IN_SOURCE_PATH}"
         BYPRODUCTS "${DEPFILE_PATH}" "${IN_SOURCE_PATH}"
         DEPENDS "${GLSL_PATH}"
