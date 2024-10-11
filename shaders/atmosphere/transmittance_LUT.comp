@@ -5,7 +5,7 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, set = 0, binding = 0) uniform image2D transmittance_LUT;
 
-#include "common.glinl"
+#include "../types/atmosphere.glinl"
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
@@ -18,6 +18,8 @@ layout(push_constant) uniform PushConstant
 
     uint atmosphereIndex;
 } pc;
+
+#include "common.glinl"
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire
 

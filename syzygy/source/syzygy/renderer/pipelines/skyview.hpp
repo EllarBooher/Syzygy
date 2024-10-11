@@ -46,7 +46,7 @@ public:
         TStagedBuffer<AtmospherePacked> const& atmospheres,
         uint32_t viewCameraIndex,
         TStagedBuffer<CameraPacked> const& cameras,
-        uint32_t sunLightIndex,
+        uint32_t atmosphereLightCount,
         TStagedBuffer<DirectionalLightPacked> const& lights
     );
 
@@ -92,7 +92,7 @@ public:
             VkDeviceAddress directionalLights{};
 
             uint32_t atmosphereIndex{0};
-            uint32_t sunLightIndex{0};
+            uint32_t atmosphereLightCount{0};
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };
@@ -121,7 +121,7 @@ public:
 
             VkDeviceAddress directionalLights{};
 
-            uint32_t sunLightIndex{0};
+            uint32_t atmosphereLightCount{0};
             // NOLINTBEGIN(modernize-avoid-c-arrays, readability-magic-numbers)
             uint8_t padding0[4]{0};
             // NOLINTEND(modernize-avoid-c-arrays, readability-magic-numbers)
@@ -173,7 +173,7 @@ public:
             glm::uvec2 gbufferExtent{};
 
             VkDeviceAddress directionalLights{};
-            uint32_t sunLightIndex{0};
+            uint32_t atmosphereLightCount{0};
         };
         ShaderObjectReflected shader{ShaderObjectReflected::makeInvalid()};
     };

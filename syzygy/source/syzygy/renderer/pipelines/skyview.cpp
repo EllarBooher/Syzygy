@@ -826,7 +826,7 @@ void recordMultiscatterLUTCommands(
     syzygy::ImageView& transmittanceLUT,
     uint32_t const atmosphereIndex,
     syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
-    uint32_t const sunLightIndex,
+    uint32_t const atmosphereLightCount,
     syzygy::TStagedBuffer<syzygy::DirectionalLightPacked> const& lights
 )
 {
@@ -858,7 +858,7 @@ void recordMultiscatterLUTCommands(
             .atmosphereBuffer = atmospheres.deviceAddress(),
             .directionalLights = lights.deviceAddress(),
             .atmosphereIndex = atmosphereIndex,
-            .sunLightIndex = sunLightIndex,
+            .atmosphereLightCount = atmosphereLightCount,
         };
 
     vkCmdPushConstants(
@@ -892,7 +892,7 @@ void recordPerspectiveMapCommands(
     syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t const viewCameraIndex,
     syzygy::TStagedBuffer<syzygy::CameraPacked> const& cameras,
-    uint32_t const sunLightIndex,
+    uint32_t const atmosphereLightCount,
     syzygy::TStagedBuffer<syzygy::DirectionalLightPacked> const& lights
 )
 {
@@ -944,7 +944,7 @@ void recordPerspectiveMapCommands(
             .gbufferExtent =
                 glm::uvec2{gbuffer.extent().width, gbuffer.extent().height},
             .directionalLights = lights.deviceAddress(),
-            .sunLightIndex = sunLightIndex,
+            .atmosphereLightCount = atmosphereLightCount,
         };
 
     vkCmdPushConstants(
@@ -1071,7 +1071,7 @@ void SkyViewComputePipeline::recordDrawCommands(
     TStagedBuffer<AtmospherePacked> const& atmospheres,
     uint32_t const viewCameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
-    uint32_t const sunLightIndex,
+    uint32_t const atmosphereLightCount,
     TStagedBuffer<DirectionalLightPacked> const& lights
 )
 {
@@ -1163,7 +1163,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         *m_transmittanceLUT.map,
         atmosphereIndex,
         atmospheres,
-        sunLightIndex,
+        atmosphereLightCount,
         lights
     );
 
@@ -1199,7 +1199,7 @@ void SkyViewComputePipeline::recordDrawCommands(
             .atmosphereIndex = atmosphereIndex,
             .cameraIndex = viewCameraIndex,
             .directionalLights = lights.deviceAddress(),
-            .sunLightIndex = sunLightIndex,
+            .atmosphereLightCount = atmosphereLightCount,
         };
 
         vkCmdPushConstants(
@@ -1233,7 +1233,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         atmospheres,
         viewCameraIndex,
         cameras,
-        sunLightIndex,
+        atmosphereLightCount,
         lights
     );
 }

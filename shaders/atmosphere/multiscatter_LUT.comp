@@ -2,15 +2,13 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
+#include "../types/atmosphere.glinl"
+#include "../types/lights.glsl"
+
 layout(local_size_x = 16, local_size_y = 16) in;
+
 layout(rgba32f, set = 0, binding = 0) uniform image2D multiscatter_LUT;
 layout(set = 0, binding = 1) uniform sampler2D transmittance_LUT;
-
-#ifndef SZG_ISOTROPIC_PHASE
-#define SZG_ISOTROPIC_PHASE 1
-#endif
-
-#include "common.glinl"
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
@@ -19,7 +17,7 @@ layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 
 layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
 {
-    LightDirectional lights[];
+    LightDirectional lights[16];
 };
 
 layout(push_constant) uniform PushConstant
@@ -28,8 +26,24 @@ layout(push_constant) uniform PushConstant
     LightDirectionalBuffer directionalLights;
 
     uint atmosphereIndex;
-    uint sunLightIndex;
+    uint atmosphereLightCount;
 } pc;
+
+#include "common.glinl"
+
+#ifndef SZG_ISOTROPIC_PHASE
+#define SZG_ISOTROPIC_PHASE 1
+#endif
+
+#ifndef SZG_SCATTER_SINGLE_LIGHT
+#define SZG_SCATTER_SINGLE_LIGHT 1
+#endif
+
+#ifndef SZG_LIGHT_ILLUMINANCE_IS_ONE
+#define SZG_LIGHT_ILLUMINANCE_IS_ONE 1
+#endif
+
+#include "raymarch.glinl"
 
 // Based on "A Scalable and Production Ready Sky and Atmosphere Rendering Technique" by Sebastien Hillaire (2020)
 
@@ -79,7 +93,10 @@ void main()
     }
 
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
-    LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
+
+    // TODO: Multiple multiscattering LUTs. This may not be necessary, but right now lighting calculations
+    // depend on the angular radius of the light. That may not be necessary.
+    LightDirectional sunDirectionalLight = pc.directionalLights.lights[0];
 
     const vec2 offset = vec2(0.5, 0.5);
     const vec2 uv = (vec2(texelCoord) + offset) / size;

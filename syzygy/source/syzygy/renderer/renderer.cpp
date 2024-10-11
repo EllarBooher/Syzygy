@@ -406,7 +406,7 @@ void Renderer::recordDraw(
                     *m_atmospheresBuffer,
                     cameraIndex,
                     *m_camerasBuffer,
-                    sunLightIndex,
+                    directionalLights.size(),
                     *m_directionalLightsBuffer
                 );
             }

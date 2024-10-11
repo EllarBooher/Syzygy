@@ -1,6 +1,3 @@
-#include "../types/atmosphere.glinl"
-#include "../types/lights.glsl"
-
 // This file contains all methods used in Raymarching the atmosphere
 
 // Based on:
@@ -187,40 +184,6 @@ vec3 sampleTransmittanceLUT_RadiusMu(sampler2D LUT, const Atmosphere atmosphere,
     return texture(LUT, uv).rgb;
 }
 
-vec3 sampleTransmittanceLUT_Sun(sampler2D LUT,
-                                const Atmosphere atmosphere,
-                                const LightDirectional sun,
-                                const float radius,
-                                const float cos_sunZenith)
-{
-    const float sin_sunRadius = sin(sun.angularRadius);
-    const float cos_sunRadius = cos(sun.angularRadius);
-
-    /*
-    Possible small angle approximation
-    const float sin_sunRadius = SUN_ANGULAR_RADIUS_RADIANS;
-    const float cos_sunRadius = 1.0;
-    */
-
-    const float sin_horizonZenith = atmosphere.planetRadiusMm / radius;
-    // Negative since the horizon zenith varies from PI/2 to PI
-    const float cos_horizonZenith = -safeSqrt(1.0 - sin_horizonZenith * sin_horizonZenith);
-
-    // This sample makes no assumption about ground intersection
-    const vec3 transmittanceThroughAtmosphere = sampleTransmittanceLUT_RadiusMu(LUT, atmosphere, radius, cos_sunZenith);
-
-    // angularFactor goes from 1 to 0 as sunZenith varies from horizonZenith - sunRadius to horizonZenith + sunRadius
-    // Or as cos(sunZenith) varies from cos(horizonZenith - sunRadius) to cos(horizonZenith + sunRadius)
-    // Using angle sum identity, we get that:
-    // cos(horizonZenith - sunRadius) = cos(horizonZenith)cos(sunRadius) + sin(sunRadius)sin(horizonZenith)
-    // cos(horizonZenith + sunRadius) = cos(horizonZenith)cos(sunRadius) - sin(sunRadius)sin(horizonZenith)
-
-    const float angularFactor = smoothstep(-sin_horizonZenith * sin_sunRadius,
-                                           sin_horizonZenith * sin_sunRadius,
-                                           cos_sunZenith - cos_horizonZenith * cos_sunRadius);
-
-    return transmittanceThroughAtmosphere * angularFactor;
-}
 // Ensure altitude and densityScale are the same units.
 float densityExponential(const float altitude, const float densityScale) { return exp(-altitude / densityScale); }
 
@@ -399,7 +362,6 @@ struct RaymarchStep
 {
     float radius;
     float mu;
-    float mu_sun;
 };
 
 RaymarchStep stepRadiusMu(const RaymarchStep start, const float stepDistance)
@@ -410,16 +372,11 @@ RaymarchStep stepRadiusMu(const RaymarchStep start, const float stepDistance)
     // When computing changes in radii and mu, we use this method everywhere since norm is preserved upon rotation
     // and all cases of stepping can be reduced to the above two vectors
 
-    // cosine sum identity for sun zenith and direction zenith
-    const float mu_sunAndStepDirection =
-        safeSqrt(start.mu_sun * start.mu - safeSqrt((1.0 - start.mu_sun * start.mu_sun) * (1.0 - start.mu * start.mu)));
-
     RaymarchStep result;
 
     result.radius = safeSqrt(stepDistance * stepDistance + 2.0 * start.radius * start.mu * stepDistance
                              + start.radius * start.radius);
     result.mu = (start.radius * start.mu + stepDistance) / result.radius;
-    result.mu_sun = (start.radius * start.mu_sun + stepDistance * mu_sunAndStepDirection) / result.radius;
 
     return result;
 }
@@ -453,218 +410,3 @@ vec3 sampleTransmittanceLUT_RayMarchStep(const Atmosphere atmosphere,
 
     return clamp(transmittance, 0.0, 1.0);
 }
-
-#ifndef SZG_MULTISCATTERING_ENABLED
-#define SZG_MULTISCATTERING_ENABLED 0
-#endif
-
-#ifndef SZG_ISOTROPIC_PHASE
-#define SZG_ISOTROPIC_PHASE 0
-#endif
-
-// This can help with small sample counts
-#ifndef SZG_SCATTERING_NONLINEAR_SAMPLE
-#define SZG_SCATTERING_NONLINEAR_SAMPLE 0
-#endif
-
-struct ScatteringResult
-{
-    vec3 luminance;
-    vec3 multiScattTransfer;
-};
-
-#if SZG_MULTISCATTERING_ENABLED
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
-                                                    const LightDirectional celestialLight,
-                                                    sampler2D transmittanceLUT,
-                                                    sampler2D multiscatterLUT,
-                                                    in vec3 origin,
-                                                    const vec3 direction,
-                                                    const bool includeGround,
-                                                    const float tMax)
-#else
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
-                                                    const LightDirectional celestialLight,
-                                                    sampler2D transmittanceLUT,
-                                                    in vec3 origin,
-                                                    const vec3 direction,
-                                                    const bool includeGround,
-                                                    const float tMax)
-#endif
-{
-    // This is the direction of the incoming light, which is the light we are interested in computing the magnitude of.
-    // For the purposes of calculating phase functions, this is the direction we want to use.
-    const vec3 scatteringDir = -normalize(direction);
-
-    const RaycastHit hitPlanet = raycastSphere(origin, direction, atmosphere.planetRadiusMm);
-    const RaycastHit hitAtmosphere = raycastSphere(origin, direction, atmosphere.atmosphereRadiusMm);
-
-    ScatteringResult result;
-    result.luminance = vec3(0.0);
-    result.multiScattTransfer = vec3(0.0);
-
-    float sampleDistance = 0.0;
-
-    if (!hitAtmosphere.hit || (hitPlanet.hit && (hitPlanet.tMin < 0.0 && hitPlanet.tMax > 0.0)))
-    {
-        return result;
-    }
-
-    // Assuming the planet was hit, we have hitAtmosphere.tMin < hitPlanet.tMin < hitPlanet.tMax < hitAtmosphere.tMax
-    // If this assumption ever fails (such as 0 atmosphere?), this method needs to be reworked anyway to skip some
-    // calculations
-
-    if (hitPlanet.hit && hitPlanet.tMin > 0.0)
-    {
-        sampleDistance = hitPlanet.tMin;
-    }
-    else
-    {
-        sampleDistance = hitAtmosphere.tMax;
-    }
-
-    if (hitAtmosphere.tMin > 0.0)
-    {
-        origin += hitAtmosphere.tMin * direction;
-        sampleDistance -= hitAtmosphere.tMin;
-    }
-
-    sampleDistance = min(sampleDistance, tMax);
-
-    const float radius = length(origin);
-    const float mu = dot(origin, direction) / (length(origin) * length(direction));
-    const float mu_sun =
-        dot(origin, -celestialLight.forward) / (length(origin) * length(celestialLight.forward));
-
-    const RaymarchStep originStep = RaymarchStep(radius, mu, mu_sun);
-
-    // We estimate the integral in Equation (1) of Hillaire's paper.
-
-    const float ISOTROPIC_PHASE = 1.0 / (4.0 * PI);
-
-    const uint SAMPLE_COUNT = 32;
-
-    const float dSampleDistance = sampleDistance / SAMPLE_COUNT;
-    for (uint i = 0; i < SAMPLE_COUNT; i++)
-    {
-        float tBegin = float(i) / SAMPLE_COUNT;
-        float tEnd = float(i + 1.0) / SAMPLE_COUNT;
-
-#if SZG_SCATTERING_NONLINEAR_SAMPLE
-        tBegin = tBegin * tBegin;
-        tEnd *= tEnd * tEnd;
-#endif
-
-        tBegin = tBegin * sampleDistance;
-        tEnd = min(tEnd * sampleDistance, sampleDistance);
-        tBegin = float(i) * dSampleDistance;
-        tEnd = float(i + 1) * dSampleDistance;
-
-        const float t = mix(tBegin, tEnd, 0.5);
-        const vec3 begin = origin - tBegin * scatteringDir;
-        const vec3 samplePosition = origin - t * scatteringDir;
-        const vec3 end = origin - tEnd * scatteringDir;
-
-        const RaymarchStep sampleStep = stepRadiusMu(originStep, t);
-
-        const float altitude = length(begin) - atmosphere.planetRadiusMm;
-
-        const vec3 transmittanceToSun =
-            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, celestialLight, sampleStep.radius, sampleStep.mu_sun);
-
-        const ExtinctionSample extinctionSample = sampleExtinction(atmosphere, altitude);
-
-        // Terms of Equation (3) we assume to not vary over the path segment
-
-        // We could accumulate samples across loops like:
-        //
-        // const vec3 sampleTransmittance = exp(-dSampleDistance * extinctionSample.extinction);
-        // ... compute luminance using transmittance ...
-        // transmittance *= sampleTransmittance;
-        //
-        // But at the cost of performance, resampling the transmittance LUT is more accurate for larger step sizes
-
-        const vec3 transmittanceToBegin =
-            sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, t);
-        const float incidentCosine = dot(celestialLight.forward, scatteringDir);
-
-#if SZG_ISOTROPIC_PHASE
-        const vec3 phaseTimesScattering = extinctionSample.scattering * ISOTROPIC_PHASE;
-#else
-        // Ozone does not scatter light, so we arbitrarily use rayleigh's phase function in case ozone's scattering
-        // coefficient is nonzero
-        const vec3 phaseTimesScattering = extinctionSample.scatteringRayleigh * phaseRayleigh(incidentCosine)
-                                        + extinctionSample.scatteringMie * phaseMie(incidentCosine, 0.8)
-                                        + extinctionSample.scatteringOzone * phaseRayleigh(incidentCosine);
-#endif
-
-#if SZG_MULTISCATTERING_ENABLED
-        const vec3 multiscatter =
-            sampleMultiscatterLUT(multiscatterLUT, atmosphere, samplePosition, celestialLight.forward);
-#else
-        const vec3 multiscatter = vec3(0.0);
-#endif
-
-        const float shadowBegin =
-            float(raycastTestSphere(begin, -celestialLight.forward, atmosphere.planetRadiusMm));
-        const float shadowMiddle =
-            float(raycastTestSphere(0.5 * (begin + end), -celestialLight.forward, atmosphere.planetRadiusMm));
-        const float shadowEnd =
-            float(raycastTestSphere(end, -celestialLight.forward, atmosphere.planetRadiusMm));
-        const vec3 shadowing = transmittanceToSun * (1.0 - 0.25 * (shadowBegin + 2.0 * shadowMiddle + shadowEnd));
-
-        // Integrate transmittance := e^(-extinction(x) * ||x - begin||) from begin to end
-        // This is a single interval of the integral in Equation (1) from Hillaire's paper,
-        // with all constant terms factored out above
-        const vec3 transmittanceAlongPath = sampleTransmittanceLUT_Segment(transmittanceLUT, atmosphere, begin, end);
-        const vec3 scatteringIlluminanceIntegral = (vec3(1.0) - transmittanceAlongPath) / extinctionSample.extinction;
-
-        result.luminance += (phaseTimesScattering * shadowing + multiscatter * extinctionSample.scattering)
-                          * scatteringIlluminanceIntegral * transmittanceToBegin;
-        result.multiScattTransfer += extinctionSample.scattering * scatteringIlluminanceIntegral * transmittanceToBegin;
-    }
-
-    if (includeGround && hitPlanet.hit && hitPlanet.tMin > 0.0)
-    {
-        const RaymarchStep sampleStep = stepRadiusMu(originStep, sampleDistance);
-
-        const vec3 transmittanceToSurface =
-            sampleTransmittanceLUT_RayMarchStep(atmosphere, transmittanceLUT, originStep, hitPlanet.tMin);
-        const vec3 transmittanceToSun =
-            sampleTransmittanceLUT_Sun(transmittanceLUT, atmosphere, celestialLight, sampleStep.radius, sampleStep.mu_sun);
-
-        const float NdotL = clamp(sampleStep.mu_sun, 0.0, 1.0);
-
-        // TODO: ground color albedo
-        const vec3 diffuse = vec3(0.3) / PI;
-
-        result.luminance += transmittanceToSurface * transmittanceToSun * NdotL * diffuse;
-    }
-
-    return result;
-}
-
-#if SZG_MULTISCATTERING_ENABLED
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
-                                                    const LightDirectional celestialLight,
-                                                    sampler2D transmittanceLUT,
-                                                    sampler2D multiscatterLUT,
-                                                    in vec3 origin,
-                                                    const vec3 direction,
-                                                    const bool includeGround)
-{
-    return computeLuminanceScatteringIntegral(
-        atmosphere, celestialLight, transmittanceLUT, multiscatterLUT, origin, direction, includeGround, 1000000.0);
-}
-#else
-ScatteringResult computeLuminanceScatteringIntegral(const Atmosphere atmosphere,
-                                                    const LightDirectional celestialLight,
-                                                    sampler2D transmittanceLUT,
-                                                    in vec3 origin,
-                                                    const vec3 direction,
-                                                    const bool includeGround)
-{
-    return computeLuminanceScatteringIntegral(
-        atmosphere, celestialLight, transmittanceLUT, origin, direction, includeGround, 1000000.0);
-}
-#endif

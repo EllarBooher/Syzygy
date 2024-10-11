@@ -2,18 +2,15 @@
 #extension GL_EXT_buffer_reference2 : require
 #extension GL_ARB_shading_language_include : require
 
+#include "../types/camera.glsl"
+#include "../types/atmosphere.glinl"
+#include "../types/lights.glsl"
+
 layout(local_size_x = 16, local_size_y = 16) in;
+
 layout(rgba32f, set = 0, binding = 0) uniform image2D skyview_LUT;
 layout(set = 0, binding = 1) uniform sampler2D transmittance_LUT;
 layout(set = 0, binding = 2) uniform sampler2D multiscatter_LUT;
-
-#include "../types/camera.glsl"
-
-#ifndef SZG_MULTISCATTERING_ENABLED
-#define SZG_MULTISCATTERING_ENABLED 1
-#endif
-
-#include "common.glinl"
 
 layout(buffer_reference, std430) readonly buffer AtmosphereBuffer
 {
@@ -27,7 +24,7 @@ layout(buffer_reference, std430) readonly buffer CameraBuffer
 
 layout(buffer_reference, std430) readonly buffer LightDirectionalBuffer
 {
-    LightDirectional lights[];
+    LightDirectional lights[16];
 };
 
 layout(push_constant) uniform PushConstant
@@ -40,8 +37,21 @@ layout(push_constant) uniform PushConstant
 
     LightDirectionalBuffer directionalLights;
 
-    uint sunLightIndex;
+    uint atmosphereLightCount;
 } pc;
+
+LightDirectional getLight(uint index)
+{
+    return pc.directionalLights.lights[index];
+}
+
+#include "common.glinl"
+
+#ifndef SZG_MULTISCATTERING_ENABLED
+#define SZG_MULTISCATTERING_ENABLED 1
+#endif
+
+#include "raymarch.glinl"
 
 // All units are Mm/megameters (10^6 meters) unless marked km/kilometers (10^3 meters)
 
@@ -70,25 +80,7 @@ void uv_to_azimuthElevation(
     const float sinHorizonZenith = atmosphere.planetRadiusMm / radius;
     const float horizonZenith = PI - asin(sinHorizonZenith);
 
-    // u stores light-relative azimuth
-    const float cosineViewLightProjected = (uv.s - 0.5) * 2.0;
-
-    float azimuthSun = 0.0;
-    // Azimuth is ambiguous when zenith is too close to 0 or PI
-    if(abs(dot(celestialLight.forward, WORLD_UP)) < 0.999999)
-    {
-        const vec2 lightDirectionProjected =
-            normalize(vec2(-celestialLight.forward.x, -celestialLight.forward.z));
-
-        azimuthSun = asin(lightDirectionProjected.x);
-
-        if (lightDirectionProjected.y < 0.0)
-        {
-            azimuthSun = PI - azimuthSun;
-        }
-    }
-
-    azimuth = acos(clamp(cosineViewLightProjected, -1.0, 1.0)) + azimuthSun;
+    azimuth = 2.0 * PI * (uv.s - 0.5);
 
     float viewZenith;
 
@@ -124,25 +116,23 @@ void main()
 
     const Camera camera = pc.cameraBuffer.cameras[pc.cameraIndex];
     const Atmosphere atmosphere = pc.atmosphereBuffer.atmospheres[pc.atmosphereIndex];
-    const LightDirectional sunDirectionalLight = pc.directionalLights.lights[pc.sunLightIndex];
 
     // +x right, +y up, +z forward
     // Note: engine has +y down, but these coordinates are separate and based on azimuth, elevation.
     // +azimuth right, +elevation up
 
-    vec3 origin = camera.position.xyz / METERS_PER_MM;
-    origin += atmosphere.planetRadiusMm * WORLD_UP;
+    const vec3 origin = camera.position.xyz / METERS_PER_MM + atmosphere.planetRadiusMm * WORLD_UP;
 
     float azimuth;
     float elevation;
-    uv_to_azimuthElevation(atmosphere, sunDirectionalLight, length(origin), uv, azimuth, elevation);
+    uv_to_azimuthElevation(atmosphere,  pc.directionalLights.lights[0], length(origin), uv, azimuth, elevation);
 
     const vec3 direction =
         normalize(vec3(sin(azimuth) * cos(elevation), WORLD_UP.y * sin(elevation), cos(azimuth) * cos(elevation)));
 
     const bool includeGround = false;
     const vec3 luminance = computeLuminanceScatteringIntegral(
-                               atmosphere, sunDirectionalLight, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround)
+                               atmosphere, pc.atmosphereLightCount, transmittance_LUT, multiscatter_LUT, origin, direction, includeGround)
                                .luminance;
 
     imageStore(skyview_LUT, texelCoord, vec4(luminance, 1.0));

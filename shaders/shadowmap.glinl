@@ -29,6 +29,20 @@ ShadowFrame computeShadowFrame(mat4 lightProjView, vec3 position, vec3 normal)
     return ShadowFrame(shadowCoord, dx, dy);
 }
 
+float sampleShadowMap(texture2D map, sampler mapSampler, const vec4 shadowCoord)
+{
+    float fragmentDepth = shadowCoord.z;
+    const float occluderDepth = texture(sampler2D(map, mapSampler), shadowCoord.xy).r;
+
+    // Reverse-Z
+    if (occluderDepth > 0.0 && occluderDepth > fragmentDepth)
+    {
+        return 0.0;
+    }
+
+    return 1.0;
+}
+
 float sampleShadowMap(texture2D map, sampler mapSampler, const ShadowFrame shadow)
 {
     float fragmentDepth = shadow.coord.z;
