@@ -318,11 +318,10 @@ vec3 sampleGeometryLuminance(const Atmosphere atmosphere,
 vec3 tonemapPBRNeutral(vec3 color)
 {
     // Implementation of https://github.com/KhronosGroup/ToneMapping/tree/main/PBR_Neutral
+    const float x = min(min(color.r, color.g), color.b);
 
     // 4% Fresnel Reflection for a standard 1.5 IoR material
     const float F_normal = 0.04;
-
-    const float x = min(min(color.r, color.g), color.b);
 
     float f = F_normal;
     if (x <= 2.0 * F_normal)
@@ -330,25 +329,24 @@ vec3 tonemapPBRNeutral(vec3 color)
         f = x - x * x / (4.0 * F_normal);
     }
 
-    const float p = max(max(color.r - f, color.g - f), color.b - f);
+    color -= f;
 
     // Parameter that controls when highlight compression starts
     const float K_s = 0.8 - F_normal;
-    // Speed of destruction
+
+    const float p = max(max(color.r, color.g), color.b);
+    if (p <= K_s)
+    {
+        return color;
+    }
+
+    // Speed of desaturation
     const float K_d = 0.15;
 
     const float p_n = 1.0 - (1.0 - K_s) * (1.0 - K_s) / (p + 1.0 - 2.0 * K_s);
     const float g = 1.0 / (K_d * (p - p_n) + 1.0);
 
-    vec3 mapped = color - vec3(f);
-
-    if (p > K_s)
-    {
-        mapped = mapped * g * p_n / p + vec3(p_n) * (1.0 - g);
-    }
-
-    return mapped;
-
+    return mix(vec3(p_n), color * p_n / p, g); 
 }
 
 void main()
