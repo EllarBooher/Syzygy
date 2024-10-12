@@ -302,6 +302,11 @@ void uiAtmosphereLights(std::span<syzygy::DirectionalLight> const lights)
         .bounds = syzygy::FloatBounds{.min = 0.0F, .max = glm::two_pi<float>()}
     };
 
+    syzygy::PropertySliderBehavior constexpr ORBITAL_PERIOD_BEHAVIOR{
+        .speed = 0.1F,
+        .bounds = syzygy::FloatBounds{.min = 0.0F},
+    };
+
     syzygy::PropertySliderBehavior constexpr ANGULAR_RADIUS_BEHAVIOR{
         .speed = RADIANS_PER_ARCMINUTE,
         .bounds = syzygy::FloatBounds{.min = 0.0F}
@@ -309,11 +314,17 @@ void uiAtmosphereLights(std::span<syzygy::DirectionalLight> const lights)
 
     for (auto& light : lights)
     {
-        table.rowChildPropertyBegin("Light", false)
+        table.rowChildPropertyBegin(light.name, false)
             .rowColor("Color", light.color, glm::vec3{1.0F}, RGB_BEHAVIOR)
             .rowFloat("Strength", light.strength, 1.0F, STRENGTH_BEHAVIOR)
             .rowReadOnlyFloat("Zenith", light.zenith)
             .rowFloat("Azimuth", light.azimuth, 0.0F, AZIMUTH_BEHAVIOR)
+            .rowFloat(
+                "Orbital Period (Days)",
+                light.orbitalPeriodDays,
+                1.0F,
+                ORBITAL_PERIOD_BEHAVIOR
+            )
             .rowFloat(
                 "Angular Radius",
                 light.angularRadius,
@@ -797,8 +808,15 @@ void sceneControlsWindow(
             -100'000.0F, 100'000.0F
         };
 
-        PropertyTable::begin()
-            .rowBoolean("Frozen", scene.time.frozen, defaultAnimation.frozen)
+        PropertySliderBehavior RADIANS_BEHAVIOR{
+            .speed = 0.01F,
+            .bounds =
+                FloatBounds{.min = -glm::pi<float>(), .max = glm::pi<float>()}
+        };
+
+        auto table{PropertyTable::begin()};
+
+        table.rowBoolean("Frozen", scene.time.frozen, defaultAnimation.frozen)
             .rowFloat(
                 "Time (Days)",
                 scene.time.time,
@@ -813,10 +831,34 @@ void sceneControlsWindow(
                     .bounds = SUN_ANIMATION_SPEED_BOUNDS,
                 }
             )
-            .rowBoolean(
-                "Skip Night", scene.time.skipNight, defaultAnimation.skipNight
+            .rowBoolean("Realistic Orbits", scene.time.realisticOrbits, true)
+            .childPropertyBegin()
+            .rowFloat(
+                "Planet Tilt (Radians)",
+                scene.time.tiltPlanet,
+                defaultAnimation.tiltPlanet,
+                RADIANS_BEHAVIOR
             )
-            .end();
+            .rowFloat(
+                "Lunar Orbit Inclination (Radians)",
+                scene.time.inclinationLunarOrbit,
+                defaultAnimation.inclinationLunarOrbit,
+                RADIANS_BEHAVIOR
+            )
+            .childPropertyEnd();
+
+        if (scene.time.realisticOrbits)
+        {
+            table.rowReadOnlyBoolean("Skip Night", scene.time.skipNight);
+        }
+        else
+        {
+            table.rowBoolean(
+                "Skip Night", scene.time.skipNight, defaultAnimation.skipNight
+            );
+        }
+
+        table.end();
     }
 
     if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))

@@ -23,9 +23,10 @@
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/projection.hpp>
+#include <glm/gtx/transform.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
-#include <glm/trigonometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -51,6 +52,7 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
 
     float constexpr SUNLIGHT_STRENGTH{10.0F};
     float constexpr SUN_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
+    float constexpr SUN_ORBITAL_PERIOD_DAYS = 365.0F;
 
     float constexpr SUNSET_COSINE{0.06};
 
@@ -59,22 +61,23 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
     // TODO: Compute moonlight strength and color based on sun position
     float const MOONLIGHT_STRENGTH{1.0F};
     float constexpr MOON_ANGULAR_RADIUS{glm::radians(16.0F / 60.0F)};
-    // float constexpr MOON_ORBITAL_PERIOD_DAYS = 27.3F;
-    float constexpr MOON_ORBITAL_PERIOD_DAYS = 2.73F;
+    float constexpr MOON_ORBITAL_PERIOD_DAYS = 27.3F;
 
     glm::vec3 constexpr MOONLIGHT_COLOR_RGB{0.3, 0.4, 0.6};
 
     scene.addAtmosphereLight(syzygy::DirectionalLight{
         .color = SUNLIGHT_RGB,
         .strength = SUNLIGHT_STRENGTH,
+        .name = "Sun",
         .angularRadius = SUN_ANGULAR_RADIUS,
-        .orbitalPeriodDays = 1.0F,
+        .orbitalPeriodDays = SUN_ORBITAL_PERIOD_DAYS,
         .zenith = 0.0F,
         .azimuth = 0.0F,
     });
     scene.addAtmosphereLight(syzygy::DirectionalLight{
         .color = MOONLIGHT_COLOR_RGB,
         .strength = MOONLIGHT_STRENGTH,
+        .name = "Moon",
         .angularRadius = MOON_ANGULAR_RADIUS,
         .orbitalPeriodDays = MOON_ORBITAL_PERIOD_DAYS,
         .zenith = 0.0F,
@@ -582,7 +585,104 @@ void Scene::tick(TickTiming const lastFrame)
                    / SceneTime::DAY_LENGTH_SECONDS;
     }
 
-    if (!m_atmosphereLights.empty())
+    if (time.realisticOrbits && m_atmosphereLights.size() >= 2)
+    {
+        // Assume circular orbits with no precession
+
+        float const timeDays{time.time};
+
+        DirectionalLight& sun{m_atmosphereLights[0]};
+        DirectionalLight& moon{m_atmosphereLights[1]};
+
+        float const planetTheta{
+            glm::two_pi<float>() * timeDays / sun.orbitalPeriodDays
+        };
+
+        glm::vec3 const sunToPlanetDelta{
+            glm::vec3{glm::sin(planetTheta), 0.0F, glm::cos(planetTheta)}
+        };
+
+        float const moonTheta{
+            glm::two_pi<float>() * timeDays / moon.orbitalPeriodDays
+        };
+
+        glm::mat3x3 const moonInclinationTransform{
+            glm::rotate(time.inclinationLunarOrbit, WORLD_FORWARD)
+        };
+
+        glm::vec3 const planetToMoonDelta =
+            moonInclinationTransform
+            * glm::vec3{glm::sin(moonTheta), 0.0F, glm::cos(moonTheta)};
+
+        glm::mat3x3 const planetTiltTransform{
+            glm::rotate(time.tiltPlanet, WORLD_FORWARD)
+        };
+
+        float const viewTheta{glm::two_pi<float>() * timeDays};
+
+        // Viewer on equator
+        glm::vec3 const planetToViewDelta =
+            planetTiltTransform
+            * glm::vec3{glm::sin(viewTheta), 0.0F, glm::cos(viewTheta)};
+
+        // Distances are in megameters
+        float constexpr PLANET_ORBITAL_DISTANCE = 149'597.87F;
+        float constexpr MOON_ORBITAL_DISTANCE = 382.500F;
+        float const planetRadius = atmosphere.planetRadiusMegameters;
+
+        glm::vec3 const sunPosition{glm::vec3{0.0F}};
+        glm::vec3 const planetPosition{
+            sunPosition + PLANET_ORBITAL_DISTANCE * sunToPlanetDelta
+        };
+        glm::vec3 const moonPosition{
+            planetPosition + MOON_ORBITAL_DISTANCE * planetToMoonDelta
+        };
+        glm::vec3 const viewPosition{
+            planetPosition + planetRadius * planetToViewDelta
+        };
+
+        // Compute apparent position of sun and moon in sky
+
+        glm::vec3 const toSun{glm::normalize(sunPosition - viewPosition)};
+        glm::vec3 const toMoon{glm::normalize(moonPosition - viewPosition)};
+        // Eventually everything is rendered with WORLD_UP being up, but for the
+        // simulation we need an actual up
+        glm::vec3 const surfaceUp{glm::normalize(viewPosition - planetPosition)
+        };
+
+        glm::vec3 const surfaceForward{
+            glm::normalize(planetTiltTransform * WORLD_UP)
+        };
+        glm::vec3 const surfaceRight{
+            glm::normalize(glm::cross(surfaceForward, surfaceUp))
+        };
+
+        float const sunZenith{glm::acos(glm::dot(toSun, surfaceUp))};
+        float const moonZenith{glm::acos(glm::dot(toMoon, surfaceUp))};
+
+        glm::vec3 const toSunProjected{
+            glm::normalize(toSun - glm::proj(toSun, surfaceUp))
+        };
+        glm::vec3 const toMoonProjected{
+            glm::normalize(toMoon - glm::proj(toMoon, surfaceUp))
+        };
+
+        float const sunAzimuth{
+            glm::sign(dot(toSunProjected, surfaceRight))
+            * glm::acos(dot(toSunProjected, surfaceForward))
+        };
+        float const moonAzimuth{
+            glm::sign(dot(toMoonProjected, surfaceRight))
+            * glm::acos(dot(toMoonProjected, surfaceForward))
+        };
+
+        sun.zenith = sunZenith;
+        sun.azimuth = sunAzimuth;
+
+        moon.zenith = moonZenith;
+        moon.azimuth = moonAzimuth;
+    }
+    else if (!m_atmosphereLights.empty())
     {
         if (time.skipNight && !time.frozen)
         {

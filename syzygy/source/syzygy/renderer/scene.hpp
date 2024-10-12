@@ -10,6 +10,7 @@
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/material.hpp"
 #include <glm/mat4x4.hpp>
+#include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
 #include <memory>
 #include <optional>
@@ -58,6 +59,8 @@ struct DirectionalLight
 {
     glm::vec3 color{};
     float strength{};
+
+    std::string name{};
 
     // Describes the angular radius of a celestial body creating this light
     float angularRadius{};
@@ -165,6 +168,11 @@ struct SceneTime
 
     float speed{1.0F};
     bool skipNight{false};
+
+    bool realisticOrbits{true};
+    // Default values taken from Wikipedia
+    float tiltPlanet{glm::radians(23.44F)};
+    float inclinationLunarOrbit{glm::radians(5.14F)};
 };
 
 // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
