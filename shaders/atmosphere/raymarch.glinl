@@ -253,8 +253,7 @@ ScatteringResult computeLuminanceScatteringIntegral(
 
             const float NdotL = clamp(mu_light, 0.0, 1.0);
 
-            // TODO: ground color albedo
-            const vec3 diffuse = vec3(0.3) / PI;
+            const vec3 diffuse = atmosphere.groundAlbedo / PI;
 
             result.luminance += transmittanceToSurface * transmittanceToSun * NdotL * diffuse
 #if SZG_LIGHT_ILLUMINANCE_IS_ONE

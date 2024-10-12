@@ -847,6 +847,7 @@ auto Atmosphere::toDeviceEquivalent() const -> AtmospherePacked
         .densityScaleMieMm = altitudeDecayMieMegameters,
         .absorptionMiePerMm = absorptionMiePerMegameter,
         .atmosphereRadiusMm = atmosphereRadiusMegameters,
+        .groundAlbedo = groundColor,
         .scatteringOzonePerMm = scatteringOzonePerMegameter,
         .absorptionOzonePerMm = absorptionOzonePerMegameter,
     };

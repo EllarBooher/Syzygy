@@ -52,8 +52,10 @@ struct AtmospherePacked
 
     float atmosphereRadiusMm;
 
+    glm::vec3 groundAlbedo;
+
     // NOLINTNEXTLINE(modernize-avoid-c-arrays, readability-magic-numbers)
-    uint8_t padding0[16]{};
+    uint8_t padding0[4]{};
 
     glm::vec3 scatteringOzonePerMm;
 
