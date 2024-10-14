@@ -61,29 +61,41 @@ auto assetPtrToRef(AssetPtr<T> const& asset) -> std::optional<AssetRef<T>>
     return *asset.lock();
 }
 
+template <typename> constexpr bool dependent_false_v = false;
+
 struct AssetLibrary
 {
-public:
+private:
     template <typename T>
-    [[nodiscard]] auto fetchAssets() -> std::vector<AssetPtr<T>>
+    [[nodiscard]] auto getAssetsContainer()
+        -> std::vector<std::shared_ptr<Asset<T>>>&
     {
         std::vector<AssetPtr<T>> assets{};
 
         if constexpr (std::is_same_v<T, ImageView>)
         {
-            assets.reserve(m_textures.size());
-            for (auto& texture : m_textures)
-            {
-                assets.emplace_back(texture);
-            }
+            return m_textures;
         }
         else if constexpr (std::is_same_v<T, Mesh>)
         {
-            assets.reserve(m_meshes.size());
-            for (auto& texture : m_meshes)
-            {
-                assets.emplace_back(texture);
-            }
+            return m_meshes;
+        }
+        else
+        {
+            static_assert(dependent_false_v<T>, "Unsupported asset type.");
+        }
+    }
+
+public:
+    template <typename T>
+    [[nodiscard]] auto fetchAssets() -> std::vector<AssetPtr<T>>
+    {
+        std::vector<AssetPtr<T>> assets{};
+        auto& sources{getAssetsContainer<T>()};
+        assets.reserve(sources.size());
+        for (auto& asset : sources)
+        {
+            assets.emplace_back(asset);
         }
 
         return assets;
@@ -93,30 +105,15 @@ public:
     [[nodiscard]] auto fetchAssetRefs() -> std::vector<AssetRef<T>>
     {
         std::vector<AssetRef<T>> assets{};
-
-        if constexpr (std::is_same_v<T, ImageView>)
+        auto& sources{getAssetsContainer<T>()};
+        assets.reserve(sources.size());
+        for (auto& asset : sources)
         {
-            assets.reserve(m_textures.size());
-            for (auto& texture : m_textures)
+            if (asset == nullptr)
             {
-                if (texture == nullptr)
-                {
-                    continue;
-                }
-                assets.emplace_back(*texture);
+                continue;
             }
-        }
-        else if constexpr (std::is_same_v<T, Mesh>)
-        {
-            assets.reserve(m_meshes.size());
-            for (auto& mesh : m_meshes)
-            {
-                if (mesh == nullptr)
-                {
-                    continue;
-                }
-                assets.emplace_back(*mesh);
-            }
+            assets.emplace_back(*asset);
         }
 
         return assets;
@@ -148,32 +145,14 @@ public:
             asset.metadata.fileLocalPath = "No source on disk.";
         }
 
-        if constexpr (std::is_same_v<T, ImageView>)
-        {
-            m_textures.push_back(std::make_shared<Asset<T>>(std::move(asset)));
-            return m_textures.back();
-        }
-        else if constexpr (std::is_same_v<T, Mesh>)
-        {
-            m_meshes.push_back(std::make_shared<Asset<T>>(std::move(asset)));
-            return m_meshes.back();
-        }
-
-        return std::nullopt;
+        auto& sources{getAssetsContainer<T>()};
+        sources.push_back(std::make_shared<Asset<T>>(std::move(asset)));
+        return sources.back();
     }
 
     template <typename T> [[nodiscard]] auto empty() -> bool
     {
-        if constexpr (std::is_same_v<T, ImageView>)
-        {
-            return m_textures.empty();
-        }
-        else if constexpr (std::is_same_v<T, Mesh>)
-        {
-            return m_meshes.empty();
-        }
-
-        return true;
+        return getAssetsContainer<T>().empty();
     }
 
     auto loadTextureFromPath(
