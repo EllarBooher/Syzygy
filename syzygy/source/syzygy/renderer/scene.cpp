@@ -589,98 +589,99 @@ void Scene::tick(TickTiming const lastFrame)
     {
         // Assume circular orbits with no precession
 
-        float const timeDays{time.time};
+        double const timeDays{time.time};
 
         DirectionalLight& sun{m_atmosphereLights[0]};
         DirectionalLight& moon{m_atmosphereLights[1]};
 
-        float const planetTheta{
-            glm::two_pi<float>() * timeDays / sun.orbitalPeriodDays
+        double const planetTheta{
+            glm::two_pi<double>() * timeDays / sun.orbitalPeriodDays
         };
 
-        glm::vec3 const sunToPlanetDelta{
-            glm::vec3{glm::sin(planetTheta), 0.0F, glm::cos(planetTheta)}
+        glm::dvec3 const sunToPlanetDelta{
+            glm::dvec3{glm::sin(planetTheta), 0.0F, glm::cos(planetTheta)}
         };
 
-        float const moonTheta{
-            glm::two_pi<float>() * timeDays / moon.orbitalPeriodDays
+        double const moonTheta{
+            glm::two_pi<double>() * timeDays / moon.orbitalPeriodDays
         };
 
-        glm::mat3x3 const moonInclinationTransform{
-            glm::rotate(time.inclinationLunarOrbit, WORLD_FORWARD)
-        };
+        glm::dmat3x3 const moonInclinationTransform{glm::rotate(
+            static_cast<double>(time.inclinationLunarOrbit),
+            glm::dvec3{WORLD_FORWARD}
+        )};
 
-        glm::vec3 const planetToMoonDelta =
+        glm::dvec3 const planetToMoonDelta =
             moonInclinationTransform
-            * glm::vec3{glm::sin(moonTheta), 0.0F, glm::cos(moonTheta)};
+            * glm::dvec3{glm::sin(moonTheta), 0.0F, glm::cos(moonTheta)};
 
-        glm::mat3x3 const planetTiltTransform{
-            glm::rotate(time.tiltPlanet, WORLD_FORWARD)
-        };
+        glm::dmat3x3 const planetTiltTransform{glm::rotate(
+            static_cast<double>(time.tiltPlanet), glm::dvec3{WORLD_FORWARD}
+        )};
 
-        float const viewTheta{glm::two_pi<float>() * timeDays};
+        double const viewTheta{glm::two_pi<double>() * timeDays};
 
         // Viewer on equator
-        glm::vec3 const planetToViewDelta =
+        glm::dvec3 const planetToViewDelta =
             planetTiltTransform
-            * glm::vec3{glm::sin(viewTheta), 0.0F, glm::cos(viewTheta)};
+            * glm::dvec3{glm::sin(viewTheta), 0.0F, glm::cos(viewTheta)};
 
         // Distances are in megameters
-        float constexpr PLANET_ORBITAL_DISTANCE = 149'597.87F;
-        float constexpr MOON_ORBITAL_DISTANCE = 382.500F;
-        float const planetRadius = atmosphere.planetRadiusMegameters;
+        double constexpr PLANET_ORBITAL_DISTANCE = 149'597.87F;
+        double constexpr MOON_ORBITAL_DISTANCE = 382.500F;
+        double const planetRadius = atmosphere.planetRadiusMegameters;
 
-        glm::vec3 const sunPosition{glm::vec3{0.0F}};
-        glm::vec3 const planetPosition{
+        glm::dvec3 const sunPosition{glm::dvec3{0.0F}};
+        glm::dvec3 const planetPosition{
             sunPosition + PLANET_ORBITAL_DISTANCE * sunToPlanetDelta
         };
-        glm::vec3 const moonPosition{
+        glm::dvec3 const moonPosition{
             planetPosition + MOON_ORBITAL_DISTANCE * planetToMoonDelta
         };
-        glm::vec3 const viewPosition{
+        glm::dvec3 const viewPosition{
             planetPosition + planetRadius * planetToViewDelta
         };
 
         // Compute apparent position of sun and moon in sky
 
-        glm::vec3 const toSun{glm::normalize(sunPosition - viewPosition)};
-        glm::vec3 const toMoon{glm::normalize(moonPosition - viewPosition)};
+        glm::dvec3 const toSun{glm::normalize(sunPosition - viewPosition)};
+        glm::dvec3 const toMoon{glm::normalize(moonPosition - viewPosition)};
         // Eventually everything is rendered with WORLD_UP being up, but for the
         // simulation we need an actual up
-        glm::vec3 const surfaceUp{glm::normalize(viewPosition - planetPosition)
+        glm::dvec3 const surfaceUp{glm::normalize(viewPosition - planetPosition)
         };
 
-        glm::vec3 const surfaceForward{
-            glm::normalize(planetTiltTransform * WORLD_UP)
+        glm::dvec3 const surfaceForward{
+            glm::normalize(planetTiltTransform * glm::dvec3{WORLD_UP})
         };
-        glm::vec3 const surfaceRight{
+        glm::dvec3 const surfaceRight{
             glm::normalize(glm::cross(surfaceForward, surfaceUp))
         };
 
-        float const sunZenith{glm::acos(glm::dot(toSun, surfaceUp))};
-        float const moonZenith{glm::acos(glm::dot(toMoon, surfaceUp))};
+        double const sunZenith{glm::acos(glm::dot(toSun, surfaceUp))};
+        double const moonZenith{glm::acos(glm::dot(toMoon, surfaceUp))};
 
-        glm::vec3 const toSunProjected{
+        glm::dvec3 const toSunProjected{
             glm::normalize(toSun - glm::proj(toSun, surfaceUp))
         };
-        glm::vec3 const toMoonProjected{
+        glm::dvec3 const toMoonProjected{
             glm::normalize(toMoon - glm::proj(toMoon, surfaceUp))
         };
 
-        float const sunAzimuth{
+        double const sunAzimuth{
             glm::sign(dot(toSunProjected, surfaceRight))
             * glm::acos(dot(toSunProjected, surfaceForward))
         };
-        float const moonAzimuth{
+        double const moonAzimuth{
             glm::sign(dot(toMoonProjected, surfaceRight))
             * glm::acos(dot(toMoonProjected, surfaceForward))
         };
 
-        sun.zenith = sunZenith;
-        sun.azimuth = sunAzimuth;
+        sun.zenith = static_cast<float>(sunZenith);
+        sun.azimuth = static_cast<float>(sunAzimuth);
 
-        moon.zenith = moonZenith;
-        moon.azimuth = moonAzimuth;
+        moon.zenith = static_cast<float>(moonZenith);
+        moon.azimuth = static_cast<float>(moonAzimuth);
     }
     else if (!m_atmosphereLights.empty())
     {
