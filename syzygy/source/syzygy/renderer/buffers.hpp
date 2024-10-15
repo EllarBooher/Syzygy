@@ -159,6 +159,7 @@ struct StagedBuffer
 protected:
     void overwriteStagedBytes(std::span<uint8_t const> data);
     void pushStagedBytes(std::span<uint8_t const> data);
+    void resizeStagedBytes(size_t count);
     void popStagedBytes(size_t count);
 
     // This structure cannot know exactly how many bytes are up-to-date on
@@ -172,6 +173,7 @@ protected:
     [[nodiscard]] auto stagedCapacityBytes() const -> VkDeviceSize;
     [[nodiscard]] auto stagedSizeBytes() const -> VkDeviceSize;
 
+    auto mapFullCapacityBytes() -> std::span<uint8_t>;
     auto mapStagedBytes() -> std::span<uint8_t>;
     [[nodiscard]] auto readStagedBytes() const -> std::span<uint8_t const>;
 
@@ -208,14 +210,14 @@ private:
 
 template <typename T> struct TStagedBuffer : public StagedBuffer
 {
-    void stage(std::span<T const> data)
+    void stage(std::span<T const> const data)
     {
         std::span<uint8_t const> const bytes(
             reinterpret_cast<uint8_t const*>(data.data()), data.size_bytes()
         );
         StagedBuffer::overwriteStagedBytes(bytes);
     }
-    void push(std::span<T const> data)
+    void push(std::span<T const> const data)
     {
         std::span<uint8_t const> const bytes(
             reinterpret_cast<uint8_t const*>(data.data()), data.size_bytes()
@@ -229,7 +231,14 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
         );
         StagedBuffer::pushStagedBytes(bytes);
     }
-    void pop(size_t count) { StagedBuffer::popStagedBytes(count * sizeof(T)); }
+    void resizeStaged(size_t const count)
+    {
+        StagedBuffer::resizeStagedBytes(count * sizeof(T));
+    }
+    void pop(size_t const count)
+    {
+        StagedBuffer::popStagedBytes(count * sizeof(T));
+    }
 
     // These values may be out of date, and not the values used by the GPU
     // upon command execution.
@@ -238,6 +247,18 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
     auto mapValidStaged() -> std::span<T>
     {
         std::span<uint8_t> const byteSpan{mapStagedBytes()};
+
+        assert(byteSpan.size_bytes() % sizeof(T) == 0);
+
+        return std::span<T>{
+            reinterpret_cast<T*>(byteSpan.data()),
+            byteSpan.size_bytes() / sizeof(T)
+        };
+    }
+
+    auto mapFullCapacity() -> std::span<T>
+    {
+        std::span<uint8_t> const byteSpan{mapFullCapacityBytes()};
 
         assert(byteSpan.size_bytes() % sizeof(T) == 0);
 

@@ -97,21 +97,17 @@ void DebugLines::pushBox(
     pushRectangleAxes(center + forward, up, right);
 }
 
-void DebugLines::pushBox(Transform const parent, AABB const box)
+void DebugLines::pushBox(glm::mat4x4 const parent, AABB const box)
 {
-    glm::mat4x4 const transformation{parent.toMatrix()};
-
     glm::vec3 const right{
-        transformation * glm::vec4{box.halfExtent * WORLD_RIGHT, 0.0F}
+        parent * glm::vec4{box.halfExtent * WORLD_RIGHT, 0.0F}
     };
     glm::vec3 const forward{
-        transformation * glm::vec4{box.halfExtent * WORLD_FORWARD, 0.0F}
+        parent * glm::vec4{box.halfExtent * WORLD_FORWARD, 0.0F}
     };
-    glm::vec3 const up{
-        transformation * glm::vec4{box.halfExtent * WORLD_UP, 0.0F}
-    };
+    glm::vec3 const up{parent * glm::vec4{box.halfExtent * WORLD_UP, 0.0F}};
 
-    glm::vec3 const center{transformation * glm::vec4{box.center, 1.0F}};
+    glm::vec3 const center{parent * glm::vec4{box.center, 1.0F}};
 
     pushRectangleAxes(center - up, right, forward);
     pushRectangleAxes(center + up, right, forward);
@@ -121,6 +117,13 @@ void DebugLines::pushBox(Transform const parent, AABB const box)
 
     pushRectangleAxes(center - forward, up, right);
     pushRectangleAxes(center + forward, up, right);
+}
+
+void DebugLines::pushBox(Transform const parent, AABB const box)
+{
+    glm::mat4x4 const transformation{parent.toMatrix()};
+
+    pushBox(transformation, box);
 }
 
 void DebugLines::recordCopy(VkCommandBuffer const cmd) const

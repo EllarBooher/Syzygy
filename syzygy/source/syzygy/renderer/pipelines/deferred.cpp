@@ -394,21 +394,26 @@ void setRasterizationShaderObjectState(
 auto collectGeometryCullFlags(
     VkCommandBuffer const cmd,
     VkPipelineStageFlags2 const bufferAccessStages,
-    std::span<syzygy::MeshInstanced const> meshes
+    std::span<std::reference_wrapper<syzygy::MeshRenderResources> const>
+        meshResources
 ) -> std::vector<syzygy::RenderOverride>
 {
     std::vector<syzygy::RenderOverride> renderOverrides{};
-    renderOverrides.reserve(meshes.size());
+    renderOverrides.reserve(meshResources.size());
 
-    for (syzygy::MeshInstanced const& instance : meshes)
+    for (auto const& resources : meshResources)
     {
+        syzygy::AssetShared<syzygy::Mesh> const meshAsset{
+            resources.get().mesh.lock()
+        };
+
         syzygy::RenderOverride const override{
-            .render =
-                instance.render && instance.getMesh().has_value()
-                && instance.getMesh().value().get().data != nullptr
-                && instance.getMesh().value().get().data->meshBuffers != nullptr
-                && instance.models != nullptr
-                && instance.modelInverseTransposes != nullptr
+            .render = meshAsset != nullptr && meshAsset->data != nullptr
+                   && meshAsset->data->meshBuffers != nullptr
+                   && resources.get().models != nullptr
+                   && resources.get().modelInverseTransposes != nullptr
+                   && resources.get().surfaceDescriptors.size()
+                          >= meshAsset.get()->data->surfaces.size()
         };
 
         renderOverrides.push_back(override);
@@ -418,10 +423,10 @@ auto collectGeometryCullFlags(
             continue;
         }
 
-        instance.models->recordTotalCopyBarrier(
+        resources.get().models->recordTotalCopyBarrier(
             cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
         );
-        instance.modelInverseTransposes->recordTotalCopyBarrier(
+        resources.get().modelInverseTransposes->recordTotalCopyBarrier(
             cmd, bufferAccessStages, VK_ACCESS_2_SHADER_STORAGE_READ_BIT
         );
     }
@@ -441,7 +446,7 @@ void DeferredShadingPipeline::recordDrawCommands(
     std::span<SpotLightPacked const> const spotLights,
     uint32_t const viewCameraIndex,
     TStagedBuffer<CameraPacked> const& cameras,
-    std::span<MeshInstanced const> sceneGeometry
+    std::span<std::reference_wrapper<MeshRenderResources> const> sceneGeometry
 )
 {
     VkPipelineStageFlags2 constexpr GBUFFER_ACCESS_STAGES{
@@ -623,25 +628,21 @@ void DeferredShadingPipeline::recordDrawCommands(
 
         for (size_t index{0}; index < sceneGeometry.size(); index++)
         {
-            MeshInstanced const& instance{sceneGeometry[index]};
+            MeshRenderResources const& instanceResources{
+                sceneGeometry[index].get()
+            };
 
-            bool render{instance.render};
-            if (index < renderOverrides.size())
-            {
-                RenderOverride const& renderOverride{renderOverrides[index]};
-
-                render = renderOverride.render;
-            }
-
-            if (!render || !instance.getMesh().has_value())
+            if (index < renderOverrides.size()
+                && !renderOverrides[index].render)
             {
                 continue;
             }
-            Mesh const& meshAsset{*instance.getMesh().value().get().data};
 
-            TStagedBuffer<glm::mat4x4> const& models{*instance.models};
+            Mesh const& meshAsset{*instanceResources.mesh.lock()->data};
+
+            TStagedBuffer<glm::mat4x4> const& models{*instanceResources.models};
             TStagedBuffer<glm::mat4x4> const& modelInverseTransposes{
-                *instance.modelInverseTransposes
+                *instanceResources.modelInverseTransposes
             };
 
             GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};
@@ -666,7 +667,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             }
 
             std::span<MaterialDescriptors const> const surfaceDescriptors{
-                instance.getMeshDescriptors()
+                instanceResources.surfaceDescriptors
             };
             for (size_t surfaceIndex{0};
                  surfaceIndex < std::min(

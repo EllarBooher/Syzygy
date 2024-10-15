@@ -54,6 +54,7 @@ public:
 
     // Push a rectangular prism, stretched along the (x,y,z) axes by extents.
     void pushBox(glm::vec3 center, glm::quat orientation, glm::vec3 extents);
+    void pushBox(glm::mat4x4, AABB);
     void pushBox(Transform, AABB);
 
     void recordCopy(VkCommandBuffer cmd) const;

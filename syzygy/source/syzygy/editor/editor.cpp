@@ -505,12 +505,7 @@ auto run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    Scene scene{Scene::defaultScene(
-        graphicsContext.device(),
-        graphicsContext.allocator(),
-        graphicsContext.descriptorAllocator(),
-        assetLibrary
-    )};
+    Scene scene{Scene::defaultScene(assetLibrary)};
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
@@ -654,16 +649,10 @@ auto run() -> EditorResult
 
         if (sceneViewport.has_value())
         {
-            for (MeshInstanced& instance : scene.geometry())
-            {
-                instance.prepareDescriptors(
-                    graphicsContext.device(),
-                    graphicsContext.descriptorAllocator()
-                );
-            }
             renderer.recordDraw(
                 currentFrame.mainCommandBuffer,
                 scene,
+                graphicsContext.descriptorAllocator(),
                 sceneViewport.value().texture,
                 sceneViewport.value().renderedSubregion
             );

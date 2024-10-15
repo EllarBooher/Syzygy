@@ -249,7 +249,7 @@ void ShadowPassArray::recordInitialize(
 
 void ShadowPassArray::recordDrawCommands(
     VkCommandBuffer const cmd,
-    std::span<MeshInstanced const> const geometry,
+    std::span<std::reference_wrapper<MeshRenderResources> const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 )
 {

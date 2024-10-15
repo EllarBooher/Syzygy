@@ -277,7 +277,8 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
-    Scene const& scene,
+    Scene& scene,
+    DescriptorAllocator& sceneMeshSurfaceDescriptorPool,
     SceneTexture& sceneTexture,
     VkRect2D const sceneSubregion
 )
@@ -338,27 +339,36 @@ void Renderer::recordDraw(
         }
     }
 
-    for (MeshInstanced const& instance : scene.geometry())
+    std::vector<std::reference_wrapper<MeshRenderResources>> meshesToRender{
+        scene.collectMeshesForRendering(
+            m_device, m_allocator, sceneMeshSurfaceDescriptorPool
+        )
+    };
+
+    for (auto const& meshResourcesRef : meshesToRender)
     {
-        if (instance.models != nullptr)
+        MeshRenderResources const& meshResources{meshResourcesRef.get()};
+        AssetShared<Mesh> const meshAsset{meshResources.mesh.lock()};
+
+        if (meshResources.models == nullptr
+            || meshResources.modelInverseTransposes == nullptr
+            || meshAsset == nullptr || meshAsset->data == nullptr)
         {
-            instance.models->recordCopyToDevice(cmd);
-        }
-        if (instance.models != nullptr)
-        {
-            instance.modelInverseTransposes->recordCopyToDevice(cmd);
+            // TODO: remove/skip mesh resources if invalid?
+
+            SZG_ERROR("One or more null Mesh render resources found.");
+            continue;
         }
 
-        if (auto const instanceMeshAsset{instance.getMesh()};
-            instanceMeshAsset.has_value()
-            && instanceMeshAsset.value().get().data != nullptr)
-        {
-            Mesh const& meshAsset{*instanceMeshAsset.value().get().data};
+        meshResources.models->recordCopyToDevice(cmd);
+        meshResources.modelInverseTransposes->recordCopyToDevice(cmd);
 
-            for (Transform const& transform : instance.transforms)
-            {
-                m_debugLines.pushBox(transform, meshAsset.vertexBounds);
-            }
+        Mesh const& mesh{*meshAsset->data};
+
+        for (glm::mat4x4 const& transform :
+             meshResources.models->readValidStaged())
+        {
+            m_debugLines.pushBox(transform, mesh.vertexBounds);
         }
     }
 
@@ -387,7 +397,7 @@ void Renderer::recordDraw(
                                        : std::vector<SpotLightPacked>{},
                 cameraIndex,
                 *m_camerasBuffer,
-                scene.geometry()
+                meshesToRender
             );
 
             sceneTexture.color().recordTransitionBarriered(

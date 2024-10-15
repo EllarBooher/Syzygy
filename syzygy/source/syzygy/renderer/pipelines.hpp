@@ -16,7 +16,7 @@ namespace syzygy
 struct CameraPacked;
 struct ImageView;
 template <typename T> struct TStagedBuffer;
-struct MeshInstanced;
+struct MeshRenderResources;
 struct VertexPacked;
 } // namespace syzygy
 
@@ -128,7 +128,7 @@ public:
         syzygy::ImageView& depth,
         uint32_t projViewIndex,
         TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-        std::span<syzygy::MeshInstanced const> geometry,
+        std::span<std::reference_wrapper<MeshRenderResources> const> geometry,
         std::span<RenderOverride const> renderOverrides
     ) const;
 

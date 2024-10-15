@@ -16,7 +16,7 @@ namespace syzygy
 struct DescriptorAllocator;
 struct DirectionalLightPacked;
 struct SpotLightPacked;
-struct MeshInstanced;
+struct MeshRenderResources;
 } // namespace syzygy
 
 namespace syzygy
@@ -54,7 +54,7 @@ public:
 
     void recordDrawCommands(
         VkCommandBuffer cmd,
-        std::span<syzygy::MeshInstanced const> geometry,
+        std::span<std::reference_wrapper<MeshRenderResources> const> geometry,
         std::span<RenderOverride const> renderOverrides
     );
 

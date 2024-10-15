@@ -228,6 +228,15 @@ void StagedBuffer::pushStagedBytes(std::span<uint8_t const> const data)
     m_stagedSizeBytes += data.size_bytes();
 }
 
+void StagedBuffer::resizeStagedBytes(size_t const count)
+{
+    // TODO: resize/reallocate buffers
+    assert(count <= m_stagingBuffer->bufferSize());
+
+    markDirty(true);
+    m_stagedSizeBytes = count;
+}
+
 void StagedBuffer::popStagedBytes(size_t const count)
 {
     markDirty(true);
@@ -267,6 +276,11 @@ auto StagedBuffer::stagedCapacityBytes() const -> VkDeviceSize
 auto StagedBuffer::stagedSizeBytes() const -> VkDeviceSize
 {
     return m_stagedSizeBytes;
+}
+
+auto StagedBuffer::mapFullCapacityBytes() -> std::span<uint8_t>
+{
+    return m_stagingBuffer->mappedBytes();
 }
 
 auto StagedBuffer::mapStagedBytes() -> std::span<uint8_t>

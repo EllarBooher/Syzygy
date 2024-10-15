@@ -51,8 +51,9 @@ public:
 
     void recordDraw(
         VkCommandBuffer,
-        syzygy::Scene const& scene,
-        syzygy::SceneTexture& sceneTexture,
+        Scene& scene,
+        DescriptorAllocator& sceneMeshSurfaceDescriptorPool,
+        SceneTexture& sceneTexture,
         VkRect2D sceneSubregion
     );
 

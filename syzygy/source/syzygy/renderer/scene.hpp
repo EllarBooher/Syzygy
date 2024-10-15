@@ -116,6 +116,20 @@ enum class InstanceAnimation
     LAST = Spin_Along_World_Up
 };
 
+struct MeshRenderResources
+{
+    bool castsShadow{true};
+
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
+    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
+
+    // The mesh will use the materials in this structure first, then defer to
+    // the base asset's materials.
+    std::vector<MaterialData> surfaceMaterialOverrides{};
+    AssetPtr<Mesh> mesh{};
+    std::vector<MaterialDescriptors> surfaceDescriptors{};
+};
+
 // TODO: encapsulate all fields
 // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
 struct MeshInstanced
@@ -131,31 +145,25 @@ struct MeshInstanced
     std::vector<Transform> originals{};
     std::vector<Transform> transforms{};
 
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> models{};
-    std::unique_ptr<TStagedBuffer<glm::mat4x4>> modelInverseTransposes{};
-
     void setMesh(AssetPtr<Mesh>);
-    void prepareDescriptors(VkDevice, DescriptorAllocator&);
+
+    auto prepareForRendering(VkDevice, VmaAllocator, DescriptorAllocator&)
+        -> std::optional<std::reference_wrapper<MeshRenderResources>>;
 
     [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
 
     // Returns only as many overrides as there are surfaces in the current mesh
     // May return empty if no overrides are initialized.
+    // TODO: this is only used for UI right now, which is sort of annoying,
+    // there must be a better way to organize this data flow
     [[nodiscard]] auto getMaterialOverrides() const
         -> std::span<MaterialData const>;
     void setMaterialOverrides(size_t surface, MaterialData const&);
 
-    [[nodiscard]] auto getMeshDescriptors() const
-        -> std::span<MaterialDescriptors const>;
-
 private:
     bool m_surfaceDescriptorsDirty{false};
 
-    // The mesh will use the materials in this structure first, then defer to
-    // the base asset's materials.
-    std::vector<MaterialData> m_surfaceMaterialOverrides{};
-    AssetPtr<Mesh> m_mesh{};
-    std::vector<MaterialDescriptors> m_surfaceDescriptors{};
+    std::unique_ptr<MeshRenderResources> m_renderResources{};
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
 
@@ -199,6 +207,9 @@ public:
     [[nodiscard]] auto shadowBounds() const -> AABB;
     [[nodiscard]] auto bakeAtmosphere(AABB sceneBounds) const
         -> AtmosphereBaked;
+    [[nodiscard]] auto
+    collectMeshesForRendering(VkDevice, VmaAllocator, DescriptorAllocator&)
+        -> std::vector<std::reference_wrapper<MeshRenderResources>>;
 
     [[nodiscard]] auto geometry() const -> std::span<MeshInstanced const>;
     [[nodiscard]] auto geometry() -> std::span<MeshInstanced>;
@@ -208,9 +219,6 @@ public:
     [[nodiscard]] auto atmosphereLights() -> std::span<DirectionalLight>;
 
     void addMeshInstance(
-        VkDevice,
-        VmaAllocator,
-        DescriptorAllocator&,
         std::optional<AssetPtr<Mesh>> const&,
         InstanceAnimation,
         std::string const& name,
@@ -221,15 +229,10 @@ public:
     void addAtmosphereLight(DirectionalLight);
     void addSpotlight(glm::vec3 color, Transform transform);
 
+    static auto defaultScene(AssetLibrary&) -> Scene;
     static auto
-    defaultScene(VkDevice, VmaAllocator, DescriptorAllocator&, AssetLibrary&)
+    diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
         -> Scene;
-    static auto diagonalWaveScene(
-        VkDevice,
-        VmaAllocator,
-        DescriptorAllocator&,
-        std::optional<AssetPtr<Mesh>> const& initialMesh
-    ) -> Scene;
 
     void handleInput(TickTiming, InputSnapshot const&);
     void tick(TickTiming);

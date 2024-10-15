@@ -679,7 +679,7 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
     ImageView& depth,
     uint32_t const projViewIndex,
     TStagedBuffer<glm::mat4x4> const& projViewMatrices,
-    std::span<MeshInstanced const> const geometry,
+    std::span<std::reference_wrapper<MeshRenderResources> const> const geometry,
     std::span<RenderOverride const> const renderOverrides
 ) const
 {
@@ -738,27 +738,19 @@ void OffscreenPassGraphicsPipeline::recordDrawCommands(
 
     for (size_t index{0}; index < geometry.size(); index++)
     {
-        MeshInstanced const& instance{geometry[index]};
+        MeshRenderResources const& instance{geometry[index].get()};
 
         if (!instance.castsShadow)
         {
             continue;
         }
 
-        bool render{instance.render};
-        if (index < renderOverrides.size())
-        {
-            RenderOverride const& renderOverride{renderOverrides[index]};
-
-            render = renderOverride.render;
-        }
-
-        if (!render || !instance.getMesh().has_value())
+        if (index < renderOverrides.size() && !renderOverrides[index].render)
         {
             continue;
         }
 
-        Mesh const& meshAsset{*instance.getMesh().value().get().data};
+        Mesh const& meshAsset{*instance.mesh.lock()->data};
         TStagedBuffer<glm::mat4x4> const& models{*instance.models};
 
         GPUMeshBuffers& meshBuffers{*meshAsset.meshBuffers};

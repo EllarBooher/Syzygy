@@ -149,6 +149,33 @@ auto Scene::bakeAtmosphere(AABB sceneBounds) const -> AtmosphereBaked
     return result;
 }
 
+auto Scene::collectMeshesForRendering(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    DescriptorAllocator& descriptorAllocator
+) -> std::vector<std::reference_wrapper<MeshRenderResources>>
+{
+    std::vector<std::reference_wrapper<MeshRenderResources>> result{};
+
+    for (auto& meshInstanced : m_geometry)
+    {
+        if (!meshInstanced.render)
+        {
+            continue;
+        }
+
+        auto renderResources{meshInstanced.prepareForRendering(
+            device, allocator, descriptorAllocator
+        )};
+        if (renderResources.has_value())
+        {
+            result.push_back(renderResources.value());
+        }
+    }
+
+    return result;
+}
+
 void Scene::calculateShadowBounds()
 {
     m_shadowBounds = {};
@@ -222,9 +249,6 @@ auto Scene::atmosphereLights() -> std::span<DirectionalLight>
 }
 
 void Scene::addMeshInstance(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
     std::optional<AssetPtr<Mesh>> const& mesh,
     InstanceAnimation const animation,
     std::string const& name,
@@ -243,7 +267,6 @@ void Scene::addMeshInstance(
         instance.setMesh(mesh.value());
     }
 
-    instance.prepareDescriptors(device, descriptorAllocator);
     instance.animation = animation;
 
     instance.originals.insert(
@@ -252,30 +275,6 @@ void Scene::addMeshInstance(
     instance.transforms.insert(
         instance.transforms.begin(), transforms.begin(), transforms.end()
     );
-
-    VkDeviceSize const bufferSize{
-        static_cast<VkDeviceSize>(instance.originals.size())
-    };
-
-    instance.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-        TStagedBuffer<glm::mat4x4>::allocate(
-            device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, allocator, bufferSize
-        )
-    );
-    instance
-        .modelInverseTransposes = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-        TStagedBuffer<glm::mat4x4>::allocate(
-            device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, allocator, bufferSize
-        )
-    );
-
-    for (Transform const& model : instance.originals)
-    {
-        glm::mat4x4 const matrix{model.toMatrix()};
-
-        instance.models->push(matrix);
-        instance.modelInverseTransposes->push(glm::inverseTranspose(matrix));
-    }
 
     m_geometry.push_back(std::move(instance));
 }
@@ -305,12 +304,7 @@ void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
     spotlightsRender = true;
 }
 
-auto Scene::defaultScene(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
-    AssetLibrary& library
-) -> Scene
+auto Scene::defaultScene(AssetLibrary& library) -> Scene
 {
     Scene scene{};
 
@@ -321,9 +315,6 @@ auto Scene::defaultScene(
     glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
 
     scene.addMeshInstance(
-        device,
-        allocator,
-        descriptorAllocator,
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         "Model_1",
@@ -334,9 +325,6 @@ auto Scene::defaultScene(
         }}
     );
     scene.addMeshInstance(
-        device,
-        allocator,
-        descriptorAllocator,
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         "Model_2",
@@ -354,9 +342,6 @@ auto Scene::defaultScene(
     };
 
     scene.addMeshInstance(
-        device,
-        allocator,
-        descriptorAllocator,
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
         InstanceAnimation::None,
         "Floor",
@@ -378,12 +363,8 @@ auto Scene::defaultScene(
     return scene;
 }
 
-auto Scene::diagonalWaveScene(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
-    std::optional<AssetPtr<Mesh>> const& initialMesh
-) -> Scene
+auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
+    -> Scene
 {
     Scene scene{};
 
@@ -400,14 +381,7 @@ auto Scene::diagonalWaveScene(
         }};
 
         scene.addMeshInstance(
-            device,
-            allocator,
-            descriptorAllocator,
-            initialMesh,
-            InstanceAnimation::None,
-            "Floor",
-            transform,
-            false
+            initialMesh, InstanceAnimation::None, "Floor", transform, false
         );
     }
 
@@ -433,9 +407,6 @@ auto Scene::diagonalWaveScene(
         }
 
         scene.addMeshInstance(
-            device,
-            allocator,
-            descriptorAllocator,
             initialMesh,
             InstanceAnimation::Diagonal_Wave,
             "DiagonalWave",
@@ -512,23 +483,6 @@ void tickMeshInstance(
     syzygy::TickTiming const lastFrame, syzygy::MeshInstanced& instance
 )
 {
-    if (instance.models == nullptr
-        || instance.modelInverseTransposes == nullptr)
-    {
-        return;
-    }
-
-    std::span<glm::mat4x4> const models{instance.models->mapValidStaged()};
-    std::span<glm::mat4x4> const modelInverseTransposes{
-        instance.modelInverseTransposes->mapValidStaged()
-    };
-
-    if (models.size() != modelInverseTransposes.size())
-    {
-        SZG_WARNING("models and modelInverseTransposes out of sync");
-        return;
-    }
-
     // TODO: extract and generalize these animations
     switch (instance.animation)
     {
@@ -560,17 +514,6 @@ void tickMeshInstance(
         break;
     default:
         break;
-    }
-
-    // TODO: this should be moved to a separate method that prepares all
-    // rendering data for a scene
-    for (size_t index{0}; index < instance.transforms.size(); index++)
-    {
-        syzygy::Transform const& transform{instance.transforms[index]};
-
-        glm::mat4x4 const model{transform.toMatrix()};
-        models[index] = model;
-        modelInverseTransposes[index] = glm::inverseTranspose(model);
     }
 }
 } // namespace
@@ -913,10 +856,15 @@ auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
 
 void MeshInstanced::setMesh(AssetPtr<Mesh> meshAsset)
 {
-    m_mesh = std::move(meshAsset);
+    if (m_renderResources == nullptr)
+    {
+        m_renderResources = std::make_unique<MeshRenderResources>();
+    }
+
+    m_renderResources->mesh = std::move(meshAsset);
     m_surfaceDescriptorsDirty = true;
 
-    if (AssetShared<Mesh> const pMesh{m_mesh.lock()};
+    if (AssetShared<Mesh> const pMesh{m_renderResources->mesh.lock()};
         pMesh != nullptr && pMesh->data != nullptr)
     {
         Mesh const& mesh{*pMesh->data};
@@ -937,82 +885,146 @@ void MeshInstanced::setMesh(AssetPtr<Mesh> meshAsset)
     }
 }
 
-void MeshInstanced::prepareDescriptors(
-    VkDevice const device, DescriptorAllocator& descriptorAllocator
-)
+auto MeshInstanced::prepareForRendering(
+    VkDevice const device,
+    VmaAllocator const allocator,
+    DescriptorAllocator& descriptorAllocator
+) -> std::optional<std::reference_wrapper<MeshRenderResources>>
 {
-    if (!m_surfaceDescriptorsDirty || m_mesh.lock() == nullptr
-        || m_mesh.lock()->data == nullptr)
+    MeshRenderResources& resources{*m_renderResources};
+    resources.castsShadow = castsShadow;
+
+    std::shared_ptr<Asset<Mesh> const> const meshAsset{resources.mesh.lock()};
+    if (meshAsset == nullptr || meshAsset->data == nullptr)
     {
-        return;
+        return std::nullopt;
+    }
+    Mesh const& mesh{*meshAsset->data};
+
+    if (resources.models == nullptr
+        || resources.modelInverseTransposes == nullptr
+        || resources.models->stagingCapacity() < transforms.size()
+        || resources.modelInverseTransposes->stagingCapacity()
+               < transforms.size())
+    {
+        auto const bufferSize{static_cast<VkDeviceSize>(transforms.size())};
+
+        resources.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
+            TStagedBuffer<glm::mat4x4>::allocate(
+                device,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                allocator,
+                bufferSize
+            )
+        );
+        resources.modelInverseTransposes =
+            std::make_unique<TStagedBuffer<glm::mat4x4>>(
+                TStagedBuffer<glm::mat4x4>::allocate(
+                    device,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                    allocator,
+                    bufferSize
+                )
+            );
     }
 
-    Mesh const& mesh{*m_mesh.lock()->data};
+    std::span<glm::mat4x4> const models{resources.models->mapFullCapacity()};
+    std::span<glm::mat4x4> const modelInverseTransposes{
+        resources.modelInverseTransposes->mapFullCapacity()
+    };
 
-    m_surfaceDescriptorsDirty = false;
+    resources.models->resizeStaged(transforms.size());
+    resources.modelInverseTransposes->resizeStaged(transforms.size());
 
-    while (m_surfaceDescriptors.size() < mesh.surfaces.size())
+    for (size_t index{0}; index < transforms.size(); index++)
     {
-        std::optional<MaterialDescriptors> descriptorsResult{
-            MaterialDescriptors::create(device, descriptorAllocator)
-        };
-        if (!descriptorsResult.has_value())
+        syzygy::Transform const& transform{transforms[index]};
+
+        glm::mat4x4 const model{transform.toMatrix()};
+        models[index] = model;
+        modelInverseTransposes[index] = glm::inverseTranspose(model);
+    }
+
+    if (m_surfaceDescriptorsDirty)
+    {
+        while (resources.surfaceDescriptors.size() < mesh.surfaces.size())
         {
-            SZG_ERROR(
-                "Failed to allocate MaterialDescriptors while setting mesh."
+            std::optional<MaterialDescriptors> descriptorsResult{
+                MaterialDescriptors::create(device, descriptorAllocator)
+            };
+            if (!descriptorsResult.has_value())
+            {
+                SZG_ERROR(
+                    "Failed to allocate MaterialDescriptors while setting mesh."
+                );
+                return std::nullopt;
+            }
+
+            resources.surfaceDescriptors.push_back(
+                std::move(descriptorsResult).value()
             );
-            m_mesh = {};
-            return;
         }
 
-        m_surfaceDescriptors.push_back(std::move(descriptorsResult).value());
+        resources.surfaceMaterialOverrides.resize(mesh.surfaces.size());
+
+        for (size_t index{0}; index < mesh.surfaces.size(); index++)
+        {
+            GeometrySurface const& surface{mesh.surfaces[index]};
+            MaterialDescriptors const& descriptors{
+                resources.surfaceDescriptors[index]
+            };
+            MaterialData const& overrides{
+                resources.surfaceMaterialOverrides[index]
+            };
+
+            MaterialData const activeMaterials{
+                .ORM = overrides.ORM.lock() != nullptr ? overrides.ORM
+                                                       : surface.material.ORM,
+                .normal = overrides.normal.lock() != nullptr
+                            ? overrides.normal
+                            : surface.material.normal,
+                .color = overrides.color.lock() != nullptr
+                           ? overrides.color
+                           : surface.material.color,
+            };
+
+            descriptors.write(activeMaterials);
+        }
+
+        m_surfaceDescriptorsDirty = false;
     }
 
-    m_surfaceMaterialOverrides.resize(mesh.surfaces.size());
-
-    for (size_t index{0}; index < mesh.surfaces.size(); index++)
-    {
-        GeometrySurface const& surface{mesh.surfaces[index]};
-        MaterialDescriptors const& descriptors{m_surfaceDescriptors[index]};
-        MaterialData const& overrides{m_surfaceMaterialOverrides[index]};
-
-        MaterialData const activeMaterials{
-            .ORM = overrides.ORM.lock() != nullptr ? overrides.ORM
-                                                   : surface.material.ORM,
-            .normal = overrides.normal.lock() != nullptr
-                        ? overrides.normal
-                        : surface.material.normal,
-            .color = overrides.color.lock() != nullptr ? overrides.color
-                                                       : surface.material.color,
-        };
-
-        descriptors.write(activeMaterials);
-    }
+    return resources;
 }
 
 auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
 {
-    if (m_mesh.lock() == nullptr)
+    std::shared_ptr<Asset<Mesh> const> const meshAsset{m_renderResources->mesh};
+    if (meshAsset == nullptr)
     {
         return std::nullopt;
     }
 
-    return *m_mesh.lock();
+    return *meshAsset;
 }
 
 auto MeshInstanced::getMaterialOverrides() const
     -> std::span<MaterialData const>
 {
-    std::shared_ptr<Asset<Mesh> const> const mesh{m_mesh.lock()};
-    if (mesh == nullptr || mesh->data == nullptr)
+    std::shared_ptr<Asset<Mesh> const> const meshAsset{m_renderResources->mesh};
+    if (meshAsset == nullptr || meshAsset->data == nullptr)
     {
         return {};
     }
 
+    m_renderResources->surfaceMaterialOverrides.resize(
+        m_renderResources->mesh.lock()->data->surfaces.size()
+    );
+
     return std::span<MaterialData const>{
-        m_surfaceMaterialOverrides.begin(),
-        m_surfaceMaterialOverrides.begin()
-            + static_cast<std::int64_t>(mesh->data->surfaces.size())
+        m_renderResources->surfaceMaterialOverrides.begin(),
+        m_renderResources->surfaceMaterialOverrides.begin()
+            + static_cast<std::int64_t>(meshAsset->data->surfaces.size())
     };
 }
 
@@ -1021,17 +1033,12 @@ void MeshInstanced::setMaterialOverrides(
 )
 {
     m_surfaceDescriptorsDirty = true;
-    if (surface >= m_surfaceMaterialOverrides.size())
+
+    if (surface >= m_renderResources->surfaceMaterialOverrides.size())
     {
-        return;
+        m_renderResources->surfaceMaterialOverrides.resize(surface + 1);
     }
 
-    m_surfaceMaterialOverrides[surface] = materialOverride;
-}
-
-auto MeshInstanced::getMeshDescriptors() const
-    -> std::span<MaterialDescriptors const>
-{
-    return m_surfaceDescriptors;
+    m_renderResources->surfaceMaterialOverrides[surface] = materialOverride;
 }
 } // namespace syzygy

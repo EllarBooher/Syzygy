@@ -40,7 +40,8 @@ public:
         std::span<syzygy::SpotLightPacked const> spotLights,
         uint32_t viewCameraIndex,
         TStagedBuffer<syzygy::CameraPacked> const& cameras,
-        std::span<syzygy::MeshInstanced const> sceneGeometry
+        std::span<std::reference_wrapper<MeshRenderResources> const>
+            sceneGeometry
     );
 
     [[nodiscard]] auto gbuffer() -> GBuffer const&;
