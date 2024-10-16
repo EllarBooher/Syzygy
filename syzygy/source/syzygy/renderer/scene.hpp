@@ -214,6 +214,8 @@ struct SceneNode
     auto appendChild() -> SceneNode&;
 
     Transform transform{Transform::identity()};
+
+    auto depth() const -> size_t;
     // Returns the transformation matrix up the scene hierarchy INCLUDING this
     // transform.
     auto transformToRoot() const -> glm::mat4x4;

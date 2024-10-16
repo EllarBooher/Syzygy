@@ -691,7 +691,7 @@ void uiMeshMaterialOverrides(
 
 void uiSceneGeometry(
     syzygy::AABB& bounds,
-    std::span<syzygy::MeshInstanced> const geometry,
+    syzygy::SceneNode& scene,
     std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
     std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
 )
@@ -717,66 +717,114 @@ void uiSceneGeometry(
         )
         .childPropertyEnd();
 
-    for (syzygy::MeshInstanced& instance : geometry)
+    // TODO: check how this works for a subtree that has an initial parent
+    syzygy::SceneNode* parent{};
+    for (syzygy::SceneNode& node : scene)
     {
-        table.rowChildPropertyBegin(instance.name);
+        auto meshOptional{node.accessMesh()};
+        auto const parentOptional{node.parent()};
 
-        table.rowBoolean("Render", instance.render, true);
-        table.rowBoolean("Casts Shadow", instance.castsShadow, true);
-
+        // Detect if the parent has changed, this indicates we need to create
+        // new nesting properties in our table UI.
+        // Assume pre-order traversal, meaning we only visit each parent's
+        // subtree once and thus only need to worry about popping their nesting
+        // once
+        if (parentOptional.has_value())
         {
-            table.rowChildPropertyBegin("Transforms");
-            for (size_t transformIndex{0};
-                 transformIndex < std::min(
-                     instance.transforms.size(), instance.originals.size()
-                 );
-                 transformIndex++)
+            syzygy::SceneNode& newParent{parentOptional.value().get()};
+
+            if (parent != nullptr)
             {
-                uiTransform(
-                    table,
-                    instance.transforms[transformIndex],
-                    instance.originals[transformIndex]
-                );
+                for (size_t i{newParent.depth()}; i < parent->depth(); i++)
+                {
+                    table.childPropertyEnd();
+                }
             }
+
+            parent = &newParent;
+        }
+
+        if (!meshOptional.has_value())
+        {
+            table.rowChildPropertyBegin("Scene Node");
+            parent = &node;
+
+            continue;
+        }
+
+        // Draw MeshInstanced UI
+        {
+            syzygy::MeshInstanced& instance{meshOptional.value().get()};
+
+            table.rowChildPropertyBegin(instance.name);
+
+            table.rowBoolean("Render", instance.render, true);
+            table.rowBoolean("Casts Shadow", instance.castsShadow, true);
+
+            {
+                table.rowChildPropertyBegin("Transforms");
+                for (size_t transformIndex{0};
+                     transformIndex < std::min(
+                         instance.transforms.size(), instance.originals.size()
+                     );
+                     transformIndex++)
+                {
+                    uiTransform(
+                        table,
+                        instance.transforms[transformIndex],
+                        instance.originals[transformIndex]
+                    );
+                }
+                table.childPropertyEnd();
+            }
+
+            table.rowCustom(
+                "Instance Animation",
+                [&]() { uiInstanceAnimation(instance.animation); }
+            );
+            table.rowCustom(
+                "Mesh Used",
+                [&]()
+            {
+                auto newMesh{
+                    uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
+                };
+                if (newMesh.has_value())
+                {
+                    instance.setMesh(newMesh.value());
+                }
+            }
+            );
+            if (auto instanceMeshRef{instance.getMesh()};
+                instanceMeshRef.has_value())
+            {
+                table.childPropertyBegin(false);
+                syzygy::Asset<syzygy::Mesh> const& meshAsset{
+                    instanceMeshRef.value().get()
+                };
+                uiAssetMetadata(table, meshAsset.metadata);
+                if (meshAsset.data != nullptr)
+                {
+                    uiMesh(table, *meshAsset.data);
+                }
+                uiMeshMaterialOverrides(table, instance, textures);
+
+                table.childPropertyEnd();
+            }
+
             table.childPropertyEnd();
         }
-
-        table.rowCustom(
-            "Instance Animation",
-            [&]() { uiInstanceAnimation(instance.animation); }
-        );
-        table.rowCustom(
-            "Mesh Used",
-            [&]()
-        {
-            auto newMesh{
-                uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
-            };
-            if (newMesh.has_value())
-            {
-                instance.setMesh(newMesh.value());
-            }
-        }
-        );
-        if (auto instanceMeshRef{instance.getMesh()};
-            instanceMeshRef.has_value())
-        {
-            table.childPropertyBegin(false);
-            syzygy::Asset<syzygy::Mesh> const& meshAsset{
-                instanceMeshRef.value().get()
-            };
-            uiAssetMetadata(table, meshAsset.metadata);
-            if (meshAsset.data != nullptr)
-            {
-                uiMesh(table, *meshAsset.data);
-            }
-            uiMeshMaterialOverrides(table, instance, textures);
-
-            table.childPropertyEnd();
-        }
-
-        table.childPropertyEnd();
     }
+
+    if (parent != nullptr)
+    {
+        for (size_t i{scene.depth()}; i < parent->depth(); i++)
+        {
+            table.childPropertyEnd();
+        }
+    }
+
+    table.childPropertyEnd();
 
     table.end();
 }
@@ -893,7 +941,7 @@ void sceneControlsWindow(
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
         auto sceneBounds{scene.shadowBounds()};
-        // uiSceneGeometry(sceneBounds, scene.geometry(), meshes, textures);
+        uiSceneGeometry(sceneBounds, scene.sceneRoot(), meshes, textures);
     }
 }
 

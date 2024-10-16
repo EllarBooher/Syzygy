@@ -56,6 +56,8 @@ SceneIterator& SceneIterator::operator++()
 {
     // Depth first iteration
 
+    // Go to the first child, and if not possible, go to next sibling. Go up
+    // parents to find a sibling to go to.
     if (m_ptr->hasChildren())
     {
         m_ptr = m_ptr->children()[0].get();
@@ -85,6 +87,7 @@ SceneIterator& SceneIterator::operator++()
                 m_ptr = nullptr;
                 return *this;
             }
+            parent = pParent.value();
 
             m_siblingIndex = m_path.top();
             m_path.pop();
@@ -92,7 +95,6 @@ SceneIterator& SceneIterator::operator++()
 
         m_siblingIndex++;
         m_ptr = parent.get().children()[m_siblingIndex].get();
-        return *this;
     }
 
     return *this;
@@ -180,6 +182,20 @@ auto SceneNode::appendChild() -> SceneNode&
     newChild.m_parent = this;
 
     return newChild;
+}
+
+auto SceneNode::depth() const -> size_t
+{
+    size_t result{0};
+
+    SceneNode* node{m_parent};
+    while (node != nullptr)
+    {
+        result++;
+        node = node->m_parent;
+    }
+
+    return result;
 }
 
 auto SceneNode::transformToRoot() const -> glm::mat4x4
@@ -312,64 +328,28 @@ auto Scene::collectMeshesForRendering(
     size_t currentChildIndex{0};
 
     glm::mat4x4 toRootTransform{currentParent.get().transform.toMatrix()};
-    while (true)
+    for (auto& node : sceneRoot())
     {
-        std::span<std::unique_ptr<SceneNode> const> const currentChildren{
-            currentParent.get().children()
-        };
-
-        while (currentChildIndex < currentChildren.size())
-        {
-            if (currentChildren[currentChildIndex] == nullptr)
-            {
-                continue;
-            }
-            SceneNode& child{*currentChildren[currentChildIndex]};
-
-            auto const childMesh{child.accessMesh()};
-            if (!childMesh.has_value())
-    {
-                continue;
-            }
-
-            MeshInstanced& mesh{childMesh.value().get()};
-
-            if (!mesh.render)
+        auto const meshOptional{node.accessMesh()};
+        if (!meshOptional.has_value())
         {
             continue;
         }
 
-            auto renderResources{mesh.prepareForRendering(
-                device, allocator, descriptorAllocator, toRootTransform
+        MeshInstanced& mesh{meshOptional.value().get()};
+
+        if (!mesh.render)
+        {
+            continue;
+        }
+
+        auto renderResources{mesh.prepareForRendering(
+            device, allocator, descriptorAllocator, toRootTransform
         )};
         if (renderResources.has_value())
         {
             result.push_back(renderResources.value());
         }
-
-            currentChildIndex++;
-
-            if (child.hasChildren())
-            {
-                childrenIndices.push(currentChildIndex);
-                currentChildIndex = 0;
-
-                currentParent = child;
-            }
-        }
-
-        if (auto parentParent{currentParent.get().parent()};
-            parentParent.has_value())
-        {
-            currentChildIndex = childrenIndices.top();
-            childrenIndices.pop();
-
-            currentParent = parentParent.value();
-        }
-        else
-        {
-            break;
-    }
     }
 
     return result;
@@ -870,7 +850,7 @@ void Scene::tick(TickTiming const lastFrame)
     {
         auto const& meshOptional{instance.accessMesh()};
         if (meshOptional.has_value())
-    {
+        {
             tickMeshInstance(lastFrame, meshOptional.value().get());
         }
     }
