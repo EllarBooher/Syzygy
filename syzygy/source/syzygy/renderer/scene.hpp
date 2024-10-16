@@ -12,9 +12,11 @@
 #include <glm/mat4x4.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <span>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -145,12 +147,23 @@ struct MeshInstanced
     std::vector<Transform> originals{};
     std::vector<Transform> transforms{};
 
+    [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
     void setMesh(AssetPtr<Mesh>);
 
-    auto prepareForRendering(VkDevice, VmaAllocator, DescriptorAllocator&)
-        -> std::optional<std::reference_wrapper<MeshRenderResources>>;
+    auto prepareForRendering(
+        VkDevice,
+        VmaAllocator,
+        DescriptorAllocator&,
+        glm::mat4x4 const& worldMatrix
+    ) -> std::optional<std::reference_wrapper<MeshRenderResources>>;
 
-    [[nodiscard]] auto getMesh() const -> std::optional<AssetRef<Mesh>>;
+    [[nodiscard]] static auto create(
+        std::optional<AssetPtr<Mesh>> const& mesh,
+        InstanceAnimation animation,
+        std::string const& name,
+        std::span<Transform const> transforms,
+        bool castsShadow = true
+    ) -> std::unique_ptr<MeshInstanced>;
 
     // Returns only as many overrides as there are surfaces in the current mesh
     // May return empty if no overrides are initialized.
@@ -166,6 +179,59 @@ private:
     std::unique_ptr<MeshRenderResources> m_renderResources{};
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)
+
+struct SceneNode;
+struct SceneIterator
+{
+    using difference_type = std::ptrdiff_t;
+    using value_type = SceneNode;
+    using pointer = value_type*;
+    using reference = value_type&;
+
+    SceneIterator() = default;
+    SceneIterator(pointer ptr);
+
+    reference operator*() const;
+
+    SceneIterator& operator++();
+    SceneIterator operator++(int);
+
+    bool operator==(SceneIterator const&) const;
+
+private:
+    pointer m_ptr{};
+    size_t m_siblingIndex{};
+    std::stack<size_t> m_path{};
+};
+static_assert(std::forward_iterator<SceneIterator>);
+
+struct SceneNode
+{
+    auto parent() -> std::optional<std::reference_wrapper<SceneNode>>;
+    auto hasChildren() const -> bool;
+    auto children() -> std::span<std::unique_ptr<SceneNode> const>;
+
+    auto appendChild() -> SceneNode&;
+
+    Transform transform{Transform::identity()};
+    // Returns the transformation matrix up the scene hierarchy INCLUDING this
+    // transform.
+    auto transformToRoot() const -> glm::mat4x4;
+
+    auto accessMesh() -> std::optional<std::reference_wrapper<MeshInstanced>>;
+    auto accessMesh() const
+        -> std::optional<std::reference_wrapper<MeshInstanced const>>;
+    auto swapMesh(std::unique_ptr<MeshInstanced>)
+        -> std::unique_ptr<MeshInstanced>;
+
+    auto begin() -> SceneIterator;
+    auto end() -> SceneIterator;
+
+private:
+    SceneNode* m_parent{};
+    std::vector<std::unique_ptr<SceneNode>> m_children{};
+    std::unique_ptr<MeshInstanced> m_mesh{};
+};
 
 struct SceneTime
 {
@@ -211,20 +277,11 @@ public:
     collectMeshesForRendering(VkDevice, VmaAllocator, DescriptorAllocator&)
         -> std::vector<std::reference_wrapper<MeshRenderResources>>;
 
-    [[nodiscard]] auto geometry() const -> std::span<MeshInstanced const>;
-    [[nodiscard]] auto geometry() -> std::span<MeshInstanced>;
-
     [[nodiscard]] auto atmosphereLights() const
         -> std::span<DirectionalLight const>;
     [[nodiscard]] auto atmosphereLights() -> std::span<DirectionalLight>;
 
-    void addMeshInstance(
-        std::optional<AssetPtr<Mesh>> const&,
-        InstanceAnimation,
-        std::string const& name,
-        std::span<Transform const> transforms,
-        bool castsShadow = true
-    );
+    [[nodiscard]] auto sceneRoot() -> SceneNode&;
 
     void addAtmosphereLight(DirectionalLight);
     void addSpotlight(glm::vec3 color, Transform transform);
@@ -239,7 +296,7 @@ public:
 
 private:
     AABB m_shadowBounds{};
-    std::vector<MeshInstanced> m_geometry;
+    std::unique_ptr<SceneNode> m_sceneRoot{};
     std::vector<DirectionalLight> m_atmosphereLights;
 };
 // NOLINTEND(misc-non-private-member-variables-in-classes)

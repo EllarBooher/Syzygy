@@ -8,6 +8,7 @@
 
 namespace syzygy
 {
+auto Transform::identity() -> Transform { return Transform{}; }
 auto Transform::toMatrix() const -> glm::mat4x4
 {
     return glm::translate(translation) * glm::orientate4(eulerAnglesRadians)

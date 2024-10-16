@@ -33,11 +33,80 @@
 #include <limits>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
+#include <stack>
 #include <utility>
 
 namespace syzygy
 {
 struct DescriptorAllocator;
+} // namespace syzygy
+
+namespace syzygy
+{
+SceneIterator::SceneIterator(pointer ptr)
+    : m_ptr(ptr)
+    , m_siblingIndex()
+    , m_path()
+{
+}
+
+SceneIterator::reference SceneIterator::operator*() const { return *m_ptr; }
+
+SceneIterator& SceneIterator::operator++()
+{
+    // Depth first iteration
+
+    if (m_ptr->hasChildren())
+    {
+        m_ptr = m_ptr->children()[0].get();
+
+        m_path.push(m_siblingIndex);
+        m_siblingIndex = 0;
+    }
+    else
+    {
+        auto pParent{m_ptr->parent()};
+
+        if (!pParent.has_value())
+        {
+            m_ptr = nullptr;
+            return *this;
+        }
+
+        std::reference_wrapper<SceneNode> parent{pParent.value()};
+
+        while (m_siblingIndex + 1 == parent.get().children().size())
+        {
+            m_ptr = &parent.get();
+
+            pParent = m_ptr->parent();
+            if (!pParent.has_value() || m_path.empty())
+            {
+                m_ptr = nullptr;
+                return *this;
+            }
+
+            m_siblingIndex = m_path.top();
+            m_path.pop();
+        }
+
+        m_siblingIndex++;
+        m_ptr = parent.get().children()[m_siblingIndex].get();
+        return *this;
+    }
+
+    return *this;
+}
+SceneIterator SceneIterator::operator++(int)
+{
+    SceneIterator tmp{*this};
+    ++(*this);
+    return tmp;
+}
+bool SceneIterator::operator==(SceneIterator const& other) const
+{
+    return m_ptr == other.m_ptr;
+}
 } // namespace syzygy
 
 namespace
@@ -88,6 +157,79 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
 
 namespace syzygy
 {
+auto SceneNode::parent() -> std::optional<std::reference_wrapper<SceneNode>>
+{
+    if (m_parent == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *m_parent;
+}
+auto SceneNode::hasChildren() const -> bool { return !m_children.empty(); }
+auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
+{
+    return m_children;
+}
+auto SceneNode::appendChild() -> SceneNode&
+{
+    m_children.emplace_back(std::make_unique<SceneNode>());
+
+    SceneNode& newChild{*m_children.back()};
+
+    newChild.m_parent = this;
+
+    return newChild;
+}
+
+auto SceneNode::transformToRoot() const -> glm::mat4x4
+{
+    glm::mat4x4 result{transform.toMatrix()};
+
+    SceneNode* node{m_parent};
+    while (node != nullptr)
+    {
+        result = node->transform.toMatrix() * result;
+        node = node->m_parent;
+    }
+
+    return result;
+}
+
+auto SceneNode::accessMesh()
+    -> std::optional<std::reference_wrapper<MeshInstanced>>
+{
+    if (m_mesh == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *m_mesh;
+}
+
+auto SceneNode::accessMesh() const
+    -> std::optional<std::reference_wrapper<MeshInstanced const>>
+{
+    if (m_mesh == nullptr)
+    {
+        return std::nullopt;
+    }
+    return *m_mesh;
+}
+
+auto SceneNode::swapMesh(std::unique_ptr<MeshInstanced> newMesh)
+    -> std::unique_ptr<MeshInstanced>
+{
+    m_mesh.swap(newMesh);
+
+    return newMesh;
+}
+
+auto SceneNode::begin() -> SceneIterator { return SceneIterator{this}; }
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+auto SceneNode::end() -> SceneIterator { return SceneIterator{nullptr}; }
+
 float constexpr METERS_PER_MEGAMETER{1'000'000.0};
 float constexpr METERS_PER_KILOMETER{1'000.0};
 float constexpr KILOMETERS_PER_MEGAMETER{1'000.0};
@@ -157,20 +299,77 @@ auto Scene::collectMeshesForRendering(
 {
     std::vector<std::reference_wrapper<MeshRenderResources>> result{};
 
-    for (auto& meshInstanced : m_geometry)
+    // Each node can have an arbitrary amount of children
+    // We go depth first, collecting every mesh we observe a node having
+
+    // When we start iterating a new node's children, we must remember where we
+    // left off. Post increment, we store an index if we are then jumping into a
+    // new parent node
+    std::stack<size_t> childrenIndices{};
+
+    std::reference_wrapper<SceneNode> currentParent{sceneRoot()};
+
+    size_t currentChildIndex{0};
+
+    glm::mat4x4 toRootTransform{currentParent.get().transform.toMatrix()};
+    while (true)
     {
-        if (!meshInstanced.render)
+        std::span<std::unique_ptr<SceneNode> const> const currentChildren{
+            currentParent.get().children()
+        };
+
+        while (currentChildIndex < currentChildren.size())
+        {
+            if (currentChildren[currentChildIndex] == nullptr)
+            {
+                continue;
+            }
+            SceneNode& child{*currentChildren[currentChildIndex]};
+
+            auto const childMesh{child.accessMesh()};
+            if (!childMesh.has_value())
+    {
+                continue;
+            }
+
+            MeshInstanced& mesh{childMesh.value().get()};
+
+            if (!mesh.render)
         {
             continue;
         }
 
-        auto renderResources{meshInstanced.prepareForRendering(
-            device, allocator, descriptorAllocator
+            auto renderResources{mesh.prepareForRendering(
+                device, allocator, descriptorAllocator, toRootTransform
         )};
         if (renderResources.has_value())
         {
             result.push_back(renderResources.value());
         }
+
+            currentChildIndex++;
+
+            if (child.hasChildren())
+            {
+                childrenIndices.push(currentChildIndex);
+                currentChildIndex = 0;
+
+                currentParent = child;
+            }
+        }
+
+        if (auto parentParent{currentParent.get().parent()};
+            parentParent.has_value())
+        {
+            currentChildIndex = childrenIndices.top();
+            childrenIndices.pop();
+
+            currentParent = parentParent.value();
+        }
+        else
+        {
+            break;
+    }
     }
 
     return result;
@@ -187,8 +386,20 @@ void Scene::calculateShadowBounds()
     glm::vec3 minimumPoint{std::numeric_limits<float>::max()};
     glm::vec3 maximumPoint{std::numeric_limits<float>::lowest()};
 
-    for (MeshInstanced const& instance : m_geometry)
+    for (SceneNode const& node : sceneRoot())
     {
+        auto meshOptional{node.accessMesh()};
+        if (!meshOptional.has_value())
+        {
+            continue;
+        }
+
+        MeshInstanced const& instance{meshOptional.value().get()};
+
+        // Just recalculate the transformation matrix to root. It is not
+        // worth caching this until we start pushing larger scenes with
+        // deeper scene hierarchies.
+
         if (!instance.castsShadow || !instance.render)
         {
             continue;
@@ -205,9 +416,13 @@ void Scene::calculateShadowBounds()
 
         AABB::Vertices const vertices{mesh.vertexBounds.collectVertices()};
 
+        glm::mat4x4 const worldMatrix{node.transformToRoot()};
+
         for (Transform const& transform : instance.transforms)
         {
-            glm::mat4x4 const transformation{transform.toMatrix()};
+            glm::mat4x4 const transformation{
+                worldMatrix * transform.toMatrix()
+            };
 
             for (glm::vec3 const vertex : vertices)
             {
@@ -231,13 +446,6 @@ void Scene::calculateShadowBounds()
     m_shadowBounds = AABB::create(minimumPoint, maximumPoint);
 }
 
-auto Scene::geometry() const -> std::span<MeshInstanced const>
-{
-    return m_geometry;
-}
-
-auto Scene::geometry() -> std::span<MeshInstanced> { return m_geometry; }
-
 auto Scene::atmosphereLights() const -> std::span<DirectionalLight const>
 {
     return m_atmosphereLights;
@@ -248,35 +456,14 @@ auto Scene::atmosphereLights() -> std::span<DirectionalLight>
     return m_atmosphereLights;
 }
 
-void Scene::addMeshInstance(
-    std::optional<AssetPtr<Mesh>> const& mesh,
-    InstanceAnimation const animation,
-    std::string const& name,
-    std::span<Transform const> const transforms,
-    bool const castsShadow
-)
+auto Scene::sceneRoot() -> SceneNode&
 {
-    MeshInstanced instance{};
-    instance.render = true;
-    instance.castsShadow = castsShadow;
-    // TODO: name deduplication
-    instance.name = fmt::format("meshInstanced_{}", name);
-
-    if (mesh.has_value())
+    if (m_sceneRoot == nullptr)
     {
-        instance.setMesh(mesh.value());
+        m_sceneRoot = std::make_unique<SceneNode>();
     }
 
-    instance.animation = animation;
-
-    instance.originals.insert(
-        instance.originals.begin(), transforms.begin(), transforms.end()
-    );
-    instance.transforms.insert(
-        instance.transforms.begin(), transforms.begin(), transforms.end()
-    );
-
-    m_geometry.push_back(std::move(instance));
+    return *m_sceneRoot;
 }
 
 void Scene::addAtmosphereLight(DirectionalLight const light)
@@ -314,7 +501,7 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
     glm::vec3 constexpr MESH_SCALE{5.0F};
     glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
 
-    scene.addMeshInstance(
+    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         "Model_1",
@@ -323,8 +510,8 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
             .eulerAnglesRadians = glm::vec3{0.0F},
             .scale = MESH_SCALE
         }}
-    );
-    scene.addMeshInstance(
+    ));
+    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         "Model_2",
@@ -333,7 +520,7 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
             .eulerAnglesRadians = glm::vec3{0.0F},
             .scale = MESH_SCALE
         }}
-    );
+    ));
 
     Transform const floorTransform{
         .translation = glm::vec3{0.0F, -1.0F, 0.0F},
@@ -341,12 +528,12 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
         .scale = glm::vec3{20.0F, 1.0F, 20.0F}
     };
 
-    scene.addMeshInstance(
+    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
         InstanceAnimation::None,
         "Floor",
         std::array<Transform, 1>{Transform{floorTransform}}
-    );
+    ));
 
     glm::vec3 const spotlightOffset{-20.0};
 
@@ -380,9 +567,9 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             .scale = glm::vec3{400.0F, 1.0F, 400.0F}
         }};
 
-        scene.addMeshInstance(
+        scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
             initialMesh, InstanceAnimation::None, "Floor", transform, false
-        );
+        ));
     }
 
     { // Cubes
@@ -406,12 +593,12 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             }
         }
 
-        scene.addMeshInstance(
+        scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
             initialMesh,
             InstanceAnimation::Diagonal_Wave,
             "DiagonalWave",
             transforms
-        );
+        ));
     }
 
     return scene;
@@ -679,9 +866,13 @@ void Scene::tick(TickTiming const lastFrame)
         }
     }
 
-    for (auto& instance : m_geometry)
+    for (auto& instance : sceneRoot())
     {
-        tickMeshInstance(lastFrame, instance);
+        auto const& meshOptional{instance.accessMesh()};
+        if (meshOptional.has_value())
+    {
+            tickMeshInstance(lastFrame, meshOptional.value().get());
+        }
     }
 }
 
@@ -888,7 +1079,8 @@ void MeshInstanced::setMesh(AssetPtr<Mesh> meshAsset)
 auto MeshInstanced::prepareForRendering(
     VkDevice const device,
     VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator
+    DescriptorAllocator& descriptorAllocator,
+    glm::mat4x4 const& worldMatrix
 ) -> std::optional<std::reference_wrapper<MeshRenderResources>>
 {
     MeshRenderResources& resources{*m_renderResources};
@@ -940,7 +1132,7 @@ auto MeshInstanced::prepareForRendering(
     {
         syzygy::Transform const& transform{transforms[index]};
 
-        glm::mat4x4 const model{transform.toMatrix()};
+        glm::mat4x4 const model{worldMatrix * transform.toMatrix()};
         models[index] = model;
         modelInverseTransposes[index] = glm::inverseTranspose(model);
     }
@@ -995,6 +1187,38 @@ auto MeshInstanced::prepareForRendering(
     }
 
     return resources;
+}
+
+auto MeshInstanced::create(
+    std::optional<AssetPtr<Mesh>> const& mesh,
+    InstanceAnimation const animation,
+    std::string const& name,
+    std::span<Transform const> const transforms,
+    bool const castsShadow
+) -> std::unique_ptr<MeshInstanced>
+{
+    auto result{std::make_unique<MeshInstanced>()};
+    MeshInstanced& instance{*result};
+    instance.render = true;
+    instance.castsShadow = castsShadow;
+    // TODO: name deduplication
+    instance.name = fmt::format("meshInstanced_{}", name);
+
+    if (mesh.has_value())
+    {
+        instance.setMesh(mesh.value());
+    }
+
+    instance.animation = animation;
+
+    instance.originals.insert(
+        instance.originals.begin(), transforms.begin(), transforms.end()
+    );
+    instance.transforms.insert(
+        instance.transforms.begin(), transforms.begin(), transforms.end()
+    );
+
+    return result;
 }
 
 auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>

@@ -893,7 +893,7 @@ void sceneControlsWindow(
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
         auto sceneBounds{scene.shadowBounds()};
-        uiSceneGeometry(sceneBounds, scene.geometry(), meshes, textures);
+        // uiSceneGeometry(sceneBounds, scene.geometry(), meshes, textures);
     }
 }
 
