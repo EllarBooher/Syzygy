@@ -211,7 +211,7 @@ struct SceneNode
     auto hasChildren() const -> bool;
     auto children() -> std::span<std::unique_ptr<SceneNode> const>;
 
-    auto appendChild() -> SceneNode&;
+    auto appendChild(std::string const& name = "") -> SceneNode&;
 
     Transform transform{Transform::identity()};
 
@@ -219,6 +219,8 @@ struct SceneNode
     // Returns the transformation matrix up the scene hierarchy INCLUDING this
     // transform.
     auto transformToRoot() const -> glm::mat4x4;
+
+    auto name() const -> std::string const&;
 
     auto accessMesh() -> std::optional<std::reference_wrapper<MeshInstanced>>;
     auto accessMesh() const
@@ -231,6 +233,7 @@ struct SceneNode
 
 private:
     SceneNode* m_parent{};
+    std::string m_name{};
     std::vector<std::unique_ptr<SceneNode>> m_children{};
     std::unique_ptr<MeshInstanced> m_mesh{};
 };

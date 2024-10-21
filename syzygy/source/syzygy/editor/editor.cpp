@@ -635,7 +635,7 @@ auto run() -> EditorResult
 
         uiLayer.renderWidgets();
 
-        sceneControlsWindow(
+        sceneControlsWindows(
             "Default Scene",
             dockingLayout.left,
             scene,

@@ -36,7 +36,7 @@ void performanceWindow(
     RingBuffer const& values,
     float& targetFPS
 );
-void sceneControlsWindow(
+void sceneControlsWindows(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,

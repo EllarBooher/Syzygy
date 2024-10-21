@@ -689,142 +689,201 @@ void uiMeshMaterialOverrides(
     table.childPropertyEnd();
 }
 
-void uiSceneGeometry(
-    syzygy::AABB& bounds,
-    syzygy::SceneNode& scene,
+auto uiDrawSceneHierarchyNode(
+    syzygy::SceneNode& node,
+    syzygy::SceneNode const* const selectedNode = nullptr
+) -> syzygy::SceneNode*
+{
+    std::string const label{fmt::format(
+        "[{}] {}",
+        node.accessMesh().has_value() ? "Mesh" : "Scene",
+        node.accessMesh().has_value() ? node.accessMesh().value().get().name
+                                      : node.name()
+    )};
+
+    ImVec2 const cursorPos{ImGui::GetCursorScreenPos()};
+
+    ImGui::SetNextItemAllowOverlap();
+    ImGui::SetCursorPosX(ImGui::GetWindowPos().x);
+    ImVec2 const buttonSize{
+        -1.0F,
+        ImGui::GetStyle().FramePadding.y * 1.0F
+            + ImGui::CalcTextSize(label.c_str()).y
+    };
+    if (selectedNode == &node)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1.0F, 1.0F, 1.0F, 0.2F});
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.0F, 0.0F, 0.0F, 0.0F});
+    }
+
+    bool const selected{ImGui::Button(
+        fmt::format("##NodeButton{}", fmt::ptr(&node)).c_str(), buttonSize
+    )};
+    ImGui::PopStyleColor();
+
+    ImGui::SetCursorScreenPos(cursorPos);
+
+    // Selected may be true while pChildSelected is not null, also
+    // pChildSelected may be overwritten across child invocations. But this
+    // means we clicked two buttons in one frame and our layout should not allow
+    // that.
+    syzygy::SceneNode* pChildSelected{nullptr};
+    bool drawChildren{false};
+
+    {
+        ImGui::PushStyleColor(
+            ImGuiCol_HeaderActive, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        );
+        ImGui::PushStyleColor(
+            ImGuiCol_HeaderHovered, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+        );
+        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4{0.0F, 0.0F, 0.0F, 0.0F});
+
+        ImGuiTreeNodeFlags flags{
+            ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanTextWidth
+        };
+        if (!node.hasChildren())
+        {
+            flags |= ImGuiTreeNodeFlags_Leaf;
+        }
+
+        drawChildren = ImGui::TreeNodeEx(&node, flags, "");
+
+        ImGui::PopStyleColor(3);
+    }
+
+    ImGui::SameLine();
+    ImGui::Text(label.c_str());
+
+    if (selected)
+    {
+        SZG_INFO("Selected");
+    }
+
+    if (drawChildren)
+    {
+        for (auto const& child : node.children())
+        {
+            auto* pChild = child.get();
+            if (pChild == nullptr)
+            {
+                continue;
+            }
+
+            auto* pChildSelectedInner{
+                uiDrawSceneHierarchyNode(*pChild, selectedNode)
+            };
+            if (pChildSelectedInner != nullptr)
+            {
+                pChildSelected = pChildSelectedInner;
+            }
+        }
+        ImGui::TreePop();
+    }
+
+    return selected ? &node : pChildSelected;
+}
+
+auto uiSceneHierarchy(
+    syzygy::SceneNode& scene, syzygy::SceneNode const* const selectedNode
+) -> std::optional<std::reference_wrapper<syzygy::SceneNode>>
+{
+    syzygy::SceneNode* parent{};
+
+    syzygy::SceneNode* pSelectedNode{
+        uiDrawSceneHierarchyNode(scene, selectedNode)
+    };
+    if (pSelectedNode == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *pSelectedNode;
+}
+
+void uiSceneNodeInspector(
+    syzygy::SceneNode* node,
     std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
     std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
 )
 {
-    syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
 
-    table.rowChildPropertyBegin("Scene Bounds")
-        .rowVec3(
-            "Scene Center",
-            bounds.center,
-            bounds.center,
-            syzygy::PropertySliderBehavior{
-                .speed = 1.0F,
-            }
-        )
-        .rowVec3(
-            "Scene Half-Extent",
-            bounds.halfExtent,
-            bounds.halfExtent,
-            syzygy::PropertySliderBehavior{
-                .speed = 1.0F,
-            }
-        )
-        .childPropertyEnd();
-
-    // TODO: check how this works for a subtree that has an initial parent
-    syzygy::SceneNode* parent{};
-    for (syzygy::SceneNode& node : scene)
+    if (node == nullptr)
     {
-        auto meshOptional{node.accessMesh()};
-        auto const parentOptional{node.parent()};
+        ImGui::Text(
+            "No Scene Node selected, select one in the Scene Hierarchy window."
+        );
+        return;
+    }
 
-        // Detect if the parent has changed, this indicates we need to create
-        // new nesting properties in our table UI.
-        // Assume pre-order traversal, meaning we only visit each parent's
-        // subtree once and thus only need to worry about popping their nesting
-        // once
-        if (parentOptional.has_value())
+    auto table{syzygy::PropertyTable::begin()};
+    auto meshOptional{node->accessMesh()};
+    if (meshOptional.has_value())
+    {
+        syzygy::MeshInstanced& instance{meshOptional.value().get()};
+
+        table.rowTextLabel("Type", "Mesh");
+        table.rowBoolean("Render", instance.render, true);
+        table.rowBoolean("Casts Shadow", instance.castsShadow, true);
+
         {
-            syzygy::SceneNode& newParent{parentOptional.value().get()};
-
-            if (parent != nullptr)
+            table.rowChildPropertyBegin("Transforms");
+            for (size_t transformIndex{0};
+                 transformIndex < std::min(
+                     instance.transforms.size(), instance.originals.size()
+                 );
+                 transformIndex++)
             {
-                for (size_t i{newParent.depth()}; i < parent->depth(); i++)
-                {
-                    table.childPropertyEnd();
-                }
+                uiTransform(
+                    table,
+                    instance.transforms[transformIndex],
+                    instance.originals[transformIndex]
+                );
             }
-
-            parent = &newParent;
+            table.childPropertyEnd();
         }
 
-        if (!meshOptional.has_value())
+        table.rowCustom(
+            "Instance Animation",
+            [&]() { uiInstanceAnimation(instance.animation); }
+        );
+        table.rowCustom(
+            "Mesh Used",
+            [&]()
         {
-            table.rowChildPropertyBegin("Scene Node");
-            parent = &node;
-
-            continue;
+            auto newMesh{
+                uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
+            };
+            if (newMesh.has_value())
+            {
+                instance.setMesh(newMesh.value());
+            }
         }
-
-        // Draw MeshInstanced UI
+        );
+        if (auto instanceMeshRef{instance.getMesh()};
+            instanceMeshRef.has_value())
         {
-            syzygy::MeshInstanced& instance{meshOptional.value().get()};
-
-            table.rowChildPropertyBegin(instance.name);
-
-            table.rowBoolean("Render", instance.render, true);
-            table.rowBoolean("Casts Shadow", instance.castsShadow, true);
-
+            table.childPropertyBegin(false);
+            syzygy::Asset<syzygy::Mesh> const& meshAsset{
+                instanceMeshRef.value().get()
+            };
+            uiAssetMetadata(table, meshAsset.metadata);
+            if (meshAsset.data != nullptr)
             {
-                table.rowChildPropertyBegin("Transforms");
-                for (size_t transformIndex{0};
-                     transformIndex < std::min(
-                         instance.transforms.size(), instance.originals.size()
-                     );
-                     transformIndex++)
-                {
-                    uiTransform(
-                        table,
-                        instance.transforms[transformIndex],
-                        instance.originals[transformIndex]
-                    );
-                }
-                table.childPropertyEnd();
+                uiMesh(table, *meshAsset.data);
             }
-
-            table.rowCustom(
-                "Instance Animation",
-                [&]() { uiInstanceAnimation(instance.animation); }
-            );
-            table.rowCustom(
-                "Mesh Used",
-                [&]()
-            {
-                auto newMesh{
-                    uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
-                };
-                if (newMesh.has_value())
-                {
-                    instance.setMesh(newMesh.value());
-                }
-            }
-            );
-            if (auto instanceMeshRef{instance.getMesh()};
-                instanceMeshRef.has_value())
-            {
-                table.childPropertyBegin(false);
-                syzygy::Asset<syzygy::Mesh> const& meshAsset{
-                    instanceMeshRef.value().get()
-                };
-                uiAssetMetadata(table, meshAsset.metadata);
-                if (meshAsset.data != nullptr)
-                {
-                    uiMesh(table, *meshAsset.data);
-                }
-                uiMeshMaterialOverrides(table, instance, textures);
-
-                table.childPropertyEnd();
-            }
+            uiMeshMaterialOverrides(table, instance, textures);
 
             table.childPropertyEnd();
         }
     }
-
-    if (parent != nullptr)
+    else
     {
-        for (size_t i{scene.depth()}; i < parent->depth(); i++)
-        {
-            table.childPropertyEnd();
-        }
+        table.rowTextLabel("Type", "Node");
     }
-
-    table.childPropertyEnd();
 
     table.end();
 }
@@ -832,7 +891,7 @@ void uiSceneGeometry(
 
 namespace syzygy
 {
-void sceneControlsWindow(
+void sceneControlsWindows(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     Scene& scene,
@@ -840,108 +899,185 @@ void sceneControlsWindow(
     std::span<AssetPtr<ImageView> const> const textures
 )
 {
-    UIWindowScope const window{
-        UIWindowScope::beginDockable(std::format("{}##scene", title), dockNode)
-    };
-    if (!window.isOpen())
     {
-        return;
-    }
+        UIWindowScope hierarchyWindow{UIWindowScope::beginDockable(
+            std::format("{} Hierarchy##sceneHierarchy", title), dockNode
+        )};
+        if (hierarchyWindow.isOpen())
+        {
 
-    if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
+            static SceneNode* pSelectedNode{nullptr};
 
-        FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
-            -100'000.0F, 100'000.0F
-        };
+            if (ImGui::CollapsingHeader(
+                    "Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                auto const selectedNode{
+                    uiSceneHierarchy(scene.sceneRoot(), pSelectedNode)
+                };
 
-        PropertySliderBehavior RADIANS_BEHAVIOR{
-            .speed = 0.01F,
-            .bounds =
-                FloatBounds{.min = -glm::pi<float>(), .max = glm::pi<float>()}
-        };
-
-        auto table{PropertyTable::begin()};
-
-        table.rowBoolean("Frozen", scene.time.frozen, defaultAnimation.frozen)
-            .rowFloat(
-                "Time (Days)",
-                scene.time.time,
-                defaultAnimation.time,
-                PropertySliderBehavior{.speed = 0.01F}
-            )
-            .rowFloat(
-                "Speed",
-                scene.time.speed,
-                defaultAnimation.speed,
-                PropertySliderBehavior{
-                    .bounds = SUN_ANIMATION_SPEED_BOUNDS,
+                if (selectedNode.has_value())
+                {
+                    SZG_INFO(
+                        "Selected {}", fmt::ptr(&selectedNode.value().get())
+                    );
+                    pSelectedNode = &selectedNode.value().get();
                 }
-            )
-            .rowBoolean("Realistic Orbits", scene.time.realisticOrbits, true)
-            .childPropertyBegin()
-            .rowFloat(
-                "Planet Tilt (Radians)",
-                scene.time.tiltPlanet,
-                defaultAnimation.tiltPlanet,
-                RADIANS_BEHAVIOR
-            )
-            .rowFloat(
-                "Lunar Orbit Inclination (Radians)",
-                scene.time.inclinationLunarOrbit,
-                defaultAnimation.inclinationLunarOrbit,
-                RADIANS_BEHAVIOR
-            )
-            .childPropertyEnd();
+            }
 
-        if (scene.time.realisticOrbits)
-        {
-            table.rowReadOnlyBoolean("Skip Night", scene.time.skipNight);
+            if (ImGui::CollapsingHeader(
+                    "Scene Node Inspector", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                if (pSelectedNode != nullptr)
+                {
+                    uiSceneNodeInspector(pSelectedNode, meshes, textures);
+                }
+            }
         }
-        else
+    }
+
+    {
+        UIWindowScope const window{UIWindowScope::beginDockable(
+            std::format("{}##scene", title), dockNode
+        )};
+        if (window.isOpen())
         {
-            table.rowBoolean(
-                "Skip Night", scene.time.skipNight, defaultAnimation.skipNight
-            );
+            if (ImGui::CollapsingHeader(
+                    "Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                auto sceneBounds{scene.shadowBounds()};
+
+                syzygy::PropertyTable::begin()
+                    .rowVec3(
+                        "Scene Center",
+                        sceneBounds.center,
+                        sceneBounds.center,
+                        syzygy::PropertySliderBehavior{
+                            .speed = 1.0F,
+                        }
+                    )
+                    .rowVec3(
+                        "Scene Half-Extent",
+                        sceneBounds.halfExtent,
+                        sceneBounds.halfExtent,
+                        syzygy::PropertySliderBehavior{
+                            .speed = 1.0F,
+                        }
+                    )
+                    .end();
+            }
+
+            if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
+
+                FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
+                    -100'000.0F, 100'000.0F
+                };
+
+                PropertySliderBehavior RADIANS_BEHAVIOR{
+                    .speed = 0.01F,
+                    .bounds =
+                        FloatBounds{
+                            .min = -glm::pi<float>(), .max = glm::pi<float>()
+                        }
+                };
+
+                auto table{PropertyTable::begin()};
+
+                table
+                    .rowBoolean(
+                        "Frozen", scene.time.frozen, defaultAnimation.frozen
+                    )
+                    .rowFloat(
+                        "Time (Days)",
+                        scene.time.time,
+                        defaultAnimation.time,
+                        PropertySliderBehavior{.speed = 0.01F}
+                    )
+                    .rowFloat(
+                        "Speed",
+                        scene.time.speed,
+                        defaultAnimation.speed,
+                        PropertySliderBehavior{
+                            .bounds = SUN_ANIMATION_SPEED_BOUNDS,
+                        }
+                    )
+                    .rowBoolean(
+                        "Realistic Orbits", scene.time.realisticOrbits, true
+                    )
+                    .childPropertyBegin()
+                    .rowFloat(
+                        "Planet Tilt (Radians)",
+                        scene.time.tiltPlanet,
+                        defaultAnimation.tiltPlanet,
+                        RADIANS_BEHAVIOR
+                    )
+                    .rowFloat(
+                        "Lunar Orbit Inclination (Radians)",
+                        scene.time.inclinationLunarOrbit,
+                        defaultAnimation.inclinationLunarOrbit,
+                        RADIANS_BEHAVIOR
+                    )
+                    .childPropertyEnd();
+
+                if (scene.time.realisticOrbits)
+                {
+                    table.rowReadOnlyBoolean(
+                        "Skip Night", scene.time.skipNight
+                    );
+                }
+                else
+                {
+                    table.rowBoolean(
+                        "Skip Night",
+                        scene.time.skipNight,
+                        defaultAnimation.skipNight
+                    );
+                }
+
+                table.end();
+            }
+
+            if (ImGui::CollapsingHeader(
+                    "Atmosphere", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
+            }
+
+            if (ImGui::CollapsingHeader(
+                    "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                uiAtmosphereLights(scene.atmosphereLights());
+            }
+
+            if (ImGui::CollapsingHeader(
+                    "Camera", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                uiCamera(
+                    scene.camera,
+                    Scene::DEFAULT_CAMERA,
+                    scene.cameraControlledSpeed,
+                    Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
+                );
+            }
+
+            if (ImGui::CollapsingHeader(
+                    "Lighting", ImGuiTreeNodeFlags_DefaultOpen
+                ))
+            {
+                PropertyTable::begin()
+                    .rowBoolean(
+                        "Render Spotlights", scene.spotlightsRender, true
+                    )
+                    .end();
+            }
         }
-
-        table.end();
-    }
-
-    if (ImGui::CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
-    }
-
-    if (ImGui::CollapsingHeader(
-            "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
-        ))
-    {
-        uiAtmosphereLights(scene.atmosphereLights());
-    }
-
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        uiCamera(
-            scene.camera,
-            Scene::DEFAULT_CAMERA,
-            scene.cameraControlledSpeed,
-            Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
-        );
-    }
-
-    if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        PropertyTable::begin()
-            .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
-            .end();
-    }
-
-    if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        auto sceneBounds{scene.shadowBounds()};
-        uiSceneGeometry(sceneBounds, scene.sceneRoot(), meshes, textures);
     }
 }
 

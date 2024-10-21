@@ -173,12 +173,13 @@ auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
 {
     return m_children;
 }
-auto SceneNode::appendChild() -> SceneNode&
+auto SceneNode::appendChild(std::string const& name) -> SceneNode&
 {
     m_children.emplace_back(std::make_unique<SceneNode>());
 
     SceneNode& newChild{*m_children.back()};
 
+    newChild.m_name = name;
     newChild.m_parent = this;
 
     return newChild;
@@ -211,6 +212,8 @@ auto SceneNode::transformToRoot() const -> glm::mat4x4
 
     return result;
 }
+
+auto SceneNode::name() const -> std::string const& { return m_name; }
 
 auto SceneNode::accessMesh()
     -> std::optional<std::reference_wrapper<MeshInstanced>>
