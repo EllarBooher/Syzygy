@@ -1206,7 +1206,9 @@ auto MeshInstanced::create(
 
 auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
 {
-    std::shared_ptr<Asset<Mesh> const> const meshAsset{m_renderResources->mesh};
+    std::shared_ptr<Asset<Mesh> const> const meshAsset{
+        m_renderResources->mesh.lock()
+    };
     if (meshAsset == nullptr)
     {
         return std::nullopt;
