@@ -758,11 +758,6 @@ auto uiDrawSceneHierarchyNode(
     ImGui::SameLine();
     ImGui::Text(label.c_str());
 
-    if (selected)
-    {
-        SZG_INFO("Selected");
-    }
-
     if (drawChildren)
     {
         for (auto const& child : node.children())
@@ -918,9 +913,6 @@ void sceneControlsWindows(
 
                 if (selectedNode.has_value())
                 {
-                    SZG_INFO(
-                        "Selected {}", fmt::ptr(&selectedNode.value().get())
-                    );
                     pSelectedNode = &selectedNode.value().get();
                 }
             }
