@@ -12,8 +12,6 @@
 #include "syzygy/editor/swapchain.hpp"
 #include "syzygy/editor/uilayer.hpp"
 #include "syzygy/editor/window.hpp"
-#include "syzygy/geometry/geometrytypes.hpp"
-#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -31,11 +29,9 @@
 #include "syzygy/ui/statelesswidgets.hpp"
 #include "syzygy/ui/texturedisplay.hpp"
 #include <GLFW/glfw3.h>
-#include <array>
 #include <chrono>
 #include <functional>
 #include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -43,6 +39,11 @@
 #include <thread>
 #include <utility>
 #include <vector>
+
+namespace syzygy
+{
+struct Mesh;
+} // namespace syzygy
 
 VkExtent2D constexpr TEXTURE_MAX{4096, 4096};
 

@@ -1,12 +1,10 @@
 #pragma once
 
 #include "syzygy/assets/assetstypes.hpp"
+#include "syzygy/assets/mesh.hpp"
 #include "syzygy/core/uuid.hpp"
-#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
-#include "syzygy/renderer/buffers.hpp"
-#include "syzygy/renderer/material.hpp"
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -26,21 +24,6 @@ struct ImageLoadingTask;
 
 namespace syzygy
 {
-// An interval of indices from an index buffer.
-struct GeometrySurface
-{
-    uint32_t firstIndex;
-    uint32_t indexCount;
-    MaterialData material{};
-};
-
-struct Mesh
-{
-    std::vector<GeometrySurface> surfaces{};
-    AABB vertexBounds{};
-    std::unique_ptr<syzygy::GPUMeshBuffers> meshBuffers{};
-};
-
 struct AssetFile
 {
     std::filesystem::path path{};

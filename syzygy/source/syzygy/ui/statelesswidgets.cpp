@@ -2,6 +2,7 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/assets/assetstypes.hpp"
+#include "syzygy/assets/mesh.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/editor/editorconfig.hpp"

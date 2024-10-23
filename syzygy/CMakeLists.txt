@@ -28,6 +28,8 @@ add_library(
     "source/syzygy/renderer/rendercommands.cpp"
 	"source/syzygy/renderer/scenetexture.cpp" 	
 	"source/syzygy/renderer/scene.cpp"
+	"source/syzygy/renderer/scenemesh.cpp"
+	"source/syzygy/renderer/scenenode.cpp"
 	"source/syzygy/renderer/material.cpp"
 	"source/syzygy/renderer/lights.cpp"
 

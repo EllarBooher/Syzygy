@@ -2,14 +2,13 @@
 
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/core/input.hpp"
-#include "syzygy/core/log.hpp"
 #include "syzygy/core/timing.hpp"
 #include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
+#include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/lights.hpp"
 #include <array>
-#include <cassert>
 #include <functional>
 #include <glm/common.hpp>
 #include <glm/exponential.hpp>
@@ -19,8 +18,6 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/compatibility.hpp>
-#include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/intersect.hpp>
 #include <glm/gtx/projection.hpp>
@@ -32,83 +29,11 @@
 #include <glm/vec4.hpp>
 #include <limits>
 #include <span>
-#include <spdlog/fmt/bundled/core.h>
 #include <stack>
-#include <utility>
 
 namespace syzygy
 {
 struct DescriptorAllocator;
-} // namespace syzygy
-
-namespace syzygy
-{
-SceneIterator::SceneIterator(pointer ptr)
-    : m_ptr(ptr)
-    , m_siblingIndex()
-    , m_path()
-{
-}
-
-SceneIterator::reference SceneIterator::operator*() const { return *m_ptr; }
-
-SceneIterator& SceneIterator::operator++()
-{
-    // Depth first iteration
-
-    // Go to the first child, and if not possible, go to next sibling. Go up
-    // parents to find a sibling to go to.
-    if (m_ptr->hasChildren())
-    {
-        m_ptr = m_ptr->children()[0].get();
-
-        m_path.push(m_siblingIndex);
-        m_siblingIndex = 0;
-    }
-    else
-    {
-        auto pParent{m_ptr->parent()};
-
-        if (!pParent.has_value())
-        {
-            m_ptr = nullptr;
-            return *this;
-        }
-
-        std::reference_wrapper<SceneNode> parent{pParent.value()};
-
-        while (m_siblingIndex + 1 == parent.get().children().size())
-        {
-            m_ptr = &parent.get();
-
-            pParent = m_ptr->parent();
-            if (!pParent.has_value() || m_path.empty())
-            {
-                m_ptr = nullptr;
-                return *this;
-            }
-            parent = pParent.value();
-
-            m_siblingIndex = m_path.top();
-            m_path.pop();
-        }
-
-        m_siblingIndex++;
-        m_ptr = parent.get().children()[m_siblingIndex].get();
-    }
-
-    return *this;
-}
-SceneIterator SceneIterator::operator++(int)
-{
-    SceneIterator tmp{*this};
-    ++(*this);
-    return tmp;
-}
-bool SceneIterator::operator==(SceneIterator const& other) const
-{
-    return m_ptr == other.m_ptr;
-}
 } // namespace syzygy
 
 namespace
@@ -1026,228 +951,5 @@ auto Camera::projection(float const aspectRatio) const -> glm::mat4x4
         .near = near,
         .far = far,
     });
-}
-
-void MeshInstanced::setMesh(AssetPtr<Mesh> meshAsset)
-{
-    if (m_renderResources == nullptr)
-    {
-        m_renderResources = std::make_unique<MeshRenderResources>();
-    }
-
-    m_renderResources->mesh = std::move(meshAsset);
-    m_surfaceDescriptorsDirty = true;
-
-    if (AssetShared<Mesh> const pMesh{m_renderResources->mesh.lock()};
-        pMesh != nullptr && pMesh->data != nullptr)
-    {
-        Mesh const& mesh{*pMesh->data};
-        AABB const meshBounds{mesh.vertexBounds};
-
-        float const smallestDimension{glm::compMin(meshBounds.halfExtent)};
-        float constexpr MINIMUM_DIMENSION{0.01F};
-
-        float const scaleFactor{
-            1.0F / glm::max(smallestDimension, MINIMUM_DIMENSION)
-        };
-
-        assert(transforms.size() == originals.size());
-        for (size_t child{0}; child < transforms.size(); child++)
-        {
-            transforms[child].scale = originals[child].scale * scaleFactor;
-        }
-    }
-}
-
-auto MeshInstanced::prepareForRendering(
-    VkDevice const device,
-    VmaAllocator const allocator,
-    DescriptorAllocator& descriptorAllocator,
-    glm::mat4x4 const& worldMatrix
-) -> std::optional<std::reference_wrapper<MeshRenderResources>>
-{
-    MeshRenderResources& resources{*m_renderResources};
-    resources.castsShadow = castsShadow;
-
-    std::shared_ptr<Asset<Mesh> const> const meshAsset{resources.mesh.lock()};
-    if (meshAsset == nullptr || meshAsset->data == nullptr)
-    {
-        return std::nullopt;
-    }
-    Mesh const& mesh{*meshAsset->data};
-
-    if (resources.models == nullptr
-        || resources.modelInverseTransposes == nullptr
-        || resources.models->stagingCapacity() < transforms.size()
-        || resources.modelInverseTransposes->stagingCapacity()
-               < transforms.size())
-    {
-        auto const bufferSize{static_cast<VkDeviceSize>(transforms.size())};
-
-        resources.models = std::make_unique<TStagedBuffer<glm::mat4x4>>(
-            TStagedBuffer<glm::mat4x4>::allocate(
-                device,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                allocator,
-                bufferSize
-            )
-        );
-        resources.modelInverseTransposes =
-            std::make_unique<TStagedBuffer<glm::mat4x4>>(
-                TStagedBuffer<glm::mat4x4>::allocate(
-                    device,
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    allocator,
-                    bufferSize
-                )
-            );
-    }
-
-    std::span<glm::mat4x4> const models{resources.models->mapFullCapacity()};
-    std::span<glm::mat4x4> const modelInverseTransposes{
-        resources.modelInverseTransposes->mapFullCapacity()
-    };
-
-    resources.models->resizeStaged(transforms.size());
-    resources.modelInverseTransposes->resizeStaged(transforms.size());
-
-    for (size_t index{0}; index < transforms.size(); index++)
-    {
-        syzygy::Transform const& transform{transforms[index]};
-
-        glm::mat4x4 const model{worldMatrix * transform.toMatrix()};
-        models[index] = model;
-        modelInverseTransposes[index] = glm::inverseTranspose(model);
-    }
-
-    if (m_surfaceDescriptorsDirty)
-    {
-        while (resources.surfaceDescriptors.size() < mesh.surfaces.size())
-        {
-            std::optional<MaterialDescriptors> descriptorsResult{
-                MaterialDescriptors::create(device, descriptorAllocator)
-            };
-            if (!descriptorsResult.has_value())
-            {
-                SZG_ERROR(
-                    "Failed to allocate MaterialDescriptors while setting mesh."
-                );
-                return std::nullopt;
-            }
-
-            resources.surfaceDescriptors.push_back(
-                std::move(descriptorsResult).value()
-            );
-        }
-
-        resources.surfaceMaterialOverrides.resize(mesh.surfaces.size());
-
-        for (size_t index{0}; index < mesh.surfaces.size(); index++)
-        {
-            GeometrySurface const& surface{mesh.surfaces[index]};
-            MaterialDescriptors const& descriptors{
-                resources.surfaceDescriptors[index]
-            };
-            MaterialData const& overrides{
-                resources.surfaceMaterialOverrides[index]
-            };
-
-            MaterialData const activeMaterials{
-                .ORM = overrides.ORM.lock() != nullptr ? overrides.ORM
-                                                       : surface.material.ORM,
-                .normal = overrides.normal.lock() != nullptr
-                            ? overrides.normal
-                            : surface.material.normal,
-                .color = overrides.color.lock() != nullptr
-                           ? overrides.color
-                           : surface.material.color,
-            };
-
-            descriptors.write(activeMaterials);
-        }
-
-        m_surfaceDescriptorsDirty = false;
-    }
-
-    return resources;
-}
-
-auto MeshInstanced::create(
-    std::optional<AssetPtr<Mesh>> const& mesh,
-    InstanceAnimation const animation,
-    std::string const& name,
-    std::span<Transform const> const transforms,
-    bool const castsShadow
-) -> std::unique_ptr<MeshInstanced>
-{
-    auto result{std::make_unique<MeshInstanced>()};
-    MeshInstanced& instance{*result};
-    instance.render = true;
-    instance.castsShadow = castsShadow;
-    // TODO: name deduplication
-    instance.name = fmt::format("meshInstanced_{}", name);
-
-    if (mesh.has_value())
-    {
-        instance.setMesh(mesh.value());
-    }
-
-    instance.animation = animation;
-
-    instance.originals.insert(
-        instance.originals.begin(), transforms.begin(), transforms.end()
-    );
-    instance.transforms.insert(
-        instance.transforms.begin(), transforms.begin(), transforms.end()
-    );
-
-    return result;
-}
-
-auto MeshInstanced::getMesh() const -> std::optional<AssetRef<Mesh>>
-{
-    std::shared_ptr<Asset<Mesh> const> const meshAsset{
-        m_renderResources->mesh.lock()
-    };
-    if (meshAsset == nullptr)
-    {
-        return std::nullopt;
-    }
-
-    return *meshAsset;
-}
-
-auto MeshInstanced::getMaterialOverrides() const
-    -> std::span<MaterialData const>
-{
-    std::shared_ptr<Asset<Mesh> const> const meshAsset{m_renderResources->mesh};
-    if (meshAsset == nullptr || meshAsset->data == nullptr)
-    {
-        return {};
-    }
-
-    m_renderResources->surfaceMaterialOverrides.resize(
-        m_renderResources->mesh.lock()->data->surfaces.size()
-    );
-
-    return std::span<MaterialData const>{
-        m_renderResources->surfaceMaterialOverrides.begin(),
-        m_renderResources->surfaceMaterialOverrides.begin()
-            + static_cast<std::int64_t>(meshAsset->data->surfaces.size())
-    };
-}
-
-void MeshInstanced::setMaterialOverrides(
-    size_t const surface, MaterialData const& materialOverride
-)
-{
-    m_surfaceDescriptorsDirty = true;
-
-    if (surface >= m_renderResources->surfaceMaterialOverrides.size())
-    {
-        m_renderResources->surfaceMaterialOverrides.resize(surface + 1);
-    }
-
-    m_renderResources->surfaceMaterialOverrides[surface] = materialOverride;
 }
 } // namespace syzygy

@@ -3,6 +3,7 @@
 #include "syzygy/core/immediate.hpp"
 #include "syzygy/core/log.hpp"
 #include "syzygy/editor/graphicscontext.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/filesystemutils.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/platformutils.hpp"
@@ -11,6 +12,7 @@
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
 #include "syzygy/renderer/imageview.hpp"
+#include "syzygy/renderer/material.hpp"
 #include "syzygy/ui/uiwidgets.hpp"
 #include <algorithm>
 #include <cassert>

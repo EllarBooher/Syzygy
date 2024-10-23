@@ -318,43 +318,4 @@ template <typename T> struct TStagedBuffer : public StagedBuffer
         return StagedBuffer::stagedSizeBytes() / sizeof(T);
     }
 };
-
-struct GPUMeshBuffers
-{
-    GPUMeshBuffers() = delete;
-
-    explicit GPUMeshBuffers(
-        AllocatedBuffer&& indexBuffer, AllocatedBuffer&& vertexBuffer
-    )
-        : m_indexBuffer(std::move(indexBuffer))
-        , m_vertexBuffer(std::move(vertexBuffer))
-    {
-    }
-
-    GPUMeshBuffers(GPUMeshBuffers const& other) = delete;
-
-    GPUMeshBuffers(GPUMeshBuffers&& other) = default;
-
-    auto operator=(GPUMeshBuffers const& other) -> GPUMeshBuffers& = delete;
-
-    auto operator=(GPUMeshBuffers&& other) -> GPUMeshBuffers& = default;
-
-    // These are not const since they give access to the underlying memory.
-
-    auto indexAddress() -> VkDeviceAddress
-    {
-        return m_indexBuffer.deviceAddress();
-    }
-    auto indexBuffer() -> VkBuffer { return m_indexBuffer.buffer(); }
-
-    auto vertexAddress() -> VkDeviceAddress
-    {
-        return m_vertexBuffer.deviceAddress();
-    }
-    auto vertexBuffer() -> VkBuffer { return m_vertexBuffer.buffer(); }
-
-private:
-    AllocatedBuffer m_indexBuffer;
-    AllocatedBuffer m_vertexBuffer;
-};
 } // namespace syzygy
