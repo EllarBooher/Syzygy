@@ -101,7 +101,7 @@ private:
 
     // Pipelines
 
-    static uint32_t constexpr DEBUGLINES_CAPACITY{1000};
+    static uint32_t constexpr DEBUGLINES_CAPACITY{10000};
     DebugLines m_debugLines{};
 
     RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::DEFERRED};

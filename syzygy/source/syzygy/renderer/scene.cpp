@@ -243,19 +243,6 @@ auto Scene::collectMeshesForRendering(
 {
     std::vector<std::reference_wrapper<MeshRenderResources>> result{};
 
-    // Each node can have an arbitrary amount of children
-    // We go depth first, collecting every mesh we observe a node having
-
-    // When we start iterating a new node's children, we must remember where we
-    // left off. Post increment, we store an index if we are then jumping into a
-    // new parent node
-    std::stack<size_t> childrenIndices{};
-
-    std::reference_wrapper<SceneNode> currentParent{sceneRoot()};
-
-    size_t currentChildIndex{0};
-
-    glm::mat4x4 toRootTransform{currentParent.get().transform.toMatrix()};
     for (auto& node : sceneRoot())
     {
         auto const meshOptional{node.accessMesh()};
@@ -272,7 +259,7 @@ auto Scene::collectMeshesForRendering(
         }
 
         auto renderResources{mesh.prepareForRendering(
-            device, allocator, descriptorAllocator, toRootTransform
+            device, allocator, descriptorAllocator, node.transformToRoot()
         )};
         if (renderResources.has_value())
         {

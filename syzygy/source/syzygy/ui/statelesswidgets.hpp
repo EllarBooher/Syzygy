@@ -16,6 +16,7 @@ struct EditorConfiguration;
 struct RingBuffer;
 struct Mesh;
 struct ImageView;
+struct SceneTemplate;
 } // namespace syzygy
 
 namespace syzygy
@@ -41,7 +42,8 @@ void sceneControlsWindows(
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,
     std::span<AssetPtr<Mesh> const> meshes,
-    std::span<AssetPtr<ImageView> const> textures
+    std::span<AssetPtr<ImageView> const> textures,
+    std::span<AssetPtr<SceneTemplate> const> scenes
 );
 
 template <typename T> struct WindowResult

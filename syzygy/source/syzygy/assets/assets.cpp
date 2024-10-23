@@ -24,10 +24,12 @@
 #include <fstream>
 #include <functional>
 #include <glm/common.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <limits>
+#include <queue>
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
 #include <tuple>
@@ -416,6 +418,7 @@ auto loadGLTFAsset(std::filesystem::path const& path)
     auto constexpr GLTF_OPTIONS{
         fastgltf::Options::LoadGLBBuffers
         | fastgltf::Options::LoadExternalBuffers
+        | fastgltf::Options::DecomposeNodeMatrices
         //        | fastgltf::Options::LoadExternalImages // Defer loading
         //        images so we have access to the URIs
     };
@@ -1054,13 +1057,26 @@ auto loadMeshes(
             }
         }
 
-        bool constexpr FLIP_Y{true};
-        if (FLIP_Y)
+        bool constexpr CONVERT_FROM_GLTF_COORDS{true};
+
+        if (CONVERT_FROM_GLTF_COORDS)
         {
             for (syzygy::VertexPacked& vertex : vertices)
             {
+                // Flip y to point y axis up, and flip x to preserve left vs
+                // right
+                vertex.normal.x *= -1;
                 vertex.normal.y *= -1;
+                vertex.position.x *= -1;
                 vertex.position.y *= -1;
+            }
+            assert(indices.size() % 3 == 0);
+            for (size_t triIndex{0}; triIndex < indices.size() / 3; triIndex++)
+            {
+                // Engine uses left-handed winding, while glTF uses right-handed
+                // We just flipped two axes, so we need to flip the triangle
+                // winding too
+                std::swap(indices[triIndex * 3 + 1], indices[triIndex * 3 + 2]);
             }
         }
 
@@ -1248,6 +1264,10 @@ void AssetLibrary::loadGLTFFromPath(
     };
 
     size_t loadedMeshes{0};
+
+    std::vector<AssetPtr<Mesh>> meshAssets{};
+    meshAssets.resize(newMeshes.size());
+
     for (size_t gltfMeshIndex{0}; gltfMeshIndex < newMeshes.size();
          gltfMeshIndex++)
     {
@@ -1256,18 +1276,159 @@ void AssetLibrary::loadGLTFFromPath(
             continue;
         }
 
-        if (registerAsset<Mesh>(
+        if (auto asset{registerAsset<Mesh>(
                 std::move(newMeshes[gltfMeshIndex]),
                 fmt::format("mesh_{}", gltf.meshes[gltfMeshIndex].name),
                 filePath
-            )
-                .has_value())
+            )};
+            asset.has_value())
         {
             loadedMeshes++;
+            meshAssets[gltfMeshIndex] = asset.value();
         }
     }
 
     SZG_INFO("Loaded {} meshes from glTF", loadedMeshes);
+
+    size_t loadedScenes{0};
+    for (auto const& scene : gltf.scenes)
+    {
+        // The problem to solve: create a tree packed into an array.
+        // We are given an array of nodes as indices into a big array storing
+        // all nodes.
+        // Each node contains a further array of indices to nodes
+        // that are their children.
+        // We wish to iterate over this graph, preferably ensure there are no
+        // cycles (is this guaranteed by glTF spec?), and extract the data we
+        // need before packing everything into an array of our own.
+        // To add a node to our tree, we need to:
+        // 1) Get the transform
+        // 2) Get the name
+        // 3) Load the optional mesh
+        // 4) Fill the indices of the children array
+        // 1,2, and 3 are easy to copy at any time we visit a glTF node. If we
+        // wish to defer loading, we must ensure we keep an association between
+        // glTF nodes and nodes already in the tree.
+        // 4 is harder, depending on
+        // our tree structure. However, we have no requirements on
+        // contigency/locality, so we can just reserve a length in our tree
+        // for the children when first visiting a node, and we immediately know
+        // the indices of these children. Thus we process all siblings at the
+        // same time in a breadth-first manner.
+
+        // We increment this to reserve space for children, but before
+        // processing/adding all siblings
+        std::vector<SceneTemplateNode> nodes{};
+        size_t nodeExpectedCount{0};
+
+        // We use a queue since we want to process the nodes we have reserved
+        // space for first. Direct siblings will be contiguous in this queue.
+        std::queue<size_t> glTFNodesToProcess{};
+        {
+            // We model the scene root as a node with a transform. glTF does
+            // not, so we handle this separately.
+            nodes.push_back(SceneTemplateNode{
+                .transform = Transform::identity(),
+                .mesh = std::nullopt,
+                //.children,
+                .name = std::string{scene.name},
+            });
+            SceneTemplateNode& node{nodes.back()};
+
+            nodeExpectedCount += 1;
+            for (size_t const rootChildIndex : scene.nodeIndices)
+            {
+                glTFNodesToProcess.push(rootChildIndex);
+                node.children.push_back(nodeExpectedCount);
+                nodeExpectedCount += 1;
+            }
+        }
+
+        while (!glTFNodesToProcess.empty())
+        {
+            fastgltf::Node const& glTFNode{
+                gltf.nodes[glTFNodesToProcess.front()]
+            };
+            glTFNodesToProcess.pop();
+
+            if (glTFNode.name == "Knight_W1")
+            {
+                SZG_INFO("Found Knight");
+            }
+
+            nodes.push_back(SceneTemplateNode{
+                .transform = Transform::identity(),
+                .mesh = std::nullopt,
+                //.children,
+                .name = std::string{glTFNode.name},
+            });
+            SceneTemplateNode& node{nodes.back()};
+
+            // Options::DecomposeNodeMatrices should be set, guaranteeing this
+            // variant
+            fastgltf::TRS const trs{std::get<0>(glTFNode.transform)};
+
+            glm::quat rotation{glm::quat::wxyz(
+                trs.rotation[3],
+                trs.rotation[0],
+                trs.rotation[1],
+                trs.rotation[2]
+            )};
+
+            glm::vec3 const pitchYawRoll{glm::eulerAngles(rotation)};
+
+            // TODO: create euler angles class that helps enforce convention
+            // without a dependence on blind component order
+            glm::vec3 const pitchRollYaw{
+                pitchYawRoll.x, pitchYawRoll.z, pitchYawRoll.y
+            };
+
+            node.transform = syzygy::Transform{
+                .translation =
+                    glm::vec3{
+                        -trs.translation[0],
+                        -trs.translation[1],
+                        trs.translation[2]
+                    },
+                .eulerAnglesRadians = pitchRollYaw,
+                .scale = glm::vec3{trs.scale[0], trs.scale[1], trs.scale[2]},
+            };
+
+            if (glTFNode.meshIndex.has_value())
+            {
+                size_t const gltfMeshIndex{glTFNode.meshIndex.value()};
+                AssetShared<Mesh> meshAsset{meshAssets[gltfMeshIndex].lock()};
+
+                node.mesh = meshAsset;
+            }
+
+            for (size_t const childIndex : glTFNode.children)
+            {
+                glTFNodesToProcess.push(childIndex);
+                node.children.push_back(nodeExpectedCount);
+                nodeExpectedCount += 1;
+            }
+        }
+
+        if (nodes.empty())
+        {
+            continue;
+        }
+
+        if (auto asset{registerAsset<SceneTemplate>(
+                std::make_shared<SceneTemplate>(
+                    SceneTemplate::create(std::move(nodes))
+                ),
+                fmt::format("scene_{}", scene.name),
+                filePath
+            )};
+            asset.has_value())
+        {
+            loadedScenes++;
+        }
+    }
+
+    SZG_INFO("Loaded {} scenes from glTF", loadedScenes);
 }
 
 void AssetLibrary::loadMeshesDialog(

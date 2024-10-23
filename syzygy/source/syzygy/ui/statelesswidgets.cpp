@@ -3,6 +3,7 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/assets/mesh.hpp"
+#include "syzygy/assets/scenetemplate.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/editor/editorconfig.hpp"
@@ -10,6 +11,7 @@
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/material.hpp"
 #include "syzygy/renderer/scene.hpp"
 #include "syzygy/ui/propertytable.hpp"
@@ -784,10 +786,34 @@ auto uiDrawSceneHierarchyNode(
 }
 
 auto uiSceneHierarchy(
-    syzygy::SceneNode& scene, syzygy::SceneNode const* const selectedNode
+    syzygy::SceneNode& scene,
+    syzygy::SceneNode const* const selectedNode,
+    std::span<syzygy::AssetPtr<syzygy::SceneTemplate> const> scenes
 ) -> std::optional<std::reference_wrapper<syzygy::SceneNode>>
 {
     syzygy::SceneNode* parent{};
+
+    syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
+    table.rowTextLabel("", "Select a Scene Asset to append to root:");
+    table.rowCustom(
+        "",
+        [&]()
+    {
+        std::optional<syzygy::AssetPtr<syzygy::SceneTemplate>> newSceneTemplate{
+            uiAssetSelection(
+                std::optional<syzygy::AssetRef<syzygy::SceneTemplate>>{}, scenes
+            )
+        };
+        if (newSceneTemplate.has_value()
+            && newSceneTemplate.value().lock() != nullptr)
+        {
+            newSceneTemplate.value().lock().get()->data->appendTo(scene);
+        }
+    }
+    );
+    table.end();
+
+    ImGui::SeparatorText("Hierarchy");
 
     syzygy::SceneNode* pSelectedNode{
         uiDrawSceneHierarchyNode(scene, selectedNode)
@@ -815,6 +841,16 @@ void uiSceneNodeInspector(
         return;
     }
 
+    {
+        auto nodeTable{syzygy::PropertyTable::begin()};
+
+        nodeTable.rowChildPropertyBegin("Transform");
+        uiTransform(nodeTable, node->transform, node->transform);
+        nodeTable.childPropertyEnd();
+
+        nodeTable.end();
+    }
+
     auto table{syzygy::PropertyTable::begin()};
     auto meshOptional{node->accessMesh()};
     if (meshOptional.has_value())
@@ -826,7 +862,7 @@ void uiSceneNodeInspector(
         table.rowBoolean("Casts Shadow", instance.castsShadow, true);
 
         {
-            table.rowChildPropertyBegin("Transforms");
+            table.rowChildPropertyBegin("Instanced Transforms");
             for (size_t transformIndex{0};
                  transformIndex < std::min(
                      instance.transforms.size(), instance.originals.size()
@@ -892,7 +928,8 @@ void sceneControlsWindows(
     std::optional<ImGuiID> const dockNode,
     Scene& scene,
     std::span<AssetPtr<Mesh> const> const meshes,
-    std::span<AssetPtr<ImageView> const> const textures
+    std::span<AssetPtr<ImageView> const> const textures,
+    std::span<AssetPtr<SceneTemplate> const> scenes
 )
 {
     {
@@ -909,7 +946,7 @@ void sceneControlsWindows(
                 ))
             {
                 auto const selectedNode{
-                    uiSceneHierarchy(scene.sceneRoot(), pSelectedNode)
+                    uiSceneHierarchy(scene.sceneRoot(), pSelectedNode, scenes)
                 };
 
                 if (selectedNode.has_value())
@@ -965,110 +1002,121 @@ void sceneControlsWindows(
             if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
-
-                FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
-                    -100'000.0F, 100'000.0F
-                };
-
-                PropertySliderBehavior RADIANS_BEHAVIOR{
-                    .speed = 0.01F,
-                    .bounds =
-                        FloatBounds{
-                            .min = -glm::pi<float>(), .max = glm::pi<float>()
-                        }
-                };
-
-                auto table{PropertyTable::begin()};
-
-                table
-                    .rowBoolean(
-                        "Frozen", scene.time.frozen, defaultAnimation.frozen
-                    )
-                    .rowFloat(
-                        "Time (Days)",
-                        scene.time.time,
-                        defaultAnimation.time,
-                        PropertySliderBehavior{.speed = 0.01F}
-                    )
-                    .rowFloat(
-                        "Speed",
-                        scene.time.speed,
-                        defaultAnimation.speed,
-                        PropertySliderBehavior{
-                            .bounds = SUN_ANIMATION_SPEED_BOUNDS,
-                        }
-                    )
-                    .rowBoolean(
-                        "Realistic Orbits", scene.time.realisticOrbits, true
-                    )
-                    .childPropertyBegin()
-                    .rowFloat(
-                        "Planet Tilt (Radians)",
-                        scene.time.tiltPlanet,
-                        defaultAnimation.tiltPlanet,
-                        RADIANS_BEHAVIOR
-                    )
-                    .rowFloat(
-                        "Lunar Orbit Inclination (Radians)",
-                        scene.time.inclinationLunarOrbit,
-                        defaultAnimation.inclinationLunarOrbit,
-                        RADIANS_BEHAVIOR
-                    )
-                    .childPropertyEnd();
-
-                if (scene.time.realisticOrbits)
+                if (ImGui::CollapsingHeader(
+                        "Time", ImGuiTreeNodeFlags_DefaultOpen
+                    ))
                 {
-                    table.rowReadOnlyBoolean(
-                        "Skip Night", scene.time.skipNight
+                    SceneTime const& defaultAnimation{
+                        Scene::DEFAULT_SUN_ANIMATION
+                    };
+
+                    FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
+                        -100'000.0F, 100'000.0F
+                    };
+
+                    PropertySliderBehavior RADIANS_BEHAVIOR{
+                        .speed = 0.01F,
+                        .bounds =
+                            FloatBounds{
+                                .min = -glm::pi<float>(),
+                                .max = glm::pi<float>()
+                            }
+                    };
+
+                    auto table{PropertyTable::begin()};
+
+                    table
+                        .rowBoolean(
+                            "Frozen", scene.time.frozen, defaultAnimation.frozen
+                        )
+                        .rowFloat(
+                            "Time (Days)",
+                            scene.time.time,
+                            defaultAnimation.time,
+                            PropertySliderBehavior{.speed = 0.01F}
+                        )
+                        .rowFloat(
+                            "Speed",
+                            scene.time.speed,
+                            defaultAnimation.speed,
+                            PropertySliderBehavior{
+                                .bounds = SUN_ANIMATION_SPEED_BOUNDS,
+                            }
+                        )
+                        .rowBoolean(
+                            "Realistic Orbits", scene.time.realisticOrbits, true
+                        )
+                        .childPropertyBegin()
+                        .rowFloat(
+                            "Planet Tilt (Radians)",
+                            scene.time.tiltPlanet,
+                            defaultAnimation.tiltPlanet,
+                            RADIANS_BEHAVIOR
+                        )
+                        .rowFloat(
+                            "Lunar Orbit Inclination (Radians)",
+                            scene.time.inclinationLunarOrbit,
+                            defaultAnimation.inclinationLunarOrbit,
+                            RADIANS_BEHAVIOR
+                        )
+                        .childPropertyEnd();
+
+                    if (scene.time.realisticOrbits)
+                    {
+                        table.rowReadOnlyBoolean(
+                            "Skip Night", scene.time.skipNight
+                        );
+                    }
+                    else
+                    {
+                        table.rowBoolean(
+                            "Skip Night",
+                            scene.time.skipNight,
+                            defaultAnimation.skipNight
+                        );
+                    }
+
+                    table.end();
+                }
+
+                if (ImGui::CollapsingHeader(
+                        "Atmosphere", ImGuiTreeNodeFlags_DefaultOpen
+                    ))
+                {
+                    uiAtmosphere(
+                        scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH
                     );
                 }
-                else
+
+                if (ImGui::CollapsingHeader(
+                        "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
+                    ))
                 {
-                    table.rowBoolean(
-                        "Skip Night",
-                        scene.time.skipNight,
-                        defaultAnimation.skipNight
+                    uiAtmosphereLights(scene.atmosphereLights());
+                }
+
+                if (ImGui::CollapsingHeader(
+                        "Camera", ImGuiTreeNodeFlags_DefaultOpen
+                    ))
+                {
+                    uiCamera(
+                        scene.camera,
+                        Scene::DEFAULT_CAMERA,
+                        scene.cameraControlledSpeed,
+                        Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
                     );
                 }
 
-                table.end();
-            }
-
-            if (ImGui::CollapsingHeader(
-                    "Atmosphere", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
-            }
-
-            if (ImGui::CollapsingHeader(
-                    "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                uiAtmosphereLights(scene.atmosphereLights());
-            }
-
-            if (ImGui::CollapsingHeader(
-                    "Camera", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                uiCamera(
-                    scene.camera,
-                    Scene::DEFAULT_CAMERA,
-                    scene.cameraControlledSpeed,
-                    Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
-                );
-            }
-
-            if (ImGui::CollapsingHeader(
-                    "Lighting", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                PropertyTable::begin()
-                    .rowBoolean(
-                        "Render Spotlights", scene.spotlightsRender, true
-                    )
-                    .end();
+                if (ImGui::CollapsingHeader(
+                        "Lighting", ImGuiTreeNodeFlags_DefaultOpen
+                    ))
+                {
+                    PropertyTable::begin()
+                        .rowBoolean(
+                            "Render Spotlights", scene.spotlightsRender, true
+                        )
+                        .end();
+                }
             }
         }
     }

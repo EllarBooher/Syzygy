@@ -641,7 +641,8 @@ auto run() -> EditorResult
             dockingLayout.left,
             scene,
             assetLibrary.fetchAssets<Mesh>(),
-            assetLibrary.fetchAssets<ImageView>()
+            assetLibrary.fetchAssets<ImageView>(),
+            assetLibrary.fetchAssets<SceneTemplate>()
         );
 
         uiLayer.end();

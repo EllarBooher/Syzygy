@@ -1,7 +1,9 @@
 #pragma once
 
+#include "scenetemplate.hpp"
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/assets/mesh.hpp"
+#include "syzygy/assets/scenetemplate.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -53,8 +55,6 @@ private:
     [[nodiscard]] auto getAssetsContainer()
         -> std::vector<std::shared_ptr<Asset<T>>>&
     {
-        std::vector<AssetPtr<T>> assets{};
-
         if constexpr (std::is_same_v<T, ImageView>)
         {
             return m_textures;
@@ -62,6 +62,10 @@ private:
         else if constexpr (std::is_same_v<T, Mesh>)
         {
             return m_meshes;
+        }
+        else if constexpr (std::is_same_v<T, SceneTemplate>)
+        {
+            return m_scenes;
         }
         else
         {
@@ -201,6 +205,8 @@ private:
     AssetShared<Mesh> m_meshPlane{};
     AssetShared<Mesh> m_meshCube{};
     std::vector<std::shared_ptr<Asset<Mesh>>> m_meshes{};
+
+    std::vector<std::shared_ptr<Asset<SceneTemplate>>> m_scenes{};
 
     std::vector<std::shared_ptr<ImageLoadingTask>> m_tasks{};
 };

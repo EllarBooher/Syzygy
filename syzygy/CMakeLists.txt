@@ -5,6 +5,7 @@ add_library(
 	STATIC 
 	"source/syzygy/syzygy.cpp"
 	"source/syzygy/assets/assets.cpp"
+	"source/syzygy/assets/scenetemplate.cpp"
 
 	"source/syzygy/geometry/geometryhelpers.cpp"
 	"source/syzygy/geometry/geometrytypes.cpp"
@@ -59,7 +60,7 @@ add_library(
 	"source/syzygy/platform/windowsplatformutils.cpp"
 	"source/syzygy/platform/filesystemutils.cpp"
 	"source/syzygy/renderer/pipelines/skyview.cpp"
- )
+)
 
 add_dependencies(syzygy syzygy-shaders)
 
