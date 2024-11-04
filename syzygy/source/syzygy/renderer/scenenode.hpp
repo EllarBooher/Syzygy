@@ -46,7 +46,9 @@ struct SceneNode
     auto hasChildren() const -> bool;
     auto children() -> std::span<std::unique_ptr<SceneNode> const>;
 
-    auto appendChild(std::string const& name = "") -> SceneNode&;
+    // Creates a free-standing node without children.
+    static auto create(std::string&& name) -> std::unique_ptr<SceneNode>;
+    auto appendChild(std::string&& name) -> SceneNode&;
 
     Transform transform{Transform::identity()};
 

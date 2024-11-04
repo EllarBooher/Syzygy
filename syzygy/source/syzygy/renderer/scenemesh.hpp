@@ -54,7 +54,6 @@ struct MeshInstanced
 {
     bool render{false};
     bool castsShadow{true};
-    std::string name{};
 
     InstanceAnimation animation{InstanceAnimation::None};
 
@@ -76,7 +75,6 @@ struct MeshInstanced
     [[nodiscard]] static auto create(
         std::optional<AssetPtr<Mesh>> const& mesh,
         InstanceAnimation animation,
-        std::string const& name,
         std::span<Transform const> transforms,
         bool castsShadow = true
     ) -> std::unique_ptr<MeshInstanced>;

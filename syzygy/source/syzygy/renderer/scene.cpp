@@ -84,96 +84,6 @@ void pushDefaultAtmosphereLights(syzygy::Scene& scene)
 
 namespace syzygy
 {
-auto SceneNode::parent() -> std::optional<std::reference_wrapper<SceneNode>>
-{
-    if (m_parent == nullptr)
-    {
-        return std::nullopt;
-    }
-
-    return *m_parent;
-}
-auto SceneNode::hasChildren() const -> bool { return !m_children.empty(); }
-auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
-{
-    return m_children;
-}
-auto SceneNode::appendChild(std::string const& name) -> SceneNode&
-{
-    m_children.emplace_back(std::make_unique<SceneNode>());
-
-    SceneNode& newChild{*m_children.back()};
-
-    newChild.m_name = name;
-    newChild.m_parent = this;
-
-    return newChild;
-}
-
-auto SceneNode::depth() const -> size_t
-{
-    size_t result{0};
-
-    SceneNode* node{m_parent};
-    while (node != nullptr)
-    {
-        result++;
-        node = node->m_parent;
-    }
-
-    return result;
-}
-
-auto SceneNode::transformToRoot() const -> glm::mat4x4
-{
-    glm::mat4x4 result{transform.toMatrix()};
-
-    SceneNode* node{m_parent};
-    while (node != nullptr)
-    {
-        result = node->transform.toMatrix() * result;
-        node = node->m_parent;
-    }
-
-    return result;
-}
-
-auto SceneNode::name() const -> std::string const& { return m_name; }
-
-auto SceneNode::accessMesh()
-    -> std::optional<std::reference_wrapper<MeshInstanced>>
-{
-    if (m_mesh == nullptr)
-    {
-        return std::nullopt;
-    }
-
-    return *m_mesh;
-}
-
-auto SceneNode::accessMesh() const
-    -> std::optional<std::reference_wrapper<MeshInstanced const>>
-{
-    if (m_mesh == nullptr)
-    {
-        return std::nullopt;
-    }
-    return *m_mesh;
-}
-
-auto SceneNode::swapMesh(std::unique_ptr<MeshInstanced> newMesh)
-    -> std::unique_ptr<MeshInstanced>
-{
-    m_mesh.swap(newMesh);
-
-    return newMesh;
-}
-
-auto SceneNode::begin() -> SceneIterator { return SceneIterator{this}; }
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-auto SceneNode::end() -> SceneIterator { return SceneIterator{nullptr}; }
-
 float constexpr METERS_PER_MEGAMETER{1'000'000.0};
 float constexpr METERS_PER_KILOMETER{1'000.0};
 float constexpr KILOMETERS_PER_MEGAMETER{1'000.0};
@@ -355,7 +265,7 @@ auto Scene::sceneRoot() -> SceneNode&
 {
     if (m_sceneRoot == nullptr)
     {
-        m_sceneRoot = std::make_unique<SceneNode>();
+        m_sceneRoot = SceneNode::create("Root");
     }
 
     return *m_sceneRoot;
@@ -396,20 +306,18 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
     glm::vec3 constexpr MESH_SCALE{5.0F};
     glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
 
-    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
+    scene.sceneRoot().appendChild("Cube_1").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
-        "Model_1",
         std::array<Transform, 1>{Transform{
             .translation = floatingPosition + MESH_OFFSET,
             .eulerAnglesRadians = glm::vec3{0.0F},
             .scale = MESH_SCALE
         }}
     ));
-    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
+    scene.sceneRoot().appendChild("Cube_2").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
-        "Model_2",
         std::array<Transform, 1>{Transform{
             .translation = floatingPosition - MESH_OFFSET,
             .eulerAnglesRadians = glm::vec3{0.0F},
@@ -423,10 +331,9 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
         .scale = glm::vec3{20.0F, 1.0F, 20.0F}
     };
 
-    scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
+    scene.sceneRoot().appendChild("Floor").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
         InstanceAnimation::None,
-        "Floor",
         std::array<Transform, 1>{Transform{floorTransform}}
     ));
 
@@ -462,8 +369,8 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             .scale = glm::vec3{400.0F, 1.0F, 400.0F}
         }};
 
-        scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
-            initialMesh, InstanceAnimation::None, "Floor", transform, false
+        scene.sceneRoot().appendChild("Floor").swapMesh(MeshInstanced::create(
+            initialMesh, InstanceAnimation::None, transform, false
         ));
     }
 
@@ -488,11 +395,8 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             }
         }
 
-        scene.sceneRoot().appendChild().swapMesh(MeshInstanced::create(
-            initialMesh,
-            InstanceAnimation::Diagonal_Wave,
-            "DiagonalWave",
-            transforms
+        scene.sceneRoot().appendChild("Cubes").swapMesh(MeshInstanced::create(
+            initialMesh, InstanceAnimation::Diagonal_Wave, transforms
         ));
     }
 

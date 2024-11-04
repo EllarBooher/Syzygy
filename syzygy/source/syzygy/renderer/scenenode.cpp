@@ -2,6 +2,103 @@
 
 namespace syzygy
 {
+auto SceneNode::parent() -> std::optional<std::reference_wrapper<SceneNode>>
+{
+    if (m_parent == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *m_parent;
+}
+auto SceneNode::hasChildren() const -> bool { return !m_children.empty(); }
+auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
+{
+    return m_children;
+}
+auto SceneNode::create(std::string&& name) -> std::unique_ptr<SceneNode>
+{
+    auto result{std::make_unique<SceneNode>()};
+    result->m_name = std::move(name);
+
+    return result;
+}
+auto SceneNode::appendChild(std::string&& name) -> SceneNode&
+{
+    m_children.emplace_back(std::make_unique<SceneNode>());
+
+    SceneNode& newChild{*m_children.back()};
+
+    newChild.m_name = std::move(name);
+    newChild.m_parent = this;
+
+    return newChild;
+}
+
+auto SceneNode::depth() const -> size_t
+{
+    size_t result{0};
+
+    SceneNode* node{m_parent};
+    while (node != nullptr)
+    {
+        result++;
+        node = node->m_parent;
+    }
+
+    return result;
+}
+
+auto SceneNode::transformToRoot() const -> glm::mat4x4
+{
+    glm::mat4x4 result{transform.toMatrix()};
+
+    SceneNode* node{m_parent};
+    while (node != nullptr)
+    {
+        result = node->transform.toMatrix() * result;
+        node = node->m_parent;
+    }
+
+    return result;
+}
+
+auto SceneNode::name() const -> std::string const& { return m_name; }
+
+auto SceneNode::accessMesh()
+    -> std::optional<std::reference_wrapper<MeshInstanced>>
+{
+    if (m_mesh == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    return *m_mesh;
+}
+
+auto SceneNode::accessMesh() const
+    -> std::optional<std::reference_wrapper<MeshInstanced const>>
+{
+    if (m_mesh == nullptr)
+    {
+        return std::nullopt;
+    }
+    return *m_mesh;
+}
+
+auto SceneNode::swapMesh(std::unique_ptr<MeshInstanced> newMesh)
+    -> std::unique_ptr<MeshInstanced>
+{
+    m_mesh.swap(newMesh);
+
+    return newMesh;
+}
+
+auto SceneNode::begin() -> SceneIterator { return SceneIterator{this}; }
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+auto SceneNode::end() -> SceneIterator { return SceneIterator{nullptr}; }
+
 SceneIterator::SceneIterator(pointer ptr)
     : m_ptr(ptr)
 {

@@ -698,10 +698,7 @@ auto uiDrawSceneHierarchyNode(
 ) -> syzygy::SceneNode*
 {
     std::string const label{fmt::format(
-        "[{}] {}",
-        node.accessMesh().has_value() ? "Mesh" : "Scene",
-        node.accessMesh().has_value() ? node.accessMesh().value().get().name
-                                      : node.name()
+        "[{}] {}", node.accessMesh().has_value() ? "Mesh" : "Scene", node.name()
     )};
 
     ImVec2 const cursorPos{ImGui::GetCursorScreenPos()};
@@ -759,7 +756,7 @@ auto uiDrawSceneHierarchyNode(
     }
 
     ImGui::SameLine();
-    ImGui::Text(label.c_str());
+    ImGui::Text("%s", label.c_str());
 
     if (drawChildren)
     {
@@ -832,7 +829,6 @@ void uiSceneNodeInspector(
     std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
 )
 {
-
     if (node == nullptr)
     {
         ImGui::Text(

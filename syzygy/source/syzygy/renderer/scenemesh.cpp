@@ -134,7 +134,6 @@ auto MeshInstanced::prepareForRendering(
 auto MeshInstanced::create(
     std::optional<AssetPtr<Mesh>> const& mesh,
     InstanceAnimation const animation,
-    std::string const& name,
     std::span<Transform const> const transforms,
     bool const castsShadow
 ) -> std::unique_ptr<MeshInstanced>
@@ -143,8 +142,6 @@ auto MeshInstanced::create(
     MeshInstanced& instance{*result};
     instance.render = true;
     instance.castsShadow = castsShadow;
-    // TODO: name deduplication
-    instance.name = fmt::format("meshInstanced_{}", name);
 
     if (mesh.has_value())
     {
