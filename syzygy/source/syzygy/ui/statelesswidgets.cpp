@@ -700,39 +700,12 @@ auto uiDrawSceneHierarchyNode(
     std::string const label{fmt::format(
         "[{}] {}", node.accessMesh().has_value() ? "Mesh" : "Scene", node.name()
     )};
-
-    ImVec2 const cursorPos{ImGui::GetCursorScreenPos()};
-
-    ImGui::SetNextItemAllowOverlap();
-    ImGui::SetCursorPosX(ImGui::GetWindowPos().x);
-    ImVec2 const buttonSize{
-        -1.0F,
-        ImGui::GetStyle().FramePadding.y * 1.0F
-            + ImGui::CalcTextSize(label.c_str()).y
-    };
-    if (selectedNode == &node)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1.0F, 1.0F, 1.0F, 0.2F});
-    }
-    else
-    {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.0F, 0.0F, 0.0F, 0.0F});
-    }
-
-    bool const selected{ImGui::Button(
-        fmt::format("##NodeButton{}", fmt::ptr(&node)).c_str(), buttonSize
-    )};
-    ImGui::PopStyleColor();
-
-    ImGui::SetCursorScreenPos(cursorPos);
-
     // Selected may be true while pChildSelected is not null, also
     // pChildSelected may be overwritten across child invocations. But this
     // means we clicked two buttons in one frame and our layout should not allow
     // that.
     syzygy::SceneNode* pChildSelected{nullptr};
-    bool drawChildren{false};
-
+    bool childrenExpanded{false};
     {
         ImGui::PushStyleColor(
             ImGuiCol_HeaderActive, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
@@ -750,19 +723,82 @@ auto uiDrawSceneHierarchyNode(
             flags |= ImGuiTreeNodeFlags_Leaf;
         }
 
-        drawChildren = ImGui::TreeNodeEx(&node, flags, "");
+        childrenExpanded = ImGui::TreeNodeEx(&node, flags, "");
 
         ImGui::PopStyleColor(3);
     }
 
     ImGui::SameLine();
-    ImGui::Text("%s", label.c_str());
-
-    if (drawChildren)
+    bool selected{ImGui::Selectable(
+        fmt::format("{}##{}", label.c_str(), fmt::ptr(&node)).c_str(),
+        selectedNode == &node
+    )};
+    if (ImGui::BeginPopupContextItem(
+            fmt::format("SceneNodeRightClick##{}", fmt::ptr(&node)).c_str(),
+            ImGuiPopupFlags_MouseButtonRight
+        ))
     {
-        for (auto const& child : node.children())
+        if (ImGui::Selectable("Append Child"))
         {
-            auto* pChild = child.get();
+            node.appendChild("New Scene Node");
+        }
+        if (ImGui::Selectable("Delete with Children"))
+        {
+            node.removeFromParent();
+            selected = false;
+        }
+        if (ImGui::Selectable("Extract from Hierarchy"))
+        {
+            node.extract();
+            selected = false;
+        }
+        ImGui::EndPopup();
+    }
+    if (ImGui::BeginDragDropSource())
+    {
+        auto* const pSceneNode{&node};
+        ImGui::SetDragDropPayload(
+            "SCENE_NODE_PTR", &pSceneNode, sizeof(pSceneNode)
+        );
+
+        ImGui::Text("%s", label.c_str());
+        ImGui::EndDragDropSource();
+    }
+    if (ImGui::BeginDragDropTarget())
+    {
+        ImGuiPayload const* pPayload{
+            ImGui::AcceptDragDropPayload("SCENE_NODE_PTR")
+        };
+        if (pPayload != nullptr && pPayload->IsDelivery())
+        {
+            ImGuiPayload const& payload{*pPayload};
+            assert(
+                payload.DataSize == sizeof(syzygy::SceneNode*)
+                && "SceneNode drag drop payload had wrong size."
+            );
+
+            auto const pDroppedNode{
+                *static_cast<syzygy::SceneNode**>(payload.Data)
+            };
+
+            auto& droppedNode{*pDroppedNode};
+            SZG_INFO(
+                "DroppedNode {} onto {}",
+                fmt::ptr(&droppedNode),
+                fmt::ptr(&node)
+            );
+            droppedNode.reparent(node);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    if (childrenExpanded)
+    {
+        // Iterate explicitily in case tree is modified
+        for (size_t childIndex = 0; childIndex < node.children().size();
+             childIndex++)
+        {
+            auto* pChild = node.children()[childIndex].get();
             if (pChild == nullptr)
             {
                 continue;

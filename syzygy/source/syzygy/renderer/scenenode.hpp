@@ -48,7 +48,18 @@ struct SceneNode
 
     // Creates a free-standing node without children.
     static auto create(std::string&& name) -> std::unique_ptr<SceneNode>;
+
+    // Adds a new child to the end of this nodes list of children
     auto appendChild(std::string&& name) -> SceneNode&;
+
+    // Changes this node's parent while preserving its children.
+    void reparent(SceneNode& newParent);
+
+    // Removes this node from its parent while preserving its children.
+    auto removeFromParent() -> std::unique_ptr<SceneNode>;
+
+    // Removes this node, and gives the children to its parent.
+    auto extract() -> std::unique_ptr<SceneNode>;
 
     Transform transform{Transform::identity()};
 

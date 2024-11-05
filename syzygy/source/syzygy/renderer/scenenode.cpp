@@ -35,6 +35,70 @@ auto SceneNode::appendChild(std::string&& name) -> SceneNode&
     return newChild;
 }
 
+void SceneNode::reparent(SceneNode& newParent)
+{
+    if (m_parent == &newParent)
+    {
+        return;
+    }
+
+    newParent.m_children.push_back(removeFromParent());
+    m_parent = &newParent;
+}
+
+auto SceneNode::removeFromParent() -> std::unique_ptr<SceneNode>
+{
+    if (m_parent != nullptr)
+    {
+        auto& siblings{m_parent->m_children};
+        auto childIt = std::stable_partition(
+            siblings.begin(),
+            siblings.end(),
+            [this](std::unique_ptr<SceneNode> const& ptr)
+        { return ptr.get() != this; }
+        );
+        assert(
+            childIt != siblings.end()
+            && "SceneNode was not in its parent's children."
+        );
+        assert(
+            std::distance(childIt, siblings.end()) < 2
+            && "SceneNode parent had duplicated child."
+        );
+
+        // Resize the parent's children, without destructing this node
+        childIt->release();
+
+        // siblings.erase(childIt, siblings.end());
+        siblings.pop_back();
+    }
+
+    return std::unique_ptr<SceneNode>{this};
+}
+
+auto SceneNode::extract() -> std::unique_ptr<SceneNode>
+{
+    if (m_parent != nullptr)
+    {
+        auto& siblings{m_parent->m_children};
+
+        for (auto& child : m_children)
+        {
+            child->m_parent = m_parent;
+        }
+
+        auto newSiblingIt = siblings.insert(
+            siblings.end(),
+            std::make_move_iterator(m_children.begin()),
+            std::make_move_iterator(m_children.end())
+        );
+
+        m_children.clear();
+    }
+
+    return removeFromParent();
+}
+
 auto SceneNode::depth() const -> size_t
 {
     size_t result{0};
