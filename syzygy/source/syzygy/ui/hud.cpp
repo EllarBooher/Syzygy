@@ -62,6 +62,7 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
 
         static bool showPreferences{false};
         static bool showUIDemoWindow{false};
+        static bool showImGuiDemoWindow{false};
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0F);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0F);
@@ -84,6 +85,9 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
                     "Maximize Scene Viewport", nullptr, &maximizeSceneViewport
                 );
                 ImGui::MenuItem("UI Demo Window", nullptr, &showUIDemoWindow);
+                ImGui::MenuItem(
+                    "ImGui Demo Window", nullptr, &showImGuiDemoWindow
+                );
                 ImGui::MenuItem(
                     "Reset Window Layout", nullptr, &resetLayoutRequested
                 );
@@ -120,6 +124,11 @@ auto renderHUD(UIPreferences& preferences) -> HUDState
         if (showUIDemoWindow)
         {
             PropertyTable::demoWindow(showUIDemoWindow);
+        }
+
+        if (showImGuiDemoWindow)
+        {
+            ImGui::ShowDemoWindow(&showImGuiDemoWindow);
         }
     }
 
