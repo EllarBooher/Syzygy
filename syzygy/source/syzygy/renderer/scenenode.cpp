@@ -32,14 +32,24 @@ auto SceneNode::childAt(size_t index) const -> SceneNode const&
 auto SceneNode::descendent(SceneNode const* const ancestor) const -> bool
 {
     SceneNode const* pNode{this};
+    size_t iterations{0};
+    size_t constexpr MAX_ITERATIONS{100ULL};
     while (pNode != nullptr)
     {
+        // Avoid hanging, just terminate if the tree is too large or has a cycle
+        assert(
+            iterations < MAX_ITERATIONS
+            && "Max SceneNode ancestor traversal limit hit - Either there is a "
+               "cycle or tree is too large."
+        );
         if (pNode == ancestor)
         {
             return true;
         }
         pNode = pNode->m_parent;
+        iterations++;
     }
+    return false;
 }
 
 auto SceneNode::create(std::string&& name) -> std::unique_ptr<SceneNode>
