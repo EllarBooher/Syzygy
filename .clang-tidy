@@ -39,6 +39,7 @@ Checks: >
   misc-*,
   -misc-include-cleaner,
   -misc-misplaced-const,
+  -misc-no-recursion,
   modernize-*,
   performance-*,
   readability*,

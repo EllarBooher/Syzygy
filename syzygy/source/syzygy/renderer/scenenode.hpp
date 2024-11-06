@@ -42,9 +42,16 @@ static_assert(std::forward_iterator<SceneIterator>);
 
 struct SceneNode
 {
-    auto parent() -> std::optional<std::reference_wrapper<SceneNode>>;
-    auto hasChildren() const -> bool;
-    auto children() -> std::span<std::unique_ptr<SceneNode> const>;
+    [[nodiscard]] auto parent()
+        -> std::optional<std::reference_wrapper<SceneNode>>;
+    [[nodiscard]] auto hasChildren() const -> bool;
+    [[nodiscard]] auto children()
+        -> std::span<std::unique_ptr<SceneNode> const>;
+
+    [[nodiscard]] auto childrenCount() const -> size_t;
+    [[nodiscard]] auto childAt(size_t index) const -> SceneNode const&;
+
+    [[nodiscard]] auto descendent(SceneNode const*) const -> bool;
 
     // Creates a free-standing node without children.
     static auto create(std::string&& name) -> std::unique_ptr<SceneNode>;
@@ -61,6 +68,7 @@ struct SceneNode
     // Removes this node, and gives the children to its parent.
     auto extract() -> std::unique_ptr<SceneNode>;
 
+    // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     Transform transform{Transform::identity()};
 
     [[nodiscard]] auto depth() const -> size_t;

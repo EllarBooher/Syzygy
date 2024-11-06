@@ -27,6 +27,7 @@
 #include <span>
 #include <spdlog/fmt/bundled/core.h>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace
@@ -692,18 +693,51 @@ void uiMeshMaterialOverrides(
     table.childPropertyEnd();
 }
 
+using SceneNodeNoOperation = std::monostate;
+
+struct SceneNodeSelect
+{
+    std::reference_wrapper<syzygy::SceneNode const> target;
+};
+struct SceneNodeAppendChild
+{
+    std::reference_wrapper<syzygy::SceneNode const> target;
+};
+struct SceneNodeDeleteWithChildren
+{
+    std::reference_wrapper<syzygy::SceneNode const> target;
+};
+struct SceneNodeExtract
+{
+    std::reference_wrapper<syzygy::SceneNode const> target;
+};
+struct SceneNodeReparant
+{
+    std::reference_wrapper<syzygy::SceneNode const> target;
+    std::reference_wrapper<syzygy::SceneNode const> newParent;
+};
+
+using SceneTreeOperation = std::variant<
+    SceneNodeNoOperation,
+    SceneNodeSelect,
+    SceneNodeAppendChild,
+    SceneNodeDeleteWithChildren,
+    SceneNodeExtract,
+    SceneNodeReparant>;
+
+// Recursively renders a tree view of scene nodes, and bubbles up an optional
+// operation to be performed on a node based on user input. Multiple operations
+// in an update are not supported: Parent nodes swallow operation performed on
+// children and pass theirs instead.
 auto uiDrawSceneHierarchyNode(
-    syzygy::SceneNode& node,
+    syzygy::SceneNode const& node,
     syzygy::SceneNode const* const selectedNode = nullptr
-) -> syzygy::SceneNode*
+) -> SceneTreeOperation
 {
     std::string const label{fmt::format(
         "[{}] {}", node.accessMesh().has_value() ? "Mesh" : "Scene", node.name()
     )};
-    // Selected may be true while pChildSelected is not null, also
-    // pChildSelected may be overwritten across child invocations. But this
-    // means we clicked two buttons in one frame and our layout should not allow
-    // that.
+
     syzygy::SceneNode* pChildSelected{nullptr};
     bool childrenExpanded{false};
     {
@@ -729,10 +763,17 @@ auto uiDrawSceneHierarchyNode(
     }
 
     ImGui::SameLine();
-    bool selected{ImGui::Selectable(
-        fmt::format("{}##{}", label.c_str(), fmt::ptr(&node)).c_str(),
-        selectedNode == &node
-    )};
+
+    SceneTreeOperation operation{SceneNodeNoOperation{}};
+
+    if (ImGui::Selectable(
+            fmt::format("{}##{}", label.c_str(), fmt::ptr(&node)).c_str(),
+            selectedNode == &node
+        ))
+    {
+        operation = SceneNodeSelect{.target = node};
+    }
+
     if (ImGui::BeginPopupContextItem(
             fmt::format("SceneNodeRightClick##{}", fmt::ptr(&node)).c_str(),
             ImGuiPopupFlags_MouseButtonRight
@@ -740,26 +781,33 @@ auto uiDrawSceneHierarchyNode(
     {
         if (ImGui::Selectable("Append Child"))
         {
-            node.appendChild("New Scene Node");
+            operation = SceneNodeAppendChild{
+                .target = node,
+            };
         }
         if (ImGui::Selectable("Delete with Children"))
         {
-            node.removeFromParent();
-            selected = false;
+            operation = SceneNodeDeleteWithChildren{
+                .target = node,
+            };
         }
         if (ImGui::Selectable("Extract from Hierarchy"))
         {
-            node.extract();
-            selected = false;
+            operation = SceneNodeExtract{
+                .target = node,
+            };
         }
         ImGui::EndPopup();
     }
+
     if (ImGui::BeginDragDropSource())
     {
-        auto* const pSceneNode{&node};
+        auto const* const pSceneNode{&node};
+        // NOLINTBEGIN(bugprone-sizeof-expression)
         ImGui::SetDragDropPayload(
             "SCENE_NODE_PTR", &pSceneNode, sizeof(pSceneNode)
         );
+        // NOLINTEND(bugprone-sizeof-expression)
 
         ImGui::Text("%s", label.c_str());
         ImGui::EndDragDropSource();
@@ -777,86 +825,42 @@ auto uiDrawSceneHierarchyNode(
                 && "SceneNode drag drop payload had wrong size."
             );
 
-            auto const pDroppedNode{
+            auto* const pDroppedNode{
                 *static_cast<syzygy::SceneNode**>(payload.Data)
             };
 
             auto& droppedNode{*pDroppedNode};
-            SZG_INFO(
-                "DroppedNode {} onto {}",
-                fmt::ptr(&droppedNode),
-                fmt::ptr(&node)
-            );
-            droppedNode.reparent(node);
+
+            operation = SceneNodeReparant{
+                .target = droppedNode,
+                .newParent = node,
+            };
         }
         ImGui::EndDragDropTarget();
     }
 
     if (childrenExpanded)
     {
-        // Iterate explicitily in case tree is modified
-        for (size_t childIndex = 0; childIndex < node.children().size();
+        for (size_t childIndex = 0; childIndex < node.childrenCount();
              childIndex++)
         {
-            auto* pChild = node.children()[childIndex].get();
-            if (pChild == nullptr)
-            {
-                continue;
-            }
+            syzygy::SceneNode const& child = node.childAt(childIndex);
 
-            auto* pChildSelectedInner{
-                uiDrawSceneHierarchyNode(*pChild, selectedNode)
+            SceneTreeOperation const innerOperation{
+                uiDrawSceneHierarchyNode(child, selectedNode)
             };
-            if (pChildSelectedInner != nullptr)
+
+            // Only propagate subtree operation if no operation is done on this
+            // node
+            if (std::holds_alternative<SceneNodeNoOperation>(operation))
             {
-                pChildSelected = pChildSelectedInner;
+                operation = innerOperation;
             }
         }
         ImGui::TreePop();
     }
 
-    return selected ? &node : pChildSelected;
-}
-
-auto uiSceneHierarchy(
-    syzygy::SceneNode& scene,
-    syzygy::SceneNode const* const selectedNode,
-    std::span<syzygy::AssetPtr<syzygy::SceneTemplate> const> scenes
-) -> std::optional<std::reference_wrapper<syzygy::SceneNode>>
-{
-    syzygy::SceneNode* parent{};
-
-    syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
-    table.rowTextLabel("", "Select a Scene Asset to append to root:");
-    table.rowCustom(
-        "",
-        [&]()
-    {
-        std::optional<syzygy::AssetPtr<syzygy::SceneTemplate>> newSceneTemplate{
-            uiAssetSelection(
-                std::optional<syzygy::AssetRef<syzygy::SceneTemplate>>{}, scenes
-            )
-        };
-        if (newSceneTemplate.has_value()
-            && newSceneTemplate.value().lock() != nullptr)
-        {
-            newSceneTemplate.value().lock().get()->data->appendTo(scene);
-        }
-    }
-    );
-    table.end();
-
-    ImGui::SeparatorText("Hierarchy");
-
-    syzygy::SceneNode* pSelectedNode{
-        uiDrawSceneHierarchyNode(scene, selectedNode)
-    };
-    if (pSelectedNode == nullptr)
-    {
-        return std::nullopt;
-    }
-
-    return *pSelectedNode;
+    return operation;
 }
 
 void uiSceneNodeInspector(
@@ -951,6 +955,105 @@ void uiSceneNodeInspector(
 
     table.end();
 }
+
+// std::visit helper for easy overloading of multiple operator() types
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+
+void uiSceneHierarchy(
+    syzygy::SceneNode& scene,
+    std::span<syzygy::AssetPtr<syzygy::SceneTemplate> const> scenes,
+    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
+    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
+)
+{
+    static syzygy::SceneNode* pSelectedNode{nullptr};
+
+    if (ImGui::CollapsingHeader(
+            "Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen
+        ))
+    {
+        syzygy::PropertyTable table{syzygy::PropertyTable::begin()};
+        table.rowTextLabel("", "Select a Scene Asset to append to root:");
+        table.rowCustom(
+            "",
+            [&]()
+        {
+            std::optional<syzygy::AssetPtr<syzygy::SceneTemplate>>
+                newSceneTemplate{uiAssetSelection(
+                    std::optional<syzygy::AssetRef<syzygy::SceneTemplate>>{},
+                    scenes
+                )};
+            if (newSceneTemplate.has_value()
+                && newSceneTemplate.value().lock() != nullptr)
+            {
+                newSceneTemplate.value().lock().get()->data->appendTo(scene);
+            }
+        }
+        );
+        table.end();
+
+        ImGui::SeparatorText("Hierarchy");
+
+        SceneTreeOperation const operation{
+            uiDrawSceneHierarchyNode(scene, pSelectedNode)
+        };
+        // const_cast used here, since the node reference is derived from a
+        // non-const input scene.
+        // TODO: Build a cached read-only view into the scene tree, with IDs
+        // that then point to mutable scene nodes.
+        // TODO: defer deletion of mesh buffers until not in use by an in-flight
+        // frame
+        std::visit(
+            overloaded{
+                [](SceneNodeNoOperation const& arg) {},
+                [](SceneNodeSelect const& arg)
+        { pSelectedNode = &const_cast<syzygy::SceneNode&>(arg.target.get()); },
+                [](SceneNodeAppendChild const& arg) {
+            const_cast<syzygy::SceneNode&>(arg.target.get())
+                .appendChild("New Node");
+        },
+                [](SceneNodeDeleteWithChildren const& arg)
+        {
+            if (pSelectedNode != nullptr
+                && pSelectedNode->descendent(&arg.target.get()))
+            {
+                pSelectedNode = nullptr;
+            }
+            const_cast<syzygy::SceneNode&>(arg.target.get()).removeFromParent();
+        },
+                [](SceneNodeExtract const& arg)
+        {
+            if (pSelectedNode != nullptr
+                && pSelectedNode->descendent(&arg.target.get()))
+            {
+                pSelectedNode = nullptr;
+            }
+            const_cast<syzygy::SceneNode&>(arg.target.get()).extract();
+            pSelectedNode = nullptr;
+        },
+                [](SceneNodeReparant const& arg)
+        {
+            const_cast<syzygy::SceneNode&>(arg.target.get())
+                .reparent(const_cast<syzygy::SceneNode&>(arg.newParent.get()));
+        },
+            },
+            operation
+        );
+    }
+
+    if (ImGui::CollapsingHeader(
+            "Scene Node Inspector", ImGuiTreeNodeFlags_DefaultOpen
+        ))
+    {
+        if (pSelectedNode != nullptr)
+        {
+            uiSceneNodeInspector(pSelectedNode, meshes, textures);
+        }
+    }
+}
 } // namespace
 
 namespace syzygy
@@ -970,32 +1073,7 @@ void sceneControlsWindows(
         )};
         if (hierarchyWindow.isOpen())
         {
-
-            static SceneNode* pSelectedNode{nullptr};
-
-            if (ImGui::CollapsingHeader(
-                    "Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                auto const selectedNode{
-                    uiSceneHierarchy(scene.sceneRoot(), pSelectedNode, scenes)
-                };
-
-                if (selectedNode.has_value())
-                {
-                    pSelectedNode = &selectedNode.value().get();
-                }
-            }
-
-            if (ImGui::CollapsingHeader(
-                    "Scene Node Inspector", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                if (pSelectedNode != nullptr)
-                {
-                    uiSceneNodeInspector(pSelectedNode, meshes, textures);
-                }
-            }
+            uiSceneHierarchy(scene.sceneRoot(), scenes, meshes, textures);
         }
     }
 

@@ -16,6 +16,32 @@ auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
 {
     return m_children;
 }
+
+auto SceneNode::childrenCount() const -> size_t { return m_children.size(); }
+
+auto SceneNode::childAt(size_t index) const -> SceneNode const&
+{
+    auto const& pChild{m_children.at(index)};
+
+    // pChild being null indicates a bug elsewhere in SceneNode
+    assert(pChild != nullptr && "SceneNode had NULL child pointer.");
+
+    return *pChild;
+}
+
+auto SceneNode::descendent(SceneNode const* const ancestor) const -> bool
+{
+    SceneNode const* pNode{this};
+    while (pNode != nullptr)
+    {
+        if (pNode == ancestor)
+        {
+            return true;
+        }
+        pNode = pNode->m_parent;
+    }
+}
+
 auto SceneNode::create(std::string&& name) -> std::unique_ptr<SceneNode>
 {
     auto result{std::make_unique<SceneNode>()};
@@ -23,6 +49,7 @@ auto SceneNode::create(std::string&& name) -> std::unique_ptr<SceneNode>
 
     return result;
 }
+
 auto SceneNode::appendChild(std::string&& name) -> SceneNode&
 {
     m_children.emplace_back(std::make_unique<SceneNode>());
@@ -67,7 +94,7 @@ auto SceneNode::removeFromParent() -> std::unique_ptr<SceneNode>
         );
 
         // Resize the parent's children, without destructing this node
-        childIt->release();
+        (void)childIt->release();
 
         // siblings.erase(childIt, siblings.end());
         siblings.pop_back();
