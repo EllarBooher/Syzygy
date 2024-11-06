@@ -816,28 +816,35 @@ auto uiDrawSceneHierarchyNode(
     }
     if (ImGui::BeginDragDropTarget())
     {
-        ImGuiPayload const* pPayload{
-            ImGui::AcceptDragDropPayload("SCENE_NODE_PTR")
-        };
-        if (pPayload != nullptr && pPayload->IsDelivery())
+        ImGuiPayload const* pPeekedPayload{ImGui::GetDragDropPayload()};
+
+        if (pPeekedPayload->IsDataType("SCENE_NODE_PTR"))
         {
-            ImGuiPayload const& payload{*pPayload};
+            ImGuiPayload const& peekedPayload{*pPeekedPayload};
             assert(
-                payload.DataSize == sizeof(syzygy::SceneNode*)
+                peekedPayload.DataSize == sizeof(syzygy::SceneNode*)
                 && "SceneNode drag drop payload had wrong size."
             );
 
             auto* const pDroppedNode{
-                *static_cast<syzygy::SceneNode**>(payload.Data)
+                *static_cast<syzygy::SceneNode**>(peekedPayload.Data)
             };
 
-            auto& droppedNode{*pDroppedNode};
+            if (!node.descendent(pDroppedNode)
+                && ImGui::AcceptDragDropPayload(
+                       "SCENE_NODE_PTR", ImGuiDragDropFlags_AcceptBeforeDelivery
+                )
+                       ->IsDelivery())
+            {
+                auto& droppedNode{*pDroppedNode};
 
-            operation = SceneNodeReparant{
-                .target = droppedNode,
-                .newParent = node,
-            };
+                operation = SceneNodeReparant{
+                    .target = droppedNode,
+                    .newParent = node,
+                };
+            }
         }
+
         ImGui::EndDragDropTarget();
     }
 
