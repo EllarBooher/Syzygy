@@ -731,14 +731,14 @@ using SceneTreeOperation = std::variant<
 // children and pass theirs instead.
 auto uiDrawSceneHierarchyNode(
     syzygy::SceneNode const& node,
-    syzygy::SceneNode const* const selectedNode = nullptr
+    syzygy::SceneNode const* const selectedNode,
+    bool const allowDeletionOperations
 ) -> SceneTreeOperation
 {
     std::string const label{fmt::format(
         "[{}] {}", node.accessMesh().has_value() ? "Mesh" : "Scene", node.name()
     )};
 
-    syzygy::SceneNode* pChildSelected{nullptr};
     bool childrenExpanded{false};
     {
         ImGui::PushStyleColor(
@@ -785,6 +785,7 @@ auto uiDrawSceneHierarchyNode(
                 .target = node,
             };
         }
+        ImGui::BeginDisabled(!allowDeletionOperations);
         if (ImGui::Selectable("Delete with Children"))
         {
             operation = SceneNodeDeleteWithChildren{
@@ -797,6 +798,7 @@ auto uiDrawSceneHierarchyNode(
                 .target = node,
             };
         }
+        ImGui::EndDisabled();
         ImGui::EndPopup();
     }
 
@@ -847,7 +849,7 @@ auto uiDrawSceneHierarchyNode(
             syzygy::SceneNode const& child = node.childAt(childIndex);
 
             SceneTreeOperation const innerOperation{
-                uiDrawSceneHierarchyNode(child, selectedNode)
+                uiDrawSceneHierarchyNode(child, selectedNode, true)
             };
 
             // Only propagate subtree operation if no operation is done on this
@@ -998,7 +1000,7 @@ void uiSceneHierarchy(
         ImGui::SeparatorText("Hierarchy");
 
         SceneTreeOperation const operation{
-            uiDrawSceneHierarchyNode(scene, pSelectedNode)
+            uiDrawSceneHierarchyNode(scene, pSelectedNode, false)
         };
         // const_cast used here, since the node reference is derived from a
         // non-const input scene.
