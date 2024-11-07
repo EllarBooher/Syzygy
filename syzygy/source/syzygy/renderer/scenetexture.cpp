@@ -51,9 +51,7 @@ SceneTexture::~SceneTexture() { destroy(); }
 auto SceneTexture::create(
     VkDevice const device,
     VmaAllocator const allocator,
-    VkExtent2D const textureMax,
-    VkFormat const colorFormat,
-    VkFormat const depthFormat
+    CreateParameters const parameters
 ) -> std::optional<SceneTexture>
 {
     if (ImGui::GetIO().BackendRendererUserData == nullptr)
@@ -90,8 +88,8 @@ auto SceneTexture::create(
                 device,
                 allocator,
                 ImageAllocationParameters{
-                    .extent = textureMax,
-                    .format = colorFormat,
+                    .extent = parameters.max,
+                    .format = parameters.color,
                     .usageFlags = colorUsage,
                 },
                 ImageViewAllocationParameters{}
@@ -132,8 +130,8 @@ auto SceneTexture::create(
                 device,
                 allocator,
                 ImageAllocationParameters{
-                    .extent = textureMax,
-                    .format = depthFormat,
+                    .extent = parameters.max,
+                    .format = parameters.depth,
                     .usageFlags = depthUsage,
                 },
                 ImageViewAllocationParameters{

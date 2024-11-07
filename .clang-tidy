@@ -23,6 +23,12 @@
 # Fires false positives with clang-tidy version 17, on structs with certain types.
 # Seems to be an issue with std::string or std::variant on Windows, but I have not investigated deeply
 #
+# misc-no-recursion
+# Recursion is useful and it is too much to work around right now.
+#
+# modernize-use-emplace
+# This check is nice, but does not seem to consider designated aggregate initialization, so it produces a lot of noise.
+#
 
 FormatStyle:        file
 HeaderFileExtensions:         ['', 'h','hh','hpp','hxx']
@@ -41,6 +47,7 @@ Checks: >
   -misc-misplaced-const,
   -misc-no-recursion,
   modernize-*,
+  -modernize-use-emplace,
   performance-*,
   readability*,
   -readability-named-parameter,

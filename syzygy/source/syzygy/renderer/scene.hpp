@@ -116,9 +116,15 @@ struct SceneTime
     bool skipNight{false};
 
     bool realisticOrbits{true};
+
     // Default values taken from Wikipedia
-    float tiltPlanet{glm::radians(23.44F)};
-    float inclinationLunarOrbit{glm::radians(5.14F)};
+    // https://en.wikipedia.org/wiki/Axial_tilt
+    // https://en.wikipedia.org/wiki/Orbit_of_the_Moon
+    static float constexpr PLANET_TILT_DEGREES{23.44F};
+    static float constexpr LUNAR_INCLINATION_DEGREES{5.14F};
+
+    float tiltPlanet{glm::radians(PLANET_TILT_DEGREES)};
+    float inclinationLunarOrbit{glm::radians(LUNAR_INCLINATION_DEGREES)};
 };
 
 // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
@@ -155,7 +161,7 @@ public:
 
     [[nodiscard]] auto sceneRoot() -> SceneNode&;
 
-    void addAtmosphereLight(DirectionalLight);
+    void addAtmosphereLight(DirectionalLight const&);
     void addSpotlight(glm::vec3 color, Transform transform);
 
     static auto defaultScene(AssetLibrary&) -> Scene;

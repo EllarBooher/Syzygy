@@ -1368,7 +1368,7 @@ void AssetLibrary::loadGLTFFromPath(
             // variant
             fastgltf::TRS const trs{std::get<0>(glTFNode.transform)};
 
-            glm::quat rotation{glm::quat::wxyz(
+            glm::quat const rotation{glm::quat::wxyz(
                 trs.rotation[3],
                 trs.rotation[0],
                 trs.rotation[1],
@@ -1397,9 +1397,7 @@ void AssetLibrary::loadGLTFFromPath(
             if (glTFNode.meshIndex.has_value())
             {
                 size_t const gltfMeshIndex{glTFNode.meshIndex.value()};
-                AssetShared<Mesh> meshAsset{meshAssets[gltfMeshIndex].lock()};
-
-                node.mesh = meshAsset;
+                node.mesh = meshAssets[gltfMeshIndex].lock();
             }
 
             for (size_t const childIndex : glTFNode.children)
@@ -1448,7 +1446,10 @@ void AssetLibrary::loadMeshesDialog(
         loadGLTFFromPath(graphicsContext, submissionQueue, path);
     }
 }
+} // namespace syzygy
 
+namespace syzygy
+{
 auto AssetLibrary::loadDefaultAssets(
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue const& submissionQueue
@@ -1599,7 +1600,7 @@ auto AssetLibrary::loadDefaultAssets(
 
         std::vector<GeometrySurface> surfaces{GeometrySurface{
             .firstIndex = 0,
-            .indexCount = 6,
+            .indexCount = static_cast<uint32_t>(indices.size()),
             .material =
                 MaterialData{
                     .ORM = library.m_defaultORMMap,
@@ -1639,6 +1640,7 @@ auto AssetLibrary::loadDefaultAssets(
     }
 
     { // Cube mesh, all faces have same tex coords
+        // Generate a face from corner, two edge displacements, and the normal
         auto const addCubeFace{[](std::vector<VertexPacked>& vertices,
                                   std::vector<uint32_t>& indices,
                                   glm::vec3 const uvOrigin,
@@ -1681,57 +1683,67 @@ auto AssetLibrary::loadDefaultAssets(
             indices.push_back(startingIndex + 3);
         }};
 
+        size_t constexpr CUBE_FACE_COUNT{6ULL};
+        size_t constexpr CUBE_FACE_VERTEX_COUNT{4ULL};
+        size_t constexpr INDICES_PER_TRIANGLE{3ULL};
+        size_t constexpr TRIANGLES_PER_CUBE_FACE{2ULL};
+
         std::vector<VertexPacked> vertices{};
-        vertices.reserve(6 * 4);
+        vertices.reserve(CUBE_FACE_COUNT * CUBE_FACE_VERTEX_COUNT);
+
         std::vector<uint32_t> indices{};
-        indices.reserve(6 * 6);
+        indices.reserve(
+            CUBE_FACE_COUNT * TRIANGLES_PER_CUBE_FACE * INDICES_PER_TRIANGLE
+        );
+
+        float constexpr CUBE_SIDE_LENGTH{2.0F};
 
         addCubeFace(
             vertices,
             indices,
             glm::vec3{-1.0F, -1.0F, 1.0F},
-            glm::vec3{2.0F, 0.0F, 0.0F},
-            glm::vec3{0.0F, 0.0F, -2.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{1.0F, 0.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 0.0F, -1.0F},
             glm::vec3{0.0F, -1.0F, 0.0F}
         );
         addCubeFace(
             vertices,
             indices,
             glm::vec3{-1.0F, 1.0F, -1.0F},
-            glm::vec3{2.0F, 0.0F, 0.0F},
-            glm::vec3{0.0F, 0.0F, 2.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{1.0F, 0.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 0.0F, 1.0F},
             glm::vec3{0.0F, 1.0F, 0.0F}
         );
         addCubeFace(
             vertices,
             indices,
             glm::vec3{1.0F, -1.0F, -1.0F},
-            glm::vec3{0.0F, 0.0F, 2.0F},
-            glm::vec3{0.0F, 2.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 0.0F, 1.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 1.0F, 0.0F},
             glm::vec3{1.0F, 0.0F, 0.0F}
         );
         addCubeFace(
             vertices,
             indices,
             glm::vec3{-1.0F, -1.0F, 1.0F},
-            glm::vec3{0.0F, 0.0F, -2.0F},
-            glm::vec3{0.0F, 2.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 0.0F, -1.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 1.0F, 0.0F},
             glm::vec3{-1.0F, 0.0F, 0.0F}
         );
         addCubeFace(
             vertices,
             indices,
             glm::vec3{-1.0F, -1.0F, -1.0F},
-            glm::vec3{2.0F, 0.0F, 0.0F},
-            glm::vec3{0.0F, 2.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{1.0F, 0.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 1.0F, 0.0F},
             glm::vec3{0.0F, 0.0F, -1.0F}
         );
         addCubeFace(
             vertices,
             indices,
             glm::vec3{1.0F, -1.0F, 1.0F},
-            glm::vec3{-2.0F, 0.0F, 0.0F},
-            glm::vec3{0.0F, 2.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{-1.0F, 0.0F, 0.0F},
+            CUBE_SIDE_LENGTH * glm::vec3{0.0F, 1.0F, 0.0F},
             glm::vec3{0.0F, 0.0F, 1.0F}
         );
 

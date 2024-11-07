@@ -725,6 +725,33 @@ using SceneTreeOperation = std::variant<
     SceneNodeExtract,
     SceneNodeReparant>;
 
+auto uiDrawSceneHierarchyTreeNode(syzygy::SceneNode const& node) -> bool
+{
+    ImGui::PushStyleColor(
+        ImGuiCol_HeaderActive, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+    );
+    ImGui::PushStyleColor(
+        ImGuiCol_HeaderHovered, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
+    );
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4{0.0F, 0.0F, 0.0F, 0.0F});
+
+    ImGuiTreeNodeFlags flags{
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanTextWidth
+    };
+    if (!node.hasChildren())
+    {
+        flags |= ImGuiTreeNodeFlags_Leaf;
+    }
+
+    bool const expanded{ImGui::TreeNodeEx(&node, flags, "")};
+
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+
+    return expanded;
+}
+
 // Recursively renders a tree view of scene nodes, and bubbles up an optional
 // operation to be performed on a node based on user input. Multiple operations
 // in an update are not supported: Parent nodes swallow operation performed on
@@ -739,30 +766,7 @@ auto uiDrawSceneHierarchyNode(
         "[{}] {}", node.accessMesh().has_value() ? "Mesh" : "Scene", node.name()
     )};
 
-    bool childrenExpanded{false};
-    {
-        ImGui::PushStyleColor(
-            ImGuiCol_HeaderActive, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-        );
-        ImGui::PushStyleColor(
-            ImGuiCol_HeaderHovered, ImVec4{0.0F, 0.0F, 0.0F, 0.0F}
-        );
-        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4{0.0F, 0.0F, 0.0F, 0.0F});
-
-        ImGuiTreeNodeFlags flags{
-            ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanTextWidth
-        };
-        if (!node.hasChildren())
-        {
-            flags |= ImGuiTreeNodeFlags_Leaf;
-        }
-
-        childrenExpanded = ImGui::TreeNodeEx(&node, flags, "");
-
-        ImGui::PopStyleColor(3);
-    }
-
-    ImGui::SameLine();
+    bool const childrenExpanded{uiDrawSceneHierarchyTreeNode(node)};
 
     SceneTreeOperation operation{SceneNodeNoOperation{}};
 
@@ -970,15 +974,30 @@ template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
+} // namespace
 
-void uiSceneHierarchy(
-    syzygy::SceneNode& scene,
-    std::span<syzygy::AssetPtr<syzygy::SceneTemplate> const> scenes,
-    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
-    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
+namespace syzygy
+{
+void sceneHierarchyWindow(
+    std::string const& title,
+    std::optional<ImGuiID> const dockNode,
+    Scene& scene,
+    std::span<AssetPtr<Mesh> const> const meshes,
+    std::span<AssetPtr<ImageView> const> const textures,
+    std::span<AssetPtr<SceneTemplate> const> scenes
 )
 {
+    UIWindowScope const hierarchyWindow{UIWindowScope::beginDockable(
+        std::format("{} Hierarchy##sceneHierarchy", title), dockNode
+    )};
+    if (!hierarchyWindow.isOpen())
+    {
+        return;
+    }
+
+    // TODO: refactor this into a stateful widget
     static syzygy::SceneNode* pSelectedNode{nullptr};
+    syzygy::SceneNode& root{scene.sceneRoot()};
 
     if (ImGui::CollapsingHeader(
             "Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen
@@ -998,7 +1017,7 @@ void uiSceneHierarchy(
             if (newSceneTemplate.has_value()
                 && newSceneTemplate.value().lock() != nullptr)
             {
-                newSceneTemplate.value().lock().get()->data->appendTo(scene);
+                newSceneTemplate.value().lock()->data->appendTo(root);
             }
         }
         );
@@ -1007,7 +1026,7 @@ void uiSceneHierarchy(
         ImGui::SeparatorText("Hierarchy");
 
         SceneTreeOperation const operation{
-            uiDrawSceneHierarchyNode(scene, pSelectedNode, false)
+            uiDrawSceneHierarchyNode(root, pSelectedNode, false)
         };
         // const_cast used here, since the node reference is derived from a
         // non-const input scene.
@@ -1063,180 +1082,151 @@ void uiSceneHierarchy(
         }
     }
 }
-} // namespace
 
-namespace syzygy
-{
-void sceneControlsWindows(
+void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
-    Scene& scene,
-    std::span<AssetPtr<Mesh> const> const meshes,
-    std::span<AssetPtr<ImageView> const> const textures,
-    std::span<AssetPtr<SceneTemplate> const> scenes
+    Scene& scene
 )
 {
+    UIWindowScope const window{
+        UIWindowScope::beginDockable(std::format("{}##scene", title), dockNode)
+    };
+
+    if (!window.isOpen())
     {
-        UIWindowScope hierarchyWindow{UIWindowScope::beginDockable(
-            std::format("{} Hierarchy##sceneHierarchy", title), dockNode
-        )};
-        if (hierarchyWindow.isOpen())
-        {
-            uiSceneHierarchy(scene.sceneRoot(), scenes, meshes, textures);
-        }
+        return;
     }
 
+    if (ImGui::CollapsingHeader("Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        UIWindowScope const window{UIWindowScope::beginDockable(
-            std::format("{}##scene", title), dockNode
-        )};
-        if (window.isOpen())
+        auto sceneBounds{scene.shadowBounds()};
+
+        syzygy::PropertyTable::begin()
+            .rowVec3(
+                "Scene Center",
+                sceneBounds.center,
+                sceneBounds.center,
+                syzygy::PropertySliderBehavior{
+                    .speed = 1.0F,
+                }
+            )
+            .rowVec3(
+                "Scene Half-Extent",
+                sceneBounds.halfExtent,
+                sceneBounds.halfExtent,
+                syzygy::PropertySliderBehavior{
+                    .speed = 1.0F,
+                }
+            )
+            .end();
+    }
+
+    if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
+        if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::CollapsingHeader(
-                    "Scene Bounds", ImGuiTreeNodeFlags_DefaultOpen
-                ))
-            {
-                auto sceneBounds{scene.shadowBounds()};
+            SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
 
-                syzygy::PropertyTable::begin()
-                    .rowVec3(
-                        "Scene Center",
-                        sceneBounds.center,
-                        sceneBounds.center,
-                        syzygy::PropertySliderBehavior{
-                            .speed = 1.0F,
-                        }
-                    )
-                    .rowVec3(
-                        "Scene Half-Extent",
-                        sceneBounds.halfExtent,
-                        sceneBounds.halfExtent,
-                        syzygy::PropertySliderBehavior{
-                            .speed = 1.0F,
-                        }
-                    )
-                    .end();
+            FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
+                -100'000.0F, 100'000.0F
+            };
+
+            PropertySliderBehavior constexpr TIME_BEHAVIOR{
+                .speed = 0.01F,
+            };
+            PropertySliderBehavior constexpr RADIANS_BEHAVIOR{
+                .speed = 0.01F,
+                .bounds =
+                    FloatBounds{
+                        .min = -glm::pi<float>(), .max = glm::pi<float>()
+                    }
+            };
+
+            auto table{PropertyTable::begin()};
+
+            table
+                .rowBoolean(
+                    "Frozen", scene.time.frozen, defaultAnimation.frozen
+                )
+                .rowFloat(
+                    "Time (Days)",
+                    scene.time.time,
+                    defaultAnimation.time,
+                    TIME_BEHAVIOR
+                )
+                .rowFloat(
+                    "Speed",
+                    scene.time.speed,
+                    defaultAnimation.speed,
+                    PropertySliderBehavior{
+                        .bounds = SUN_ANIMATION_SPEED_BOUNDS,
+                    }
+                )
+                .rowBoolean(
+                    "Realistic Orbits", scene.time.realisticOrbits, true
+                )
+                .childPropertyBegin()
+                .rowFloat(
+                    "Planet Tilt (Radians)",
+                    scene.time.tiltPlanet,
+                    defaultAnimation.tiltPlanet,
+                    RADIANS_BEHAVIOR
+                )
+                .rowFloat(
+                    "Lunar Orbit Inclination (Radians)",
+                    scene.time.inclinationLunarOrbit,
+                    defaultAnimation.inclinationLunarOrbit,
+                    RADIANS_BEHAVIOR
+                )
+                .childPropertyEnd();
+
+            if (scene.time.realisticOrbits)
+            {
+                table.rowReadOnlyBoolean("Skip Night", scene.time.skipNight);
+            }
+            else
+            {
+                table.rowBoolean(
+                    "Skip Night",
+                    scene.time.skipNight,
+                    defaultAnimation.skipNight
+                );
             }
 
-            if (ImGui::CollapsingHeader("Time", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                SceneTime const& defaultAnimation{Scene::DEFAULT_SUN_ANIMATION};
-                if (ImGui::CollapsingHeader(
-                        "Time", ImGuiTreeNodeFlags_DefaultOpen
-                    ))
-                {
-                    SceneTime const& defaultAnimation{
-                        Scene::DEFAULT_SUN_ANIMATION
-                    };
+            table.end();
+        }
 
-                    FloatBounds constexpr SUN_ANIMATION_SPEED_BOUNDS{
-                        -100'000.0F, 100'000.0F
-                    };
+        if (ImGui::CollapsingHeader(
+                "Atmosphere", ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            uiAtmosphere(scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH);
+        }
 
-                    PropertySliderBehavior RADIANS_BEHAVIOR{
-                        .speed = 0.01F,
-                        .bounds =
-                            FloatBounds{
-                                .min = -glm::pi<float>(),
-                                .max = glm::pi<float>()
-                            }
-                    };
+        if (ImGui::CollapsingHeader(
+                "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
+            ))
+        {
+            uiAtmosphereLights(scene.atmosphereLights());
+        }
 
-                    auto table{PropertyTable::begin()};
+        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            uiCamera(
+                scene.camera,
+                Scene::DEFAULT_CAMERA,
+                scene.cameraControlledSpeed,
+                Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
+            );
+        }
 
-                    table
-                        .rowBoolean(
-                            "Frozen", scene.time.frozen, defaultAnimation.frozen
-                        )
-                        .rowFloat(
-                            "Time (Days)",
-                            scene.time.time,
-                            defaultAnimation.time,
-                            PropertySliderBehavior{.speed = 0.01F}
-                        )
-                        .rowFloat(
-                            "Speed",
-                            scene.time.speed,
-                            defaultAnimation.speed,
-                            PropertySliderBehavior{
-                                .bounds = SUN_ANIMATION_SPEED_BOUNDS,
-                            }
-                        )
-                        .rowBoolean(
-                            "Realistic Orbits", scene.time.realisticOrbits, true
-                        )
-                        .childPropertyBegin()
-                        .rowFloat(
-                            "Planet Tilt (Radians)",
-                            scene.time.tiltPlanet,
-                            defaultAnimation.tiltPlanet,
-                            RADIANS_BEHAVIOR
-                        )
-                        .rowFloat(
-                            "Lunar Orbit Inclination (Radians)",
-                            scene.time.inclinationLunarOrbit,
-                            defaultAnimation.inclinationLunarOrbit,
-                            RADIANS_BEHAVIOR
-                        )
-                        .childPropertyEnd();
-
-                    if (scene.time.realisticOrbits)
-                    {
-                        table.rowReadOnlyBoolean(
-                            "Skip Night", scene.time.skipNight
-                        );
-                    }
-                    else
-                    {
-                        table.rowBoolean(
-                            "Skip Night",
-                            scene.time.skipNight,
-                            defaultAnimation.skipNight
-                        );
-                    }
-
-                    table.end();
-                }
-
-                if (ImGui::CollapsingHeader(
-                        "Atmosphere", ImGuiTreeNodeFlags_DefaultOpen
-                    ))
-                {
-                    uiAtmosphere(
-                        scene.atmosphere, Scene::DEFAULT_ATMOSPHERE_EARTH
-                    );
-                }
-
-                if (ImGui::CollapsingHeader(
-                        "Atmospheric Lights", ImGuiTreeNodeFlags_DefaultOpen
-                    ))
-                {
-                    uiAtmosphereLights(scene.atmosphereLights());
-                }
-
-                if (ImGui::CollapsingHeader(
-                        "Camera", ImGuiTreeNodeFlags_DefaultOpen
-                    ))
-                {
-                    uiCamera(
-                        scene.camera,
-                        Scene::DEFAULT_CAMERA,
-                        scene.cameraControlledSpeed,
-                        Scene::DEFAULT_CAMERA_CONTROLLED_SPEED
-                    );
-                }
-
-                if (ImGui::CollapsingHeader(
-                        "Lighting", ImGuiTreeNodeFlags_DefaultOpen
-                    ))
-                {
-                    PropertyTable::begin()
-                        .rowBoolean(
-                            "Render Spotlights", scene.spotlightsRender, true
-                        )
-                        .end();
-                }
-            }
+        if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            PropertyTable::begin()
+                .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
+                .end();
         }
     }
 }

@@ -18,17 +18,19 @@ struct SceneTexture
 
     ~SceneTexture();
 
+    struct CreateParameters
+    {
+        VkExtent2D max;
+        VkFormat color;
+        VkFormat depth;
+    };
+
     // The texture is allocated once. It is expected to render into a portion of
     // it, so windows can be resized without reallocation.
     // Thus the texture should be large enough to handle as large as the window
     // is expected to get.
-    static auto create(
-        VkDevice,
-        VmaAllocator,
-        VkExtent2D textureMax,
-        VkFormat colorFormat,
-        VkFormat depthFormat
-    ) -> std::optional<SceneTexture>;
+    static auto create(VkDevice, VmaAllocator, CreateParameters)
+        -> std::optional<SceneTexture>;
 
     // Convenience methods to help pipelines get the layout SceneTexture will
     // provide its descriptors in without needing an instance of scene texture

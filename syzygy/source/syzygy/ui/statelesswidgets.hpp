@@ -37,13 +37,18 @@ void performanceWindow(
     RingBuffer const& values,
     float& targetFPS
 );
-void sceneControlsWindows(
+void sceneHierarchyWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene,
     std::span<AssetPtr<Mesh> const> meshes,
     std::span<AssetPtr<ImageView> const> textures,
     std::span<AssetPtr<SceneTemplate> const> scenes
+);
+void sceneControlsWindow(
+    std::string const& title,
+    std::optional<ImGuiID> dockNode,
+    syzygy::Scene& scene
 );
 
 template <typename T> struct WindowResult

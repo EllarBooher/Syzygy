@@ -40,7 +40,7 @@ namespace
 {
 void pushDefaultAtmosphereLights(syzygy::Scene& scene)
 {
-    glm::vec3 SUNLIGHT_RGB{1.0F};
+    glm::vec3 constexpr SUNLIGHT_RGB{1.0F};
 
     glm::vec3 constexpr STRAIGHT_DOWN_EULER_ANGLES{
         -glm::half_pi<float>(), 0.0F, 0.0F
@@ -271,7 +271,7 @@ auto Scene::sceneRoot() -> SceneNode&
     return *m_sceneRoot;
 }
 
-void Scene::addAtmosphereLight(DirectionalLight const light)
+void Scene::addAtmosphereLight(DirectionalLight const& light)
 {
     m_atmosphereLights.push_back(light);
 }
@@ -631,7 +631,7 @@ void Scene::tick(TickTiming const lastFrame)
                 glm::three_over_two_pi<float>() - SUNSET_ANGLE_RADIANS
             };
 
-            float tickedZenith{glm::mod(
+            float const tickedZenith{glm::mod(
                 glm::two_pi<float>() * time.time / sun.orbitalPeriodDays,
                 glm::two_pi<float>()
             )};

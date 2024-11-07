@@ -823,7 +823,6 @@ void updateDescriptors(
 void recordMultiscatterLUTCommands(
     VkCommandBuffer const cmd,
     syzygy::SkyViewComputePipeline::MultiScatterLUTResources const& resources,
-    syzygy::ImageView& transmittanceLUT,
     uint32_t const atmosphereIndex,
     syzygy::TStagedBuffer<syzygy::AtmospherePacked> const& atmospheres,
     uint32_t const atmosphereLightCount,
@@ -838,7 +837,7 @@ void recordMultiscatterLUTCommands(
     uint32_t constexpr WORKGROUP_SIZE{16};
     vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
 
-    std::array<VkDescriptorSet, 1> sets{resources.set};
+    std::vector<VkDescriptorSet> sets{resources.set};
 
     vkCmdBindDescriptorSets(
         cmd,
@@ -913,7 +912,7 @@ void recordPerspectiveMapCommands(
 
     vkCmdBindShadersEXT(cmd, 1, &stage, &shader);
 
-    std::array<VkDescriptorSet, 5> perspectiveSets{
+    std::vector<VkDescriptorSet> perspectiveSets{
         sceneTexture.combinedDescriptor(),
         resources.LUTSet,
         gbuffer.descriptors,
@@ -1172,7 +1171,6 @@ void SkyViewComputePipeline::recordDrawCommands(
         detail::recordMultiscatterLUTCommands(
             cmd,
             m_multiscatterLUT,
-            *m_transmittanceLUT.map,
             atmosphereIndex,
             atmospheres,
             atmosphereLightCount,

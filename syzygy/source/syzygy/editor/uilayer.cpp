@@ -285,9 +285,11 @@ auto syzygy::UILayer::create(
     if (std::optional<SceneTexture> outputTextureResult{SceneTexture::create(
             device,
             allocator,
-            textureCapacity,
-            VK_FORMAT_R16G16B16A16_UNORM,
-            VK_FORMAT_D32_SFLOAT
+            SceneTexture::CreateParameters{
+                .max = textureCapacity,
+                .color = VK_FORMAT_R16G16B16A16_UNORM,
+                .depth = VK_FORMAT_D32_SFLOAT
+            }
         )};
         outputTextureResult.has_value())
     {
@@ -303,9 +305,11 @@ auto syzygy::UILayer::create(
     if (std::optional<SceneTexture> sceneTextureResult{SceneTexture::create(
             device,
             allocator,
-            textureCapacity,
-            VK_FORMAT_R16G16B16A16_UNORM,
-            VK_FORMAT_D32_SFLOAT
+            SceneTexture::CreateParameters{
+                .max = textureCapacity,
+                .color = VK_FORMAT_R16G16B16A16_UNORM,
+                .depth = VK_FORMAT_D32_SFLOAT
+            }
         )};
         sceneTextureResult.has_value())
     {

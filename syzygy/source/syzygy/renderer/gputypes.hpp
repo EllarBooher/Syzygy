@@ -38,6 +38,10 @@ static_assert(sizeof(CameraPacked) == 416ULL);
 // Right handed coordinates with +X right, +Y up, and +Z forward
 struct AtmospherePacked
 {
+    // False positive on t in 'default':
+    // error GA14508F1 : t is a magic number; consider
+    // replacing it with a named constant
+    // NOLINTNEXTLINE(readability-magic-numbers)
     auto operator==(AtmospherePacked const&) const -> bool = default;
 
     glm::vec3 scatteringRayleighPerMm;

@@ -636,7 +636,7 @@ auto run() -> EditorResult
 
         uiLayer.renderWidgets();
 
-        sceneControlsWindows(
+        sceneHierarchyWindow(
             "Default Scene",
             dockingLayout.left,
             scene,
@@ -644,6 +644,7 @@ auto run() -> EditorResult
             assetLibrary.fetchAssets<ImageView>(),
             assetLibrary.fetchAssets<SceneTemplate>()
         );
+        sceneControlsWindow("Default Scene", dockingLayout.left, scene);
 
         uiLayer.end();
 

@@ -64,7 +64,7 @@ public:
 
     static auto allocateSamplerSetLayout(VkDevice)
         -> std::optional<VkDescriptorSetLayout>;
-    static auto allocateTextureSetLayout(VkDevice, uint32_t const capacity)
+    static auto allocateTextureSetLayout(VkDevice, uint32_t capacity)
         -> std::optional<VkDescriptorSetLayout>;
     [[nodiscard]] auto samplerSet() const -> VkDescriptorSet;
     [[nodiscard]] auto textureSet() const -> VkDescriptorSet;
