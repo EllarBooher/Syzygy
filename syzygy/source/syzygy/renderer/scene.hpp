@@ -164,7 +164,7 @@ public:
     void addAtmosphereLight(DirectionalLight const&);
     void addSpotlight(glm::vec3 color, Transform transform);
 
-    static auto defaultScene(AssetLibrary&) -> Scene;
+    static auto defaultScene() -> Scene;
     static auto
     diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
         -> Scene;

@@ -296,7 +296,7 @@ void Scene::addSpotlight(glm::vec3 const color, Transform const transform)
     spotlightsRender = true;
 }
 
-auto Scene::defaultScene(AssetLibrary& library) -> Scene
+auto Scene::defaultScene() -> Scene
 {
     Scene scene{};
 
@@ -305,6 +305,8 @@ auto Scene::defaultScene(AssetLibrary& library) -> Scene
     glm::vec3 const floatingPosition{glm::vec3{0.0F, -8.0F, 0.0F}};
     glm::vec3 constexpr MESH_SCALE{5.0F};
     glm::vec3 constexpr MESH_OFFSET{0.0F, 0.0F, 6.0F};
+
+    AssetLibrary& library{AssetLibrary::get()};
 
     scene.sceneRoot().appendChild("Cube_1").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),

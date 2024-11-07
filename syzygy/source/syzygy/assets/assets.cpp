@@ -1114,6 +1114,8 @@ auto loadMeshes(
 
 namespace syzygy
 {
+AssetLibrary* AssetLibrary::s_library{nullptr};
+
 auto loadAssetFile(std::filesystem::path const& path)
     -> std::optional<AssetFile>
 {
@@ -1147,6 +1149,48 @@ auto loadAssetFile(std::filesystem::path const& path)
         .path = path,
         .fileBytes = buffer,
     };
+}
+
+auto AssetLibrary::operator=(AssetLibrary&& other) noexcept -> AssetLibrary&
+{
+    s_library = this;
+
+    m_nameDuplicationCounters = std::move(other.m_nameDuplicationCounters);
+    m_defaultColorMap = std::move(other.m_defaultColorMap);
+    m_defaultNormalMap = std::move(other.m_defaultNormalMap);
+    m_defaultORMMap = std::move(other.m_defaultORMMap);
+    m_textures = std::move(other.m_textures);
+    m_meshPlane = std::move(other.m_meshPlane);
+    m_meshCube = std::move(other.m_meshCube);
+    m_meshes = std::move(other.m_meshes);
+
+    m_scenes = std::move(other.m_scenes);
+    m_tasks = std::move(other.m_tasks);
+
+    return *this;
+}
+
+AssetLibrary::AssetLibrary(AssetLibrary&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+AssetLibrary::~AssetLibrary()
+{
+    if (s_library == this)
+    {
+        s_library = nullptr;
+    }
+
+    // All assets should have RAII semantics, they will clean up themselves
+}
+
+AssetLibrary::AssetLibrary()
+{
+    assert(
+        s_library == nullptr && "Asset Library created when one already exists."
+    );
+    s_library = this;
 }
 
 auto AssetLibrary::loadTextureFromPath(
@@ -1790,6 +1834,7 @@ auto AssetLibrary::loadDefaultAssets(
 
     return libraryResult;
 }
+
 void AssetLibrary::processTasks(
     GraphicsContext& graphicsContext,
     ImmediateSubmissionQueue const& submissionQueue
@@ -1843,6 +1888,7 @@ void AssetLibrary::processTasks(
         SZG_INFO("AssetLibrary: Culled {} tasks.", taskCount - m_tasks.size());
     }
 }
+
 auto AssetLibrary::defaultMesh(DefaultMeshAssets const asset) -> AssetPtr<Mesh>
 {
     switch (asset)
@@ -1853,6 +1899,14 @@ auto AssetLibrary::defaultMesh(DefaultMeshAssets const asset) -> AssetPtr<Mesh>
         return m_meshPlane;
     }
 }
+
+auto AssetLibrary::get() -> AssetLibrary&
+{
+    assert(s_library != nullptr && "Asset Library has not been loaded.");
+
+    return *s_library;
+}
+
 auto AssetLibrary::deduplicateAssetName(std::string const& name) -> std::string
 {
     size_t& nameCount{m_nameDuplicationCounters[name]};

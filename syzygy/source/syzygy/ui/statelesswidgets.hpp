@@ -40,10 +40,7 @@ void performanceWindow(
 void sceneHierarchyWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
-    syzygy::Scene& scene,
-    std::span<AssetPtr<Mesh> const> meshes,
-    std::span<AssetPtr<ImageView> const> textures,
-    std::span<AssetPtr<SceneTemplate> const> scenes
+    syzygy::Scene& scene
 );
 void sceneControlsWindow(
     std::string const& title,

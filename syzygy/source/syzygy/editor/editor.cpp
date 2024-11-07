@@ -506,7 +506,7 @@ auto run() -> EditorResult
     }
 
     bool inputCapturedByScene{false};
-    Scene scene{Scene::defaultScene(assetLibrary)};
+    Scene scene{Scene::defaultScene()};
     std::optional<Renderer> rendererResult{Renderer::create(
         graphicsContext.device(),
         graphicsContext.allocator(),
@@ -636,14 +636,7 @@ auto run() -> EditorResult
 
         uiLayer.renderWidgets();
 
-        sceneHierarchyWindow(
-            "Default Scene",
-            dockingLayout.left,
-            scene,
-            assetLibrary.fetchAssets<Mesh>(),
-            assetLibrary.fetchAssets<ImageView>(),
-            assetLibrary.fetchAssets<SceneTemplate>()
-        );
+        sceneHierarchyWindow("Default Scene", dockingLayout.left, scene);
         sceneControlsWindow("Default Scene", dockingLayout.left, scene);
 
         uiLayer.end();

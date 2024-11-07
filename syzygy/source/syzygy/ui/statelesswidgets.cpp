@@ -486,11 +486,10 @@ void uiInstanceAnimation(syzygy::InstanceAnimation& animation)
     }
 }
 template <typename T>
-auto uiAssetSelection(
-    std::optional<syzygy::AssetRef<T>> const& currentAsset,
-    std::span<syzygy::AssetPtr<T> const> const possibleAssets
-) -> std::optional<syzygy::AssetPtr<T>>
+auto uiAssetSelection(std::optional<syzygy::AssetRef<T>> const& currentAsset)
+    -> std::optional<syzygy::AssetPtr<T>>
 {
+    auto const possibleAssets{syzygy::AssetLibrary::get().fetchAssets<T>()};
     ImGui::BeginDisabled(possibleAssets.empty());
 
     std::optional<syzygy::AssetPtr<T>> newAsset{std::nullopt};
@@ -602,9 +601,7 @@ void uiMesh(syzygy::PropertyTable& table, syzygy::Mesh const& mesh)
 }
 
 void uiMeshMaterialOverrides(
-    syzygy::PropertyTable& table,
-    syzygy::MeshInstanced& instance,
-    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
+    syzygy::PropertyTable& table, syzygy::MeshInstanced& instance
 )
 {
     table.rowChildPropertyBegin("Material Overrides");
@@ -624,7 +621,7 @@ void uiMeshMaterialOverrides(
             [&]()
         {
             auto newORM{uiAssetSelection<syzygy::ImageView>(
-                syzygy::assetPtrToRef(newOverride.ORM), textures
+                syzygy::assetPtrToRef(newOverride.ORM)
             )};
             if (newORM.has_value())
             {
@@ -644,7 +641,7 @@ void uiMeshMaterialOverrides(
             [&]()
         {
             auto newNormal{uiAssetSelection<syzygy::ImageView>(
-                syzygy::assetPtrToRef(newOverride.normal), textures
+                syzygy::assetPtrToRef(newOverride.normal)
             )};
             if (newNormal.has_value())
             {
@@ -664,7 +661,7 @@ void uiMeshMaterialOverrides(
             [&]()
         {
             auto newColor{uiAssetSelection<syzygy::ImageView>(
-                syzygy::assetPtrToRef(newOverride.color), textures
+                syzygy::assetPtrToRef(newOverride.color)
             )};
             if (newColor.has_value())
             {
@@ -876,11 +873,7 @@ auto uiDrawSceneHierarchyNode(
     return operation;
 }
 
-void uiSceneNodeInspector(
-    syzygy::SceneNode* node,
-    std::span<syzygy::AssetPtr<syzygy::Mesh> const> const meshes,
-    std::span<syzygy::AssetPtr<syzygy::ImageView> const> const textures
-)
+void uiSceneNodeInspector(syzygy::SceneNode* node)
 {
     if (node == nullptr)
     {
@@ -950,9 +943,7 @@ void uiSceneNodeInspector(
             "Mesh Used",
             [&]()
         {
-            auto newMesh{
-                uiAssetSelection<syzygy::Mesh>(instance.getMesh(), meshes)
-            };
+            auto newMesh{uiAssetSelection<syzygy::Mesh>(instance.getMesh())};
             if (newMesh.has_value())
             {
                 instance.setMesh(newMesh.value());
@@ -971,7 +962,7 @@ void uiSceneNodeInspector(
             {
                 uiMesh(table, *meshAsset.data);
             }
-            uiMeshMaterialOverrides(table, instance, textures);
+            uiMeshMaterialOverrides(table, instance);
 
             table.childPropertyEnd();
         }
@@ -992,10 +983,7 @@ namespace syzygy
 void sceneHierarchyWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
-    Scene& scene,
-    std::span<AssetPtr<Mesh> const> const meshes,
-    std::span<AssetPtr<ImageView> const> const textures,
-    std::span<AssetPtr<SceneTemplate> const> scenes
+    Scene& scene
 )
 {
     UIWindowScope const hierarchyWindow{UIWindowScope::beginDockable(
@@ -1022,8 +1010,7 @@ void sceneHierarchyWindow(
         {
             std::optional<syzygy::AssetPtr<syzygy::SceneTemplate>>
                 newSceneTemplate{uiAssetSelection(
-                    std::optional<syzygy::AssetRef<syzygy::SceneTemplate>>{},
-                    scenes
+                    std::optional<syzygy::AssetRef<syzygy::SceneTemplate>>{}
                 )};
             if (newSceneTemplate.has_value()
                 && newSceneTemplate.value().lock() != nullptr)
@@ -1089,7 +1076,7 @@ void sceneHierarchyWindow(
     {
         if (pSelectedNode != nullptr)
         {
-            uiSceneNodeInspector(pSelectedNode, meshes, textures);
+            uiSceneNodeInspector(pSelectedNode); // , meshes, textures);
         }
     }
 }

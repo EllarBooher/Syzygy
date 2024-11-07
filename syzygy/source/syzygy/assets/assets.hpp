@@ -50,6 +50,17 @@ template <typename> constexpr bool dependent_false_v = false;
 
 struct AssetLibrary
 {
+public:
+    AssetLibrary(AssetLibrary const&) = delete;
+    auto operator=(AssetLibrary const&) -> AssetLibrary& = delete;
+
+    auto operator=(AssetLibrary&&) noexcept -> AssetLibrary&;
+    AssetLibrary(AssetLibrary&&) noexcept;
+    ~AssetLibrary();
+
+private:
+    AssetLibrary();
+
 private:
     template <typename T>
     [[nodiscard]] auto getAssetsContainer()
@@ -77,6 +88,8 @@ public:
     template <typename T>
     [[nodiscard]] auto fetchAssets() -> std::vector<AssetPtr<T>>
     {
+        // TODO: cache this
+
         std::vector<AssetPtr<T>> assets{};
         auto& sources{getAssetsContainer<T>()};
         assets.reserve(sources.size());
@@ -181,8 +194,12 @@ public:
 
     auto defaultMesh(DefaultMeshAssets) -> AssetPtr<Mesh>;
 
+    // TODO: Figure out what interface the asset library should have. This
+    // should probably be changed in an asset overhaul as complexity evolves
+    static auto get() -> AssetLibrary&;
+
 private:
-    AssetLibrary() = default;
+    static AssetLibrary* s_library;
 
     // Expects a name of format assetType_name and returns assetType_name_N
     // where N means there have been N-1 in existence
