@@ -12,6 +12,8 @@ namespace syzygy
 {
 struct Transform
 {
+    auto operator==(Transform const&) const -> bool = default;
+
     glm::vec3 translation{0.0F};
     glm::vec3 eulerAnglesRadians{0.0F};
     glm::vec3 scale{1.0F};

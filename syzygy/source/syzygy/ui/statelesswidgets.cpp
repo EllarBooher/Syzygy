@@ -919,18 +919,71 @@ void uiSceneNodeInspector(syzygy::SceneNode* node)
         table.rowBoolean("Casts Shadow", instance.castsShadow, true);
 
         {
-            table.rowChildPropertyBegin("Instanced Transforms");
-            for (size_t transformIndex{0};
-                 transformIndex < std::min(
-                     instance.transforms.size(), instance.originals.size()
-                 );
+            int32_t transformCount{
+                static_cast<int32_t>(instance.transforms.size())
+            };
+            table.rowCustom(
+                "Instanced Transforms",
+                [&]()
+            {
+                int32_t constexpr MAX_INSTANCES{1000ULL};
+                ImGui::SliderInt("", &transformCount, 1, MAX_INSTANCES);
+                ImGui::SameLine();
+                if (ImGui::Button("+"))
+                {
+                    transformCount++;
+                }
+            }
+            );
+            instance.transforms.resize(
+                transformCount, syzygy::Transform::identity()
+            );
+            instance.originals.resize(
+                transformCount, syzygy::Transform::identity()
+            );
+
+            table.childPropertyBegin();
+            for (int64_t transformIndex{0};
+                 transformIndex < instance.transforms.size();
                  transformIndex++)
             {
-                uiTransform(
-                    table,
-                    instance.transforms[transformIndex],
-                    instance.originals[transformIndex]
+                bool deleted{false};
+
+                syzygy::Transform& current{instance.transforms[transformIndex]};
+                syzygy::Transform& original{instance.originals[transformIndex]};
+
+                table.rowCustom(
+                    fmt::format("Instance {}", transformIndex),
+                    [&]()
+                {
+                    if (ImGui::Button("-"))
+                    {
+                        instance.transforms.erase(
+                            instance.transforms.begin() + transformIndex
+                        );
+                        instance.originals.erase(
+                            instance.originals.begin() + transformIndex
+                        );
+                        deleted = true;
+                    }
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(current == original);
+                    if (ImGui::Button("Sync Default"))
+                    {
+                        original = current;
+                    }
+                    ImGui::EndDisabled();
+                }
                 );
+
+                if (deleted)
+                {
+                    transformIndex--;
+                }
+                else
+                {
+                    uiTransform(table, current, original);
+                }
             }
             table.childPropertyEnd();
         }
