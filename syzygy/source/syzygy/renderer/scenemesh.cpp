@@ -142,6 +142,7 @@ auto MeshInstanced::create(
     MeshInstanced& instance{*result};
     instance.render = true;
     instance.castsShadow = castsShadow;
+    instance.m_renderResources = std::make_unique<MeshRenderResources>();
 
     if (mesh.has_value())
     {
@@ -156,6 +157,21 @@ auto MeshInstanced::create(
     instance.transforms.insert(
         instance.transforms.begin(), transforms.begin(), transforms.end()
     );
+
+    return result;
+}
+
+auto MeshInstanced::create() -> std::unique_ptr<MeshInstanced>
+{
+    auto result{std::make_unique<MeshInstanced>()};
+    MeshInstanced& instance{*result};
+    instance.render = true;
+    instance.castsShadow = true;
+    instance.m_renderResources = std::make_unique<MeshRenderResources>();
+    instance.animation = InstanceAnimation::None;
+
+    instance.originals.push_back(Transform::identity());
+    instance.transforms.push_back(Transform::identity());
 
     return result;
 }

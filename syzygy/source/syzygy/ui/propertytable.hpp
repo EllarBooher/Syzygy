@@ -149,6 +149,12 @@ public:
         std::function<void()> const& resetCallback
     ) -> PropertyTable&;
 
+    auto rowButton(
+        std::string const& name,
+        std::string const& label,
+        std::function<void()> const& clickedCallback
+    ) -> PropertyTable&;
+
     // Adds a row that contains an interactable text entry,
     // alongside a reset button.
     auto rowTextInput(

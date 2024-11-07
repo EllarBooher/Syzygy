@@ -904,9 +904,24 @@ void uiSceneNodeInspector(
     auto meshOptional{node->accessMesh()};
     if (meshOptional.has_value())
     {
+        table.rowTextLabel("Type", "Mesh");
+        table.rowButton("", "Remove Mesh", [&]() { node->swapMesh(nullptr); });
+    }
+    else
+    {
+        table.rowTextLabel("Type", "Node");
+        table.rowButton(
+            "",
+            "Convert into Mesh",
+            [&]() { node->swapMesh(syzygy::MeshInstanced::create()); }
+        );
+    }
+
+    meshOptional = node->accessMesh();
+    if (meshOptional.has_value())
+    {
         syzygy::MeshInstanced& instance{meshOptional.value().get()};
 
-        table.rowTextLabel("Type", "Mesh");
         table.rowBoolean("Render", instance.render, true);
         table.rowBoolean("Casts Shadow", instance.castsShadow, true);
 
@@ -960,10 +975,6 @@ void uiSceneNodeInspector(
 
             table.childPropertyEnd();
         }
-    }
-    else
-    {
-        table.rowTextLabel("Type", "Node");
     }
 
     table.end();

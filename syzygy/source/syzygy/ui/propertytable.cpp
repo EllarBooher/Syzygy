@@ -318,6 +318,29 @@ auto PropertyTable::rowCustom(
     return *this;
 }
 
+auto PropertyTable::rowButton(
+    std::string const& name,
+    std::string const& label,
+    std::function<void()> const& clickedCallback
+) -> PropertyTable&
+{
+    if (!Self::rowBegin(name))
+    {
+        return *this;
+    }
+
+    ImGui::TableSetColumnIndex(VALUE_INDEX);
+
+    if (ImGui::Button(label.c_str()))
+    {
+        clickedCallback();
+    }
+
+    Self::rowEnd();
+
+    return *this;
+}
+
 auto PropertyTable::rowTextInput(
     std::string const& name, std::string& value, std::string const& resetValue
 ) -> PropertyTable&

@@ -78,6 +78,7 @@ struct MeshInstanced
         std::span<Transform const> transforms,
         bool castsShadow = true
     ) -> std::unique_ptr<MeshInstanced>;
+    [[nodiscard]] static auto create() -> std::unique_ptr<MeshInstanced>;
 
     // Returns only as many overrides as there are surfaces in the current mesh
     // May return empty if no overrides are initialized.
