@@ -32,7 +32,7 @@ void main()
 
     gl_Position = camera.projection * camera.view * vec4(vertex.position, 1.0f);
 
-    outColor = vec3(0.0, 1.0, 0.0);
+    outColor = vertex.color.rgb;
     outUV.x = vertex.uv_x;
     outUV.y = vertex.uv_y;
 }
