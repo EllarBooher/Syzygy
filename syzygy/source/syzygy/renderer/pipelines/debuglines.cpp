@@ -20,21 +20,23 @@ void DebugLines::clear()
     indices->clearStaged();
 }
 
-void DebugLines::push(glm::vec3 const start, glm::vec3 const end)
+void DebugLines::push(
+    glm::vec3 const start, glm::vec3 const end, glm::vec3 const colorRGB
+)
 {
     VertexPacked const startVertex{
         .position = start,
         .uv_x = 0.0,
         .normal = glm::vec3(0.0),
         .uv_y = 0.0,
-        .color = glm::vec4(1.0, 0.0, 0.0, 1.0),
+        .color = glm::vec4(colorRGB, 1.0),
     };
     VertexPacked const endVertex{
         .position = end,
         .uv_x = 1.0,
         .normal = glm::vec3(0.0),
         .uv_y = 0.0,
-        .color = glm::vec4(0.0, 0.0, 1.0, 1.0),
+        .color = glm::vec4(colorRGB, 1.0),
     };
 
     uint32_t const index{static_cast<uint32_t>(indices->stagedSize())};
@@ -43,16 +45,67 @@ void DebugLines::push(glm::vec3 const start, glm::vec3 const end)
     indices->push(std::initializer_list<uint32_t>{index, index + 1});
 }
 
+void DebugLines::push(
+    glm::vec3 const localStart,
+    glm::vec3 const localEnd,
+    glm::mat4x4 const worldMatrix,
+    glm::vec3 const colorRGB
+)
+{
+    push(
+        glm::vec3{worldMatrix * glm::vec4{localStart, 1.0F}},
+        glm::vec3{worldMatrix * glm::vec4{localEnd, 1.0F}},
+        colorRGB
+    );
+}
+
 // NOLINTEND(readability-make-member-function-const)
 
 void DebugLines::pushQuad(
     glm::vec3 const a, glm::vec3 const b, glm::vec3 const c, glm::vec3 const d
 )
 {
-    push(a, b);
-    push(b, c);
-    push(c, d);
-    push(d, a);
+    push(a, b, glm::vec3{0.0, 1.0, 0.0});
+    push(b, c, glm::vec3{0.0, 1.0, 0.0});
+    push(c, d, glm::vec3{0.0, 1.0, 0.0});
+    push(d, a, glm::vec3{0.0, 1.0, 0.0});
+}
+
+void DebugLines::pushArrow(Transform const transform, glm::vec3 const colorRGB)
+{
+    float constexpr ARROW_HEAD_RADIUS{0.1F};
+    glm::vec3 constexpr ARROW_HEAD_POSITION{0.0F, 0.0F, 1.0F};
+    std::array<glm::vec3, 4> constexpr ARROW_HEAD_VERTICES{
+        ARROW_HEAD_POSITION - ARROW_HEAD_RADIUS * glm::vec3{1.0F, 1.0F, 1.0F},
+        ARROW_HEAD_POSITION - ARROW_HEAD_RADIUS * glm::vec3{-1.0F, 1.0F, 1.0F},
+        ARROW_HEAD_POSITION - ARROW_HEAD_RADIUS * glm::vec3{-1.0F, -1.0F, 1.0F},
+        ARROW_HEAD_POSITION - ARROW_HEAD_RADIUS * glm::vec3{1.0F, -1.0F, 1.0F},
+    };
+
+    glm::mat4x4 const worldMatrix{transform.toMatrix()};
+
+    // Arrow body
+    push(glm::vec3{0.0F}, ARROW_HEAD_POSITION, worldMatrix, colorRGB);
+
+    // Arrow head
+    for (size_t vertexIndex{0}; vertexIndex < ARROW_HEAD_VERTICES.size();
+         vertexIndex++)
+    {
+        // Tip to arrowhead circumferance
+        push(
+            ARROW_HEAD_POSITION,
+            ARROW_HEAD_VERTICES[vertexIndex],
+            worldMatrix,
+            colorRGB
+        );
+        // Arrowhead circumferance
+        push(
+            ARROW_HEAD_VERTICES[vertexIndex],
+            ARROW_HEAD_VERTICES[(vertexIndex + 1) % ARROW_HEAD_VERTICES.size()],
+            worldMatrix,
+            colorRGB
+        );
+    }
 }
 
 void DebugLines::pushRectangleAxes(

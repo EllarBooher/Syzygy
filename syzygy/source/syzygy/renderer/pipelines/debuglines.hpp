@@ -1,5 +1,7 @@
 #pragma once
 
+#include "syzygy/geometry/geometryhelpers.hpp"
+#include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
@@ -35,13 +37,23 @@ public:
     // of const-correctness
 
     void clear();
-    void push(glm::vec3 start, glm::vec3 end);
+    void push(glm::vec3 start, glm::vec3 end, glm::vec3 colorRGB);
+    void push(
+        glm::vec3 localStart,
+        glm::vec3 localEnd,
+        glm::mat4x4 worldMatrix,
+        glm::vec3 colorRGB
+    );
 
     // NOLINTEND(readability-make-member-function-const)
 
     // Adds 4 line segmants defined by AB, BC, CD, DA.
     // Winding does not matter since these are added as separate line segments.
     void pushQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d);
+
+    // Adds an arrow with a tip. The arrow is default pointing towards the world
+    // forward.
+    void pushArrow(Transform transform, glm::vec3 colorRGB);
 
     // Push a rectangle with possibly non-axis-aligned extents.
     void

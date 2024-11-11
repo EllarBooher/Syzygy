@@ -3,6 +3,7 @@
 #include "syzygy/assets/assets.hpp"
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/core/log.hpp"
+#include "syzygy/geometry/geometrystatics.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
@@ -370,6 +371,30 @@ void Renderer::recordDraw(
         {
             m_debugLines.pushBox(transform, mesh.vertexBounds);
         }
+    }
+
+    { // World axis indicator
+        m_debugLines.pushArrow(
+            Transform::lookAt(
+                Ray::create(glm::vec3{0.0F}, glm::vec3{1.0F, 0.0F, 0.0F}),
+                glm::vec3{1.0F}
+            ),
+            glm::vec3{1.0F, 0.0F, 0.0F}
+        );
+        m_debugLines.pushArrow(
+            Transform::lookAt(
+                Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 1.0F, 0.0F}),
+                glm::vec3{1.0F}
+            ),
+            glm::vec3{0.0F, 1.0F, 0.0F}
+        );
+        m_debugLines.pushArrow(
+            Transform::lookAt(
+                Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 0.0F, 1.0F}),
+                glm::vec3{1.0F}
+            ),
+            glm::vec3{0.0F, 0.0F, 1.0F}
+        );
     }
 
     {
