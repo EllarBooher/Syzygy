@@ -831,18 +831,49 @@ auto uiDrawSceneHierarchyNode(
                 *static_cast<syzygy::SceneNode**>(peekedPayload.Data)
             };
 
-            if (!node.descendent(pDroppedNode)
-                && ImGui::AcceptDragDropPayload(
-                       "SCENE_NODE_PTR", ImGuiDragDropFlags_AcceptBeforeDelivery
-                )
-                       ->IsDelivery())
+            if (!node.descendent(pDroppedNode))
             {
-                auto& droppedNode{*pDroppedNode};
-
-                operation = SceneNodeReparant{
-                    .target = droppedNode,
-                    .newParent = node,
+                // ImGuiDragDropFlags_AcceptBeforeDelivery:
+                // Allows us to peek at the payload to determine if the node is
+                // valid
+                //
+                // ImGuiDragDropFlags_AcceptNoPreviewTooltip:
+                // Important to make sure we can put our own tooltip.
+                // This is since while in a ImGui tree-node parent, the dragdrop
+                // source tooltip window is inactive for some reason, meaning we
+                // cannot override it.
+                ImGuiDragDropFlags const targetFlags{
+                    ImGuiDragDropFlags_AcceptBeforeDelivery
+                    | ImGuiDragDropFlags_AcceptNoPreviewTooltip
                 };
+                ImGuiPayload const* pAcceptedPayload{
+                    ImGui::AcceptDragDropPayload("SCENE_NODE_PTR", targetFlags)
+                };
+
+                if (ImGui::BeginTooltip())
+                {
+                    ImGui::Text(
+                        R"(Reparent "%s")",
+                        fmt::format(
+                            "[{}] {}",
+                            pDroppedNode->accessMesh().has_value() ? "Mesh"
+                                                                   : "Scene",
+                            pDroppedNode->name()
+                        )
+                            .c_str(),
+                        label.c_str()
+                    );
+                    ImGui::EndTooltip();
+                }
+                if (pAcceptedPayload->IsDelivery())
+                {
+                    auto& droppedNode{*pDroppedNode};
+
+                    operation = SceneNodeReparant{
+                        .target = droppedNode,
+                        .newParent = node,
+                    };
+                }
             }
         }
 
