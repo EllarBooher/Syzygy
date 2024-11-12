@@ -308,7 +308,7 @@ auto Scene::defaultScene() -> Scene
 
     AssetLibrary& library{AssetLibrary::get()};
 
-    scene.sceneRoot().appendChild("Cube_1").swapMesh(MeshInstanced::create(
+    scene.sceneRoot().createChild("Cube_1").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         std::array<Transform, 1>{Transform{
@@ -317,7 +317,7 @@ auto Scene::defaultScene() -> Scene
             .scale = MESH_SCALE
         }}
     ));
-    scene.sceneRoot().appendChild("Cube_2").swapMesh(MeshInstanced::create(
+    scene.sceneRoot().createChild("Cube_2").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Cube),
         InstanceAnimation::None,
         std::array<Transform, 1>{Transform{
@@ -333,7 +333,7 @@ auto Scene::defaultScene() -> Scene
         .scale = glm::vec3{20.0F, 1.0F, 20.0F}
     };
 
-    scene.sceneRoot().appendChild("Floor").swapMesh(MeshInstanced::create(
+    scene.sceneRoot().createChild("Floor").swapMesh(MeshInstanced::create(
         library.defaultMesh(AssetLibrary::DefaultMeshAssets::Plane),
         InstanceAnimation::None,
         std::array<Transform, 1>{Transform{floorTransform}}
@@ -371,7 +371,7 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             .scale = glm::vec3{400.0F, 1.0F, 400.0F}
         }};
 
-        scene.sceneRoot().appendChild("Floor").swapMesh(MeshInstanced::create(
+        scene.sceneRoot().createChild("Floor").swapMesh(MeshInstanced::create(
             initialMesh, InstanceAnimation::None, transform, false
         ));
     }
@@ -397,7 +397,7 @@ auto Scene::diagonalWaveScene(std::optional<AssetPtr<Mesh>> const& initialMesh)
             }
         }
 
-        scene.sceneRoot().appendChild("Cubes").swapMesh(MeshInstanced::create(
+        scene.sceneRoot().createChild("Cubes").swapMesh(MeshInstanced::create(
             initialMesh, InstanceAnimation::Diagonal_Wave, transforms
         ));
     }

@@ -8,7 +8,7 @@ void visitNode(
     syzygy::SceneTemplateNode const& source
 )
 {
-    syzygy::SceneNode& node{parent.appendChild(std::string{source.name})};
+    syzygy::SceneNode& node{parent.createChild(std::string{source.name})};
     node.transform = source.transform;
     if (source.mesh.has_value())
     {

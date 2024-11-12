@@ -42,11 +42,15 @@ static_assert(std::forward_iterator<SceneIterator>);
 
 struct SceneNode
 {
+    // TODO: error handling for SceneNode interface. These methods are written
+    // to protect a tree's invariants, but for now these methods just throw upon
+    // invalid inputs.
+
     [[nodiscard]] auto parent()
         -> std::optional<std::reference_wrapper<SceneNode>>;
     [[nodiscard]] auto hasChildren() const -> bool;
     [[nodiscard]] auto children()
-        -> std::span<std::unique_ptr<SceneNode> const>;
+        -> std::span<std::shared_ptr<SceneNode> const>;
 
     [[nodiscard]] auto childrenCount() const -> size_t;
     [[nodiscard]] auto childAt(size_t index) const -> SceneNode const&;
@@ -57,16 +61,28 @@ struct SceneNode
     static auto create(std::string&& name) -> std::unique_ptr<SceneNode>;
 
     // Adds a new child to the end of this nodes list of children
-    auto appendChild(std::string&& name) -> SceneNode&;
+    auto createChild(std::string&& name) -> SceneNode&;
 
-    // Changes this node's parent while preserving its children.
-    void reparent(SceneNode& newParent);
+    // Adds an existing node to the end of this nodes list of children, removing
+    // it from its parent first if possible.
+    // Asserts upon the following invalid states: newChild is null, or this node
+    // has newChild in its parent chain.
+    void appendChild(std::shared_ptr<SceneNode> newChild);
 
-    // Removes this node from its parent while preserving its children.
-    auto removeFromParent() -> std::unique_ptr<SceneNode>;
+    // Removes the child from this node. Asserts if the passed node is not a
+    // child.
+    auto removeChild(SceneNode&) -> std::shared_ptr<SceneNode>;
 
-    // Removes this node, and gives the children to its parent.
-    auto extract() -> std::unique_ptr<SceneNode>;
+    // Removes the child from this node, while donating its children. Asserts if
+    // the passed node is not a child.
+    auto extractChild(SceneNode&) -> std::shared_ptr<SceneNode>;
+
+    // If this node has a parent, tries to remove itself from it. Returns
+    // nullptr if this node has no parent.
+    auto tryRemoveSelf() -> std::shared_ptr<SceneNode>;
+    // If this node has a parent, tries to extract itself from it. Returns
+    // nullptr if this node has no parent.
+    auto tryExtractSelf() -> std::shared_ptr<SceneNode>;
 
     // NOLINTNEXTLINE(misc-non-private-member-variables-in-classes)
     Transform transform{Transform::identity()};
@@ -91,7 +107,7 @@ struct SceneNode
 private:
     SceneNode* m_parent{};
     std::string m_name{};
-    std::vector<std::unique_ptr<SceneNode>> m_children{};
+    std::vector<std::shared_ptr<SceneNode>> m_children{};
     std::unique_ptr<MeshInstanced> m_mesh{};
 };
 } // namespace syzygy

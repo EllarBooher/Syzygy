@@ -22,7 +22,12 @@ struct SceneTemplate;
 namespace syzygy
 {
 // "Pure" widgets that require the function to be called every time it needs to
-// be rendered
+// be rendered.
+//
+// These aren't really stateless since they rely on a lot of
+// internal ImGui state. They should be reworked into widgets that track a
+// little bit of state, since it is hard to pack all the functionality into a
+// single function signature.
 
 void editorConfigurationWindow(
     std::string const& title,

@@ -1092,7 +1092,7 @@ void sceneHierarchyWindow(
         { pSelectedNode = &const_cast<syzygy::SceneNode&>(arg.target.get()); },
                 [](SceneNodeAppendChild const& arg) {
             const_cast<syzygy::SceneNode&>(arg.target.get())
-                .appendChild("New Node");
+                .createChild("New Node");
         },
                 [](SceneNodeDeleteWithChildren const& arg)
         {
@@ -1101,7 +1101,7 @@ void sceneHierarchyWindow(
             {
                 pSelectedNode = nullptr;
             }
-            const_cast<syzygy::SceneNode&>(arg.target.get()).removeFromParent();
+            const_cast<syzygy::SceneNode&>(arg.target.get()).tryRemoveSelf();
         },
                 [](SceneNodeExtract const& arg)
         {
@@ -1110,13 +1110,13 @@ void sceneHierarchyWindow(
             {
                 pSelectedNode = nullptr;
             }
-            const_cast<syzygy::SceneNode&>(arg.target.get()).extract();
-            pSelectedNode = nullptr;
+            const_cast<syzygy::SceneNode&>(arg.target.get()).tryExtractSelf();
         },
                 [](SceneNodeReparant const& arg)
         {
-            const_cast<syzygy::SceneNode&>(arg.target.get())
-                .reparent(const_cast<syzygy::SceneNode&>(arg.newParent.get()));
+            const_cast<syzygy::SceneNode&>(arg.newParent.get())
+                .appendChild(const_cast<syzygy::SceneNode&>(arg.target.get())
+                                 .tryRemoveSelf());
         },
             },
             operation

@@ -12,7 +12,7 @@ auto SceneNode::parent() -> std::optional<std::reference_wrapper<SceneNode>>
     return *m_parent;
 }
 auto SceneNode::hasChildren() const -> bool { return !m_children.empty(); }
-auto SceneNode::children() -> std::span<std::unique_ptr<SceneNode> const>
+auto SceneNode::children() -> std::span<std::shared_ptr<SceneNode> const>
 {
     return m_children;
 }
@@ -60,7 +60,7 @@ auto SceneNode::create(std::string&& name) -> std::unique_ptr<SceneNode>
     return result;
 }
 
-auto SceneNode::appendChild(std::string&& name) -> SceneNode&
+auto SceneNode::createChild(std::string&& name) -> SceneNode&
 {
     m_children.emplace_back(std::make_unique<SceneNode>());
 
@@ -72,68 +72,101 @@ auto SceneNode::appendChild(std::string&& name) -> SceneNode&
     return newChild;
 }
 
-void SceneNode::reparent(SceneNode& newParent)
+void SceneNode::appendChild(std::shared_ptr<SceneNode> newChild)
 {
-    if (m_parent == &newParent)
+    assert(newChild != nullptr && "Null SceneNode child passed as argument.");
+    assert(
+        !descendent(newChild.get())
+        && "This node has the child in its parent chain."
+    );
+    assert(
+        newChild->m_parent != this
+        && "NewChild already has this node as a parent."
+    );
+
+    if (newChild->m_parent != nullptr)
     {
-        return;
+        newChild->m_parent->removeChild(*newChild);
     }
 
-    newParent.m_children.push_back(removeFromParent());
-    m_parent = &newParent;
+    newChild->m_parent = this;
+    m_children.emplace_back(newChild);
 }
 
-auto SceneNode::removeFromParent() -> std::unique_ptr<SceneNode>
+auto SceneNode::removeChild(SceneNode& child) -> std::shared_ptr<SceneNode>
+{
+    assert(
+        child.m_parent == this && "Child to remove is not this node's child."
+    );
+
+    auto& siblings{m_children};
+    auto childIt = std::stable_partition(
+        siblings.begin(),
+        siblings.end(),
+        [&](std::shared_ptr<SceneNode> const& ptr)
+    { return ptr.get() != &child; }
+    );
+    assert(
+        childIt != siblings.end()
+        && "SceneNode was not in its parent's children."
+    );
+    assert(
+        std::distance(childIt, siblings.end()) < 2
+        && "SceneNode parent had duplicated child."
+    );
+
+    std::shared_ptr<SceneNode> removedChild{*childIt};
+
+    // siblings.erase(childIt, siblings.end());
+    siblings.pop_back();
+
+    removedChild->m_parent = nullptr;
+    return removedChild;
+}
+
+// The following try methods can return nullptr since to return a shared pointer
+// we need access to the parent which holds the shared pointer.
+// Also these operations do not make sense if there is no parent, since that
+// means this node is the root of a tree.
+
+auto SceneNode::tryRemoveSelf() -> std::shared_ptr<SceneNode>
 {
     if (m_parent != nullptr)
     {
-        auto& siblings{m_parent->m_children};
-        auto childIt = std::stable_partition(
-            siblings.begin(),
-            siblings.end(),
-            [this](std::unique_ptr<SceneNode> const& ptr)
-        { return ptr.get() != this; }
-        );
-        assert(
-            childIt != siblings.end()
-            && "SceneNode was not in its parent's children."
-        );
-        assert(
-            std::distance(childIt, siblings.end()) < 2
-            && "SceneNode parent had duplicated child."
-        );
-
-        // Resize the parent's children, without destructing this node
-        (void)childIt->release();
-
-        // siblings.erase(childIt, siblings.end());
-        siblings.pop_back();
+        return m_parent->removeChild(*this);
     }
-
-    return std::unique_ptr<SceneNode>{this};
+    return nullptr;
 }
 
-auto SceneNode::extract() -> std::unique_ptr<SceneNode>
+auto SceneNode::tryExtractSelf() -> std::shared_ptr<SceneNode>
 {
     if (m_parent != nullptr)
     {
-        auto& siblings{m_parent->m_children};
+        return m_parent->extractChild(*this);
+    }
+    return nullptr;
+}
 
-        for (auto& child : m_children)
-        {
-            child->m_parent = m_parent;
-        }
+auto SceneNode::extractChild(SceneNode& child) -> std::shared_ptr<SceneNode>
+{
+    assert(
+        child.m_parent == this && "Child to extract is not this node's child."
+    );
 
-        auto newSiblingIt = siblings.insert(
-            siblings.end(),
-            std::make_move_iterator(m_children.begin()),
-            std::make_move_iterator(m_children.end())
-        );
-
-        m_children.clear();
+    std::shared_ptr<SceneNode> removedChild{removeChild(child)};
+    auto newChildStartIt = m_children.insert(
+        m_children.end(),
+        std::make_move_iterator(removedChild->m_children.begin()),
+        std::make_move_iterator(removedChild->m_children.end())
+    );
+    for (; newChildStartIt < m_children.end(); newChildStartIt++)
+    {
+        (*newChildStartIt)->m_parent = this;
     }
 
-    return removeFromParent();
+    removedChild->m_children.clear();
+
+    return removedChild;
 }
 
 auto SceneNode::depth() const -> size_t
