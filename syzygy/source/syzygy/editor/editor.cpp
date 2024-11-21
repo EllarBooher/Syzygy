@@ -558,6 +558,8 @@ auto run() -> EditorResult
 
         fpsHistory.write(1.0 / deltaTimeSeconds);
 
+        renderer.debugLines().tick(lastFrameTiming);
+
         if (inputCapturedByScene)
         {
             scene.handleInput(lastFrameTiming, inputSnapshot);

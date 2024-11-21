@@ -49,6 +49,8 @@ public:
     // TODO: Remove this, but right now relies on internal state.
     void uiEngineControls(syzygy::DockingLayout const&);
 
+    [[nodiscard]] auto debugLines() -> DebugLines&;
+
     void recordDraw(
         VkCommandBuffer,
         Scene& scene,

@@ -16,14 +16,25 @@ namespace syzygy
 {
 struct AABB;
 struct Transform;
+struct TickTiming;
 } // namespace syzygy
 
 namespace syzygy
 {
+struct DebugLinesArguments
+{
+    glm::vec3 colorRGB{0.0F, 1.0F, 0.0F};
+
+    // 0 or less seconds indicates existance for a single frame.
+    float lifetimeSeconds{0.0F};
+};
+
 struct DebugLines
 {
     // TODO: Split this up into 3 segments: the pipeline, the line segment
     // buffers, and the configuration.
+    // TODO: Some of these overloads/signatures are messy or unnecessary. The
+    // most useful methods should be kept and clarified.
 public:
     std::unique_ptr<TStagedBuffer<VertexPacked>> vertices{};
     std::unique_ptr<TStagedBuffer<uint32_t>> indices{};
@@ -36,41 +47,84 @@ public:
     // NOLINTBEGIN(readability-make-member-function-const): Manual propagation
     // of const-correctness
 
-    void clear();
-    void push(glm::vec3 start, glm::vec3 end, glm::vec3 colorRGB);
+    void push(glm::vec3 start, glm::vec3 end, DebugLinesArguments args = {});
     void push(
         glm::vec3 localStart,
         glm::vec3 localEnd,
         glm::mat4x4 worldMatrix,
-        glm::vec3 colorRGB
+        DebugLinesArguments args = {}
     );
 
     // NOLINTEND(readability-make-member-function-const)
 
     // Adds 4 line segmants defined by AB, BC, CD, DA.
     // Winding does not matter since these are added as separate line segments.
-    void pushQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d);
+    void pushQuad(
+        glm::vec3 a,
+        glm::vec3 b,
+        glm::vec3 c,
+        glm::vec3 d,
+        DebugLinesArguments args = {}
+    );
 
     // Adds an arrow with a tip. The arrow is default pointing towards the world
     // forward.
-    void pushArrow(Transform transform, glm::vec3 colorRGB);
+    void
+    pushArrow(Transform transform, float length, DebugLinesArguments args = {});
+    // Overload that's simpler to specify, but the rotation of the arrow is
+    // ambiguous.
+    void pushArrow(Ray ray, DebugLinesArguments args = {});
 
     // Push a rectangle with possibly non-axis-aligned extents.
-    void
-    pushRectangleAxes(glm::vec3 center, glm::vec3 extentA, glm::vec3 extentB);
+    void pushRectangleAxes(
+        glm::vec3 center,
+        glm::vec3 extentA,
+        glm::vec3 extentB,
+        DebugLinesArguments args = {}
+    );
 
     // Push a rectangle, stretched along the (x,z) axes by extents.
     void pushRectangleOriented(
-        glm::vec3 center, glm::quat orientation, glm::vec2 extents
+        glm::vec3 center,
+        glm::quat orientation,
+        glm::vec2 extents,
+        DebugLinesArguments args = {}
     );
 
     // Push a rectangular prism, stretched along the (x,y,z) axes by extents.
-    void pushBox(glm::vec3 center, glm::quat orientation, glm::vec3 extents);
-    void pushBox(glm::mat4x4, AABB);
-    void pushBox(Transform, AABB);
+    void pushBox(
+        glm::vec3 center,
+        glm::quat orientation,
+        glm::vec3 extents,
+        DebugLinesArguments args = {}
+    );
+    void pushBox(glm::mat4x4, AABB, DebugLinesArguments args = {});
+    void pushBox(Transform, AABB, DebugLinesArguments args = {});
 
+    void clear();
+
+    // Should be called early each frame, before pushing any new geometry.
+    void tick(TickTiming const&);
+
+    [[nodiscard]] auto empty() const -> bool;
+
+    // Should be called right before rendering, after all geometry has been
+    // added.
     void recordCopy(VkCommandBuffer cmd) const;
 
     void cleanup(VkDevice device, VmaAllocator allocator);
+
+private:
+    struct DebugLineSegment
+    {
+        VertexPacked start{};
+        VertexPacked end{};
+        // Assumes monotonic time
+        float endTimeSeconds{};
+    };
+
+    std::vector<DebugLineSegment> m_segments{};
+
+    float m_currentFrameStartSeconds{};
 };
 } // namespace syzygy

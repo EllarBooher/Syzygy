@@ -276,6 +276,8 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
     }
 }
 
+auto Renderer::debugLines() -> DebugLines& { return m_debugLines; }
+
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
     Scene& scene,
@@ -285,8 +287,6 @@ void Renderer::recordDraw(
 )
 {
     // Begin syzygy drawing
-
-    m_debugLines.clear();
     if (sceneSubregion.extent.width <= 0 || sceneSubregion.extent.height <= 0)
     {
         return;
@@ -375,25 +375,16 @@ void Renderer::recordDraw(
 
     { // World axis indicator
         m_debugLines.pushArrow(
-            Transform::lookAt(
-                Ray::create(glm::vec3{0.0F}, glm::vec3{1.0F, 0.0F, 0.0F}),
-                glm::vec3{1.0F}
-            ),
-            glm::vec3{1.0F, 0.0F, 0.0F}
+            Ray::create(glm::vec3{0.0F}, glm::vec3{1.0F, 0.0F, 0.0F}),
+            {.colorRGB = glm::vec3{1.0F, 0.0F, 0.0F}}
         );
         m_debugLines.pushArrow(
-            Transform::lookAt(
-                Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 1.0F, 0.0F}),
-                glm::vec3{1.0F}
-            ),
-            glm::vec3{0.0F, 1.0F, 0.0F}
+            Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 1.0F, 0.0F}),
+            {.colorRGB = glm::vec3{0.0F, 1.0F, 0.0F}}
         );
         m_debugLines.pushArrow(
-            Transform::lookAt(
-                Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 0.0F, 1.0F}),
-                glm::vec3{1.0F}
-            ),
-            glm::vec3{0.0F, 0.0F, 1.0F}
+            Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 0.0F, 1.0F}),
+            {.colorRGB = glm::vec3{0.0F, 0.0F, 1.0F}}
         );
     }
 
@@ -484,7 +475,7 @@ void Renderer::recordDrawDebugLines(
 {
     m_debugLines.lastFrameDrawResults = {};
 
-    if (m_debugLines.enabled && m_debugLines.indices->stagedSize() > 0)
+    if (m_debugLines.enabled && !m_debugLines.empty())
     {
         m_debugLines.recordCopy(cmd);
 
