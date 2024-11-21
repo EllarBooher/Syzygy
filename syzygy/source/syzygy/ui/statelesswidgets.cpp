@@ -1347,23 +1347,27 @@ auto sceneViewportWindow(
     }
 
     glm::vec2 const contentExtent{sceneViewport.screenRectangle().size()};
-
-    ImVec2 const uvMax{contentExtent / glm::vec2{sceneTextureMax}};
-
     float const textHeight{
         ImGui::CalcTextSize("").y + ImGui::GetStyle().ItemSpacing.y
     };
+
+    glm::vec2 const imageMin{0.0F};
+    glm::vec2 const imageMax{contentExtent - glm::vec2{0.0F, textHeight}};
+
+    ImVec2 const uvMin{imageMin / glm::vec2{sceneTextureMax}};
+    ImVec2 const uvMax{imageMax / glm::vec2{sceneTextureMax}};
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{});
     bool const clicked = ImGui::ImageButton(
         "##viewport",
         sceneTexture,
-        contentExtent - glm::vec2{0.0F, textHeight},
-        ImVec2{0.0, 0.0},
+        (imageMax - imageMin),
+        uvMin,
         uvMax,
         ImVec4{0.0F, 0.0F, 0.0F, 0.0F},
         ImVec4{1.0F, 1.0F, 1.0F, 1.0F}
     );
+
     ImGui::PopStyleVar();
 
     ImGui::Text("Click Scene Viewport to capture inputs. Translate Camera: "
