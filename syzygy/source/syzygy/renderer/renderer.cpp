@@ -73,8 +73,7 @@ void Renderer::destroy()
 
     m_sceneDepthTexture.reset();
 
-    m_debugLines.cleanup(m_device, m_allocator);
-    m_debugLines = {};
+    m_debugLines.reset();
 
     m_activeRenderingPipeline = RenderingPipelines::DEFERRED;
     m_genericComputePipeline->cleanup(m_device);
@@ -195,29 +194,7 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 
 void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
 {
-    m_debugLines.pipeline = std::make_unique<DebugLineGraphicsPipeline>(
-        device,
-        DebugLineGraphicsPipeline::ImageFormats{
-            .color = VK_FORMAT_R16G16B16A16_UNORM,
-            .depth = m_sceneDepthTexture->image().format(),
-        }
-    );
-    m_debugLines.indices = std::make_unique<TStagedBuffer<uint32_t>>(
-        TStagedBuffer<uint32_t>::allocate(
-            device,
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            allocator,
-            DEBUGLINES_CAPACITY
-        )
-    );
-    m_debugLines.vertices = std::make_unique<TStagedBuffer<VertexPacked>>(
-        TStagedBuffer<VertexPacked>::allocate(
-            device,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            allocator,
-            DEBUGLINES_CAPACITY
-        )
-    );
+    m_debugLines = DebugLines::create(device, allocator);
 }
 
 void Renderer::initDeferredShadingPipeline(
@@ -272,11 +249,11 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
         }
 
         ImGui::Separator();
-        imguiStructureControls(m_debugLines);
+        imguiStructureControls(*m_debugLines);
     }
 }
 
-auto Renderer::debugLines() -> DebugLines& { return m_debugLines; }
+auto Renderer::debugLines() -> DebugLines& { return *m_debugLines; }
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
@@ -369,23 +346,8 @@ void Renderer::recordDraw(
         for (glm::mat4x4 const& transform :
              meshResources.models->readValidStaged())
         {
-            m_debugLines.pushBox(transform, mesh.vertexBounds);
+            m_debugLines->pushBox(transform, mesh.vertexBounds);
         }
-    }
-
-    { // World axis indicator
-        m_debugLines.pushArrow(
-            Ray::create(glm::vec3{0.0F}, glm::vec3{1.0F, 0.0F, 0.0F}),
-            {.colorRGB = glm::vec3{1.0F, 0.0F, 0.0F}}
-        );
-        m_debugLines.pushArrow(
-            Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 1.0F, 0.0F}),
-            {.colorRGB = glm::vec3{0.0F, 1.0F, 0.0F}}
-        );
-        m_debugLines.pushArrow(
-            Ray::create(glm::vec3{0.0F}, glm::vec3{0.0F, 0.0F, 1.0F}),
-            {.colorRGB = glm::vec3{0.0F, 0.0F, 1.0F}}
-        );
     }
 
     {
@@ -439,16 +401,15 @@ void Renderer::recordDraw(
 
             auto const sceneBounds{scene.shadowBounds()};
 
-            m_debugLines.pushBox(
+            m_debugLines->pushBox(
                 sceneBounds.center,
                 glm::identity<glm::quat>(),
                 sceneBounds.halfExtent
             );
 
-            recordDrawDebugLines(
-                cmd, cameraIndex, sceneTexture, sceneSubregion, *m_camerasBuffer
+            m_debugLines->recordDraw(
+                cmd, sceneSubregion, sceneTexture, *m_camerasBuffer, cameraIndex
             );
-
             break;
         }
         case RenderingPipelines::COMPUTE_COLLECTION:
@@ -463,38 +424,5 @@ void Renderer::recordDraw(
     }
 
     // End syzygy drawing
-}
-
-void Renderer::recordDrawDebugLines(
-    VkCommandBuffer const cmd,
-    uint32_t const cameraIndex,
-    SceneTexture& sceneTexture,
-    VkRect2D const sceneSubregion,
-    TStagedBuffer<CameraPacked> const& camerasBuffer
-)
-{
-    m_debugLines.lastFrameDrawResults = {};
-
-    if (m_debugLines.enabled && !m_debugLines.empty())
-    {
-        m_debugLines.recordCopy(cmd);
-
-        DrawResultsGraphics const drawResults{
-            m_debugLines.pipeline->recordDrawCommands(
-                cmd,
-                false,
-                m_debugLines.lineWidth,
-                sceneSubregion,
-                sceneTexture.color(),
-                *m_sceneDepthTexture,
-                cameraIndex,
-                camerasBuffer,
-                *m_debugLines.vertices,
-                *m_debugLines.indices
-            )
-        };
-
-        m_debugLines.lastFrameDrawResults = drawResults;
-    }
 }
 } // namespace syzygy

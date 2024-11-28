@@ -60,14 +60,6 @@ public:
     );
 
 private:
-    void recordDrawDebugLines(
-        VkCommandBuffer cmd,
-        uint32_t cameraIndex,
-        syzygy::SceneTexture& sceneTexture,
-        VkRect2D sceneSubregion,
-        TStagedBuffer<syzygy::CameraPacked> const& camerasBuffer
-    );
-
     // Begin Vulkan
 
     void initDrawTargets(VkDevice, VmaAllocator);
@@ -104,7 +96,7 @@ private:
     // Pipelines
 
     static uint32_t constexpr DEBUGLINES_CAPACITY{10000};
-    DebugLines m_debugLines{};
+    std::unique_ptr<DebugLines> m_debugLines{};
 
     RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::DEFERRED};
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};

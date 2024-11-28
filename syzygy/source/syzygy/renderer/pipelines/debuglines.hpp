@@ -17,12 +17,27 @@ namespace syzygy
 struct AABB;
 struct Transform;
 struct TickTiming;
+struct SceneTexture;
 } // namespace syzygy
 
 namespace syzygy
 {
+enum class DebugLinesLayers
+{
+    Gizmo,
+    Debug
+};
+
+struct DebugLinesRenderInfo
+{
+    uint64_t indicesOnGPU;
+    uint64_t verticesOnGPU;
+};
+
 struct DebugLinesArguments
 {
+    DebugLinesLayers layer{DebugLinesLayers::Debug};
+
     glm::vec3 colorRGB{0.0F, 1.0F, 0.0F};
 
     // 0 or less seconds indicates existance for a single frame.
@@ -31,21 +46,22 @@ struct DebugLinesArguments
 
 struct DebugLines
 {
-    // TODO: Split this up into 3 segments: the pipeline, the line segment
-    // buffers, and the configuration.
+public:
+    DebugLines(DebugLines const&) = delete;
+    auto operator=(DebugLines const&) noexcept -> DebugLines& = delete;
+
+    auto operator=(DebugLines&&) -> DebugLines&;
+    DebugLines(DebugLines&&) noexcept;
+    ~DebugLines();
+
+private:
+    DebugLines() = default;
+
+public:
+    static auto create(VkDevice, VmaAllocator) -> std::unique_ptr<DebugLines>;
+
     // TODO: Some of these overloads/signatures are messy or unnecessary. The
     // most useful methods should be kept and clarified.
-public:
-    std::unique_ptr<TStagedBuffer<VertexPacked>> vertices{};
-    std::unique_ptr<TStagedBuffer<uint32_t>> indices{};
-
-    std::unique_ptr<DebugLineGraphicsPipeline> pipeline{};
-    DrawResultsGraphics lastFrameDrawResults{};
-    bool enabled{false};
-    float lineWidth{1.0};
-
-    // NOLINTBEGIN(readability-make-member-function-const): Manual propagation
-    // of const-correctness
 
     void push(glm::vec3 start, glm::vec3 end, DebugLinesArguments args = {});
     void push(
@@ -54,8 +70,6 @@ public:
         glm::mat4x4 worldMatrix,
         DebugLinesArguments args = {}
     );
-
-    // NOLINTEND(readability-make-member-function-const)
 
     // Adds 4 line segmants defined by AB, BC, CD, DA.
     // Winding does not matter since these are added as separate line segments.
@@ -106,13 +120,20 @@ public:
     // Should be called early each frame, before pushing any new geometry.
     void tick(TickTiming const&);
 
-    [[nodiscard]] auto empty() const -> bool;
+    [[nodiscard]] auto getLayerEnabled(DebugLinesLayers) const -> bool;
+    void setLayerEnabled(DebugLinesLayers, bool);
 
-    // Should be called right before rendering, after all geometry has been
-    // added.
-    void recordCopy(VkCommandBuffer cmd) const;
+    [[nodiscard]] auto lastFrameDrawResults() -> DrawResultsGraphics;
 
-    void cleanup(VkDevice device, VmaAllocator allocator);
+    [[nodiscard]] auto renderInfo() const -> DebugLinesRenderInfo;
+
+    void recordDraw(
+        VkCommandBuffer cmd,
+        VkRect2D sceneSubregion,
+        SceneTexture& sceneTexture,
+        TStagedBuffer<CameraPacked> const& camerasBuffer,
+        uint32_t cameraIndex
+    );
 
 private:
     struct DebugLineSegment
@@ -123,7 +144,18 @@ private:
         float endTimeSeconds{};
     };
 
-    std::vector<DebugLineSegment> m_segments{};
+    VkDevice m_device{VK_NULL_HANDLE};
+
+    std::unique_ptr<TStagedBuffer<VertexPacked>> m_vertices{};
+    std::unique_ptr<TStagedBuffer<uint32_t>> m_indices{};
+    std::unique_ptr<DebugLineGraphicsPipeline> m_pipeline{};
+
+    std::unordered_map<DebugLinesLayers, bool> m_layerEnableFlags{};
+
+    std::unordered_map<DebugLinesLayers, std::vector<DebugLineSegment>>
+        m_segments{};
+
+    DrawResultsGraphics m_lastFrameDrawResults{};
 
     float m_currentFrameStartSeconds{};
 };

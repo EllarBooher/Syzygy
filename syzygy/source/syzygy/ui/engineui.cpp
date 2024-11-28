@@ -66,52 +66,41 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
         return;
     }
 
+    std::array<
+        std::tuple<syzygy::DebugLinesLayers, char const*>,
+        2> constexpr LAYER_LABELS{
+        {{DebugLinesLayers::Gizmo, "Gizmo"}, {DebugLinesLayers::Debug, "Debug"}}
+    };
+
     auto table{PropertyTable::begin()};
 
-    table
-        .rowTextLabel(
-            "Pipeline",
-            fmt::format(
-                "0x{:x}", reinterpret_cast<uintptr_t>(structure.pipeline.get())
-            )
-        )
-        .rowReadOnlyInteger(
-            "Indices on GPU",
-            static_cast<int32_t>(
-                structure.indices != nullptr ? structure.indices->deviceSize()
-                                             : 0
-            )
-        )
-        .rowReadOnlyInteger(
-            "Vertices on GPU",
-            static_cast<int32_t>(
-                structure.vertices != nullptr ? structure.vertices->deviceSize()
-                                              : 0
-            )
-        );
-
-    if (!structure.pipeline || !structure.indices || !structure.vertices)
+    table.rowChildPropertyBegin("Layers", false);
+    for (auto const& [layer, label] : LAYER_LABELS)
     {
-        table.rowReadOnlyBoolean("Enabled", structure.enabled);
+        bool enabled{structure.getLayerEnabled(layer)};
+        table.rowBoolean(label, enabled, enabled);
+        structure.setLayerEnabled(layer, enabled);
     }
-    else
+    table.childPropertyEnd();
+
     {
-        table.rowBoolean("Enabled", structure.enabled, false);
+        DebugLinesRenderInfo const renderInfo{structure.renderInfo()};
+
+        table.rowChildPropertyBegin("Render Info", false)
+            .rowReadOnlyInteger(
+                "Indices on GPU", static_cast<int32_t>(renderInfo.indicesOnGPU)
+            )
+            .rowReadOnlyInteger(
+                "Vertices on GPU",
+                static_cast<int32_t>(renderInfo.verticesOnGPU)
+            )
+            .childPropertyEnd();
     }
 
-    table.rowFloat(
-        "Line Width",
-        structure.lineWidth,
-        1.0F,
-        PropertySliderBehavior{
-            .bounds{0.0F, 100.0F},
-        }
-    );
-
     {
-        DrawResultsGraphics const drawResults{structure.lastFrameDrawResults};
+        DrawResultsGraphics const drawResults{structure.lastFrameDrawResults()};
 
-        table.rowChildPropertyBegin("Draw Results")
+        table.rowChildPropertyBegin("Draw Results", false)
             .rowReadOnlyInteger(
                 "Draw Calls", static_cast<int32_t>(drawResults.drawCalls)
             )
