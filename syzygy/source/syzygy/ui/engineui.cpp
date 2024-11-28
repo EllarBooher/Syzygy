@@ -3,7 +3,7 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/pipelines.hpp"
-#include "syzygy/renderer/pipelines/debuglines.hpp"
+#include "syzygy/renderer/pipelines/wireframeoverlay.hpp"
 #include "syzygy/renderer/shadowpass.hpp"
 #include "syzygy/ui/propertytable.hpp"
 #include <algorithm>
@@ -55,11 +55,12 @@ void imguiRenderingSelection(RenderingPipelines& currentActivePipeline)
     }
 }
 
-template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
+template <>
+void imguiStructureControls<WireframeOverlay>(WireframeOverlay& structure)
 {
-    bool const headerOpen{
-        ImGui::CollapsingHeader("Debug Lines", ImGuiTreeNodeFlags_DefaultOpen)
-    };
+    bool const headerOpen{ImGui::CollapsingHeader(
+        "Wireframe Overlay", ImGuiTreeNodeFlags_DefaultOpen
+    )};
 
     if (!headerOpen)
     {
@@ -67,9 +68,9 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
     }
 
     std::array<
-        std::tuple<syzygy::DebugLinesLayers, char const*>,
+        std::tuple<syzygy::WireframeLayers, char const*>,
         2> constexpr LAYER_LABELS{
-        {{DebugLinesLayers::Gizmo, "Gizmo"}, {DebugLinesLayers::Debug, "Debug"}}
+        {{WireframeLayers::Gizmo, "Gizmo"}, {WireframeLayers::Debug, "Debug"}}
     };
 
     auto table{PropertyTable::begin()};
@@ -84,7 +85,7 @@ template <> void imguiStructureControls<DebugLines>(DebugLines& structure)
     table.childPropertyEnd();
 
     {
-        DebugLinesRenderInfo const renderInfo{structure.renderInfo()};
+        WireframeRenderInfo const renderInfo{structure.renderInfo()};
 
         table.rowChildPropertyBegin("Render Info", false)
             .rowReadOnlyInteger(

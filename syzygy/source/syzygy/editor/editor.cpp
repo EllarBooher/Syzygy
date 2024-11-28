@@ -558,7 +558,7 @@ auto run() -> EditorResult
 
         fpsHistory.write(1.0 / deltaTimeSeconds);
 
-        renderer.debugLines().tick(lastFrameTiming);
+        renderer.wireframeOverlay().tick(lastFrameTiming);
 
         if (inputCapturedByScene)
         {

@@ -1,4 +1,4 @@
-#include "debuglines.hpp"
+#include "wireframeoverlay.hpp"
 
 #include "syzygy/core/timing.hpp"
 #include "syzygy/geometry/geometrystatics.hpp"
@@ -14,11 +14,11 @@
 
 namespace syzygy
 {
-DebugLines::DebugLines(DebugLines&& other) noexcept
+WireframeOverlay::WireframeOverlay(WireframeOverlay&& other) noexcept
 {
     *this = std::move(other);
 }
-auto DebugLines::operator=(DebugLines&& other) -> DebugLines&
+auto WireframeOverlay::operator=(WireframeOverlay&& other) -> WireframeOverlay&
 {
     m_vertices = std::move(other.m_vertices);
     m_indices = std::move(other.m_indices);
@@ -35,7 +35,7 @@ auto DebugLines::operator=(DebugLines&& other) -> DebugLines&
 
     return *this;
 }
-DebugLines::~DebugLines()
+WireframeOverlay::~WireframeOverlay()
 {
     if (m_device != VK_NULL_HANDLE)
     {
@@ -46,17 +46,19 @@ DebugLines::~DebugLines()
     m_vertices.reset();
     m_indices.reset();
 }
-auto DebugLines::create(VkDevice const device, VmaAllocator const allocator)
-    -> std::unique_ptr<DebugLines>
+auto WireframeOverlay::create(
+    VkDevice const device, VmaAllocator const allocator
+) -> std::unique_ptr<WireframeOverlay>
 {
     uint32_t constexpr CAPACITY{10'000UL};
 
-    auto pResult{std::make_unique<DebugLines>(std::move(DebugLines{}))};
-    DebugLines& result{*pResult};
+    auto pResult{std::make_unique<WireframeOverlay>(std::move(WireframeOverlay{}
+    ))};
+    WireframeOverlay& result{*pResult};
 
     result.m_device = device;
-    result.m_layerEnableFlags[DebugLinesLayers::Gizmo] = true;
-    result.m_layerEnableFlags[DebugLinesLayers::Debug] = false;
+    result.m_layerEnableFlags[WireframeLayers::Gizmo] = true;
+    result.m_layerEnableFlags[WireframeLayers::Debug] = false;
 
     result.m_pipeline = std::make_unique<DebugLineGraphicsPipeline>(
         device,
@@ -80,11 +82,11 @@ auto DebugLines::create(VkDevice const device, VmaAllocator const allocator)
 }
 
 // NOLINTBEGIN(readability-make-member-function-const)
-void DebugLines::push(
-    glm::vec3 const start, glm::vec3 const end, DebugLinesArguments const args
+void WireframeOverlay::push(
+    glm::vec3 const start, glm::vec3 const end, WireframeArguments const args
 )
 {
-    m_segments[args.layer].push_back(DebugLineSegment{
+    m_segments[args.layer].push_back(WireframeSegment{
         .start =
             {
                 .position = start,
@@ -105,11 +107,11 @@ void DebugLines::push(
     });
 }
 
-void DebugLines::push(
+void WireframeOverlay::push(
     glm::vec3 const localStart,
     glm::vec3 const localEnd,
     glm::mat4x4 const worldMatrix,
-    DebugLinesArguments const args
+    WireframeArguments const args
 )
 {
     push(
@@ -121,12 +123,12 @@ void DebugLines::push(
 
 // NOLINTEND(readability-make-member-function-const)
 
-void DebugLines::pushQuad(
+void WireframeOverlay::pushQuad(
     glm::vec3 const a,
     glm::vec3 const b,
     glm::vec3 const c,
     glm::vec3 const d,
-    DebugLinesArguments const args
+    WireframeArguments const args
 )
 {
     push(a, b, args);
@@ -135,10 +137,8 @@ void DebugLines::pushQuad(
     push(d, a, args);
 }
 
-void DebugLines::pushArrow(
-    Transform const transform,
-    float const length,
-    DebugLinesArguments const args
+void WireframeOverlay::pushArrow(
+    Transform const transform, float const length, WireframeArguments const args
 )
 {
     float constexpr ARROW_HEAD_RADIUS{0.1F};
@@ -178,7 +178,7 @@ void DebugLines::pushArrow(
     }
 }
 
-void DebugLines::pushArrow(Ray const ray, DebugLinesArguments const args)
+void WireframeOverlay::pushArrow(Ray const ray, WireframeArguments const args)
 {
     pushArrow(
         Transform::lookAt(ray, glm::vec3{1.0F}),
@@ -187,11 +187,11 @@ void DebugLines::pushArrow(Ray const ray, DebugLinesArguments const args)
     );
 }
 
-void DebugLines::pushRectangleAxes(
+void WireframeOverlay::pushRectangleAxes(
     glm::vec3 const center,
     glm::vec3 const extentA,
     glm::vec3 const extentB,
-    DebugLinesArguments const args
+    WireframeArguments const args
 )
 {
     pushQuad(
@@ -203,11 +203,11 @@ void DebugLines::pushRectangleAxes(
     );
 }
 
-void DebugLines::pushRectangleOriented(
+void WireframeOverlay::pushRectangleOriented(
     glm::vec3 const center,
     glm::quat const orientation,
     glm::vec2 const extents,
-    DebugLinesArguments const args
+    WireframeArguments const args
 )
 {
     glm::vec3 const scale{extents.x, 1.0F, extents.y};
@@ -218,11 +218,11 @@ void DebugLines::pushRectangleOriented(
     pushRectangleAxes(center, right, forward, args);
 }
 
-void DebugLines::pushBox(
+void WireframeOverlay::pushBox(
     glm::vec3 const center,
     glm::quat const orientation,
     glm::vec3 const extents,
-    DebugLinesArguments const args
+    WireframeArguments const args
 )
 {
     glm::vec3 const right{orientation * (extents * WORLD_RIGHT)};
@@ -239,8 +239,8 @@ void DebugLines::pushBox(
     pushRectangleAxes(center + forward, up, right, args);
 }
 
-void DebugLines::pushBox(
-    glm::mat4x4 const parent, AABB const box, DebugLinesArguments const args
+void WireframeOverlay::pushBox(
+    glm::mat4x4 const parent, AABB const box, WireframeArguments const args
 )
 {
     glm::vec3 const right{
@@ -263,8 +263,8 @@ void DebugLines::pushBox(
     pushRectangleAxes(center + forward, up, right, args);
 }
 
-void DebugLines::pushBox(
-    Transform const parent, AABB const box, DebugLinesArguments const args
+void WireframeOverlay::pushBox(
+    Transform const parent, AABB const box, WireframeArguments const args
 )
 {
     glm::mat4x4 const transformation{parent.toMatrix()};
@@ -272,15 +272,15 @@ void DebugLines::pushBox(
     pushBox(transformation, box, args);
 }
 
-void DebugLines::clear() { m_segments.clear(); }
+void WireframeOverlay::clear() { m_segments.clear(); }
 
-void DebugLines::tick(TickTiming const& timing)
+void WireframeOverlay::tick(TickTiming const& timing)
 {
     for (auto& [layer, segments] : m_segments)
     {
         std::erase_if(
             segments,
-            [=](DebugLineSegment const& segment)
+            [=](WireframeSegment const& segment)
         { return segment.endTimeSeconds <= timing.timeElapsedSeconds; }
         );
     }
@@ -288,24 +288,25 @@ void DebugLines::tick(TickTiming const& timing)
     m_currentFrameStartSeconds = static_cast<float>(timing.timeElapsedSeconds);
 }
 
-auto DebugLines::getLayerEnabled(DebugLinesLayers const layer) const -> bool
+auto WireframeOverlay::getLayerEnabled(WireframeLayers const layer) const
+    -> bool
 {
     return m_layerEnableFlags.contains(layer) && m_layerEnableFlags.at(layer);
 }
 
-void DebugLines::setLayerEnabled(
-    DebugLinesLayers const layer, bool const enabled
+void WireframeOverlay::setLayerEnabled(
+    WireframeLayers const layer, bool const enabled
 )
 {
     m_layerEnableFlags[layer] = enabled;
 }
 
-auto DebugLines::lastFrameDrawResults() -> DrawResultsGraphics
+auto WireframeOverlay::lastFrameDrawResults() -> DrawResultsGraphics
 {
     return m_lastFrameDrawResults;
 }
 
-auto DebugLines::renderInfo() const -> DebugLinesRenderInfo
+auto WireframeOverlay::renderInfo() const -> WireframeRenderInfo
 {
     return {
         .indicesOnGPU = m_indices != nullptr ? m_indices->deviceSize() : 0UL,
@@ -313,7 +314,7 @@ auto DebugLines::renderInfo() const -> DebugLinesRenderInfo
     };
 }
 
-void DebugLines::recordDraw(
+void WireframeOverlay::recordDraw(
     VkCommandBuffer cmd,
     VkRect2D sceneSubregion,
     SceneTexture& sceneTexture,

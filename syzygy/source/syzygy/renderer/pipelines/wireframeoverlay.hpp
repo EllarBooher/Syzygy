@@ -22,21 +22,21 @@ struct SceneTexture;
 
 namespace syzygy
 {
-enum class DebugLinesLayers
+enum class WireframeLayers
 {
     Gizmo,
     Debug
 };
 
-struct DebugLinesRenderInfo
+struct WireframeRenderInfo
 {
     uint64_t indicesOnGPU;
     uint64_t verticesOnGPU;
 };
 
-struct DebugLinesArguments
+struct WireframeArguments
 {
-    DebugLinesLayers layer{DebugLinesLayers::Debug};
+    WireframeLayers layer{WireframeLayers::Debug};
 
     glm::vec3 colorRGB{0.0F, 1.0F, 0.0F};
 
@@ -44,31 +44,35 @@ struct DebugLinesArguments
     float lifetimeSeconds{0.0F};
 };
 
-struct DebugLines
+// Provides a mechanism to draw wireframe geometry over the scene using world
+// coordinates.
+struct WireframeOverlay
 {
 public:
-    DebugLines(DebugLines const&) = delete;
-    auto operator=(DebugLines const&) noexcept -> DebugLines& = delete;
+    WireframeOverlay(WireframeOverlay const&) = delete;
+    auto operator=(WireframeOverlay const&) noexcept
+        -> WireframeOverlay& = delete;
 
-    auto operator=(DebugLines&&) -> DebugLines&;
-    DebugLines(DebugLines&&) noexcept;
-    ~DebugLines();
+    auto operator=(WireframeOverlay&&) -> WireframeOverlay&;
+    WireframeOverlay(WireframeOverlay&&) noexcept;
+    ~WireframeOverlay();
 
 private:
-    DebugLines() = default;
+    WireframeOverlay() = default;
 
 public:
-    static auto create(VkDevice, VmaAllocator) -> std::unique_ptr<DebugLines>;
+    static auto create(VkDevice, VmaAllocator)
+        -> std::unique_ptr<WireframeOverlay>;
 
     // TODO: Some of these overloads/signatures are messy or unnecessary. The
     // most useful methods should be kept and clarified.
 
-    void push(glm::vec3 start, glm::vec3 end, DebugLinesArguments args = {});
+    void push(glm::vec3 start, glm::vec3 end, WireframeArguments args = {});
     void push(
         glm::vec3 localStart,
         glm::vec3 localEnd,
         glm::mat4x4 worldMatrix,
-        DebugLinesArguments args = {}
+        WireframeArguments args = {}
     );
 
     // Adds 4 line segmants defined by AB, BC, CD, DA.
@@ -78,23 +82,23 @@ public:
         glm::vec3 b,
         glm::vec3 c,
         glm::vec3 d,
-        DebugLinesArguments args = {}
+        WireframeArguments args = {}
     );
 
     // Adds an arrow with a tip. The arrow is default pointing towards the world
     // forward.
     void
-    pushArrow(Transform transform, float length, DebugLinesArguments args = {});
+    pushArrow(Transform transform, float length, WireframeArguments args = {});
     // Overload that's simpler to specify, but the rotation of the arrow is
     // ambiguous.
-    void pushArrow(Ray ray, DebugLinesArguments args = {});
+    void pushArrow(Ray ray, WireframeArguments args = {});
 
     // Push a rectangle with possibly non-axis-aligned extents.
     void pushRectangleAxes(
         glm::vec3 center,
         glm::vec3 extentA,
         glm::vec3 extentB,
-        DebugLinesArguments args = {}
+        WireframeArguments args = {}
     );
 
     // Push a rectangle, stretched along the (x,z) axes by extents.
@@ -102,7 +106,7 @@ public:
         glm::vec3 center,
         glm::quat orientation,
         glm::vec2 extents,
-        DebugLinesArguments args = {}
+        WireframeArguments args = {}
     );
 
     // Push a rectangular prism, stretched along the (x,y,z) axes by extents.
@@ -110,22 +114,22 @@ public:
         glm::vec3 center,
         glm::quat orientation,
         glm::vec3 extents,
-        DebugLinesArguments args = {}
+        WireframeArguments args = {}
     );
-    void pushBox(glm::mat4x4, AABB, DebugLinesArguments args = {});
-    void pushBox(Transform, AABB, DebugLinesArguments args = {});
+    void pushBox(glm::mat4x4, AABB, WireframeArguments args = {});
+    void pushBox(Transform, AABB, WireframeArguments args = {});
 
     void clear();
 
     // Should be called early each frame, before pushing any new geometry.
     void tick(TickTiming const&);
 
-    [[nodiscard]] auto getLayerEnabled(DebugLinesLayers) const -> bool;
-    void setLayerEnabled(DebugLinesLayers, bool);
+    [[nodiscard]] auto getLayerEnabled(WireframeLayers) const -> bool;
+    void setLayerEnabled(WireframeLayers, bool);
 
     [[nodiscard]] auto lastFrameDrawResults() -> DrawResultsGraphics;
 
-    [[nodiscard]] auto renderInfo() const -> DebugLinesRenderInfo;
+    [[nodiscard]] auto renderInfo() const -> WireframeRenderInfo;
 
     void recordDraw(
         VkCommandBuffer cmd,
@@ -136,7 +140,7 @@ public:
     );
 
 private:
-    struct DebugLineSegment
+    struct WireframeSegment
     {
         VertexPacked start{};
         VertexPacked end{};
@@ -150,9 +154,9 @@ private:
     std::unique_ptr<TStagedBuffer<uint32_t>> m_indices{};
     std::unique_ptr<DebugLineGraphicsPipeline> m_pipeline{};
 
-    std::unordered_map<DebugLinesLayers, bool> m_layerEnableFlags{};
+    std::unordered_map<WireframeLayers, bool> m_layerEnableFlags{};
 
-    std::unordered_map<DebugLinesLayers, std::vector<DebugLineSegment>>
+    std::unordered_map<WireframeLayers, std::vector<WireframeSegment>>
         m_segments{};
 
     DrawResultsGraphics m_lastFrameDrawResults{};

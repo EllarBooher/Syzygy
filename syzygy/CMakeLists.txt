@@ -12,7 +12,7 @@ add_library(
 	"source/syzygy/geometry/geometrytests.cpp"
 	"source/syzygy/geometry/transform.cpp"
 
-	"source/syzygy/renderer/pipelines/debuglines.cpp"
+	"source/syzygy/renderer/pipelines/wireframeoverlay.cpp"
 	"source/syzygy/renderer/pipelines/deferred.cpp"
 
 	"source/syzygy/renderer/pipelines.cpp"

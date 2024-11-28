@@ -5,9 +5,9 @@
 #include "syzygy/renderer/buffers.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
-#include "syzygy/renderer/pipelines/debuglines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
 #include "syzygy/renderer/pipelines/skyview.hpp"
+#include "syzygy/renderer/pipelines/wireframeoverlay.hpp"
 #include <memory>
 #include <optional>
 
@@ -49,7 +49,7 @@ public:
     // TODO: Remove this, but right now relies on internal state.
     void uiEngineControls(syzygy::DockingLayout const&);
 
-    [[nodiscard]] auto debugLines() -> DebugLines&;
+    [[nodiscard]] auto wireframeOverlay() -> WireframeOverlay&;
 
     void recordDraw(
         VkCommandBuffer,
@@ -94,9 +94,7 @@ private:
     std::unique_ptr<syzygy::ImageView> m_sceneDepthTexture{};
 
     // Pipelines
-
-    static uint32_t constexpr DEBUGLINES_CAPACITY{10000};
-    std::unique_ptr<DebugLines> m_debugLines{};
+    std::unique_ptr<WireframeOverlay> m_wireframeOverlay{};
 
     RenderingPipelines m_activeRenderingPipeline{RenderingPipelines::DEFERRED};
     std::unique_ptr<ComputeCollectionPipeline> m_genericComputePipeline{};

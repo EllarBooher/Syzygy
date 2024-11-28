@@ -42,7 +42,7 @@ Renderer::Renderer(Renderer&& other) noexcept
 
     m_sceneDepthTexture = std::move(other.m_sceneDepthTexture);
 
-    m_debugLines = std::exchange(other.m_debugLines, {});
+    m_wireframeOverlay = std::exchange(other.m_wireframeOverlay, {});
 
     m_activeRenderingPipeline = std::exchange(
         other.m_activeRenderingPipeline, RenderingPipelines::DEFERRED
@@ -73,7 +73,7 @@ void Renderer::destroy()
 
     m_sceneDepthTexture.reset();
 
-    m_debugLines.reset();
+    m_wireframeOverlay.reset();
 
     m_activeRenderingPipeline = RenderingPipelines::DEFERRED;
     m_genericComputePipeline->cleanup(m_device);
@@ -194,7 +194,7 @@ void Renderer::initWorld(VkDevice const device, VmaAllocator const allocator)
 
 void Renderer::initDebug(VkDevice const device, VmaAllocator const allocator)
 {
-    m_debugLines = DebugLines::create(device, allocator);
+    m_wireframeOverlay = WireframeOverlay::create(device, allocator);
 }
 
 void Renderer::initDeferredShadingPipeline(
@@ -249,11 +249,14 @@ void Renderer::uiEngineControls(DockingLayout const& dockingLayout)
         }
 
         ImGui::Separator();
-        imguiStructureControls(*m_debugLines);
+        imguiStructureControls(*m_wireframeOverlay);
     }
 }
 
-auto Renderer::debugLines() -> DebugLines& { return *m_debugLines; }
+auto Renderer::wireframeOverlay() -> WireframeOverlay&
+{
+    return *m_wireframeOverlay;
+}
 
 void Renderer::recordDraw(
     VkCommandBuffer const cmd,
@@ -346,7 +349,7 @@ void Renderer::recordDraw(
         for (glm::mat4x4 const& transform :
              meshResources.models->readValidStaged())
         {
-            m_debugLines->pushBox(transform, mesh.vertexBounds);
+            m_wireframeOverlay->pushBox(transform, mesh.vertexBounds);
         }
     }
 
@@ -401,13 +404,13 @@ void Renderer::recordDraw(
 
             auto const sceneBounds{scene.shadowBounds()};
 
-            m_debugLines->pushBox(
+            m_wireframeOverlay->pushBox(
                 sceneBounds.center,
                 glm::identity<glm::quat>(),
                 sceneBounds.halfExtent
             );
 
-            m_debugLines->recordDraw(
+            m_wireframeOverlay->recordDraw(
                 cmd, sceneSubregion, sceneTexture, *m_camerasBuffer, cameraIndex
             );
             break;
