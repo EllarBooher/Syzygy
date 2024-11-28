@@ -4,6 +4,7 @@
 #include "syzygy/assets/assetstypes.hpp"
 #include "syzygy/assets/mesh.hpp"
 #include "syzygy/assets/scenetemplate.hpp"
+#include "syzygy/core/input.hpp"
 #include "syzygy/core/ringbuffer.hpp"
 #include "syzygy/core/uuid.hpp"
 #include "syzygy/editor/editorconfig.hpp"
@@ -21,6 +22,7 @@
 #include <format>
 #include <functional>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <glm/vec2.hpp>
 #include <implot.h>
 #include <memory>
@@ -1310,6 +1312,50 @@ void sceneControlsWindow(
                 .rowBoolean("Render Spotlights", scene.spotlightsRender, true)
                 .end();
         }
+    }
+}
+
+void inputVisualizerWindow(
+    std::optional<ImGuiID> dockNode, InputSnapshot const& snapshot
+)
+{
+    UIWindowScope const window{UIWindowScope::beginDockable("Input", dockNode)};
+
+    ImGui::SeparatorText("Keyboard");
+    ImGui::Text("Pressed Keys: ");
+    for (size_t index{0}; index < snapshot.keys.keys.size(); index++)
+    {
+        auto const keyCode{static_cast<KeyCode>(index)};
+        ButtonStatus const status{snapshot.keys.keys[index]};
+        ImGui::Text(
+            "%s : %s", toString(keyCode).c_str(), toString(status).c_str()
+        );
+    }
+
+    ImGui::SeparatorText("Mouse");
+    ImGui::Text("Positions are in window screen pixels.");
+    ImGui::Text(
+        "Current Position: %s",
+        glm::to_string(snapshot.cursor.currentPosition).c_str()
+    );
+    ImGui::Text(
+        "Last Frame Position: %s",
+        glm::to_string(snapshot.cursor.lastPosition).c_str()
+    );
+    ImGui::Text(
+        "Delta Position: %s", glm::to_string(snapshot.cursor.delta()).c_str()
+    );
+    ImGui::NewLine();
+
+    for (size_t index{0}; index < snapshot.cursor.mouseButtons.size(); index++)
+    {
+        auto const mouseButtonCode{static_cast<MouseButtonCode>(index)};
+        ButtonStatus const status{snapshot.cursor.mouseButtons[index]};
+        ImGui::Text(
+            "%s : %s",
+            toString(mouseButtonCode).c_str(),
+            toString(status).c_str()
+        );
     }
 }
 

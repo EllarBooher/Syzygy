@@ -16,10 +16,18 @@ struct InputState
 {
     struct KeysState
     {
-        std::array<bool, static_cast<size_t>(syzygy::KeyCode::MAX)> keysDown;
+        static size_t constexpr KEY_COUNT{
+            static_cast<size_t>(syzygy::KeyCode::MAX)
+        };
+        std::array<bool, KEY_COUNT> keysDown;
     };
     struct CursorState
     {
+        static size_t constexpr MOUSE_BUTTON_COUNT{
+            static_cast<size_t>(syzygy::MouseButtonCode::MAX)
+        };
+        std::array<bool, MOUSE_BUTTON_COUNT> buttonsDown;
+
         glm::i64vec2 position;
     };
 
@@ -55,6 +63,36 @@ auto keyToKeyCode(int32_t key) -> std::optional<syzygy::KeyCode>
         return syzygy::KeyCode::E;
     case GLFW_KEY_TAB:
         return syzygy::KeyCode::TAB;
+    default:
+        return std::nullopt;
+    }
+}
+
+auto mouseButtonToCode(int32_t button) -> std::optional<syzygy::MouseButtonCode>
+{
+    // Check this to make sure the switch statement is well-formed
+    static_assert(GLFW_MOUSE_BUTTON_LEFT == GLFW_MOUSE_BUTTON_1);
+    static_assert(GLFW_MOUSE_BUTTON_RIGHT == GLFW_MOUSE_BUTTON_2);
+    static_assert(GLFW_MOUSE_BUTTON_MIDDLE == GLFW_MOUSE_BUTTON_3);
+
+    switch (button)
+    {
+    case GLFW_MOUSE_BUTTON_LEFT:
+        return syzygy::MouseButtonCode::LEFT;
+    case GLFW_MOUSE_BUTTON_RIGHT:
+        return syzygy::MouseButtonCode::RIGHT;
+    case GLFW_MOUSE_BUTTON_MIDDLE:
+        return syzygy::MouseButtonCode::MIDDLE;
+    case GLFW_MOUSE_BUTTON_4:
+        return syzygy::MouseButtonCode::MISC_4;
+    case GLFW_MOUSE_BUTTON_5:
+        return syzygy::MouseButtonCode::MISC_5;
+    case GLFW_MOUSE_BUTTON_6:
+        return syzygy::MouseButtonCode::MISC_6;
+    case GLFW_MOUSE_BUTTON_7:
+        return syzygy::MouseButtonCode::MISC_7;
+    case GLFW_MOUSE_BUTTON_8:
+        return syzygy::MouseButtonCode::MISC_8;
     default:
         return std::nullopt;
     }
@@ -121,6 +159,29 @@ void callbackCursorPos(
     }
 }
 
+void callbackMouseButton(
+    GLFWwindow* const window, int const button, int const action, int const mods
+)
+{
+    if (!s_GLFWstates.contains(window))
+    {
+        return;
+    }
+
+    InputState& state{s_GLFWstates.at(window)};
+    std::optional<syzygy::MouseButtonCode> const buttonResult{
+        mouseButtonToCode(button)
+    };
+    if (!buttonResult.has_value())
+    {
+        return;
+    }
+    syzygy::MouseButtonCode const buttonCode{buttonResult.value()};
+
+    bool& isDown{state.cursorNew.buttonsDown[static_cast<size_t>(buttonCode)]};
+    isDown = isDownFromAction(isDown, action);
+}
+
 // Returns true on success
 auto registerWindow(GLFWwindow* const handle) -> bool
 {
@@ -144,6 +205,9 @@ auto registerWindow(GLFWwindow* const handle) -> bool
     auto* const previousCursorPosCallback{
         glfwSetCursorPosCallback(handle, callbackCursorPos)
     };
+    auto* const previousMouseButtonCallback{
+        glfwSetMouseButtonCallback(handle, callbackMouseButton)
+    };
 
     if (previousKeyCallback != nullptr)
     {
@@ -152,6 +216,10 @@ auto registerWindow(GLFWwindow* const handle) -> bool
     if (previousCursorPosCallback != nullptr)
     {
         SZG_WARNING("Input Handler overwrote previous cursor pos callback.");
+    }
+    if (previousMouseButtonCallback != nullptr)
+    {
+        SZG_WARNING("Input Handler overwrote previous mouse button callback.");
     }
 
     return true;
@@ -178,6 +246,9 @@ void unregisterWindow(GLFWwindow* const handle)
     auto* const previousCursorPosCallback{
         glfwSetCursorPosCallback(handle, nullptr)
     };
+    auto* const previousMouseButtonCallback{
+        glfwSetMouseButtonCallback(handle, nullptr)
+    };
 
     if (previousKeyCallback != callbackKey)
     {
@@ -186,6 +257,10 @@ void unregisterWindow(GLFWwindow* const handle)
     if (previousCursorPosCallback != callbackCursorPos)
     {
         SZG_WARNING("Input Handler deleted unkown cursor pos callback.");
+    }
+    if (previousMouseButtonCallback != callbackMouseButton)
+    {
+        SZG_WARNING("Input Handler deleted unknown mouse button callback.");
     }
 }
 
@@ -247,10 +322,10 @@ private:
 };
 } // namespace syzygy
 
-namespace
+namespace syzygy
 {
 
-auto toString(syzygy::KeyStatus const status) -> std::string
+auto toString(ButtonStatus const status) -> std::string
 {
     if (status.down)
     {
@@ -259,33 +334,56 @@ auto toString(syzygy::KeyStatus const status) -> std::string
 
     return status.edge ? "RELEASED" : "NONE";
 }
-auto toString(syzygy::KeyCode const key) -> std::string
+auto toString(KeyCode const key) -> std::string
 {
     switch (key)
     {
-    case (syzygy::KeyCode::W):
+    case (KeyCode::W):
         return "W";
-    case (syzygy::KeyCode::A):
+    case (KeyCode::A):
         return "A";
-    case (syzygy::KeyCode::S):
+    case (KeyCode::S):
         return "S";
-    case (syzygy::KeyCode::D):
+    case (KeyCode::D):
         return "D";
-    case (syzygy::KeyCode::Q):
+    case (KeyCode::Q):
         return "Q";
-    case (syzygy::KeyCode::E):
+    case (KeyCode::E):
         return "E";
-    case (syzygy::KeyCode::TAB):
-        return "TAB";
-    case (syzygy::KeyCode::MAX):
+    case (KeyCode::TAB):
+        return "Tab";
+    case (KeyCode::MAX):
     default:
-        return "UNKOWN_KEY";
+        return "Unknown Keyboard Key";
     }
 }
-} // namespace
 
-namespace syzygy
+auto toString(MouseButtonCode const mouseButton) -> std::string
 {
+    switch (mouseButton)
+    {
+    case (MouseButtonCode::LEFT):
+        return "Left Mouse Button";
+    case (MouseButtonCode::RIGHT):
+        return "Right Mouse Button";
+    case (MouseButtonCode::MIDDLE):
+        return "Middle Mouse Button";
+    case (MouseButtonCode::MISC_4):
+        return "Mouse Button 4";
+    case (MouseButtonCode::MISC_5):
+        return "Mouse Button 5";
+    case (MouseButtonCode::MISC_6):
+        return "Mouse Button 6";
+    case (MouseButtonCode::MISC_7):
+        return "Mouse Button 7";
+    case (MouseButtonCode::MISC_8):
+        return "Mouse Button 8";
+    case (MouseButtonCode::MAX):
+    default:
+        return "Unknown Mouse Button";
+    }
+}
+
 InputHandler::~InputHandler() { m_impl.reset(); }
 auto InputHandler::create(PlatformWindow const& window)
     -> std::optional<InputHandler>
@@ -316,7 +414,7 @@ auto InputHandler::collect() -> InputSnapshot
         bool const oldDown{state.keysOld.keysDown[index]};
         bool const isDown{state.keysNew.keysDown[index]};
 
-        keys.keys[index] = KeyStatus{
+        keys.keys[index] = ButtonStatus{
             .down = isDown,
             .edge = isDown != oldDown,
         };
@@ -325,6 +423,16 @@ auto InputHandler::collect() -> InputSnapshot
     CursorSnapshot cursor{};
     cursor.currentPosition = state.cursorNew.position;
     cursor.lastPosition = state.cursorOld.position;
+    for (size_t index{0}; index < state.cursorNew.buttonsDown.size(); index++)
+    {
+        bool const oldDown{state.cursorOld.buttonsDown[index]};
+        bool const isDown{state.cursorNew.buttonsDown[index]};
+
+        cursor.mouseButtons[index] = ButtonStatus{
+            .down = isDown,
+            .edge = isDown != oldDown,
+        };
+    }
 
     state.cursorOld = state.cursorNew;
     state.keysOld = state.keysNew;
@@ -355,12 +463,12 @@ auto InputHandler::operator=(InputHandler&& other) noexcept -> InputHandler&
     return *this;
 }
 
-auto KeySnapshot::getStatus(KeyCode const key) const -> KeyStatus
+auto KeySnapshot::getStatus(KeyCode const key) const -> ButtonStatus
 {
     return keys[static_cast<size_t>(key)];
 }
 
-void KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
+void KeySnapshot::setStatus(KeyCode const key, ButtonStatus const status)
 {
     if (getStatus(key) == status)
     {
@@ -370,11 +478,26 @@ void KeySnapshot::setStatus(KeyCode const key, KeyStatus const status)
     keys[static_cast<size_t>(key)] = status;
 }
 
-auto KeyStatus::pressed() const -> bool { return down && edge; }
+auto ButtonStatus::pressed() const -> bool { return down && edge; }
 
-auto KeyStatus::operator==(KeyStatus const& other) const -> bool
+auto ButtonStatus::released() const -> bool { return !down && edge; }
+
+auto ButtonStatus::operator==(ButtonStatus const& other) const -> bool
 {
     return other.down == down && other.edge == edge;
+}
+
+auto CursorSnapshot::getStatus(MouseButtonCode const mouseButton) const
+    -> ButtonStatus
+{
+    return mouseButtons[static_cast<size_t>(mouseButton)];
+}
+
+void CursorSnapshot::setStatus(
+    MouseButtonCode const mouseButton, ButtonStatus const status
+)
+{
+    mouseButtons[static_cast<size_t>(mouseButton)] = status;
 }
 
 auto CursorSnapshot::delta() const -> glm::i64vec2

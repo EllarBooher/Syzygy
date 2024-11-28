@@ -17,6 +17,7 @@ struct RingBuffer;
 struct Mesh;
 struct ImageView;
 struct SceneTemplate;
+struct InputSnapshot;
 } // namespace syzygy
 
 namespace syzygy
@@ -51,6 +52,9 @@ void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene
+);
+void inputVisualizerWindow(
+    std::optional<ImGuiID> dockNode, InputSnapshot const& snapshot
 );
 
 template <typename T> struct WindowResult

@@ -588,6 +588,8 @@ auto run() -> EditorResult
             );
         }
 
+        inputVisualizerWindow(dockingLayout.right, inputSnapshot);
+
         editorConfigurationWindow(
             "Editor Configuration",
             dockingLayout.right,

@@ -14,14 +14,18 @@ struct PlatformWindow;
 
 namespace syzygy
 {
-struct KeyStatus
+struct ButtonStatus
 {
     bool down;
     bool edge;
 
+    // Shorthand for down && edge.
     [[nodiscard]] auto pressed() const -> bool;
 
-    auto operator==(KeyStatus const& other) const -> bool;
+    // Shorthand for !down && edge.
+    [[nodiscard]] auto released() const -> bool;
+
+    auto operator==(ButtonStatus const& other) const -> bool;
 };
 
 enum class KeyCode
@@ -36,17 +40,40 @@ enum class KeyCode
     MAX
 };
 
+enum class MouseButtonCode
+{
+    LEFT,
+    RIGHT,
+    MIDDLE,
+    MISC_4,
+    MISC_5,
+    MISC_6,
+    MISC_7,
+    MISC_8,
+    MAX
+};
+
+auto toString(KeyCode const) -> std::string;
+auto toString(MouseButtonCode const) -> std::string;
+auto toString(ButtonStatus const) -> std::string;
+
 struct KeySnapshot
 {
-    std::array<KeyStatus, static_cast<size_t>(KeyCode::MAX)> keys;
+    std::array<ButtonStatus, static_cast<size_t>(KeyCode::MAX)> keys;
 
-    [[nodiscard]] auto getStatus(KeyCode) const -> KeyStatus;
-    void setStatus(KeyCode, KeyStatus);
+    [[nodiscard]] auto getStatus(KeyCode) const -> ButtonStatus;
+    void setStatus(KeyCode, ButtonStatus);
 };
 struct CursorSnapshot
 {
     glm::i64vec2 lastPosition{};
     glm::i64vec2 currentPosition{};
+
+    std::array<ButtonStatus, static_cast<size_t>(MouseButtonCode::MAX)>
+        mouseButtons;
+
+    [[nodiscard]] auto getStatus(MouseButtonCode) const -> ButtonStatus;
+    void setStatus(MouseButtonCode, ButtonStatus);
 
     [[nodiscard]] auto delta() const -> glm::i64vec2;
 };
