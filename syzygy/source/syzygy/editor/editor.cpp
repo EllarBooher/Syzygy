@@ -26,6 +26,7 @@
 #include "syzygy/renderer/vulkanstructs.hpp"
 #include "syzygy/ui/dockinglayout.hpp"
 #include "syzygy/ui/hud.hpp"
+#include "syzygy/ui/scenenodegizmo.hpp"
 #include "syzygy/ui/statelesswidgets.hpp"
 #include "syzygy/ui/texturedisplay.hpp"
 #include <GLFW/glfw3.h>
@@ -505,6 +506,10 @@ auto run() -> EditorResult
         SZG_ERROR("Failed to create widget to display images.");
     }
 
+    std::unique_ptr<SceneNodeGizmo> const sceneNodeGizmo{
+        std::make_unique<SceneNodeGizmo>()
+    };
+
     bool inputCapturedByScene{false};
     Scene scene{Scene::defaultScene()};
     std::optional<Renderer> rendererResult{Renderer::create(
@@ -609,6 +614,16 @@ auto run() -> EditorResult
             uiLayer.sceneViewport(inputCapturedByScene)
         };
 
+        bool cursorCapturedByGizmo{false};
+        if (sceneViewport.has_value() && !inputCapturedByScene)
+        {
+            sceneNodeGizmo->handleCursor(
+                inputSnapshot, sceneViewport.value().windowExtent, scene.camera
+            );
+            cursorCapturedByGizmo |= sceneNodeGizmo->consumedCursor();
+        }
+        sceneNodeGizmo->render(renderer.wireframeOverlay());
+
         if (inputCapturedByScene
             && (!sceneViewport.has_value()
                 || inputSnapshot.keys.getStatus(KeyCode::TAB).pressed()))
@@ -618,7 +633,7 @@ auto run() -> EditorResult
             inputCapturedByScene = false;
         }
         if (!inputCapturedByScene && sceneViewport.has_value()
-            && sceneViewport.value().focused)
+            && sceneViewport.value().focused && !cursorCapturedByGizmo)
         {
             uiLayer.setCursorEnabled(false);
             inputHandler.setCursorCaptured(true);
@@ -640,7 +655,11 @@ auto run() -> EditorResult
 
         uiLayer.renderWidgets();
 
-        sceneHierarchyWindow("Default Scene", dockingLayout.left, scene);
+        std::weak_ptr<SceneNode> const selectedSceneNode{
+            sceneHierarchyWindow("Default Scene", dockingLayout.left, scene)
+        };
+        sceneNodeGizmo->setNode(selectedSceneNode);
+
         sceneControlsWindow("Default Scene", dockingLayout.left, scene);
 
         uiLayer.end();
@@ -654,7 +673,7 @@ auto run() -> EditorResult
                 scene,
                 graphicsContext.descriptorAllocator(),
                 sceneViewport.value().texture,
-                sceneViewport.value().renderedSubregion
+                sceneViewport.value().sceneTextureSubregion
             );
         }
 

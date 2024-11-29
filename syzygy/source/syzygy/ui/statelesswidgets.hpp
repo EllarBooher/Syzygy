@@ -18,6 +18,7 @@ struct Mesh;
 struct ImageView;
 struct SceneTemplate;
 struct InputSnapshot;
+struct SceneNode;
 } // namespace syzygy
 
 namespace syzygy
@@ -43,16 +44,20 @@ void performanceWindow(
     RingBuffer const& values,
     float& targetFPS
 );
-void sceneHierarchyWindow(
+
+// Returns the currently selected node
+auto sceneHierarchyWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene
-);
+) -> std::weak_ptr<SceneNode>;
+
 void sceneControlsWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
     syzygy::Scene& scene
 );
+
 void inputVisualizerWindow(
     std::optional<ImGuiID> dockNode, InputSnapshot const& snapshot
 );
@@ -63,8 +68,8 @@ template <typename T> struct WindowResult
     T payload;
 };
 
-// The returned value indicates the extent from (0,0) to (x,y) that will be read
-// from the the syzygy texture by ImGui when the final image is composited.
+// The returned value indicates the window pixels that the scene viewport takes
+// up.
 auto sceneViewportWindow(
     std::string const& title,
     std::optional<ImGuiID> dockNode,
@@ -72,5 +77,5 @@ auto sceneViewportWindow(
     ImTextureID sceneTexture,
     ImVec2 sceneTextureMax,
     bool focused
-) -> WindowResult<std::optional<VkRect2D>>;
+) -> WindowResult<std::optional<UIRectangle>>;
 } // namespace syzygy

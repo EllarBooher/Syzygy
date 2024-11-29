@@ -3,6 +3,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <optional>
 
 namespace syzygy
 {
@@ -70,4 +71,6 @@ auto transformVk(glm::vec3 position, glm::vec3 eulerAngles) -> glm::mat4x4;
 auto viewVk(glm::vec3 position, glm::vec3 eulerAngles) -> glm::mat4x4;
 
 auto randomQuat() -> glm::quat;
+
+auto aspectRatio(glm::vec2 extent) -> std::optional<double>;
 } // namespace syzygy

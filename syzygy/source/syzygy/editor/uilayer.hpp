@@ -24,7 +24,15 @@ struct SceneViewport
 {
     bool focused;
     std::reference_wrapper<SceneTexture> texture;
-    VkRect2D renderedSubregion;
+
+    // The pixels of the SceneTexture image that will be read by the UI backend,
+    // useful for the destination extent needed while recording draw commands.
+    VkRect2D sceneTextureSubregion;
+
+    // The screen-space pixels that the viewport takes up in the UI, useful for
+    // transforming application window coordinates into scene world coordinates,
+    // such as when raycasting in mouse events.
+    UIRectangle windowExtent;
 };
 
 struct UIOutputImage

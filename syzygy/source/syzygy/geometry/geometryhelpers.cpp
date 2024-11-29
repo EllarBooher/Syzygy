@@ -168,6 +168,18 @@ auto randomQuat() -> glm::quat
     return {s * uv.y, xy.x, xy.y, s * uv.x};
 }
 
+auto aspectRatio(glm::vec2 extent) -> std::optional<double>
+{
+    double const rawAspectRatio = extent.x / extent.y;
+
+    if (!glm::isfinite(rawAspectRatio))
+    {
+        return std::nullopt;
+    }
+
+    return rawAspectRatio;
+}
+
 auto projectionOrthoAABBVk(glm::mat4x4 const view, AABB const capturedBounds)
     -> glm::mat4x4
 {

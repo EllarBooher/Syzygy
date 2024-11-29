@@ -90,10 +90,13 @@ struct Camera
 
     // Rotates (but does not translate) from camera to world space
     [[nodiscard]] auto rotation() const -> glm::mat4x4;
+
     // The matrix that transforms from camera to world space
     [[nodiscard]] auto transform() const -> glm::mat4x4;
+
     // The inverse of transform, transforms from world to camera space
     [[nodiscard]] auto view() const -> glm::mat4x4;
+
     // Projects from camera space to clip space
     [[nodiscard]] auto projection(float aspectRatio) const -> glm::mat4x4;
 
@@ -103,6 +106,11 @@ struct Camera
 
     [[nodiscard]] auto toDeviceEquivalent(float aspectRatio) const
         -> CameraPacked;
+
+    [[nodiscard]] auto worldToNDC(glm::vec3 position, float aspectRatio) const
+        -> glm::vec3;
+    [[nodiscard]] auto NDCToWorld(glm::vec3 position, float aspectRatio) const
+        -> glm::vec3;
 };
 
 struct SceneTime

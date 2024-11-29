@@ -2,6 +2,7 @@
 
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 namespace syzygy
 {
@@ -12,6 +13,13 @@ struct UIRectangle
 
     [[nodiscard]] auto pos() const -> glm::vec2 { return min; }
     [[nodiscard]] auto size() const -> glm::vec2 { return max - min; }
+
+    [[nodiscard]] auto contains(glm::vec2 const pos) const -> bool
+    {
+        return glm::all(glm::bvec4{
+            glm::greaterThanEqual(pos, min), glm::lessThanEqual(pos, max)
+        });
+    }
 
     static auto fromPosSize(glm::vec2 const pos, glm::vec2 const size)
         -> UIRectangle

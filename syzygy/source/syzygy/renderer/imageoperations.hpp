@@ -58,5 +58,4 @@ void recordCopyImageToImage(
 );
 
 auto aspectRatio(VkExtent2D) -> std::optional<double>;
-auto aspectRatio(glm::vec2) -> std::optional<double>;
 } // namespace syzygy

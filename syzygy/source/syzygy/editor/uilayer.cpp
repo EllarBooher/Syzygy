@@ -424,7 +424,7 @@ auto UILayer::sceneViewport(bool const forceFocus)
 
     VkExtent2D const sceneTextureMax{m_sceneTexture->color().image().extent2D()
     };
-    WindowResult<std::optional<VkRect2D>> widgetResult{sceneViewportWindow(
+    WindowResult<std::optional<UIRectangle>> widgetResult{sceneViewportWindow(
         "Scene Viewport",
         m_currentDockingLayout.centerTop,
         m_currentHUD.maximizeSceneViewport ? m_currentHUD.workArea
@@ -444,10 +444,24 @@ auto UILayer::sceneViewport(bool const forceFocus)
         return std::nullopt;
     }
 
+    // This value should be returned by the method sceneViewportWindow above
+    // that actually gives the image to the UI backend, but this works for now.
+    VkRect2D const sceneTextureSubregion{
+        .extent =
+            VkExtent2D{
+                .width =
+                    static_cast<uint32_t>(widgetResult.payload.value().size().x
+                    ),
+                .height =
+                    static_cast<uint32_t>(widgetResult.payload.value().size().y)
+            }
+    };
+
     return SceneViewport{
         .focused = widgetResult.focused,
         .texture = *m_sceneTexture,
-        .renderedSubregion = widgetResult.payload.value(),
+        .sceneTextureSubregion = sceneTextureSubregion,
+        .windowExtent = widgetResult.payload.value()
     };
 }
 

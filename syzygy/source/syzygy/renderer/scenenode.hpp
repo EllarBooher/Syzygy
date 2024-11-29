@@ -55,6 +55,10 @@ struct SceneNode
     [[nodiscard]] auto childrenCount() const -> size_t;
     [[nodiscard]] auto childAt(size_t index) const -> SceneNode const&;
 
+    [[nodiscard]] auto refSelf() const -> std::weak_ptr<SceneNode>;
+    [[nodiscard]] auto refChild(SceneNode const&) const
+        -> std::weak_ptr<SceneNode>;
+
     [[nodiscard]] auto descendent(SceneNode const*) const -> bool;
 
     // Creates a free-standing node without children.

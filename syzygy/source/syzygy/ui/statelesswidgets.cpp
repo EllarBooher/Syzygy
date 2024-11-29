@@ -696,7 +696,7 @@ using SceneNodeNoOperation = std::monostate;
 
 struct SceneNodeSelect
 {
-    std::reference_wrapper<syzygy::SceneNode const> target;
+    std::weak_ptr<syzygy::SceneNode> target;
 };
 struct SceneNodeAppendChild
 {
@@ -751,6 +751,12 @@ auto uiDrawSceneHierarchyTreeNode(syzygy::SceneNode const& node) -> bool
     return expanded;
 }
 
+struct SceneHierarchyOptions
+{
+    bool allowDeletion;
+    bool allowSelection;
+};
+
 // Recursively renders a tree view of scene nodes, and bubbles up an optional
 // operation to be performed on a node based on user input. Multiple operations
 // in an update are not supported: Parent nodes swallow operation performed on
@@ -758,7 +764,7 @@ auto uiDrawSceneHierarchyTreeNode(syzygy::SceneNode const& node) -> bool
 auto uiDrawSceneHierarchyNode(
     syzygy::SceneNode const& node,
     syzygy::SceneNode const* const selectedNode,
-    bool const allowDeletionOperations
+    SceneHierarchyOptions const options
 ) -> SceneTreeOperation
 {
     std::string const label{fmt::format(
@@ -769,13 +775,15 @@ auto uiDrawSceneHierarchyNode(
 
     SceneTreeOperation operation{SceneNodeNoOperation{}};
 
+    ImGui::BeginDisabled(!options.allowSelection);
     if (ImGui::Selectable(
             fmt::format("{}##{}", label.c_str(), fmt::ptr(&node)).c_str(),
             selectedNode == &node
         ))
     {
-        operation = SceneNodeSelect{.target = node};
+        operation = SceneNodeSelect{.target = node.refSelf()};
     }
+    ImGui::EndDisabled();
 
     if (ImGui::BeginPopupContextItem(
             fmt::format("SceneNodeRightClick##{}", fmt::ptr(&node)).c_str(),
@@ -788,7 +796,7 @@ auto uiDrawSceneHierarchyNode(
                 .target = node,
             };
         }
-        ImGui::BeginDisabled(!allowDeletionOperations);
+        ImGui::BeginDisabled(!options.allowDeletion);
         if (ImGui::Selectable("Delete with Children"))
         {
             operation = SceneNodeDeleteWithChildren{
@@ -889,9 +897,13 @@ auto uiDrawSceneHierarchyNode(
         {
             syzygy::SceneNode const& child = node.childAt(childIndex);
 
-            SceneTreeOperation const innerOperation{
-                uiDrawSceneHierarchyNode(child, selectedNode, true)
-            };
+            // For now, we allow all operations on all descendent nodes. Only
+            // the root node is problematic.
+            SceneTreeOperation const innerOperation{uiDrawSceneHierarchyNode(
+                child,
+                selectedNode,
+                {.allowDeletion = true, .allowSelection = true}
+            )};
 
             // Only propagate subtree operation if no operation is done on this
             // node
@@ -1066,23 +1078,26 @@ template <class... Ts> struct overloaded : Ts...
 
 namespace syzygy
 {
-void sceneHierarchyWindow(
+auto sceneHierarchyWindow(
     std::string const& title,
     std::optional<ImGuiID> const dockNode,
     Scene& scene
-)
+) -> std::weak_ptr<SceneNode>
 {
+    // TODO: refactor this into a stateful widget
+    static std::weak_ptr<syzygy::SceneNode> pSelectedNode{};
+
     UIWindowScope const hierarchyWindow{UIWindowScope::beginDockable(
         std::format("{} Hierarchy##sceneHierarchy", title), dockNode
     )};
     if (!hierarchyWindow.isOpen())
     {
-        return;
+        return pSelectedNode;
     }
 
-    // TODO: refactor this into a stateful widget
-    static syzygy::SceneNode* pSelectedNode{nullptr};
     syzygy::SceneNode& root{scene.sceneRoot()};
+
+    std::shared_ptr<SceneNode> const pLockedNode{pSelectedNode.lock()};
 
     if (ImGui::CollapsingHeader(
             "Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen
@@ -1109,39 +1124,46 @@ void sceneHierarchyWindow(
 
         ImGui::SeparatorText("Hierarchy");
 
-        SceneTreeOperation const operation{
-            uiDrawSceneHierarchyNode(root, pSelectedNode, false)
-        };
+        // We draw starting with the root. The root is problematic to perform
+        // operations on, but for now we just pass options disallowing these
+        // operations which get overriden for children.
+        SceneTreeOperation const operation{uiDrawSceneHierarchyNode(
+            root,
+            pLockedNode.get(),
+            {.allowDeletion = false, .allowSelection = false}
+        )};
+
         // const_cast used here, since the node reference is derived from a
-        // non-const input scene.
-        // TODO: Build a cached read-only view into the scene tree, with IDs
-        // that then point to mutable scene nodes.
+        // non-const input scene. I prefer this over making the scene hierarchy
+        // rendering take a non-const reference.
+        // TODO: Scene Node constness/ownership
+        // is a mess right now. Build a cached read-only view into the scene
+        // tree, with IDs that then point to mutable scene nodes.
         // TODO: defer deletion of mesh buffers until not in use by an in-flight
         // frame
         std::visit(
             overloaded{
                 [](SceneNodeNoOperation const& arg) {},
-                [](SceneNodeSelect const& arg)
-        { pSelectedNode = &const_cast<syzygy::SceneNode&>(arg.target.get()); },
+                [](SceneNodeSelect const& arg) { pSelectedNode = arg.target; },
                 [](SceneNodeAppendChild const& arg) {
             const_cast<syzygy::SceneNode&>(arg.target.get())
                 .createChild("New Node");
         },
-                [](SceneNodeDeleteWithChildren const& arg)
+                [&](SceneNodeDeleteWithChildren const& arg)
         {
-            if (pSelectedNode != nullptr
-                && pSelectedNode->descendent(&arg.target.get()))
+            if (pLockedNode != nullptr
+                && pLockedNode->descendent(&arg.target.get()))
             {
-                pSelectedNode = nullptr;
+                pSelectedNode.reset();
             }
             const_cast<syzygy::SceneNode&>(arg.target.get()).tryRemoveSelf();
         },
-                [](SceneNodeExtract const& arg)
+                [&](SceneNodeExtract const& arg)
         {
-            if (pSelectedNode != nullptr
-                && pSelectedNode->descendent(&arg.target.get()))
+            if (pLockedNode != nullptr
+                && pLockedNode->descendent(&arg.target.get()))
             {
-                pSelectedNode = nullptr;
+                pSelectedNode.reset();
             }
             const_cast<syzygy::SceneNode&>(arg.target.get()).tryExtractSelf();
         },
@@ -1160,11 +1182,13 @@ void sceneHierarchyWindow(
             "Scene Node Inspector", ImGuiTreeNodeFlags_DefaultOpen
         ))
     {
-        if (pSelectedNode != nullptr)
+        if (pLockedNode != nullptr)
         {
-            uiSceneNodeInspector(pSelectedNode); // , meshes, textures);
+            uiSceneNodeInspector(pLockedNode.get());
         }
     }
+
+    return pSelectedNode;
 }
 
 void sceneControlsWindow(
@@ -1366,7 +1390,7 @@ auto sceneViewportWindow(
     ImTextureID const sceneTexture,
     ImVec2 const sceneTextureMax,
     bool const focused
-) -> WindowResult<std::optional<VkRect2D>>
+) -> WindowResult<std::optional<UIRectangle>>
 {
     uint16_t pushedStyleColors{0};
     if (focused)
@@ -1404,6 +1428,8 @@ auto sceneViewportWindow(
     ImVec2 const uvMax{imageMax / glm::vec2{sceneTextureMax}};
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{});
+
+    ImVec2 const imageStartScreenPos{ImGui::GetCursorScreenPos()};
     bool const clicked = ImGui::ImageButton(
         "##viewport",
         sceneTexture,
@@ -1422,18 +1448,10 @@ auto sceneViewportWindow(
 
     ImGui::PopStyleColor(pushedStyleColors);
 
-    VkRect2D const renderedSubregion{
-        .offset = {0, 0},
-        .extent =
-            VkExtent2D{
-                .width = static_cast<uint32_t>(contentExtent.x),
-                .height = static_cast<uint32_t>(contentExtent.y),
-            }
-    };
-
     return {
         .focused = clicked,
-        .payload = renderedSubregion,
+        .payload =
+            UIRectangle::fromPosSize(imageStartScreenPos, imageMax - imageMin),
     };
 }
 } // namespace syzygy

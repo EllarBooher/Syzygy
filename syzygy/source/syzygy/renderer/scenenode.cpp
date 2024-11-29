@@ -29,6 +29,35 @@ auto SceneNode::childAt(size_t index) const -> SceneNode const&
     return *pChild;
 }
 
+auto SceneNode::refSelf() const -> std::weak_ptr<SceneNode>
+{
+    assert(m_parent != nullptr && "SceneNode had null parent.");
+
+    return m_parent->refChild(*this);
+}
+
+auto SceneNode::refChild(SceneNode const& child) const
+    -> std::weak_ptr<SceneNode>
+{
+    assert(
+        child.m_parent == this && "Child to reference is not this node's child."
+    );
+
+    auto& siblings{m_children};
+    auto childIt = std::find_if(
+        siblings.begin(),
+        siblings.end(),
+        [&](std::shared_ptr<SceneNode> const& ptr)
+    { return ptr.get() == &child; }
+    );
+    assert(
+        childIt != siblings.end()
+        && "SceneNode was not in its parent's children."
+    );
+
+    return *childIt;
+}
+
 auto SceneNode::descendent(SceneNode const* const ancestor) const -> bool
 {
     SceneNode const* pNode{this};

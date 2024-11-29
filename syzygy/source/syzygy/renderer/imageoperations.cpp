@@ -1,5 +1,6 @@
 #include "imageoperations.hpp"
 
+#include "syzygy/geometry/geometryhelpers.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/renderer/imageoperations.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
@@ -124,18 +125,6 @@ auto aspectRatio(VkExtent2D const extent) -> std::optional<double>
     auto const height{static_cast<float>(extent.height)};
 
     return aspectRatio(glm::vec2{width, height});
-}
-
-auto aspectRatio(glm::vec2 extent) -> std::optional<double>
-{
-    double const rawAspectRatio = extent.x / extent.y;
-
-    if (!glm::isfinite(rawAspectRatio))
-    {
-        return std::nullopt;
-    }
-
-    return rawAspectRatio;
 }
 
 void recordCopyImageToImage(

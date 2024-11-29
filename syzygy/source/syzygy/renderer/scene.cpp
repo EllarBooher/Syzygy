@@ -806,6 +806,24 @@ auto Camera::toDeviceEquivalent(float const aspectRatio) const -> CameraPacked
     };
 }
 
+auto Camera::worldToNDC(glm::vec3 position, float aspectRatio) const
+    -> glm::vec3
+{
+    glm::vec4 const unscaled{
+        toProjView(aspectRatio) * glm::vec4{position, 1.0F}
+    };
+    return glm::vec3{unscaled / unscaled.w};
+}
+
+auto Camera::NDCToWorld(glm::vec3 position, float aspectRatio) const
+    -> glm::vec3
+{
+    glm::vec4 const unscaled{
+        glm::inverse(projection(aspectRatio)) * glm::vec4{position, 1.0F}
+    };
+    return glm::vec3{transform() * (unscaled / unscaled.w)};
+}
+
 auto Camera::toProjView(float const aspectRatio) const -> glm::mat4x4
 {
     return projection(aspectRatio) * view();

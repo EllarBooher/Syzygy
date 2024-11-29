@@ -4,11 +4,18 @@
 
 namespace
 {
-auto getWindowContent_imgui() -> syzygy::UIRectangle
+// Gets the screen rectangle of the UI window.
+// What a UI Window considers the screen is the native application window.
+// These coordinates will be relative to the native window's position, such as
+// with the origin in the upper left with +x right and +y down.
+auto getScreenRectangle_imgui() -> syzygy::UIRectangle
 {
+    glm::vec2 const windowPos{ImGui::GetWindowPos()};
+    glm::vec2 const contentMin{ImGui::GetWindowContentRegionMin()};
+    glm::vec2 const contentMax{ImGui::GetWindowContentRegionMax()};
+
     return syzygy::UIRectangle{
-        .min{ImGui::GetWindowContentRegionMin()},
-        .max{ImGui::GetWindowContentRegionMax()}
+        .min{contentMin + windowPos}, .max{contentMax + windowPos}
     };
 };
 } // namespace
@@ -33,7 +40,7 @@ auto UIWindowScope::beginMaximized(
     };
 
     uint16_t constexpr styleVariables{1};
-    return {getWindowContent_imgui(), open, styleVariables};
+    return {getScreenRectangle_imgui(), open, styleVariables};
 }
 
 auto UIWindowScope::beginDockable(
@@ -52,7 +59,7 @@ auto UIWindowScope::beginDockable(
     bool const open{ImGui::Begin(name.c_str(), nullptr, DOCKABLE_WINDOW_FLAGS)};
 
     uint16_t constexpr styleVariables{0};
-    return {getWindowContent_imgui(), open, styleVariables};
+    return {getScreenRectangle_imgui(), open, styleVariables};
 }
 
 UIWindowScope::UIWindowScope(UIWindowScope&& other) noexcept
