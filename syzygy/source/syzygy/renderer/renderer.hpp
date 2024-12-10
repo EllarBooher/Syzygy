@@ -3,6 +3,7 @@
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
 #include "syzygy/renderer/buffers.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include "syzygy/renderer/imageview.hpp"
 #include "syzygy/renderer/pipelines.hpp"
 #include "syzygy/renderer/pipelines/deferred.hpp"
@@ -19,6 +20,7 @@ struct CameraPacked;
 struct Scene;
 struct DockingLayout;
 struct SceneTexture;
+struct CommandBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -52,7 +54,7 @@ public:
     [[nodiscard]] auto wireframeOverlay() -> WireframeOverlay&;
 
     void recordDraw(
-        VkCommandBuffer,
+        CommandBuffer&,
         Scene& scene,
         DescriptorAllocator& sceneMeshSurfaceDescriptorPool,
         SceneTexture& sceneTexture,

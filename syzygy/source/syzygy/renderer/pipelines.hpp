@@ -3,6 +3,7 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include "syzygy/renderer/shaders.hpp"
 #include <glm/mat4x4.hpp>
 #include <optional>
@@ -248,7 +249,7 @@ public:
     DebugLineGraphicsPipeline(VkDevice device, ImageFormats formats);
 
     auto recordDrawCommands(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         bool reuseDepthAttachment,
         float lineWidth,
         VkRect2D drawRect,

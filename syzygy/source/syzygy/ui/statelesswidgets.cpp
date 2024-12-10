@@ -870,8 +870,7 @@ auto uiDrawSceneHierarchyNode(
                                                                    : "Scene",
                             pDroppedNode->name()
                         )
-                            .c_str(),
-                        label.c_str()
+                            .c_str()
                     );
                     ImGui::EndTooltip();
                 }

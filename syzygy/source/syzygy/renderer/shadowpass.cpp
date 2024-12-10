@@ -3,6 +3,7 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/image.hpp"
@@ -186,7 +187,7 @@ auto ShadowPassArray::create(
 }
 
 void ShadowPassArray::recordInitialize(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     ShadowPassParameters parameters,
     std::span<DirectionalLightPacked const> const directionalLights,
     std::span<SpotLightPacked const> const spotLights
@@ -236,13 +237,13 @@ void ShadowPassArray::recordInitialize(
         for (size_t i{0}; i < m_projViewMatrices->deviceSize(); i++)
         {
             recordClearDepthImage(
-                cmd, m_shadowmaps[i]->image(), DEPTH_FAR_STENCIL_NONE
+                cmd.handle(), m_shadowmaps[i]->image(), DEPTH_FAR_STENCIL_NONE
             );
         }
 
         // Prepare for recording of draw commands
         recordTransitionActiveShadowMaps(
-            cmd, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
         );
     }
 }

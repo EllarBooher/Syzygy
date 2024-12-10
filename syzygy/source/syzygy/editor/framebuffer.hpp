@@ -2,6 +2,7 @@
 
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include <optional>
 #include <vector>
 
@@ -10,7 +11,7 @@ namespace syzygy
 struct Frame
 {
     VkCommandPool commandPool{VK_NULL_HANDLE};
-    VkCommandBuffer mainCommandBuffer{VK_NULL_HANDLE};
+    CommandBuffer mainCommandBuffer{};
 
     // The semaphore that the swapchain signals when its
     // image is ready to be written to.
@@ -44,7 +45,7 @@ public:
     static auto create(VkDevice, uint32_t queueFamilyIndex)
         -> std::optional<FrameBuffer>;
 
-    [[nodiscard]] auto currentFrame() const -> Frame const&;
+    [[nodiscard]] auto currentFrame() -> Frame&;
     [[nodiscard]] auto frameNumber() const -> size_t;
 
     void increment();

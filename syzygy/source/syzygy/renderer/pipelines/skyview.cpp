@@ -1058,7 +1058,7 @@ auto SkyViewComputePipeline::create(
     return result;
 }
 void SkyViewComputePipeline::recordDrawCommands(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     SceneTexture& sceneTexture,
     VkRect2D const drawRect,
     GBuffer const& gbuffer,
@@ -1108,17 +1108,17 @@ void SkyViewComputePipeline::recordDrawCommands(
     if (m_transmittanceLUT.cachedAtmosphere != currentAtmosphere)
     {
         m_transmittanceLUT.map->recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_GENERAL
+            cmd.handle(), VK_IMAGE_LAYOUT_GENERAL
         );
 
         // Transmittance shader
         VkShaderEXT const transmittanceShader{
             m_transmittanceLUT.shader.shaderObject()
         };
-        vkCmdBindShadersEXT(cmd, 1, &stage, &transmittanceShader);
+        vkCmdBindShadersEXT(cmd.handle(), 1, &stage, &transmittanceShader);
 
         vkCmdBindDescriptorSets(
-            cmd,
+            cmd.handle(),
             VK_PIPELINE_BIND_POINT_COMPUTE,
             m_transmittanceLUT.layout,
             0,
@@ -1138,7 +1138,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         };
 
         vkCmdPushConstants(
-            cmd,
+            cmd.handle(),
             m_transmittanceLUT.layout,
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
@@ -1147,7 +1147,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         );
 
         vkCmdDispatch(
-            cmd,
+            cmd.handle(),
             detail::computeDispatchCount(
                 transmittanceExtent.width, WORKGROUP_SIZE
             ),
@@ -1160,7 +1160,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         m_transmittanceLUT.cachedAtmosphere = currentAtmosphere;
 
         m_transmittanceLUT.map->recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
 
@@ -1169,7 +1169,7 @@ void SkyViewComputePipeline::recordDrawCommands(
                != sunLight.angularRadius)
     {
         detail::recordMultiscatterLUTCommands(
-            cmd,
+            cmd.handle(),
             m_multiscatterLUT,
             atmosphereIndex,
             atmospheres,
@@ -1181,22 +1181,24 @@ void SkyViewComputePipeline::recordDrawCommands(
         m_multiscatterLUT.cachedSunLightAngularRadius = sunLight.angularRadius;
 
         m_multiscatterLUT.map->recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
     }
 
-    m_skyViewLUT.map->recordTransitionBarriered(cmd, VK_IMAGE_LAYOUT_GENERAL);
+    m_skyViewLUT.map->recordTransitionBarriered(
+        cmd.handle(), VK_IMAGE_LAYOUT_GENERAL
+    );
 
     {
         // Sky view shader
         VkShaderEXT const skyviewShader{m_skyViewLUT.shader.shaderObject()};
 
-        vkCmdBindShadersEXT(cmd, 1, &stage, &skyviewShader);
+        vkCmdBindShadersEXT(cmd.handle(), 1, &stage, &skyviewShader);
 
         std::vector<VkDescriptorSet> skyviewSets{m_skyViewLUT.set};
 
         vkCmdBindDescriptorSets(
-            cmd,
+            cmd.handle(),
             VK_PIPELINE_BIND_POINT_COMPUTE,
             m_skyViewLUT.layout,
             0,
@@ -1215,7 +1217,7 @@ void SkyViewComputePipeline::recordDrawCommands(
         };
 
         vkCmdPushConstants(
-            cmd,
+            cmd.handle(),
             m_skyViewLUT.layout,
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
@@ -1225,7 +1227,7 @@ void SkyViewComputePipeline::recordDrawCommands(
 
         VkExtent2D const skyViewExtent{m_skyViewLUT.map->image().extent2D()};
         vkCmdDispatch(
-            cmd,
+            cmd.handle(),
             detail::computeDispatchCount(skyViewExtent.width, WORKGROUP_SIZE),
             detail::computeDispatchCount(skyViewExtent.height, WORKGROUP_SIZE),
             1
@@ -1233,7 +1235,7 @@ void SkyViewComputePipeline::recordDrawCommands(
     }
 
     detail::recordPerspectiveMapCommands(
-        cmd,
+        cmd.handle(),
         m_perspectiveMap,
         sceneTexture,
         *m_skyViewLUT.map,

@@ -5,6 +5,7 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanmacros.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include "syzygy/renderer/descriptors.hpp"
 #include "syzygy/renderer/gbuffer.hpp"
 #include "syzygy/renderer/imageview.hpp"
@@ -392,7 +393,7 @@ void setRasterizationShaderObjectState(
 }
 
 auto collectGeometryCullFlags(
-    VkCommandBuffer const cmd,
+    syzygy::CommandBuffer& cmd,
     VkPipelineStageFlags2 const bufferAccessStages,
     std::span<std::reference_wrapper<syzygy::MeshRenderResources> const>
         meshResources
@@ -438,7 +439,7 @@ auto collectGeometryCullFlags(
 namespace syzygy
 {
 void DeferredShadingPipeline::recordDrawCommands(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     VkRect2D const drawRect,
     SceneTexture& sceneTexture,
     uint32_t atmosphericDirectionalLightsCount,
@@ -491,26 +492,26 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         m_shadowPassArray.recordDrawCommands(
-            cmd, sceneGeometry, renderOverrides
+            cmd.handle(), sceneGeometry, renderOverrides
         );
     }
 
     { // Prepare GBuffer resources
         m_gBuffer.recordTransitionImages(
-            cmd, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         );
 
         sceneTexture.depth().recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
         );
     }
 
     { // Deferred GBuffer pass
         setRasterizationShaderObjectState(
-            cmd, VkRect2D{.extent{drawRect.extent}}
+            cmd.handle(), VkRect2D{.extent{drawRect.extent}}
         );
 
-        vkCmdSetCullModeEXT(cmd, VK_CULL_MODE_BACK_BIT);
+        vkCmdSetCullModeEXT(cmd.handle(), VK_CULL_MODE_BACK_BIT);
 
         std::array<
             VkRenderingAttachmentInfo,
@@ -566,11 +567,15 @@ void DeferredShadingPipeline::recordDrawCommands(
                 colorComponentFlags,
                 colorComponentFlags
             };
-        vkCmdSetColorWriteMaskEXT(cmd, 0, VKR_ARRAY(attachmentWriteMasks));
+        vkCmdSetColorWriteMaskEXT(
+            cmd.handle(), 0, VKR_ARRAY(attachmentWriteMasks)
+        );
 
         std::array<VkBool32, GBuffer::GBUFFER_TEXTURE_COUNT> const
             colorBlendEnabled{VK_FALSE, VK_FALSE, VK_FALSE, VK_FALSE, VK_FALSE};
-        vkCmdSetColorBlendEnableEXT(cmd, 0, VKR_ARRAY(colorBlendEnabled));
+        vkCmdSetColorBlendEnableEXT(
+            cmd.handle(), 0, VKR_ARRAY(colorBlendEnabled)
+        );
 
         VkRenderingInfo const renderInfo{renderingInfo(
             VkRect2D{.extent{drawRect.extent}},
@@ -586,7 +591,7 @@ void DeferredShadingPipeline::recordDrawCommands(
             m_gBufferFragmentShader.shaderObject()
         };
 
-        vkCmdBeginRendering(cmd, &renderInfo);
+        vkCmdBeginRendering(cmd.handle(), &renderInfo);
 
         VkClearValue const clearColor{.color{.float32{0.0, 0.0, 0.0, 0.0}}};
         std::array<VkClearAttachment, GBuffer::GBUFFER_TEXTURE_COUNT> const
@@ -622,9 +627,11 @@ void DeferredShadingPipeline::recordDrawCommands(
             .baseArrayLayer = 0,
             .layerCount = 1,
         };
-        vkCmdClearAttachments(cmd, VKR_ARRAY(clearAttachments), 1, &clearRect);
+        vkCmdClearAttachments(
+            cmd.handle(), VKR_ARRAY(clearAttachments), 1, &clearRect
+        );
 
-        vkCmdBindShadersEXT(cmd, 2, stages.data(), shaders.data());
+        vkCmdBindShadersEXT(cmd.handle(), 2, stages.data(), shaders.data());
 
         for (size_t index{0}; index < sceneGeometry.size(); index++)
         {
@@ -657,7 +664,7 @@ void DeferredShadingPipeline::recordDrawCommands(
                     .cameraIndex = viewCameraIndex,
                 };
                 vkCmdPushConstants(
-                    cmd,
+                    cmd.handle(),
                     m_gBufferLayout,
                     VK_SHADER_STAGE_VERTEX_BIT,
                     0,
@@ -682,15 +689,18 @@ void DeferredShadingPipeline::recordDrawCommands(
                     surfaceDescriptors[surfaceIndex]
                 };
 
-                descriptors.bind(cmd, m_gBufferLayout, 3);
+                descriptors.bind(cmd.handle(), m_gBufferLayout, 3);
 
                 // Bind the entire index buffer of the mesh, but only draw a
                 // single surface.
                 vkCmdBindIndexBuffer(
-                    cmd, meshBuffers.indexBuffer(), 0, VK_INDEX_TYPE_UINT32
+                    cmd.handle(),
+                    meshBuffers.indexBuffer(),
+                    0,
+                    VK_INDEX_TYPE_UINT32
                 );
                 vkCmdDrawIndexed(
-                    cmd,
+                    cmd.handle(),
                     drawnSurface.indexCount,
                     models.deviceSize(),
                     drawnSurface.firstIndex,
@@ -707,32 +717,32 @@ void DeferredShadingPipeline::recordDrawCommands(
             VK_NULL_HANDLE, VK_NULL_HANDLE
         };
         vkCmdBindShadersEXT(
-            cmd, VKR_ARRAY(unboundStages), unboundHandles.data()
+            cmd.handle(), VKR_ARRAY(unboundStages), unboundHandles.data()
         );
 
-        vkCmdEndRendering(cmd);
+        vkCmdEndRendering(cmd.handle());
     }
 
     recordClearColorImage(
-        cmd, sceneTexture.color().image(), COLOR_BLACK_OPAQUE
+        cmd.handle(), sceneTexture.color().image(), COLOR_BLACK_OPAQUE
     );
 
     { // Lighting pass using GBuffer output
         m_gBuffer.recordTransitionImages(
-            cmd, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
         );
 
         sceneTexture.color().recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_GENERAL
+            cmd.handle(), VK_IMAGE_LAYOUT_GENERAL
         );
 
         m_shadowPassArray.recordTransitionActiveShadowMaps(
-            cmd, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+            cmd.handle(), VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
         );
 
         VkShaderStageFlagBits const computeStage{VK_SHADER_STAGE_COMPUTE_BIT};
         VkShaderEXT const shader{m_lightingPassComputeShader.shaderObject()};
-        vkCmdBindShadersEXT(cmd, 1, &computeStage, &shader);
+        vkCmdBindShadersEXT(cmd.handle(), 1, &computeStage, &shader);
 
         std::array<VkDescriptorSet, 4> descriptorSets{
             sceneTexture.singletonDescriptor(),
@@ -742,7 +752,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
 
         vkCmdBindDescriptorSets(
-            cmd,
+            cmd.handle(),
             VK_PIPELINE_BIND_POINT_COMPUTE,
             m_lightingPassLayout,
             0,
@@ -768,7 +778,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         };
 
         vkCmdPushConstants(
-            cmd,
+            cmd.handle(),
             m_lightingPassLayout,
             VK_SHADER_STAGE_COMPUTE_BIT,
             0,
@@ -779,7 +789,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         uint32_t constexpr COMPUTE_WORKGROUP_SIZE{16};
 
         vkCmdDispatch(
-            cmd,
+            cmd.handle(),
             computeDispatchCount(drawRect.extent.width, COMPUTE_WORKGROUP_SIZE),
             computeDispatchCount(
                 drawRect.extent.height, COMPUTE_WORKGROUP_SIZE
@@ -788,7 +798,7 @@ void DeferredShadingPipeline::recordDrawCommands(
         );
 
         VkShaderEXT const unboundHandle{VK_NULL_HANDLE};
-        vkCmdBindShadersEXT(cmd, 1, &computeStage, &unboundHandle);
+        vkCmdBindShadersEXT(cmd.handle(), 1, &computeStage, &unboundHandle);
     }
 }
 

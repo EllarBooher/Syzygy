@@ -215,8 +215,7 @@ auto rebuildSwapchain(
 
     return newSwapchain;
 }
-auto beginFrame(syzygy::Frame const& currentFrame, VkDevice const device)
-    -> VkResult
+auto beginFrame(syzygy::Frame& currentFrame, VkDevice const device) -> VkResult
 {
     uint64_t constexpr FRAME_WAIT_TIMEOUT_NANOSECONDS = 1'000'000'000;
     if (VkResult const waitResult{vkWaitForFences(
@@ -241,26 +240,7 @@ auto beginFrame(syzygy::Frame const& currentFrame, VkDevice const device)
         return resetResult;
     }
 
-    VkCommandBuffer const& cmd = currentFrame.mainCommandBuffer;
-
-    if (VkResult const resetCmdResult{vkResetCommandBuffer(cmd, 0)};
-        resetCmdResult != VK_SUCCESS)
-    {
-        SZG_LOG_VK(resetCmdResult, "Failed to reset frame command buffer.");
-        return resetCmdResult;
-    }
-
-    VkCommandBufferBeginInfo const cmdBeginInfo{syzygy::commandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    )};
-    if (VkResult const beginCmdResult{vkBeginCommandBuffer(cmd, &cmdBeginInfo)};
-        beginCmdResult != VK_SUCCESS)
-    {
-        SZG_LOG_VK(beginCmdResult, "Failed to begin frame command buffer.");
-        return beginCmdResult;
-    }
-
-    return VK_SUCCESS;
+    return currentFrame.mainCommandBuffer.restart();
 }
 
 auto endFrame(
@@ -572,7 +552,7 @@ auto run() -> EditorResult
         scene.tick(lastFrameTiming);
 
         frameBuffer.increment();
-        Frame const& currentFrame{frameBuffer.currentFrame()};
+        Frame& currentFrame{frameBuffer.currentFrame()};
 
         if (VkResult const beginFrameResult{
                 beginFrame(currentFrame, graphicsContext.device())
@@ -644,7 +624,7 @@ auto run() -> EditorResult
                 testImageWidget->uiRender(
                     "Texture Viewer",
                     dockingLayout.right,
-                    currentFrame.mainCommandBuffer,
+                    currentFrame.mainCommandBuffer.handle(),
                     assetLibrary.fetchAssetRefs<ImageView>()
                 )
             };
@@ -678,7 +658,7 @@ auto run() -> EditorResult
         }
 
         std::optional<UIOutputImage> uiOutput{
-            uiLayer.recordDraw(currentFrame.mainCommandBuffer)
+            uiLayer.recordDraw(currentFrame.mainCommandBuffer.handle())
         };
         if (!uiOutput.has_value())
         {
@@ -693,7 +673,7 @@ auto run() -> EditorResult
                 swapchain,
                 graphicsContext.device(),
                 graphicsContext.universalQueue(),
-                currentFrame.mainCommandBuffer,
+                currentFrame.mainCommandBuffer.handle(),
                 uiOutput.value().texture,
                 uiOutput.value().renderedSubregion,
                 configuration.transferFunction

@@ -4,6 +4,7 @@
 #include "syzygy/geometry/geometrystatics.hpp"
 #include "syzygy/geometry/geometrytypes.hpp"
 #include "syzygy/geometry/transform.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include "syzygy/renderer/gputypes.hpp"
 #include "syzygy/renderer/scenetexture.hpp"
 #include "syzygy/renderer/vulkanstructs.hpp"
@@ -315,7 +316,7 @@ auto WireframeOverlay::renderInfo() const -> WireframeRenderInfo
 }
 
 void WireframeOverlay::recordDraw(
-    VkCommandBuffer cmd,
+    CommandBuffer& cmd,
     VkRect2D sceneSubregion,
     SceneTexture& sceneTexture,
     TStagedBuffer<CameraPacked> const& camerasBuffer,

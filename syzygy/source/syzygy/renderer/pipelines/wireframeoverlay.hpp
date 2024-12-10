@@ -18,6 +18,7 @@ struct AABB;
 struct Transform;
 struct TickTiming;
 struct SceneTexture;
+struct CommandBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -132,7 +133,7 @@ public:
     [[nodiscard]] auto renderInfo() const -> WireframeRenderInfo;
 
     void recordDraw(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         VkRect2D sceneSubregion,
         SceneTexture& sceneTexture,
         TStagedBuffer<CameraPacked> const& camerasBuffer,

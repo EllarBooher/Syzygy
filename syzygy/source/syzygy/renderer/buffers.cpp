@@ -6,6 +6,8 @@
 
 namespace syzygy
 {
+auto StagedBuffer::isDirty() const -> bool { return m_dirty; }
+
 auto AllocatedBuffer::allocate(
     VkDevice const device,
     VmaAllocator const allocator,
@@ -15,6 +17,8 @@ auto AllocatedBuffer::allocate(
     VmaAllocationCreateFlags const createFlags
 ) -> AllocatedBuffer
 {
+    AllocatedBuffer result{};
+
     VkBufferCreateInfo const vkCreateInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = nullptr,
@@ -52,14 +56,13 @@ auto AllocatedBuffer::allocate(
         deviceAddress = vkGetBufferDeviceAddress(device, &addressInfo);
     }
 
-    return {
-        vkCreateInfo,
-        vmaCreateInfo,
-        allocator,
-        allocation,
-        deviceAddress,
-        buffer
-    };
+    result.m_vkCreateInfo = vkCreateInfo;
+    result.m_vmaCreateInfo = vmaCreateInfo;
+    result.m_allocation = std::make_shared<BufferAllocation>(
+        allocator, allocation, buffer, deviceAddress
+    );
+
+    return result;
 }
 
 auto AllocatedBuffer::bufferSize() const -> VkDeviceSize
@@ -70,7 +73,7 @@ auto AllocatedBuffer::bufferSize() const -> VkDeviceSize
 auto AllocatedBuffer::isMapped() const -> bool
 {
     return m_allocation != VK_NULL_HANDLE
-        && getMappedPointer_impl(*this) != nullptr;
+        && m_allocation->getMappedPointer() != nullptr;
 }
 
 void AllocatedBuffer::writeBytes(
@@ -80,7 +83,7 @@ void AllocatedBuffer::writeBytes(
     assert(data.size_bytes() + offset <= bufferSize());
 
     uint8_t* const start{
-        reinterpret_cast<uint8_t*>(getMappedPointer_impl(*this)) + offset
+        reinterpret_cast<uint8_t*>(m_allocation->getMappedPointer()) + offset
     };
     std::copy(data.begin(), data.end(), start);
 }
@@ -92,7 +95,7 @@ auto AllocatedBuffer::readBytes() const -> std::span<uint8_t const>
         return {};
     }
 
-    return {getMappedPointer_impl(*this), bufferSize()};
+    return {m_allocation->getMappedPointer(), bufferSize()};
 }
 
 auto AllocatedBuffer::mappedBytes() -> std::span<uint8_t>
@@ -102,7 +105,7 @@ auto AllocatedBuffer::mappedBytes() -> std::span<uint8_t>
         return {};
     }
 
-    return {getMappedPointer_impl(*this), bufferSize()};
+    return {m_allocation->getMappedPointer(), bufferSize()};
 }
 
 auto AllocatedBuffer::deviceAddress() const -> VkDeviceAddress
@@ -115,69 +118,19 @@ auto AllocatedBuffer::deviceAddress() const -> VkDeviceAddress
         );
     }
 
-    return m_deviceAddress;
+    return m_allocation->address();
 }
 
-auto AllocatedBuffer::buffer() const -> VkBuffer { return m_buffer; }
-
-auto AllocatedBuffer::flush() -> VkResult { return flush_impl(*this); }
-
-void AllocatedBuffer::destroy() const
+auto AllocatedBuffer::buffer() const -> VkBuffer
 {
-    if (m_allocator == VK_NULL_HANDLE
-        && (m_allocation != VK_NULL_HANDLE || m_buffer != VK_NULL_HANDLE))
-    {
-        SZG_WARNING(
-            "Allocator was null when attempting to destroy buffer and/or "
-            "memory."
-        );
-        return;
-    }
-
-    if (m_allocator == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    // VMA handles the case of if one or the other is null
-    vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+    return m_allocation->buffer();
 }
 
-auto AllocatedBuffer::getMappedPointer_impl(AllocatedBuffer& buffer) -> uint8_t*
-{
-    void* const rawPointer{allocationInfo_impl(buffer).pMappedData};
+void AllocatedBuffer::bind(CommandBuffer& cmd) { cmd.bindBuffer(m_allocation); }
 
-    return reinterpret_cast<uint8_t*>(rawPointer);
-}
+auto AllocatedBuffer::flush() -> VkResult { return m_allocation->flush(); }
 
-auto AllocatedBuffer::getMappedPointer_impl(AllocatedBuffer const& buffer)
-    -> uint8_t const*
-{
-    void* const rawPointer{allocationInfo_impl(buffer).pMappedData};
-
-    return reinterpret_cast<uint8_t const*>(rawPointer);
-}
-
-auto AllocatedBuffer::flush_impl(AllocatedBuffer& buffer) -> VkResult
-{
-    return vmaFlushAllocation(
-        buffer.m_allocator, buffer.m_allocation, 0, VK_WHOLE_SIZE
-    );
-}
-
-auto AllocatedBuffer::allocationInfo_impl(AllocatedBuffer const& buffer)
-    -> VmaAllocationInfo
-{
-    VmaAllocationInfo allocationInfo;
-
-    vmaGetAllocationInfo(
-        buffer.m_allocator, buffer.m_allocation, &allocationInfo
-    );
-
-    return allocationInfo;
-}
-
-void StagedBuffer::recordCopyToDevice(VkCommandBuffer const cmd)
+void StagedBuffer::recordCopyToDevice(CommandBuffer& cmd)
 {
     SZG_CHECK_VK(m_stagingBuffer->flush());
 
@@ -188,8 +141,18 @@ void StagedBuffer::recordCopyToDevice(VkCommandBuffer const cmd)
         .dstOffset = 0,
         .size = m_stagedSizeBytes,
     };
+
+    // Binding this way could lead to duplicate binding. But that seems okay for
+    // how we are using his.
+    m_stagingBuffer->bind(cmd);
+    m_deviceBuffer->bind(cmd);
+
     vkCmdCopyBuffer(
-        cmd, m_stagingBuffer->buffer(), m_deviceBuffer->buffer(), 1, &copyInfo
+        cmd.handle(),
+        m_stagingBuffer->buffer(),
+        m_deviceBuffer->buffer(),
+        1,
+        &copyInfo
     );
 
     m_deviceSizeBytes = m_stagedSizeBytes;
@@ -200,8 +163,9 @@ auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
     if (isDirty())
     {
         SZG_WARNING(
-            "Dirty buffer's device address was accessed, "
-            "the buffer may have unexpected values at command execution."
+            "Dirty buffer's device address was accessed, the buffer's "
+            "binding is possibly not tracked and may have unexpected values at "
+            "command execution."
         );
     }
 
@@ -210,6 +174,15 @@ auto StagedBuffer::deviceAddress() const -> VkDeviceAddress
 
 auto StagedBuffer::deviceBuffer() const -> VkBuffer
 {
+    if (isDirty())
+    {
+        SZG_WARNING(
+            "Dirty buffer's handle was accessed, the buffer's binding is "
+            "possibly not tracked and may have unexpected values at command "
+            "execution."
+        );
+    }
+
     return m_deviceBuffer->buffer();
 }
 
@@ -335,7 +308,7 @@ auto StagedBuffer::allocate(
 }
 
 void StagedBuffer::recordTotalCopyBarrier(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     VkPipelineStageFlags2 const destinationStage,
     VkAccessFlags2 const destinationAccessFlags
 ) const
@@ -374,8 +347,7 @@ void StagedBuffer::recordTotalCopyBarrier(
         .pImageMemoryBarriers = nullptr,
     };
 
-    vkCmdPipelineBarrier2(cmd, &transformsDependency);
+    m_deviceBuffer->bind(cmd);
+    vkCmdPipelineBarrier2(cmd.handle(), &transformsDependency);
 }
-
-auto StagedBuffer::isDirty() const -> bool { return m_dirty; }
 } // namespace syzygy

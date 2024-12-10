@@ -461,7 +461,7 @@ DebugLineGraphicsPipeline::DebugLineGraphicsPipeline(
 }
 
 auto DebugLineGraphicsPipeline::recordDrawCommands(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     bool const reuseDepthAttachment,
     float const lineWidth,
     VkRect2D const drawRect,
@@ -529,11 +529,13 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
         cmd, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT, VK_ACCESS_2_INDEX_READ_BIT
     );
 
-    vkCmdBeginRendering(cmd, &renderInfo);
+    vkCmdBeginRendering(cmd.handle(), &renderInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+    vkCmdBindPipeline(
+        cmd.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline
+    );
 
-    vkCmdSetLineWidth(cmd, lineWidth);
+    vkCmdSetLineWidth(cmd.handle(), lineWidth);
 
     VkViewport const viewport{
         .x = static_cast<float>(drawRect.offset.x),
@@ -544,11 +546,11 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
         .maxDepth = 1.0F,
     };
 
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetViewport(cmd.handle(), 0, 1, &viewport);
 
     VkRect2D const scissor{drawRect};
 
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdSetScissor(cmd.handle(), 0, 1, &scissor);
 
     { // Vertex push constant
         VertexPushConstant const vertexPushConstant{
@@ -557,7 +559,7 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
             .cameraIndex = cameraIndex,
         };
         vkCmdPushConstants(
-            cmd,
+            cmd.handle(),
             m_graphicsPipelineLayout,
             VK_SHADER_STAGE_VERTEX_BIT,
             0,
@@ -569,10 +571,12 @@ auto DebugLineGraphicsPipeline::recordDrawCommands(
 
     // Bind the entire index buffer of the mesh,
     // but only draw a single surface.
-    vkCmdBindIndexBuffer(cmd, indices.deviceBuffer(), 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDraw(cmd, indices.deviceSize(), 1, 0, 0);
+    vkCmdBindIndexBuffer(
+        cmd.handle(), indices.deviceBuffer(), 0, VK_INDEX_TYPE_UINT32
+    );
+    vkCmdDraw(cmd.handle(), indices.deviceSize(), 1, 0, 0);
 
-    vkCmdEndRendering(cmd);
+    vkCmdEndRendering(cmd.handle());
 
     return DrawResultsGraphics{
         .drawCalls = 1,

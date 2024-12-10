@@ -43,15 +43,17 @@ auto createFrame(VkDevice const device, uint32_t const queueFamilyIndex)
         .commandBufferCount = 1,
     };
 
-    if (VkResult const result{vkAllocateCommandBuffers(
-            device, &cmdAllocInfo, &frame.mainCommandBuffer
-        )};
+    VkCommandBuffer cmd;
+    if (VkResult const result{
+            vkAllocateCommandBuffers(device, &cmdAllocInfo, &cmd)
+        };
         result != VK_SUCCESS)
     {
         SZG_LOG_VK(result, "Failed to allocate frame command buffer.");
         cleanupCallbacks.flush();
         return std::nullopt;
     }
+    frame.mainCommandBuffer = syzygy::CommandBuffer::create(cmd);
 
     // Frames start signaled so they can be initially used
     VkFenceCreateInfo const fenceCreateInfo{
@@ -149,7 +151,7 @@ auto FrameBuffer::create(VkDevice const device, uint32_t const queueFamilyIndex)
     return frameBufferResult;
 }
 
-auto FrameBuffer::currentFrame() const -> Frame const&
+auto FrameBuffer::currentFrame() -> Frame&
 {
     size_t const index{m_frameNumber % m_frames.size()};
     return m_frames[index];

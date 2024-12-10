@@ -16,6 +16,7 @@ namespace syzygy
 struct MeshInstanced;
 struct DescriptorAllocator;
 struct SceneTexture;
+struct CommandBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -32,7 +33,7 @@ public:
     );
 
     void recordDrawCommands(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         VkRect2D drawRect,
         SceneTexture& sceneTexture,
         uint32_t atmosphericDirectionalLightsCount,

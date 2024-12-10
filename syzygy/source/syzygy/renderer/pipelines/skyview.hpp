@@ -15,6 +15,7 @@ struct SceneTexture;
 template <typename T> struct TStagedBuffer;
 struct GBuffer;
 struct ShadowPassArray;
+struct CommandBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -35,7 +36,7 @@ public:
         -> std::unique_ptr<SkyViewComputePipeline>;
 
     void recordDrawCommands(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         SceneTexture& sceneTexture,
         VkRect2D drawRect,
         GBuffer const& gbuffer,

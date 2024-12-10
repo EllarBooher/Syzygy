@@ -3,6 +3,8 @@
 #include "syzygy/core/log.hpp"
 #include "syzygy/platform/integer.hpp"
 #include "syzygy/platform/vulkanusage.hpp"
+#include "syzygy/renderer/bufferallocation.hpp"
+#include "syzygy/renderer/commandbuffer.hpp"
 #include <cassert>
 #include <memory>
 #include <span>
@@ -16,33 +18,22 @@ namespace syzygy
 struct AllocatedBuffer
 {
 public:
-    AllocatedBuffer() = delete;
-
     AllocatedBuffer(AllocatedBuffer&& other) noexcept
     {
         *this = std::move(other);
     };
     auto operator=(AllocatedBuffer&& other) noexcept -> AllocatedBuffer&
     {
-        destroy();
-
         m_vkCreateInfo = std::exchange(other.m_vkCreateInfo, {});
         m_vmaCreateInfo = std::exchange(other.m_vmaCreateInfo, {});
 
-        m_deviceAddress = std::exchange(other.m_deviceAddress, 0);
-
-        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
-        m_allocation = std::exchange(other.m_allocation, VK_NULL_HANDLE);
-
-        m_buffer = std::exchange(other.m_buffer, VK_NULL_HANDLE);
+        m_allocation = std::move(other.m_allocation);
 
         return *this;
     }
 
     AllocatedBuffer(AllocatedBuffer const& other) = delete;
     auto operator=(AllocatedBuffer const& other) -> AllocatedBuffer& = delete;
-
-    ~AllocatedBuffer() noexcept { destroy(); }
 
     static auto allocate(
         VkDevice device,
@@ -64,45 +55,19 @@ public:
     [[nodiscard]] auto deviceAddress() const -> VkDeviceAddress;
     [[nodiscard]] auto buffer() const -> VkBuffer;
 
+    void bind(CommandBuffer&);
+
     auto flush() -> VkResult;
 
 private:
-    void destroy() const;
-
-    AllocatedBuffer(
-        VkBufferCreateInfo vkCreateInfo,
-        VmaAllocationCreateInfo vmaCreateInfo,
-        VmaAllocator allocator,
-        VmaAllocation allocation,
-        VkDeviceAddress deviceAddress,
-        VkBuffer buffer
-    )
-        : m_vkCreateInfo{vkCreateInfo}
-        , m_vmaCreateInfo{vmaCreateInfo}
-        , m_deviceAddress{deviceAddress}
-        , m_allocator{allocator}
-        , m_allocation{allocation}
-        , m_buffer{buffer}
-    {
-    }
-
-    static auto getMappedPointer_impl(AllocatedBuffer&) -> uint8_t*;
-    static auto getMappedPointer_impl(AllocatedBuffer const&) -> uint8_t const*;
-
-    static auto flush_impl(AllocatedBuffer& buffer) -> VkResult;
-    static auto allocationInfo_impl(AllocatedBuffer const& buffer)
-        -> VmaAllocationInfo;
+    AllocatedBuffer() = default;
 
     // For now we store all of this with each buffer to simplify management
     // at the cost of memory and speed.
     VkBufferCreateInfo m_vkCreateInfo{};
     VmaAllocationCreateInfo m_vmaCreateInfo{};
 
-    VkDeviceAddress m_deviceAddress{};
-
-    VmaAllocator m_allocator{VK_NULL_HANDLE};
-    VmaAllocation m_allocation{VK_NULL_HANDLE};
-    VkBuffer m_buffer{VK_NULL_HANDLE};
+    std::shared_ptr<BufferAllocation> m_allocation{};
 };
 
 // Two linked buffers of the same capacity, one on host and one on device.
@@ -147,11 +112,11 @@ struct StagedBuffer
     // This creates the assumption that the memory on the device is a snapshot
     // of the staged memory at this point, even if a barrier has not been
     // recorded yet.
-    void recordCopyToDevice(VkCommandBuffer cmd);
+    void recordCopyToDevice(CommandBuffer& cmd);
 
     // Records a barrier to compliment StagedBuffer::recordCopyToDevice.
     void recordTotalCopyBarrier(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         VkPipelineStageFlags2 destinationStage,
         VkAccessFlags2 destinationAccessFlags
     ) const;

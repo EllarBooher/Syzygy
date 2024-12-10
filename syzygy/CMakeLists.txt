@@ -33,6 +33,9 @@ add_library(
 	"source/syzygy/renderer/scenenode.cpp"
 	"source/syzygy/renderer/material.cpp"
 	"source/syzygy/renderer/lights.cpp"
+	"source/syzygy/renderer/commandbuffer.cpp"
+	"source/syzygy/renderer/bufferallocation.cpp"
+	"source/syzygy/renderer/pipelines/skyview.cpp"
 
 	"source/syzygy/ui/engineui.cpp"
 	"source/syzygy/ui/pipelineui.cpp"
@@ -43,6 +46,7 @@ add_library(
 	"source/syzygy/ui/dockinglayout.cpp"
 	"source/syzygy/ui/texturedisplay.cpp"
 	"source/syzygy/ui/uiwidgets.cpp"
+	"source/syzygy/ui/scenenodegizmo.cpp"
 
 	"source/syzygy/editor/editor.cpp"
 	"source/syzygy/editor/window.cpp" 
@@ -59,8 +63,6 @@ add_library(
 	"source/syzygy/platform/vulkanusage.cpp"
 	"source/syzygy/platform/windowsplatformutils.cpp"
 	"source/syzygy/platform/filesystemutils.cpp"
-	"source/syzygy/renderer/pipelines/skyview.cpp"
-	"source/syzygy/ui/scenenodegizmo.cpp"
 )
 
 add_dependencies(syzygy syzygy-shaders)

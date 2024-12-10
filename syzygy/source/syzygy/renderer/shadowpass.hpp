@@ -17,6 +17,7 @@ struct DescriptorAllocator;
 struct DirectionalLightPacked;
 struct SpotLightPacked;
 struct MeshRenderResources;
+struct CommandBuffer;
 } // namespace syzygy
 
 namespace syzygy
@@ -46,7 +47,7 @@ public:
     // Prepares shadow maps for a specified number of syzygy.
     // Calling this twice overwrites the previous results.
     void recordInitialize(
-        VkCommandBuffer cmd,
+        CommandBuffer& cmd,
         ShadowPassParameters parameters,
         std::span<syzygy::DirectionalLightPacked const> directionalLights,
         std::span<syzygy::SpotLightPacked const> spotLights

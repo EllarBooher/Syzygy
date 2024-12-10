@@ -259,7 +259,7 @@ auto Renderer::wireframeOverlay() -> WireframeOverlay&
 }
 
 void Renderer::recordDraw(
-    VkCommandBuffer const cmd,
+    CommandBuffer& cmd,
     Scene& scene,
     DescriptorAllocator& sceneMeshSurfaceDescriptorPool,
     SceneTexture& sceneTexture,
@@ -355,7 +355,7 @@ void Renderer::recordDraw(
 
     {
         sceneTexture.color().recordTransitionBarriered(
-            cmd, VK_IMAGE_LAYOUT_GENERAL
+            cmd.handle(), VK_IMAGE_LAYOUT_GENERAL
         );
 
         uint32_t const cameraIndex{0};
@@ -382,7 +382,7 @@ void Renderer::recordDraw(
             );
 
             sceneTexture.color().recordTransitionBarriered(
-                cmd, VK_IMAGE_LAYOUT_GENERAL
+                cmd.handle(), VK_IMAGE_LAYOUT_GENERAL
             );
 
             if (m_renderAtmosphere)
@@ -418,7 +418,9 @@ void Renderer::recordDraw(
         case RenderingPipelines::COMPUTE_COLLECTION:
         {
             m_genericComputePipeline->recordDrawCommands(
-                cmd, sceneTexture.singletonDescriptor(), sceneSubregion.extent
+                cmd.handle(),
+                sceneTexture.singletonDescriptor(),
+                sceneSubregion.extent
             );
 
             break;
