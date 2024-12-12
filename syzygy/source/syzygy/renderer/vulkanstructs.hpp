@@ -67,6 +67,8 @@ auto renderingInfo(
     VkRenderingAttachmentInfo const* pDepthAttachment
 ) -> VkRenderingInfo;
 
+// TODO: This leaves a dangling pointer if the passed string is not static,
+// change to const char*
 auto pipelineShaderStageCreateInfo(
     VkShaderStageFlagBits stage,
     VkShaderModule module,
